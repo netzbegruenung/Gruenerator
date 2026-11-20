@@ -1,32 +1,57 @@
+import { Button } from '@gruenerator/ui';
+import { useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+
 import { LoadErrorState } from '../components/common/LoadErrorState';
-import { CreateFlow } from '../create/CreateFlow';
 import { SiteEditor } from '../editor/SiteEditor';
-import { useSite } from '../hooks/useSite';
+import { CurrentSiteProvider, useSiteByHandle } from '../hooks/useSite';
+import { useSitesPaths } from '../SitesContext';
+
+import { PageSpinner } from './PageSpinner';
+import { useBackToOverview } from './useBackToOverview';
 
 interface EditPageProps {
-  /** Leaves the editor; the host decides where to (the page the person came from). */
-  onBack?: () => void;
+  /** The address (or id) from the URL `/sites/<handle>`. */
+  handle: string;
 }
 
-export function EditPage({ onBack }: EditPageProps) {
-  const { site, isLoading, error, refetch } = useSite();
+export function EditPage({ handle }: EditPageProps) {
+  const { site, publicOrigin, isLoading, error, refetch } = useSiteByHandle(handle);
+  const navigate = useNavigate();
+  const routeState: unknown = useLocation().state;
+  const paths = useSitesPaths();
+  const back = useBackToOverview();
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-full gap-4 text-grey-600 dark:text-grey-400">
-        <div className="w-10 h-10 border-[3px] border-grey-200 dark:border-grey-700 border-t-primary-600 rounded-full animate-spin" />
-        <p>Seite wird geladen...</p>
-      </div>
-    );
-  }
+  // An address change (or an id in the URL) moves the editor to the site's current address.
+  const canonical = site && site.subdomain !== handle ? site.subdomain : null;
+  useEffect(() => {
+    if (canonical) void navigate(paths.site(canonical), { replace: true, state: routeState });
+  }, [canonical, navigate, paths, routeState]);
+
+  if (isLoading) return <PageSpinner label="Seite wird geladen..." />;
 
   if (error) {
     return <LoadErrorState onRetry={() => void refetch()} />;
   }
 
-  if (site) {
-    return <SiteEditor key={site.id} site={site} onBack={onBack} />;
+  if (!site) {
+    return (
+      <div
+        role="alert"
+        className="flex min-h-full flex-col items-center justify-center gap-md p-lg text-center"
+      >
+        <h2 className="m-0 text-lg text-foreground">Website nicht gefunden</h2>
+        <p className="m-0 text-grey-600 dark:text-grey-400">
+          Unter dieser Adresse hast du keine Website.
+        </p>
+        <Button onClick={() => void navigate(paths.overview)}>Zu deinen Websites</Button>
+      </div>
+    );
   }
 
-  return <CreateFlow onBack={onBack} />;
+  return (
+    <CurrentSiteProvider value={{ site, public_origin: publicOrigin }}>
+      <SiteEditor key={site.id} site={site} onBack={back} />
+    </CurrentSiteProvider>
+  );
 }

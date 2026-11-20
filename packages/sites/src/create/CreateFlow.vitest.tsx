@@ -1,5 +1,7 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render as rtlRender, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ReactElement } from 'react';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SiteGenerationError } from '../generation/siteGenerationStream';
@@ -7,7 +9,7 @@ import { SitesApiError } from '../utils/errorHandler';
 
 const m = vi.hoisted(() => ({
   createSite: vi.fn(),
-  refetch: vi.fn(),
+  getSiteByHandle: vi.fn(),
   generate: vi.fn(),
   cancel: vi.fn(),
   toastError: vi.fn(),
@@ -21,14 +23,21 @@ const m = vi.hoisted(() => ({
 
 vi.mock('../SitesContext', () => ({
   useAuth: () => ({ user: { display_name: 'Anna', email: 'a@b.de', locale: 'de-DE' } }),
+  useSitesPaths: () => ({
+    overview: '/sites',
+    create: '/sites/neu',
+    site: (handle: string) => `/sites/${handle}`,
+  }),
 }));
 vi.mock('../hooks/useSite', () => ({
-  useSite: () => ({
+  useCreateSite: () => ({
     publicOrigin: 'https://grsites.de',
     createSite: m.createSite,
     isCreating: false,
-    refetch: m.refetch,
   }),
+}));
+vi.mock('@gruenerator/shared/api', () => ({
+  getContractsClient: () => ({ sites: { getSiteByHandle: m.getSiteByHandle } }),
 }));
 vi.mock('../hooks/useSiteGeneration', () => ({
   useSiteGeneration: () => ({ generate: m.generate, cancel: m.cancel, ...m.gen }),
@@ -56,6 +65,21 @@ vi.mock('../components/CreateSiteScreen', () => ({
 
 import { CreateFlow } from './CreateFlow';
 
+function Where() {
+  return <span data-testid="pfad">{useLocation().pathname}</span>;
+}
+
+function render(ui: ReactElement) {
+  return rtlRender(
+    <MemoryRouter initialEntries={['/sites/neu']}>
+      <Routes>
+        <Route path="/sites/neu" element={ui} />
+        <Route path="/sites/:handle" element={<Where />} />
+      </Routes>
+    </MemoryRouter>
+  );
+}
+
 const SECTIONS = { themes: [{ title: 'Klima' }] };
 const generated = {
   site_title: 'Anna',
@@ -75,9 +99,9 @@ async function fillAndGenerate() {
 
 describe('CreateFlow', () => {
   beforeEach(() => {
-    m.createSite.mockReset().mockResolvedValue({});
+    m.createSite.mockReset().mockResolvedValue({ subdomain: 'anna' });
+    m.getSiteByHandle.mockReset().mockResolvedValue({ status: 404, body: { error: 'x' } });
     m.generate.mockReset();
-    m.refetch.mockReset();
     m.toastError.mockReset();
     m.gen.steps = [];
     m.gen.current = null;
@@ -97,6 +121,7 @@ describe('CreateFlow', () => {
         contact_email: 'a@b.de',
       })
     );
+    expect(await screen.findByTestId('pfad')).toHaveTextContent('/sites/anna');
   });
 
   it('shows the flyer message while a flyer runs', () => {
@@ -151,17 +176,38 @@ describe('CreateFlow', () => {
     );
   });
 
-  it('shows the server message and reloads the site when it already exists', async () => {
+  it('shows the server message when the address belongs to someone else', async () => {
     m.generate.mockResolvedValue(generated);
-    m.createSite.mockRejectedValue(new SitesApiError(400, 'Du hast bereits eine Website erstellt'));
+    m.createSite.mockRejectedValue(new SitesApiError(400, 'Diese Adresse ist bereits vergeben'));
     const user = await fillAndGenerate();
     await user.click(await screen.findByRole('button', { name: 'Seite erstellen' }));
     await waitFor(() =>
       expect(m.toastError).toHaveBeenCalledWith(
         'Eingabefehler',
-        'Du hast bereits eine Website erstellt'
+        'Diese Adresse ist bereits vergeben'
       )
     );
-    expect(m.refetch).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('pfad')).toBeNull();
+  });
+
+  it('opens the editor when an earlier attempt already stored the site', async () => {
+    m.generate.mockResolvedValue(generated);
+    m.createSite.mockRejectedValue(new SitesApiError(400, 'Diese Adresse ist bereits vergeben'));
+    m.getSiteByHandle.mockResolvedValue({ status: 200, body: {} });
+    const user = await fillAndGenerate();
+    await user.click(await screen.findByRole('button', { name: 'Seite erstellen' }));
+    expect(await screen.findByTestId('pfad')).toHaveTextContent('/sites/anna');
+    expect(m.toastError).not.toHaveBeenCalled();
+  });
+
+  it('names the limit when the account is full', async () => {
+    m.generate.mockResolvedValue(generated);
+    m.createSite.mockRejectedValue(new SitesApiError(409, 'Du hast bereits 25 Websites.'));
+    const user = await fillAndGenerate();
+    await user.click(await screen.findByRole('button', { name: 'Seite erstellen' }));
+    await waitFor(() =>
+      expect(m.toastError).toHaveBeenCalledWith('Fehler', 'Du hast bereits 25 Websites.')
+    );
+    expect(m.getSiteByHandle).not.toHaveBeenCalled();
   });
 });

@@ -1,5 +1,6 @@
 import { removeDocCache } from '@gruenerator/collab';
 import {
+  SITES_PER_ACCOUNT_MAX,
   type CreateSiteBody,
   type Site,
   type SitePublishIssue,
@@ -8,6 +9,7 @@ import {
 } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { createContext, createElement, useContext, type ReactNode } from 'react';
 
 import { type GeneratedSiteData } from '../generation/transform';
 import { SitesApiError } from '../utils/errorHandler';
@@ -53,23 +55,86 @@ export function usePrepareSiteDraft() {
   return mutation.mutateAsync;
 }
 
-export function useSite() {
-  const queryClient = useQueryClient();
+/** Every Sites query lives under this prefix; mutations invalidate it as a whole. */
+export const SITES_QUERY_KEY = ['sites'] as const;
+const SITE_LIST_KEY = ['sites', 'list'] as const;
+export const siteHandleKey = (handle: string) => ['sites', 'handle', handle] as const;
 
-  const { data, isLoading, error, refetch } = useQuery<{
-    site: Site | null;
-    public_origin: string | null;
-  }>({
-    queryKey: ['my-site'],
+export type SiteByHandleData = { site: Site; public_origin: string | null };
+
+/** The account's sites for the overview, most recently edited first. */
+export function useSiteList() {
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: SITE_LIST_KEY,
     queryFn: async () => {
-      const res = await getContractsClient().sites.getMySite();
+      const res = await getContractsClient().sites.listSites();
       if (res.status !== 200) throw toApiError(res);
-      return { site: res.body.site, public_origin: res.body.public_origin };
+      return res.body;
     },
   });
-  const site = data ? data.site : undefined;
-  const publicOrigin = data ? data.public_origin : null;
-  const prepareDraft = usePrepareSiteDraft();
+  return {
+    sites: data ? data.sites : null,
+    publicOrigin: data ? data.public_origin : null,
+    limit: data ? data.limit : SITES_PER_ACCOUNT_MAX,
+    isLoading,
+    error,
+    refetch,
+  };
+}
+
+/** One own site by address (or id); `site` is null when there is none under that name. */
+export function useSiteByHandle(handle: string) {
+  const { data, isLoading, error, refetch } = useQuery<SiteByHandleData | null>({
+    queryKey: siteHandleKey(handle),
+    queryFn: async () => {
+      const res = await getContractsClient().sites.getSiteByHandle({ params: { handle } });
+      if (res.status === 404) return null;
+      if (res.status !== 200) throw toApiError(res);
+      return res.body;
+    },
+  });
+  return {
+    site: data === undefined ? undefined : (data?.site ?? null),
+    publicOrigin: data ? data.public_origin : null,
+    isLoading,
+    error,
+    refetch,
+  };
+}
+
+const CurrentSiteContext = createContext<SiteByHandleData | null>(null);
+
+/** The site the editor has open; `useSite()` below reads it. */
+export function CurrentSiteProvider({
+  value,
+  children,
+}: {
+  value: SiteByHandleData;
+  children: ReactNode;
+}) {
+  return createElement(CurrentSiteContext.Provider, { value }, children);
+}
+
+function useSiteMutations() {
+  const queryClient = useQueryClient();
+
+  /** Write a returned site into every open by-handle entry for it, and under its address. */
+  const storeSite = (site: Site) => {
+    queryClient.setQueriesData<SiteByHandleData | null>({ queryKey: ['sites', 'handle'] }, (old) =>
+      old && old.site.id === site.id ? { ...old, site } : old
+    );
+    const underHandle = queryClient.getQueryData<SiteByHandleData | null>(
+      siteHandleKey(site.subdomain)
+    );
+    if (!underHandle) {
+      const origin = queryClient.getQueryData<{ public_origin: string | null }>(SITE_LIST_KEY);
+      queryClient.setQueryData<SiteByHandleData>(siteHandleKey(site.subdomain), {
+        site,
+        public_origin: origin?.public_origin ?? null,
+      });
+    }
+    void queryClient.invalidateQueries({ queryKey: SITE_LIST_KEY });
+  };
 
   const createMutation = useMutation({
     // Callers surface errors themselves; the app-wide mutation toast would show a second one.
@@ -79,9 +144,7 @@ export function useSite() {
       if (res.status !== 200) throw toApiError(res);
       return res.body.site;
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['my-site'] });
-    },
+    onSuccess: storeSite,
   });
 
   const updateMutation = useMutation({
@@ -92,9 +155,7 @@ export function useSite() {
       if (res.status !== 200) throw toApiError(res);
       return res.body.site;
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['my-site'] });
-    },
+    onSuccess: storeSite,
   });
 
   const publishMutation = useMutation({
@@ -109,9 +170,7 @@ export function useSite() {
       if (res.status !== 200) throw toApiError(res);
       return res.body.site;
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['my-site'] });
-    },
+    onSuccess: storeSite,
   });
 
   const deleteMutation = useMutation({
@@ -123,17 +182,11 @@ export function useSite() {
       removeDocCache(`site-${id}`);
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['my-site'] });
+      void queryClient.invalidateQueries({ queryKey: SITES_QUERY_KEY });
     },
   });
 
   return {
-    site,
-    publicOrigin,
-    prepareDraft,
-    isLoading,
-    error,
-    refetch,
     createSite: createMutation.mutateAsync,
     updateSite: updateMutation.mutateAsync,
     togglePublish: publishMutation.mutateAsync,
@@ -142,5 +195,23 @@ export function useSite() {
     isUpdating: updateMutation.isPending,
     isPublishing: publishMutation.isPending,
     isDeleting: deleteMutation.isPending,
+  };
+}
+
+/** Creating a site, outside the editor (no current site yet). */
+export function useCreateSite() {
+  const { createSite, isCreating } = useSiteMutations();
+  const { publicOrigin } = useSiteList();
+  return { createSite, isCreating, publicOrigin };
+}
+
+/** The open site plus its mutations; only inside `<CurrentSiteProvider>`. */
+export function useSite() {
+  const current = useContext(CurrentSiteContext);
+  if (!current) throw new Error('useSite must be used inside <CurrentSiteProvider>');
+  return {
+    site: current.site,
+    publicOrigin: current.public_origin,
+    ...useSiteMutations(),
   };
 }

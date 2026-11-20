@@ -177,13 +177,26 @@ export function installSitesApi(
     });
   }
 
-  const isSitesApi = (url: URL) => url.pathname.startsWith('/api/sites/');
+  const isSitesApi = (url: URL) =>
+    url.pathname === '/api/sites' || url.pathname.startsWith('/api/sites/');
   void page.route(isSitesApi, async (route) => {
     const request = route.request();
     const { pathname, searchParams } = new URL(request.url());
     const method = request.method();
     const tail = pathname.replace('/api/sites/', '');
 
+    if (method === 'GET' && pathname === '/api/sites') {
+      const sites = state.site ? [state.site] : [];
+      return json(route, { sites, public_origin: PUBLIC_ORIGIN, limit: 25 });
+    }
+    if (method === 'GET' && tail.startsWith('by-handle/')) {
+      const handle = decodeURIComponent(tail.slice('by-handle/'.length));
+      const site = state.site;
+      if (!site || (site.subdomain !== handle && site.id !== handle)) {
+        return json(route, { error: 'Website nicht gefunden' }, 404);
+      }
+      return json(route, { site, public_origin: PUBLIC_ORIGIN });
+    }
     if (method === 'GET' && tail === 'my-site') {
       return json(route, { site: state.site, public_origin: PUBLIC_ORIGIN });
     }

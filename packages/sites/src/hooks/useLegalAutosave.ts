@@ -1,6 +1,5 @@
-import { type Site, type SiteLegalDraft } from '@gruenerator/contracts';
+import { type SiteLegalDraft } from '@gruenerator/contracts';
 import { toast } from '@gruenerator/ui';
-import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { type SaveStatus } from '../draft/useSiteDraftSession';
@@ -20,13 +19,10 @@ const UNSAVED_MESSAGE =
 
 export const LEGAL_AUTOSAVE_DELAY_MS = 800;
 
-type MySiteData = { site: Site | null; public_origin: string | null };
-
 export type LegalSaveStatus = SaveStatus | 'error';
 
 export function useLegalAutosave(siteId: string, legal: SiteLegalDraft) {
   const { updateSite } = useSite();
-  const queryClient = useQueryClient();
   const [status, setStatus] = useState<LegalSaveStatus>(() =>
     hasFailedLegalSave(siteId) ? 'error' : 'saved'
   );
@@ -47,10 +43,8 @@ export function useLegalAutosave(siteId: string, legal: SiteLegalDraft) {
     const run = async () => {
       const current = latest.current;
       try {
-        const site = await updateSite({ id: siteId, data: { legal: current } });
-        queryClient.setQueryData<MySiteData>(['my-site'], (old) =>
-          old && site ? { ...old, site } : old
-        );
+        // The mutation writes the returned site into the cache itself.
+        await updateSite({ id: siteId, data: { legal: current } });
         forgetLegal(siteId, current);
         if (mine === generation.current) {
           saved.current = current;
@@ -69,7 +63,7 @@ export function useLegalAutosave(siteId: string, legal: SiteLegalDraft) {
       }
     };
     return enqueueLegalSave(siteId, run);
-  }, [siteId, updateSite, queryClient]);
+  }, [siteId, updateSite]);
 
   useEffect(() => {
     if (legal === saved.current) return;
