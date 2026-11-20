@@ -18,9 +18,6 @@ import {
   requestPdfLetterheadExport,
 } from '../features/chat/ChatPdfLetterheadExport';
 import { ChatSourceReaderHost, requestChatSourceReader } from '../features/chat/ChatSourceReader';
-import { renderSharepicToImage } from '../features/image-studio/renderSharepicToImage';
-import { updateCanvasThumbnail } from '../features/image-studio/services/canvasThumbnailService';
-import { downloadSharepicZip } from '../features/image-studio/services/downloadSharepicZip';
 import { useModelPreferences } from '../features/models/hooks/useModelPreferences';
 import { useNotebookChatStore } from '../features/notebook/stores/notebookChatStore';
 import useNotebookStore from '../features/notebook/stores/notebookStore';
@@ -221,7 +218,13 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
         : undefined,
       // Interner Test: Mistrals Voice-Agent geht über den globalen Endpunkt.
       voice: isInstanceAdmin ? mistralChatVoice : undefined,
-      renderSharepic: renderSharepicToImage,
+      // The render stack (canvas composer, ggraphic, screenshot, zip) is ~340 kB
+      // of minified JS. This provider sits at the app root, so a static import
+      // ships it on every first load; load it on the first sharepic instead.
+      renderSharepic: async (...args: Parameters<NonNullable<ChatConfig['renderSharepic']>>) =>
+        (await import('../features/image-studio/renderSharepicToImage')).renderSharepicToImage(
+          ...args
+        ),
       renderSharepicSheet: async (initialProps: Record<string, unknown>) =>
         (await import('../features/image-studio/freitext/creatorRender')).renderSharepicSheet(
           initialProps
@@ -302,7 +305,11 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
           ...(result.body.pages ? { pages: result.body.pages } : {}),
         };
       },
-      downloadSharepicZip,
+      downloadSharepicZip: async (images: string[], canvasType: string) =>
+        (await import('../features/image-studio/services/downloadSharepicZip')).downloadSharepicZip(
+          images,
+          canvasType
+        ),
       fetchSharepicVersions: async (canvasId: string) => {
         const result = await getContractsClient().canvas.listVersions({
           params: { id: canvasId },
@@ -317,8 +324,10 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
         if (result.status !== 200) return null;
         return result.body.state;
       },
-      updateSharepicThumbnail: (canvasId: string, imageDataUrl: string) =>
-        updateCanvasThumbnail(canvasId, imageDataUrl, 'chat-sharepic-thumbnail'),
+      updateSharepicThumbnail: async (canvasId: string, imageDataUrl: string) =>
+        (
+          await import('../features/image-studio/services/canvasThumbnailService')
+        ).updateCanvasThumbnail(canvasId, imageDataUrl, 'chat-sharepic-thumbnail'),
       restoreSharepicVersion: async (canvasId: string, version: number) => {
         const result = await getContractsClient().canvas.restoreVersion({
           params: { id: canvasId, version },

@@ -16,7 +16,6 @@ import {
 } from '@gruenerator/ui';
 import { useMutation } from '@tanstack/react-query';
 import { Info, Loader2, Maximize2 } from 'lucide-react';
-import { domToJpeg } from 'modern-screenshot';
 import { useCallback, useEffect, useState, type JSX } from 'react';
 
 import DraggableFeedbackLauncher, { type LauncherCorner } from './DraggableFeedbackLauncher';
@@ -53,6 +52,9 @@ async function capturePageScreenshot(): Promise<string | null> {
     const w = document.documentElement.scrollWidth;
     const h = document.documentElement.scrollHeight;
     const scale = Math.min(1, 2000 / Math.max(w, h));
+    // Loaded on capture: the widget is mounted on every page, the screenshot
+    // library is only needed once someone opens the feedback dialog.
+    const { domToJpeg } = await import('modern-screenshot');
     return await domToJpeg(document.body, {
       quality: 0.8,
       scale,

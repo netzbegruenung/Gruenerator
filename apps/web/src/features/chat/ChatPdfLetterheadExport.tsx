@@ -14,13 +14,18 @@
  */
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 
 import { useAuthStore } from '../../stores/authStore';
 import { useExportStore } from '../../stores/core/exportStore';
 import { detectRecipient } from '../docs/letterDetection';
-import { PdfExportDialog, type PdfExportSubmit } from '../docs/PdfExportDialog';
+import { type PdfExportSubmit } from '../docs/PdfExportDialog';
 import { letterheadApi, LETTERHEADS_QUERY_KEY } from '../settings/letterheadApi';
+
+// The host is mounted on every page; the dialog only after the menu entry.
+const PdfExportDialog = lazy(() =>
+  import('../docs/PdfExportDialog').then((m) => ({ default: m.PdfExportDialog }))
+);
 
 interface PendingExport {
   content: string;
@@ -147,12 +152,14 @@ export function ChatPdfLetterheadExportHost() {
   if (!pending) return null;
 
   return (
-    <PdfExportDialog
-      documentTitle={pending.title}
-      documentText={pending.content}
-      letterheads={letterheads}
-      onCancel={() => finish(pending)}
-      onSubmit={handleSubmit}
-    />
+    <Suspense fallback={null}>
+      <PdfExportDialog
+        documentTitle={pending.title}
+        documentText={pending.content}
+        letterheads={letterheads}
+        onCancel={() => finish(pending)}
+        onSubmit={handleSubmit}
+      />
+    </Suspense>
   );
 }
