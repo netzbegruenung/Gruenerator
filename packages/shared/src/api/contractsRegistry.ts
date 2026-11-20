@@ -103,6 +103,7 @@ import {
   videoAiContract,
   wolkePendingContract,
 } from '@gruenerator/contracts';
+
 import type * as ContractsModule from '@gruenerator/contracts';
 
 // Explicit type: the inferred object type is too large for declaration emit.
