@@ -24,10 +24,10 @@ export function EditorHeader({
 }: EditorHeaderProps) {
   const openDialog = useEditorStore((s) => s.openDialog);
   return (
-    <header className="flex flex-row items-center gap-sm py-sm px-md bg-background-pure border-b border-grey-200 dark:border-grey-700 min-h-14">
+    <header className="flex flex-row items-center gap-sm py-sm px-md max-sm:gap-xs max-sm:px-sm bg-background-pure border-b border-grey-200 dark:border-grey-700 min-h-14">
       {onBack && <BackButton onBack={onBack} />}
       <h1 className="sr-only">Website bearbeiten</h1>
-      <div className="flex items-center gap-xs">
+      <div className="flex items-center gap-xs max-sm:gap-0">
         <Button variant="ghost" onClick={() => openDialog('settings')} title="Einstellungen">
           <FiSettings aria-hidden="true" />
           <span className="hidden md:inline">Einstellungen</span>
