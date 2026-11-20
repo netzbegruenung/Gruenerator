@@ -13,6 +13,10 @@ describe('buildAddActions', () => {
       'text',
     ]);
   });
+  it('puts writing a post first when allowed', () => {
+    expect(buildAddActions(true).map((a) => a.id)[0]).toBe('post');
+    expect(buildAddActions(false).map((a) => a.id)).not.toContain('post');
+  });
   it('has unique ids and German titles', () => {
     const actions = buildAddActions();
     expect(new Set(actions.map((a) => a.id)).size).toBe(actions.length);

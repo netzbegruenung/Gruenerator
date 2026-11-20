@@ -50,6 +50,15 @@ export default function FocusedLayout() {
         }}
       />
       <Stack.Screen
+        name="projekte/[id]/beitrag"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: [0.7, 1],
+          sheetGrabberVisible: true,
+          animation: 'default',
+        }}
+      />
+      <Stack.Screen
         name="projekte/[id]/notiz"
         options={{
           presentation: 'formSheet',

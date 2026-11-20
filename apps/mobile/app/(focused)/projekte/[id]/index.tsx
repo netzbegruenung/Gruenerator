@@ -1,4 +1,5 @@
 import { canShareIntoGroup, filterGroupFeed, type GroupFeedItem } from '@gruenerator/shared/groups';
+import { useAuthStore } from '@gruenerator/shared/stores';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -23,6 +24,8 @@ import { buildAddActions } from '../../../../components/projekte/addMenu';
 import { GroupCommentsSheet } from '../../../../components/projekte/GroupCommentsSheet';
 import { GroupFeedCard } from '../../../../components/projekte/GroupFeedCard';
 import { GroupKindRows } from '../../../../components/projekte/GroupKindRows';
+import { PostComposerRow } from '../../../../components/projekte/PostComposerRow';
+import { canWritePost } from '../../../../components/projekte/postRules';
 import { ProjectChatComposer } from '../../../../components/projekte/ProjectChatComposer';
 import { useProjekteTone } from '../../../../components/projekte/projekteTone';
 import { openGroupFeedItem, useBearerToken, useGroupFeed } from '../../../../hooks/useGroupContent';
@@ -43,8 +46,8 @@ type ViewMode = 'feed' | 'all';
  * und „Alle" (eine Reihe je Art). Mitglieder, Links und Beschreibung stehen
  * hinter dem Personen-Symbol auf der Info-Seite; über „+“ legt man eigene
  * Inhalte hinein. Wer geteilt hat (oder Admin ist), ändert über „…“ bzw. langes
- * Drücken die Rolle, die Notiz oder die Freigabe; Admins heften an. Beiträge
- * und die übrige Verwaltung bleiben dem Web.
+ * Drücken die Rolle, die Notiz oder die Freigabe; Admins heften an. Eigene Beiträge
+ * schreibt man über die Zeile oben im Feed bzw. „+“; die übrige Verwaltung bleibt dem Web.
  */
 export default function ProjektDetailScreen() {
   // `beitrag`: aus einer Benachrichtigung — zu diesem Beitrag scrollen.
@@ -63,7 +66,11 @@ export default function ProjektDetailScreen() {
   const canAdd = !!group && canShareIntoGroup({ is_system: group.is_system, isAdmin });
   const shareActions = useShareItemActions(id ?? null, isAdmin, !isPersonal);
   const addActions = useProjectAddActions(id ?? null);
-  const addMenu = useMemo(() => buildAddActions(), []);
+  const userName = useAuthStore((s) => s.user?.display_name ?? null);
+  const canPost = !!group && canWritePost(group, isAdmin);
+  const addMenu = useMemo(() => buildAddActions(canPost), [canPost]);
+  const writePost = () =>
+    router.push({ pathname: '/(focused)/projekte/[id]/beitrag', params: { id: id ?? '' } });
 
   const [view, setView] = useState<ViewMode>('feed');
   const [query, setQuery] = useState('');
@@ -217,6 +224,9 @@ export default function ProjektDetailScreen() {
               ]}
             />
           )}
+          {canPost && activeView === 'feed' ? (
+            <PostComposerRow userName={userName} onPress={writePost} />
+          ) : null}
           <View style={[styles.search, { backgroundColor: theme.buttonBackground }]}>
             <Ionicons name="search" size={18} color={theme.textSecondary} />
             <TextInput

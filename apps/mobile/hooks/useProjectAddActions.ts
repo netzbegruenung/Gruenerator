@@ -107,7 +107,9 @@ export function useProjectAddActions(groupId: string | null) {
       const kind = CREATE_KINDS[id as AddMenuId];
       if (kind) void create(kind);
       else if (id === 'file') void upload();
-      else if (id === 'text') {
+      else if (id === 'post') {
+        router.push({ pathname: '/(focused)/projekte/[id]/beitrag', params: { id: groupId } });
+      } else if (id === 'text') {
         router.push({ pathname: '/(focused)/projekte/[id]/text', params: { id: groupId } });
       } else if (id === 'existing') {
         router.push({ pathname: '/(focused)/projekte/[id]/hinzufuegen', params: { id: groupId } });
