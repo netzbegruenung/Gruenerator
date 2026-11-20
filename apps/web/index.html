@@ -251,6 +251,85 @@
         }
       }
     </style>
+    <!-- Static app shell: paints with the first byte of HTML, before any JS.
+         Mirrors AuthSplash (src/components/routing/AuthSplash.tsx) 1:1 in
+         geometry and uses the literal values of the design tokens
+         (--background-color, --color-border-val, --color-muted-val from
+         variables.css) because the app stylesheet is not loaded yet.
+         createRoot().render() replaces #root's children on first render, so
+         no hydration is involved. Hidden via html.no-shell (set by the
+         terms-banner script below) for -no-header-footer and embedded=1. -->
+    <style>
+      html,
+      body {
+        background: #ffffff;
+      }
+      html[data-theme='dark'],
+      html[data-theme='dark'] body {
+        background: #1a1a1a;
+      }
+      .app-shell {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        display: flex;
+        flex-direction: column;
+        background: #ffffff;
+      }
+      .app-shell__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        border-bottom: 1px solid #e5e5e5;
+      }
+      .app-shell__logo {
+        display: block;
+        width: 24px;
+        height: 24px;
+        background: url('/sonnenblume_dunkelgruen.svg') center / contain no-repeat;
+      }
+      .app-shell__main {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        width: 100%;
+        max-width: 48rem;
+        margin: 32px auto 0;
+        padding: 0 16px;
+        box-sizing: border-box;
+      }
+      .app-shell__grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+        margin-top: 16px;
+      }
+      @media (min-width: 768px) {
+        .app-shell__grid {
+          grid-template-columns: repeat(3, 1fr);
+        }
+      }
+      .app-shell__bar {
+        border-radius: 6px;
+        background: #f3f4f6;
+      }
+      html[data-theme='dark'] .app-shell {
+        background: #1a1a1a;
+      }
+      html[data-theme='dark'] .app-shell__header {
+        border-bottom-color: rgba(255, 255, 255, 0.1);
+      }
+      html[data-theme='dark'] .app-shell__logo {
+        background-image: url('/sonnenblume_weiss.svg');
+      }
+      html[data-theme='dark'] .app-shell__bar {
+        background: #2a2a2a;
+      }
+      html.no-shell .app-shell {
+        display: none;
+      }
+    </style>
   </head>
   <body>
     <noscript>Sie müssen JavaScript aktivieren, um diese App nutzen zu können.</noscript>
@@ -298,6 +377,7 @@
         // the easiest way out of a WebView meant to show exactly one page.
         // Removing it grants nothing: analytics stays off until accepted.
         var embedded = /(^|[?&])embedded=1(&|$)/.test(location.search);
+        if (noChrome || embedded) document.documentElement.classList.add('no-shell');
         if (dismissed || noChrome || embedded) {
           banner.remove();
           return;
@@ -325,7 +405,24 @@
       })();
     </script>
 
-    <div id="root"></div>
+    <div id="root">
+      <div class="app-shell" aria-hidden="true">
+        <div class="app-shell__header">
+          <span class="app-shell__logo"></span>
+          <div class="app-shell__bar" style="width: 32px; height: 32px; border-radius: 50%"></div>
+        </div>
+        <div class="app-shell__main">
+          <div class="app-shell__bar" style="height: 40px; width: 66.6667%"></div>
+          <div class="app-shell__bar" style="height: 16px; width: 50%"></div>
+          <div class="app-shell__bar" style="height: 128px; margin-top: 24px"></div>
+          <div class="app-shell__grid">
+            <div class="app-shell__bar" style="height: 96px"></div>
+            <div class="app-shell__bar" style="height: 96px"></div>
+            <div class="app-shell__bar" style="height: 96px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/index.jsx"></script>
   </body>
 </html>
