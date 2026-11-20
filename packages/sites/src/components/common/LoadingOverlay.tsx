@@ -48,10 +48,6 @@ function OverlayDialog({
         <DialogDescription className="sr-only">
           Bitte warten, die Seite wird erstellt.
         </DialogDescription>
-        <div
-          className="w-[60px] h-[60px] mx-auto mb-6 border-4 border-grey-100 dark:border-grey-800 border-t-primary-950 rounded-full animate-[spin_0.8s_linear_infinite] motion-reduce:animate-none"
-          aria-hidden="true"
-        />
         <DialogTitle className="text-lg font-medium text-foreground mb-2">{message}</DialogTitle>
         <p role="status" className="sr-only">
           {currentLabel}

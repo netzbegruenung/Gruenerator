@@ -308,10 +308,11 @@ export function CreateSiteScreen({
           <div className="mt-8 flex justify-end">
             <Button size="lg" onClick={handleGenerateClick} disabled={isProcessing || !canGenerate}>
               {isProcessing ? (
-                <>
-                  <span className="size-5 border-2 border-white/30 border-t-white rounded-full animate-[spin_1s_linear_infinite]" />
-                  {isGenerating || isGeneratingFromFlyer ? 'KI generiert...' : 'Wird erstellt...'}
-                </>
+                isGenerating || isGeneratingFromFlyer ? (
+                  'KI generiert...'
+                ) : (
+                  'Wird erstellt...'
+                )
               ) : (
                 <>
                   {hasFile ? 'Seite aus Datei generieren' : 'Seite generieren'}
