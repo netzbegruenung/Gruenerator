@@ -13,7 +13,6 @@ import {
   isToolOfferedIn,
   type InstanceChannel,
 } from '@gruenerator/shared/instances';
-
 import { PiGlobe } from 'react-icons/pi';
 
 import { getIcon } from './icons';
@@ -180,6 +179,13 @@ export const CANVAS_TOOLS: WorkplaceToolItem[] = [
     description: 'Clips schneiden & gestalten',
     path: '/studio/videoeditor',
     icon: getIcon('navigation', 'videoEditor')!,
+  },
+  {
+    id: 'studio-ki-schnitt',
+    title: 'KI-Schnitt',
+    description: 'Rohvideos automatisch schneiden',
+    path: '/studio/ki-schnitt',
+    icon: getIcon('navigation', 'kiSchnitt')!,
   },
   {
     id: 'parteitage',
