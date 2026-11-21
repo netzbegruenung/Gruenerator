@@ -48,7 +48,6 @@ import {
   countLabel,
   currentModelId,
   defaultScheduleFor,
-  duplicateAgentInput,
   MAX_DESCRIPTION,
   MAX_TASK_INSTRUCTION,
   MAX_TITLE,
@@ -57,6 +56,7 @@ import {
   newAgentIdentifier,
   taskInstructionTooLong,
 } from './agentEditorLogic';
+import { useAgentConversion } from './useAgentConversion';
 import { useNotebookChoices, useRecipeChoices } from './useEditorChoices';
 
 const SUB = '/(focused)/grueneratoren/agent-editor';
@@ -238,7 +238,8 @@ function EditorForm({
   const createTaskMut = useCreateRecurringTask();
   const updateTaskMut = useUpdateRecurringTask();
   const [saving, setSaving] = useState(false);
-  const [duplicating, setDuplicating] = useState(false);
+  const conversion = useAgentConversion(savedAgent);
+  const converted = !!(savedAgent?.migratedTo?.recipe || savedAgent?.migratedTo?.project);
 
   const notebooks = useNotebookChoices(form.defaultNotebookIds);
   const recipes = useRecipeChoices();
@@ -332,39 +333,6 @@ function EditorForm({
           return leave(() => router.back());
       }
     });
-  };
-
-  const handleDuplicate = () => {
-    if (!savedAgent) return;
-    Alert.alert(
-      'Agent duplizieren?',
-      session.dirty
-        ? 'Kopiert wird der gespeicherte Stand. Deine ungespeicherten Änderungen hier gehen verloren.'
-        : `Es entsteht „${savedAgent.title} (Kopie)", die du danach bearbeitest.`,
-      [
-        { text: 'Abbrechen', style: 'cancel' },
-        {
-          text: 'Duplizieren',
-          onPress: () => {
-            setDuplicating(true);
-            createMut
-              .mutateAsync(duplicateAgentInput(savedAgent, getRandomBytes))
-              .then((copy) =>
-                leave(() =>
-                  router.replace({ pathname: SUB, params: { identifier: copy.identifier } })
-                )
-              )
-              .catch((err: unknown) =>
-                Alert.alert(
-                  'Duplizieren fehlgeschlagen',
-                  err instanceof Error ? err.message : 'Bitte versuche es erneut.'
-                )
-              )
-              .finally(() => setDuplicating(false));
-          },
-        },
-      ]
-    );
   };
 
   const handleDelete = () => {
@@ -553,11 +521,17 @@ function EditorForm({
         {isEdit ? (
           <FormSection>
             <ListRow
-              icon="copy-outline"
-              title="Duplizieren"
-              onPress={handleDuplicate}
-              disabled={!savedAgent || duplicating || saving}
-              {...(duplicating && { accessory: <ActivityIndicator color={theme.textGreen} /> })}
+              icon="swap-horizontal-outline"
+              title={converted ? 'Nachfolger ansehen' : 'In Rezept oder Projekt umwandeln'}
+              value={
+                converted
+                  ? 'Schon umgewandelt. Der Agent funktioniert weiter.'
+                  : 'Agents laufen aus. Der Agent bleibt dabei bestehen.'
+              }
+              valueLines={2}
+              onPress={conversion.start}
+              disabled={!savedAgent || conversion.busy || saving}
+              {...(conversion.busy && { accessory: <ActivityIndicator color={theme.textGreen} /> })}
             />
             <ListRow
               icon="trash-outline"

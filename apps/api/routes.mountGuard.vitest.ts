@@ -60,6 +60,7 @@ describe('routes.ts mount order', () => {
       { prefix: '/api/translation', mount: 'mountTranslationContractRouter(app)' },
       { prefix: '/api/voice', mount: 'mountSpeechContractRouter(app)' },
       { prefix: '/api/trash', mount: 'mountTrashContractRouter(app)' },
+      { prefix: '/api/video-render', mount: 'mountVideoRenderContractRouter(app)' },
     ];
 
     for (const { prefix, mount } of cases) {

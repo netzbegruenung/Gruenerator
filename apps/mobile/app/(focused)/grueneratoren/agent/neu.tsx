@@ -1,9 +1,14 @@
-import { useLocalSearchParams } from 'expo-router';
+import { Redirect, useLocalSearchParams } from 'expo-router';
 
 import { AgentStartScreen } from '../../../../components/agentura/editor/AgentStartScreen';
 
-/** „Neuer Agent"; `?mode=recurring` legt eine wiederkehrende Aufgabe an. */
+/**
+ * Nur noch `?mode=recurring`: eine wiederkehrende Aufgabe legt ihren Agent
+ * vorerst weiter selbst an. Neue Agents gibt es nicht mehr — ohne den Modus
+ * geht es zum Rezept-Creator.
+ */
 export default function NewAgentRoute() {
   const { mode } = useLocalSearchParams<{ mode?: string }>();
-  return <AgentStartScreen variant={mode === 'recurring' ? 'recurring' : 'agent'} />;
+  if (mode !== 'recurring') return <Redirect href="/(focused)/grueneratoren/rezept/neu" />;
+  return <AgentStartScreen variant="recurring" />;
 }

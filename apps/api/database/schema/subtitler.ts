@@ -23,6 +23,8 @@ export const subtitlerProjects = pgTable('subtitler_projects', {
   thumbnail_path: text('thumbnail_path'),
   subtitled_video_path: text('subtitled_video_path'),
   subtitles: text('subtitles'),
+  /** Word timings in seconds, `[{word,start,end}]`; NULL on rows saved before 2026-11-21. */
+  words: jsonb('words').$type<{ word: string; start: number; end: number }[]>(),
   style_preference: text('style_preference').notNull().default('standard'),
   height_preference: text('height_preference').notNull().default('standard'),
   mode_preference: text('mode_preference').notNull().default('manual'),

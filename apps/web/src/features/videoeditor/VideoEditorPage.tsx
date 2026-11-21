@@ -53,12 +53,18 @@ function betaNoticeSeen(): boolean {
   }
 }
 
-/** `ki:<id>:<version>` only for a KI-Schnitt hand-off that names both; it dedupes the project. */
+/**
+ * Dedupes the project of a hand-off: `ki:<id>:<version>` for a KI-Schnitt that
+ * names both, `sub:<id>` for a subtitler project, so a second „Bearbeiten“
+ * reopens the same editor project.
+ */
 function sourceRefFor(search: string): string | null {
   const params = new URLSearchParams(search);
   const ki = params.get('ki');
   const v = params.get('v');
-  return ki && v ? `ki:${ki}:${v}` : null;
+  if (ki && v) return `ki:${ki}:${v}`;
+  const untertitel = params.get('untertitel');
+  return untertitel ? `sub:${untertitel}` : null;
 }
 
 export default function VideoEditorPage() {

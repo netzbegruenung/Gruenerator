@@ -323,6 +323,7 @@ const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPa
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
 const VideoEditorPage = lazy(() => import('../features/videoeditor/VideoEditorPage'));
 // KI-Schnitt and Parteitage are admin only for now — see adminToolsGate.
+const VideoStartPage = lazy(() => import('../features/video/VideoStartPage'));
 const KiSchnittNewPage = lazy(async () => {
   const { default: Page } = await import('../features/video-ai/KiSchnittNewPage');
   return { default: withAdminToolGate(Page) };
@@ -793,10 +794,11 @@ const standardRoutes: RouteConfig[] = [
   { path: '/e/:token', component: PublicExplainablePage, layoutMode: 'noChrome', public: true },
   { path: '/podcast/:slug', component: PodcastPage },
   // Custom generators are removed — prompts were auto-converted to agents.
-  // Keep old links working: create page → agent creator; generator → its agent.
+  // Keep old links working: create page → recipe creator (new agents are
+  // closed); generator → its agent.
   {
     path: '/gruenerator/erstellen',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/agents/new') })),
+    component: lazy(() => Promise.resolve({ default: createRedirect('/agentura/rezept/neu') })),
   },
   { path: '/gruenerator/:slug', component: LegacyGeneratorSlugRedirect },
   // Redirects for removed pages
@@ -951,6 +953,8 @@ const standardRoutes: RouteConfig[] = [
   { path: '/studio/ki', component: ImageStudioKiRedirect },
   { path: '/studio/ki/:type', component: ImageStudioKiTypeRedirect },
   { path: '/studio/video', component: GrueneratorenBundle.Reel },
+  // One start page for Untertitel, KI-Schnitt and the Video Editor.
+  { accent: 'studio', path: '/video', component: VideoStartPage },
   {
     accent: 'studio',
     path: '/studio/videoeditor',

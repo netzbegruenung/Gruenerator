@@ -16,6 +16,7 @@ import { z } from 'zod';
 
 import { jobErrorCodeSchema } from './jobErrors.js';
 import { localeSchema } from './userProfile.js';
+import { videoAspectRatioSchema } from './videoProjects.js';
 
 // ── Subtitle preference vocabularies ────────────────────────────────────────
 
@@ -192,6 +193,56 @@ export const subtitlerProjectSchema = z.object({
 
 export type SubtitlerProject = z.infer<typeof subtitlerProjectSchema>;
 
+// ── Hand-off to the video editor ────────────────────────────────────────────
+
+/**
+ * What the video editor needs to open a subtitler project as its own project
+ * (`/studio/videoeditor?untertitel=<projectId>`): the original video, copied
+ * once into the Mediathek so the editor project outlives the subtitler
+ * project, and the word timings in seconds from the start of that video. The
+ * editor splits the words into captions itself, with the same function its
+ * own caption button uses.
+ */
+/**
+ * The editor caption templates a subtitler look can become. Deliberately not
+ * `videoAiCaptionTemplateSchema`: that enum is what the KI-Schnitt model may
+ * choose. The `at-*` ones use Gotham Narrow Ultra like the burned-in AT looks.
+ */
+export const subtitlerEditorCaptionTemplateSchema = z.enum([
+  'schlagschatten',
+  'weiss',
+  'balken-tanne',
+  'balken-schwarz',
+  'at-schlagschatten',
+  'at-weiss',
+  'at-balken-gruen',
+  'at-balken-schwarz',
+]);
+export type SubtitlerEditorCaptionTemplate = z.infer<typeof subtitlerEditorCaptionTemplateSchema>;
+
+export const subtitlerEditorSeedSchema = z.object({
+  title: z.string(),
+  video: z.object({
+    shareToken: z.string(),
+    duration: z.number(),
+    width: z.number().nullable(),
+    height: z.number().nullable(),
+    /**
+     * Start of each joined part in seconds (`[0, 12.4, …]`) when the reel was
+     * made from several videos; the editor turns each part into its own clip.
+     * A single video has `[0]`.
+     */
+    clipStarts: z.array(z.number()),
+  }),
+  aspectRatio: videoAspectRatioSchema,
+  captionTemplate: subtitlerEditorCaptionTemplateSchema,
+  /** Where the burned-in captions sat: `tief` centred at 80 % of the frame, `standard` at 67 %. */
+  heightPreference: heightPreferenceSchema,
+  words: z.array(subtitleWordSchema),
+});
+
+export type SubtitlerEditorSeed = z.infer<typeof subtitlerEditorSeedSchema>;
+
 // ── Processing: cleanup ─────────────────────────────────────────────────────
 
 export const cleanupBodySchema = z.object({});
@@ -330,6 +381,12 @@ export const exportSegmentsResponseSchema = z.object({
 
 export const autoProcessRequestSchema = z.object({
   uploadId: z.string(),
+  /**
+   * Further uploads, in the order the person sorted them on /video: joined
+   * after `uploadId` into one reel before subtitling. Additive, so shipped
+   * clients that send only `uploadId` are unaffected.
+   */
+  appendUploadIds: z.array(z.string()).max(19).optional(),
   locale: localeSchema.optional(),
   maxResolution: z.number().nullable().optional(),
   // F0, ignored server-side like `exportRequestSchema.userId`.

@@ -361,6 +361,7 @@ export class SubtitlerProjectService {
       videoSize,
       videoSourcePath,
       sourceSystemMediaId,
+      words,
     } = projectData;
 
     try {
@@ -476,6 +477,7 @@ export class SubtitlerProjectService {
           video_metadata: videoMetadata || {},
           thumbnail_path: thumbnailExists ? relativeThumbnailPath : null,
           subtitles: subtitles || '',
+          words: words ?? null,
           style_preference: stylePreference || 'standard',
           height_preference: heightPreference || 'standard',
           mode_preference: modePreference || 'manual',

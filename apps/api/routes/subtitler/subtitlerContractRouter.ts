@@ -334,7 +334,7 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
   // ── Processing: auto pipeline ─────────────────────────────────────────────
 
   postProcessAuto: async (args) => {
-    const { uploadId, maxResolution = null } = args.body;
+    const { uploadId, maxResolution = null, appendUploadIds = [] } = args.body;
     const userId = getUserId(args.req) ?? null;
     // requireAuth runs on this prefix (see routes.ts), so req.user exists and
     // tryResolveUser has already overlaid req.user.locale with the fresh,
@@ -353,6 +353,18 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
       if (!(await checkFileExists(videoPath))) {
         return { status: 404 as const, body: { error: 'Video nicht gefunden' } };
       }
+      let appendPaths: string[];
+      try {
+        appendPaths = appendUploadIds.map(getFilePathFromUploadId);
+      } catch {
+        // A malformed id is not an upload of ours.
+        return { status: 404 as const, body: { error: 'Video nicht gefunden' } };
+      }
+      for (const path of appendPaths) {
+        if (!(await checkFileExists(path))) {
+          return { status: 404 as const, body: { error: 'Video nicht gefunden' } };
+        }
+      }
       const originalFilename = (await getOriginalFilename(uploadId)) || 'video.mp4';
       await startAutoProcessing({
         uploadId,
@@ -361,6 +373,7 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
         userId,
         locale,
         maxResolution,
+        appendPaths,
       });
       return { status: 202 as const, body: { status: 'processing' as const } };
     } catch (e: unknown) {
@@ -949,6 +962,38 @@ Erstelle einen Instagram Reel Beitragstext, der:
       return {
         status: 500 as const,
         body: { success: false, error: 'Projekt konnte nicht gelöscht werden' },
+      };
+    }
+  },
+
+  postEditorSeed: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      if (!userId) {
+        return { status: 401 as const, body: { error: 'Nicht authentifiziert' } };
+      }
+      const { buildEditorSeed } = await import('../../services/subtitler/editorSeed.js');
+      const result = await buildEditorSeed(
+        await getProjectService(),
+        userId,
+        args.params.projectId,
+        extractLocaleFromRequest(args.req)
+      );
+      if (result.status === 'not_found') {
+        return { status: 404 as const, body: { success: false, error: 'Projekt nicht gefunden' } };
+      }
+      if (result.status === 'source_gone') {
+        return {
+          status: 410 as const,
+          body: { success: false, error: 'Das Originalvideo ist nicht mehr verfügbar' },
+        };
+      }
+      return { status: 200 as const, body: result.seed };
+    } catch (error: unknown) {
+      log.error('[subtitlerContract.postEditorSeed] Error:', error);
+      return {
+        status: 500 as const,
+        body: { success: false, error: 'Projekt konnte nicht für den Editor vorbereitet werden' },
       };
     }
   },

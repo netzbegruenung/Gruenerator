@@ -52,8 +52,9 @@ const SECTION_KINDS = ['agent', 'recipe', 'task'] as const;
 /** Was das Sheet über der Übersicht anbietet — wie im Web. */
 const AGENTURA_KINDS = ['agent', 'recipe'] as const;
 
+// Neue Agents gibt es nicht mehr; wiederkehrende Aufgaben legen ihren Agent
+// vorerst weiter selbst an.
 const CREATE_ACTIONS = [
-  { id: 'agent', title: 'Agent' },
   { id: 'recipe', title: 'Rezept' },
   { id: 'task', title: 'Wiederkehrende Aufgabe' },
 ];
@@ -499,7 +500,7 @@ export default function AgentsScreen() {
             else
               router.push({
                 pathname: '/(focused)/grueneratoren/agent/neu',
-                params: id === 'task' ? { mode: 'recurring' } : {},
+                params: { mode: 'recurring' },
               });
           })
         }
