@@ -93,6 +93,24 @@ interface LoadedProject {
   created_at: string;
 }
 
+/** One more file to the subtitler's TUS endpoint; resolves with its upload id. */
+async function uploadWithTus(file: File, onProgress: (percent: number) => void): Promise<string> {
+  const authOptions = await getTusAuthOptions();
+  return new Promise((resolve, reject) => {
+    const upload = new tus.Upload(file, {
+      endpoint: TUS_UPLOAD_ENDPOINT,
+      retryDelays: [0, 3000, 5000, 10000, 20000],
+      chunkSize: 5 * 1024 * 1024,
+      metadata: { filename: file.name, filetype: file.type },
+      ...authOptions,
+      onError: reject,
+      onProgress: (sent, total) => onProgress(Math.round((sent / total) * 100)),
+      onSuccess: () => resolve(upload.url?.split('/').pop() ?? ''),
+    });
+    upload.start();
+  });
+}
+
 const SubtitlerPage = (): React.ReactElement => {
   // Lazy initializer writes the first history entry exactly once per
   // mount — replaces a dedicated `useEffect` that did the same. The
@@ -141,6 +159,7 @@ const SubtitlerPage = (): React.ReactElement => {
   // Files picked on /video arrive as router state; read once on mount.
   const [videoStart] = useState(() => videoStartFiles(location.state));
   const openInEditorRef = useRef(videoStart?.openInEditor === true);
+  const appendUploadIdsRef = useRef<string[]>([]);
 
   // User-initiated step transitions push a new history entry. The
   // popstate listener below bypasses this helper and calls `setStep`
@@ -268,7 +287,14 @@ const SubtitlerPage = (): React.ReactElement => {
     async (uploadId: string): Promise<void> => {
       try {
         const res = await getContractsClient().subtitler.postProcessAuto({
-          body: { uploadId, locale, userId: user?.id || null },
+          body: {
+            uploadId,
+            locale,
+            userId: user?.id || null,
+            ...(appendUploadIdsRef.current.length > 0 && {
+              appendUploadIds: appendUploadIdsRef.current,
+            }),
+          },
         });
         if (res.status === 202) {
           console.log('[SubtitlerPage] Auto processing started for:', uploadId);
@@ -384,11 +410,32 @@ const SubtitlerPage = (): React.ReactElement => {
     [handleUploadComplete]
   );
 
+  // Several videos from /video: the later ones are uploaded first and joined
+  // after the first on the server, in the order the person sorted them.
   const videoStartHandledRef = useRef(false);
+  const [extraUploadLabel, setExtraUploadLabel] = useState<string | null>(null);
   useEffect(() => {
     if (!videoStart || videoStartHandledRef.current) return;
     videoStartHandledRef.current = true;
-    void handleFileSelected(videoStart.videoStartFiles[0]);
+    const [first, ...rest] = videoStart.videoStartFiles;
+    void (async () => {
+      try {
+        setIsUploading(true);
+        const ids: string[] = [];
+        for (const [i, file] of rest.entries()) {
+          setExtraUploadLabel(`Video ${i + 2} von ${rest.length + 1}`);
+          ids.push(await uploadWithTus(file, setUploadProgress));
+        }
+        appendUploadIdsRef.current = ids;
+      } catch {
+        setError('Upload fehlgeschlagen. Bitte versuche es erneut.');
+        setIsUploading(false);
+        return;
+      } finally {
+        setExtraUploadLabel(null);
+      }
+      void handleFileSelected(first);
+    })();
   }, [videoStart, handleFileSelected]);
 
   const handleExport = useCallback(
@@ -530,9 +577,16 @@ const SubtitlerPage = (): React.ReactElement => {
         // array (older auto-processing responses).
         setSegments(parseSubtitleBlocks(result.subtitles));
       }
+      // Chosen „Video Editor“ on /video: skip the success screen.
+      if (openInEditorRef.current && result.projectId) {
+        void navigate(`/studio/videoeditor?untertitel=${encodeURIComponent(result.projectId)}`, {
+          replace: true,
+        });
+        return;
+      }
       goToStep('success');
     },
-    [goToStep]
+    [goToStep, navigate]
   );
 
   // Handler for automatic processing error
@@ -585,7 +639,7 @@ const SubtitlerPage = (): React.ReactElement => {
                         />
                       </div>
                       <p className="text-sm text-grey-500 tabular-nums">
-                        Video wird hochgeladen... {uploadProgress}%
+                        {extraUploadLabel ?? 'Video'} wird hochgeladen... {uploadProgress}%
                       </p>
                       <Button
                         variant="outline"

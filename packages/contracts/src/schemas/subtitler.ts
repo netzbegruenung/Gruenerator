@@ -211,6 +211,12 @@ export const subtitlerEditorSeedSchema = z.object({
     duration: z.number(),
     width: z.number().nullable(),
     height: z.number().nullable(),
+    /**
+     * Start of each joined part in seconds (`[0, 12.4, …]`) when the reel was
+     * made from several videos; the editor turns each part into its own clip.
+     * A single video has `[0]`.
+     */
+    clipStarts: z.array(z.number()),
   }),
   aspectRatio: videoAspectRatioSchema,
   captionTemplate: videoAiCaptionTemplateSchema,
@@ -357,6 +363,12 @@ export const exportSegmentsResponseSchema = z.object({
 
 export const autoProcessRequestSchema = z.object({
   uploadId: z.string(),
+  /**
+   * Further uploads, in the order the person sorted them on /video: joined
+   * after `uploadId` into one reel before subtitling. Additive, so shipped
+   * clients that send only `uploadId` are unaffected.
+   */
+  appendUploadIds: z.array(z.string()).max(19).optional(),
   locale: localeSchema.optional(),
   maxResolution: z.number().nullable().optional(),
   // F0, ignored server-side like `exportRequestSchema.userId`.

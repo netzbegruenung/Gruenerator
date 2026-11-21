@@ -31,6 +31,7 @@ import { generateManualSubtitles } from './manualSubtitleGeneratorService.js';
 import { autoSaveProject } from './projectSavingService.js';
 import { calculateFontSizing } from './subtitleSizingService.js';
 import { transcribeVideoWithWords, type WordTimestamp } from './transcriptionService.js';
+import { concatVideos } from './concatVideos.js';
 import { probeVideoMetadata } from './videoMetadata.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -685,6 +686,13 @@ interface StartAutoProcessingOptions {
    * time pollers see completion). Best-effort — errors are logged, not fatal.
    */
   onProjectSaved?: (projectId: string) => Promise<void>;
+  /**
+   * Further videos, in the order the person sorted them: joined after
+   * `videoPath` into one video before subtitling. The part lengths go into
+   * the project's `video_metadata.parts`, so the video editor can split the
+   * reel back into its clips.
+   */
+  appendPaths?: string[];
 }
 
 /**
@@ -709,6 +717,7 @@ async function startAutoProcessing(options: StartAutoProcessingOptions): Promise
     precomputed = null,
     sourceSystemMediaId = null,
     onProjectSaved,
+    appendPaths = [],
   } = options;
 
   await redisClient.set(
@@ -717,29 +726,53 @@ async function startAutoProcessing(options: StartAutoProcessingOptions): Promise
     { EX: 3600 }
   );
 
-  processVideoAutomatically(videoPath, uploadId, {
-    stylePreference: 'shadow',
-    heightPreference: 'tief',
-    locale,
-    maxResolution,
-    precomputed,
-    trustedSource: sourceSystemMediaId != null,
-    ...(userId != null && { userId }),
-    originalFilename,
-  })
-    .then(async (result: ProcessingResult) => {
+  // Several videos: join them first (in the background, like the rest).
+  const joined: Promise<{ path: string; parts: number[] | null }> =
+    appendPaths.length === 0
+      ? Promise.resolve({ path: videoPath, parts: null })
+      : (async () => {
+          const output = `${videoPath}-reel.mp4`;
+          try {
+            const { partDurations } = await concatVideos([videoPath, ...appendPaths], output);
+            return { path: output, parts: partDurations };
+          } catch (error) {
+            // processVideoAutomatically reports its own failures; this one runs before it.
+            await updateProgress(uploadId, {
+              status: 'error',
+              stage: STAGES.ANALYZING.id,
+              stageName: STAGES.ANALYZING.name,
+              error: 'Die Videos konnten nicht zusammengefügt werden.',
+            });
+            throw error;
+          }
+        })();
+
+  joined
+    .then(({ path: inputPath, parts }) =>
+      processVideoAutomatically(inputPath, uploadId, {
+        stylePreference: 'shadow',
+        heightPreference: 'tief',
+        locale,
+        maxResolution,
+        precomputed,
+        trustedSource: sourceSystemMediaId != null,
+        ...(userId != null && { userId }),
+        originalFilename,
+      }).then((result) => ({ result, inputPath, parts }))
+    )
+    .then(async ({ result, inputPath, parts }) => {
       let savedProjectId: string | null = null;
       if (userId) {
         try {
           const r = await autoSaveProject({
             userId,
             outputPath: result.outputPath,
-            originalVideoPath: videoPath,
+            originalVideoPath: inputPath,
             uploadId,
             originalFilename,
             segments: result.segments,
             words: result.words,
-            metadata: result.metadata,
+            metadata: parts ? { ...result.metadata, parts } : result.metadata,
             stylePreference: 'shadow',
             heightPreference: 'tief',
             subtitlePreference: 'manual',

@@ -131,6 +131,8 @@ export interface VideoMetadata {
   displayAspectRatio?: string | undefined;
   sampleAspectRatio?: string | undefined;
   originalFormat?: VideoOriginalFormat | undefined;
+  /** Joined from several uploads (/video): the length of each part in seconds, in order. */
+  parts?: number[] | undefined;
 }
 
 // ============================================================================

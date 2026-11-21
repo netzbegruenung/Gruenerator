@@ -40,15 +40,23 @@ const RATIOS: [VideoAspectRatio, number][] = [
   ['16:9', 16 / 9],
 ];
 
-/** Displayed size: a 90° rotation tag swaps the stored width and height. */
+/** Displayed size; `probeVideoMetadata` already swapped width and height for rotated video. */
 export function displaySize(
   meta: Record<string, unknown>
 ): { width: number; height: number } | null {
   const width = typeof meta.width === 'number' ? meta.width : null;
   const height = typeof meta.height === 'number' ? meta.height : null;
-  if (!width || !height) return null;
-  const rotation = Math.abs(Number(meta.rotation ?? 0)) % 180;
-  return rotation === 90 ? { width: height, height: width } : { width, height };
+  return width && height ? { width, height } : null;
+}
+
+/** Where each joined part starts, from `video_metadata.parts`; `[0]` for one video. */
+export function clipStartsFor(meta: Record<string, unknown>): number[] {
+  const parts = Array.isArray(meta.parts)
+    ? meta.parts.filter((d): d is number => typeof d === 'number' && d > 0)
+    : [];
+  const starts = [0];
+  for (const d of parts.slice(0, -1)) starts.push(starts[starts.length - 1] + d);
+  return starts;
 }
 
 /** The editor canvas closest to the video's shape; 9:16 when the size is unknown. */
@@ -153,6 +161,7 @@ export async function buildEditorSeed(
         duration,
         width: size?.width ?? null,
         height: size?.height ?? null,
+        clipStarts: clipStartsFor(meta),
       },
       aspectRatio: aspectRatioFor(size),
       captionTemplate: captionTemplateFor(project.style_preference),

@@ -2,7 +2,13 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('../sharedMediaService.js', () => ({ getSharedMediaService: vi.fn() }));
 
-import { aspectRatioFor, captionTemplateFor, displaySize, wordsForEditor } from './editorSeed.js';
+import {
+  aspectRatioFor,
+  captionTemplateFor,
+  clipStartsFor,
+  displaySize,
+  wordsForEditor,
+} from './editorSeed.js';
 
 describe('wordsForEditor', () => {
   const segments = [
@@ -38,11 +44,8 @@ describe('wordsForEditor', () => {
 });
 
 describe('aspectRatioFor / displaySize', () => {
-  it('picks the nearest canvas and swaps a rotated phone video', () => {
-    expect(aspectRatioFor(displaySize({ width: 1080, height: 1920 }))).toBe('9:16');
-    expect(aspectRatioFor(displaySize({ width: 1920, height: 1080, rotation: '-90' }))).toBe(
-      '9:16'
-    );
+  it('picks the nearest canvas; stored sizes are already rotated', () => {
+    expect(aspectRatioFor(displaySize({ width: 1080, height: 1920, rotation: '90' }))).toBe('9:16');
     expect(aspectRatioFor(displaySize({ width: 1920, height: 1080 }))).toBe('16:9');
     expect(aspectRatioFor(displaySize({ width: 1080, height: 1350 }))).toBe('4:5');
     expect(aspectRatioFor(null)).toBe('9:16');
@@ -56,5 +59,12 @@ describe('captionTemplateFor', () => {
     expect(captionTemplateFor('tanne')).toBe('tanne');
     expect(captionTemplateFor('standard')).toBe('balken-schwarz');
     expect(captionTemplateFor(null)).toBe('schatten');
+  });
+});
+
+describe('clipStartsFor', () => {
+  it('turns joined part lengths into clip starts', () => {
+    expect(clipStartsFor({ parts: [4, 2.5, 3] })).toEqual([0, 4, 6.5]);
+    expect(clipStartsFor({})).toEqual([0]);
   });
 });
