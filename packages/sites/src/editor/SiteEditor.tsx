@@ -31,9 +31,13 @@ function DraftPreview({ site, editable }: { site: SiteData; editable: boolean })
   const locale: SupportedLocale = user?.locale ?? 'de-DE';
   const draft = useDraft((d) => d);
   const [frameDoc, setFrameDoc] = useState<Document | null>(null);
+  // The editable canvas keeps hidden blocks (marked), so they can be selected and shown again.
   const snapshot = useMemo(
-    () => buildSitePreviewSnapshot(siteDraftToSnapshotSource(draft, site.legal), locale),
-    [draft, site.legal, locale]
+    () =>
+      buildSitePreviewSnapshot(siteDraftToSnapshotSource(draft, site.legal), locale, {
+        includeHidden: editable,
+      }),
+    [draft, site.legal, locale, editable]
   );
   return (
     <div className="relative h-full w-full">

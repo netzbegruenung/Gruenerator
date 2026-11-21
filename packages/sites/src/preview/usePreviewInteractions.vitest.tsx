@@ -9,11 +9,11 @@ function buildDoc(): Document {
   const doc = document.implementation.createHTMLDocument('frame');
   doc.body.innerHTML = `
     <header><a id="logo">Logo</a></header>
-    <section data-section="hero"><h1><span data-field="site_title" id="name">Name</span></h1></section>
-    <section data-section="themes">
-      <ul data-field="sections.themes">
-        <li data-index="0"><article><h3 data-field="sections.themes.0.title">A</h3></article></li>
-        <li data-index="1"><article><p id="card-body">Text</p></article></li>
+    <section data-block-id="hero" data-block-type="hero"><h1><span data-field="site_title" id="name">Name</span></h1></section>
+    <section data-block-id="th" data-block-type="themes">
+      <ul data-field="blocks.th">
+        <li data-item-id="c0"><article><h3 data-field="blocks.th.items.c0.title">A</h3></article></li>
+        <li data-item-id="c1"><article><p id="card-body">Text</p></article></li>
       </ul>
     </section>`;
   return doc;
@@ -39,14 +39,14 @@ describe('selectionAt', () => {
   it('names the section, the field and the card under a target', () => {
     const doc = buildDoc();
     expect(selectionAt(doc.getElementById('name'))).toEqual({
-      section: 'hero',
+      blockId: 'hero',
+      itemId: null,
       path: 'site_title',
-      index: null,
     });
     expect(selectionAt(doc.getElementById('card-body'))).toEqual({
-      section: 'themes',
-      path: 'sections.themes',
-      index: 1,
+      blockId: 'th',
+      itemId: 'c1',
+      path: 'blocks.th',
     });
     expect(selectionAt(doc.getElementById('logo'))).toBeNull();
   });
@@ -58,14 +58,14 @@ describe('usePreviewSelection', () => {
     render(<Harness doc={doc} />);
     act(() => doc.getElementById('card-body')?.click());
     expect(useEditorStore.getState().selection).toEqual({
-      section: 'themes',
-      path: 'sections.themes',
-      index: 1,
+      blockId: 'th',
+      itemId: 'c1',
+      path: 'blocks.th',
     });
     act(() => {
       doc.getElementById('name')?.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
     });
-    expect(useEditorStore.getState().selection?.section).toBe('hero');
+    expect(useEditorStore.getState().selection?.blockId).toBe('hero');
     act(() => doc.getElementById('logo')?.click());
     expect(useEditorStore.getState().selection).toBeNull();
   });
@@ -74,7 +74,7 @@ describe('usePreviewSelection', () => {
     const doc = buildDoc();
     render(<Harness doc={doc} />);
     act(() => {
-      useEditorStore.getState().select({ section: 'hero', path: null, index: null });
+      useEditorStore.getState().select({ blockId: 'hero', itemId: null, path: null });
       useEditorStore.getState().openElementPanel('details');
     });
     const escape = () =>
@@ -91,12 +91,12 @@ describe('usePreviewSelection', () => {
   it('keeps an open panel when the selection stays in its section, and drops it otherwise', () => {
     const { select, openElementPanel } = useEditorStore.getState();
     act(() => {
-      select({ section: 'themes', path: null, index: 0 });
+      select({ blockId: 'th', itemId: 'c0', path: null });
       openElementPanel('image');
-      select({ section: 'themes', path: null, index: 1 });
+      select({ blockId: 'th', itemId: 'c1', path: null });
     });
     expect(useEditorStore.getState().elementPanel).toBe('image');
-    act(() => select({ section: 'hero', path: null, index: null }));
+    act(() => select({ blockId: 'hero', itemId: null, path: null }));
     expect(useEditorStore.getState().elementPanel).toBeNull();
   });
 });
@@ -108,23 +108,25 @@ describe('usePreviewHighlight', () => {
     act(() =>
       useEditorStore
         .getState()
-        .select({ section: 'themes', path: 'sections.themes.0.title', index: 0 })
+        .select({ blockId: 'th', itemId: 'c0', path: 'blocks.th.items.c0.title' })
     );
     // The frame document is its own realm, so jest-dom's element matchers do not apply.
     const has = (selector: string, attribute: string) =>
       doc.querySelector(selector)?.hasAttribute(attribute);
-    expect(has('[data-section="themes"]', 'data-editor-selected')).toBe(true);
-    expect(has('[data-section="hero"]', 'data-editor-selected')).toBe(false);
-    expect(has('[data-field="sections.themes.0.title"]', 'data-editor-active')).toBe(true);
+    expect(has('[data-block-id="th"]', 'data-editor-selected')).toBe(true);
+    expect(has('[data-block-id="hero"]', 'data-editor-selected')).toBe(false);
+    expect(has('[data-item-id="c0"]', 'data-editor-selected')).toBe(true);
+    expect(has('[data-item-id="c1"]', 'data-editor-selected')).toBe(false);
+    expect(has('[data-field="blocks.th.items.c0.title"]', 'data-editor-active')).toBe(true);
   });
 });
 
 describe('focusPath', () => {
   it('opens the section form for a section field and the dialog for settings or legal', () => {
     const { focusPath } = useEditorStore.getState();
-    act(() => focusPath('actions', 'sections.actions.0.link'));
+    act(() => focusPath('ac', 'blocks.ac.items.t2.link'));
     expect(useEditorStore.getState()).toMatchObject({
-      selection: { section: 'actions' },
+      selection: { blockId: 'ac', itemId: 't2', path: 'blocks.ac.items.t2.link' },
       elementPanel: 'details',
       dialog: null,
     });
