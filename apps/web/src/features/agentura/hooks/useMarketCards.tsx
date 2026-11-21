@@ -19,7 +19,6 @@ import {
   type RecipeEntry,
 } from '../lib/marketItems';
 
-import { useDuplicateAgent } from './useDuplicateAgent';
 import { useUserLibrary } from './useUserLibrary';
 
 import type { Agent } from '@gruenerator/shared/agents';
@@ -56,7 +55,6 @@ export function useMarketCards() {
   const toggleAgentFavorite = useAgentFavoritesStore((s) => s.toggle);
   const deleteUserAgent = useDeleteUserAgent();
   const showTrashUndo = useTrashUndoToast();
-  const { duplicate: duplicateAgent } = useDuplicateAgent();
   const library = useUserLibrary();
   // Ein Dialog für die ganze Seite, nicht einer pro Kachel.
   const [shareTarget, setShareTarget] = useState<
@@ -121,13 +119,6 @@ export function useMarketCards() {
         onEdit={entry.editable ? () => handleEditAgent(entry.agent) : undefined}
         onShare={
           entry.editable ? () => setShareTarget({ kind: 'agent', agent: entry.agent }) : undefined
-        }
-        onDuplicate={
-          entry.editable
-            ? () => {
-                void duplicateAgent(entry.agent);
-              }
-            : undefined
         }
         onDelete={entry.editable ? () => handleDeleteAgent(entry.agent) : undefined}
         onRemoveFromLibrary={removeFromLibrary(item)}

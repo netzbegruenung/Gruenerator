@@ -1,4 +1,4 @@
-import { getAgentSlug, USER_SELECTABLE_TOOLS } from '@gruenerator/shared/agents';
+import { getAgentSlug, USER_SELECTABLE_TOOLS, type Agent } from '@gruenerator/shared/agents';
 import {
   DEFAULT_SCHEDULE,
   scheduleToRecurrence,
@@ -17,9 +17,9 @@ import { RecipePicker } from '../agentura/recipes/RecipePicker';
 import { useCreateRecurringTask, useUpdateRecurringTask } from '../recurring-tasks/api';
 import { RecurrenceFields } from '../recurring-tasks/RecurrenceFields';
 
+import { AgentConversionNotice } from './AgentDeprecationNotice';
 import { AgentPreview } from './AgentPreview';
 import { useCreateUserAgent, useUpdateUserAgent } from './api';
-import { ExperimentalAgentBanner } from './experimentalWarning';
 import { AgentAvatar } from './icons/AgentAvatar';
 import { IconPicker } from './icons/IconPicker';
 import { OptionToggle } from './OptionToggle';
@@ -62,6 +62,8 @@ interface AgentEditorProps {
   initialSchedule?: ScheduleState | null;
   /** Edit only — id of the recurring task to PATCH alongside the agent. */
   recurringTaskId?: string;
+  /** Edit only — the stored agent, for the conversion notice. */
+  agent?: Agent;
 }
 
 /**
@@ -77,6 +79,7 @@ function AgentEditor({
   variant = 'agent',
   initialSchedule = null,
   recurringTaskId,
+  agent,
 }: AgentEditorProps) {
   const navigate = useNavigate();
   const createMut = useCreateUserAgent();
@@ -261,7 +264,7 @@ function AgentEditor({
         </div>
       </header>
 
-      <ExperimentalAgentBanner className="mb-lg" />
+      {mode === 'edit' && agent && <AgentConversionNotice agent={agent} className="mb-lg" />}
 
       {error && <p className="mb-md text-sm text-destructive">{error}</p>}
 
