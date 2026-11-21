@@ -118,6 +118,10 @@ export const videoRenderStatusResponseSchema = z.object({
 });
 export type VideoRenderStatusResponse = z.infer<typeof videoRenderStatusResponseSchema>;
 
+/** Whether this instance has a render service; the editor hides the option otherwise. */
+export const videoRenderAvailabilityResponseSchema = z.object({ available: z.boolean() });
+export type VideoRenderAvailabilityResponse = z.infer<typeof videoRenderAvailabilityResponseSchema>;
+
 /** The MP4 itself; consumers read the raw response. */
 export const videoRenderFileResponseSchema = z.unknown();
 
