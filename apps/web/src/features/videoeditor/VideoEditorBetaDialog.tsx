@@ -81,7 +81,7 @@ interface VideoEditorBetaDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-/** Hinweis beim ersten Öffnen: der Video-Editor ist in der Beta, Feedback bitte über den Feedback-Button. */
+/** Hinweis beim ersten Öffnen: der Video-Editor ist in der Beta, Feedback bitte über den Support-Button. */
 export default function VideoEditorBetaDialog({ open, onOpenChange }: VideoEditorBetaDialogProps) {
   // Erst schließen, dann das Feedback-Formular öffnen: es fotografiert offene Dialoge mit.
   const giveFeedback = canRequestFeedback()
@@ -122,8 +122,8 @@ export default function VideoEditorBetaDialog({ open, onOpenChange }: VideoEdito
               className="mt-0.5 size-5 shrink-0 text-primary-600 dark:text-primary-300"
             />
             <span>
-              Wenn etwas nicht klappt oder dir etwas fehlt, sag es uns über den Feedback-Button.
-              Jede Meldung hilft, den Editor besser zu machen.
+              Wenn etwas nicht klappt oder dir etwas fehlt, sag es uns über den Support-Button. Jede
+              Meldung hilft, den Editor besser zu machen.
             </span>
           </p>
           <div className="mt-1 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
@@ -133,7 +133,7 @@ export default function VideoEditorBetaDialog({ open, onOpenChange }: VideoEdito
               </Button>
             ) : (
               <span className="text-xs text-muted-foreground sm:mr-auto">
-                Den Feedback-Button schaltest du unter Einstellungen → Allgemein ein.
+                Den Support-Button schaltest du unter Einstellungen → Allgemein ein.
               </span>
             )}
             <Button size="lg" className="rounded-full" onClick={() => onOpenChange(false)}>

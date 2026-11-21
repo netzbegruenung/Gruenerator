@@ -127,22 +127,6 @@ export const SITE_IMAGE_FOCUS_STEPS = [0, 25, 50, 75, 100] as const;
 export const siteImageFocusSchema = z.object({ x: focusStep, y: focusStep });
 export type SiteImageFocus = z.infer<typeof siteImageFocusSchema>;
 
-export const siteThemeCardSchema = z.object({
-  imageUrl: urlField,
-  imageFocus: siteImageFocusSchema.optional(),
-  title: z.string().max(SITE_SECTION_TITLE_MAX),
-  content: boundedRichTextDoc(SITE_THEME_CONTENT_MAX_LENGTH),
-});
-export type SiteThemeCard = z.infer<typeof siteThemeCardSchema>;
-
-export const siteActionTileSchema = z.object({
-  imageUrl: urlField,
-  imageFocus: siteImageFocusSchema.optional(),
-  text: z.string().max(SITE_ACTION_TEXT_MAX),
-  link: urlField,
-});
-export type SiteActionTile = z.infer<typeof siteActionTileSchema>;
-
 /** Names the role (how dark the leading ground is), not a colour: Tanne in DE, Dunkelgrün in AT. */
 export const siteVariantSchema = z.enum(['dunkel', 'hell', 'leuchtend']);
 export type SiteVariant = z.infer<typeof siteVariantSchema>;
@@ -158,18 +142,19 @@ export const siteHeaderStyleSchema = z.enum(['weiss', 'farbig']);
 export type SiteHeaderStyle = z.infer<typeof siteHeaderStyleSchema>;
 export const DEFAULT_SITE_HEADER_STYLE: SiteHeaderStyle = 'weiss';
 
-export const siteOptionalSectionSchema = z.enum([
-  'about',
-  'heroImage',
-  'themes',
-  'actions',
-  'socialFeed',
-  'contact',
-]);
-export type SiteOptionalSection = z.infer<typeof siteOptionalSectionSchema>;
+/** Hero layout: portrait beside the text, or the portrait as a full-bleed backdrop. Absent means portrait. */
+export const siteHeroLayoutSchema = z.enum(['portrait', 'vollbild']);
+export type SiteHeroLayout = z.infer<typeof siteHeroLayoutSchema>;
+export const DEFAULT_SITE_HERO_LAYOUT: SiteHeroLayout = 'portrait';
 
-/** Page order; the same values as `SectionType` in packages/sites editorStore. */
-export const SITE_SECTION_IDS = [
+// ── Page blocks ─────────────────────────────────────────────────────────────
+
+/** A block or item id: stored with the page, so a copy or a concurrent move keeps its identity. */
+export const siteIdSchema = z.string().regex(/^[A-Za-z0-9_-]{1,40}$/);
+
+export const SITE_BLOCKS_MAX = 20;
+
+export const siteBlockTypeSchema = z.enum([
   'hero',
   'about',
   'heroImage',
@@ -177,45 +162,218 @@ export const SITE_SECTION_IDS = [
   'actions',
   'socialFeed',
   'contact',
-] as const;
-export type SiteSectionId = (typeof SITE_SECTION_IDS)[number];
+]);
+export type SiteBlockType = z.infer<typeof siteBlockTypeSchema>;
 
+/**
+ * What the page allows per block type. `max` counts blocks of the type on one page; the hero is
+ * pinned to the top. Social feed and contact are page-wide (consent script, `#kontakt`, the
+ * contact data), so they come once.
+ */
+export const SITE_BLOCK_TYPES = [
+  { type: 'hero', max: 1, itemMax: null, pinned: true },
+  { type: 'about', max: null, itemMax: null, pinned: false },
+  { type: 'heroImage', max: null, itemMax: null, pinned: false },
+  { type: 'themes', max: null, itemMax: SITE_THEMES_MAX, pinned: false },
+  { type: 'actions', max: null, itemMax: SITE_ACTIONS_MAX, pinned: false },
+  { type: 'socialFeed', max: 1, itemMax: null, pinned: false },
+  { type: 'contact', max: 1, itemMax: null, pinned: false },
+] as const satisfies readonly {
+  type: SiteBlockType;
+  max: number | null;
+  itemMax: number | null;
+  pinned: boolean;
+}[];
+export type SiteBlockSpec = (typeof SITE_BLOCK_TYPES)[number];
+
+export function siteBlockSpec<T extends SiteBlockType>(
+  type: T
+): Extract<SiteBlockSpec, { type: T }> {
+  return SITE_BLOCK_TYPES.find((spec) => spec.type === type) as Extract<SiteBlockSpec, { type: T }>;
+}
+
+/** The field schemas a block is built from: plain for the stored row, checked for the snapshot. */
+export interface SiteBlockFields {
+  image: z.ZodType<string>;
+  focus: z.ZodOptional<typeof siteImageFocusSchema>;
+  sectionTitle: z.ZodType<string>;
+  bannerTitle: z.ZodType<string>;
+  bannerSubtitle: z.ZodType<string>;
+  actionText: z.ZodType<string>;
+  link: z.ZodType<string>;
+  instagram: z.ZodOptional<z.ZodType<string>>;
+  richText: (max: number) => z.ZodType<RichTextDoc>;
+  items: <T extends z.ZodType>(item: T, max: number) => z.ZodType<z.output<T>[]>;
+  hidden: z.ZodOptional<z.ZodBoolean>;
+  layout: z.ZodOptional<typeof siteHeroLayoutSchema>;
+}
+
+export function siteBlockObjects(f: SiteBlockFields) {
+  const base = { id: siteIdSchema, hidden: f.hidden };
+  return {
+    hero: z.object({ ...base, type: z.literal('hero'), layout: f.layout }),
+    about: z.object({
+      ...base,
+      type: z.literal('about'),
+      title: f.sectionTitle,
+      content: f.richText(SITE_ABOUT_MAX_LENGTH),
+    }),
+    heroImage: z.object({
+      ...base,
+      type: z.literal('heroImage'),
+      imageUrl: f.image,
+      imageFocus: f.focus,
+      title: f.bannerTitle,
+      subtitle: f.bannerSubtitle,
+    }),
+    themes: z.object({
+      ...base,
+      type: z.literal('themes'),
+      items: f.items(
+        z.object({
+          id: siteIdSchema,
+          title: f.sectionTitle,
+          imageUrl: f.image,
+          imageFocus: f.focus,
+          content: f.richText(SITE_THEME_CONTENT_MAX_LENGTH),
+        }),
+        SITE_THEMES_MAX
+      ),
+    }),
+    actions: z.object({
+      ...base,
+      type: z.literal('actions'),
+      items: f.items(
+        z.object({
+          id: siteIdSchema,
+          text: f.actionText,
+          link: f.link,
+          imageUrl: f.image,
+          imageFocus: f.focus,
+        }),
+        SITE_ACTIONS_MAX
+      ),
+    }),
+    socialFeed: z.object({
+      ...base,
+      type: z.literal('socialFeed'),
+      title: f.sectionTitle,
+      instagramUsername: f.instagram,
+    }),
+    contact: z.object({
+      ...base,
+      type: z.literal('contact'),
+      title: f.sectionTitle,
+      backgroundImageUrl: f.image,
+      backgroundFocus: f.focus,
+    }),
+  };
+}
+
+const ROW_BLOCKS = siteBlockObjects({
+  image: urlField,
+  focus: siteImageFocusSchema.optional(),
+  sectionTitle: z.string().max(SITE_SECTION_TITLE_MAX),
+  bannerTitle: z.string().max(SITE_TITLE_MAX),
+  bannerSubtitle: z.string().max(SITE_TAGLINE_MAX),
+  actionText: z.string().max(SITE_ACTION_TEXT_MAX),
+  link: urlField,
+  instagram: z.string().max(INSTAGRAM_USERNAME_MAX).optional(),
+  richText: (max) => boundedRichTextDoc(max),
+  items: (item, max) => z.array(item).max(max),
+  hidden: z.boolean().optional(),
+  layout: siteHeroLayoutSchema.optional(),
+});
+
+export const siteBlockSchema = z.discriminatedUnion('type', [
+  ROW_BLOCKS.hero,
+  ROW_BLOCKS.about,
+  ROW_BLOCKS.heroImage,
+  ROW_BLOCKS.themes,
+  ROW_BLOCKS.actions,
+  ROW_BLOCKS.socialFeed,
+  ROW_BLOCKS.contact,
+]);
+export type SiteBlock = z.infer<typeof siteBlockSchema>;
+export type SiteBlockOf<T extends SiteBlockType> = Extract<SiteBlock, { type: T }>;
+export type SiteThemeItem = SiteBlockOf<'themes'>['items'][number];
+export type SiteActionItem = SiteBlockOf<'actions'>['items'][number];
+
+export const HERO_ON_TOP_MESSAGE = 'Profil muss oben stehen';
+const DUPLICATE_ID_MESSAGE = 'Kennung doppelt vergeben';
+
+/** Rules across the blocks of one page: the hero on top, the per-type limits, unique ids. */
+export function checkSitePage(
+  blocks: readonly { id: string; type: SiteBlockType; items?: readonly { id: string }[] }[],
+  ctx: z.RefinementCtx
+): void {
+  if (blocks[0]?.type !== 'hero' || blocks.filter((block) => block.type === 'hero').length !== 1) {
+    ctx.addIssue({ code: 'custom', message: HERO_ON_TOP_MESSAGE });
+  }
+  for (const spec of SITE_BLOCK_TYPES) {
+    if (spec.max === null) continue;
+    if (blocks.filter((block) => block.type === spec.type).length > spec.max) {
+      ctx.addIssue({ code: 'custom', message: `Zu viele Bausteine vom Typ ${spec.type}` });
+    }
+  }
+  const seen = new Set<string>();
+  for (const id of blocks.flatMap((block) => [block.id, ...(block.items ?? []).map((i) => i.id)])) {
+    if (seen.has(id)) {
+      ctx.addIssue({ code: 'custom', message: DUPLICATE_ID_MESSAGE });
+      return;
+    }
+    seen.add(id);
+  }
+}
+
+export const siteBlockListSchema = z
+  .array(siteBlockSchema)
+  .max(SITE_BLOCKS_MAX)
+  .superRefine((blocks, ctx) => checkSitePage(blocks, ctx));
+
+/** Canonical shape of the `sections` jsonb column: page settings plus the ordered blocks. */
 export const siteSectionsSchema = z.object({
-  hidden: z.array(siteOptionalSectionSchema).max(6).optional(),
   header: siteHeaderStyleSchema.optional(),
   profileImageFocus: siteImageFocusSchema.optional(),
-  heroImage: z
-    .object({
-      imageUrl: urlField,
-      imageFocus: siteImageFocusSchema.optional(),
-      title: z.string().max(SITE_TITLE_MAX),
-      subtitle: z.string().max(SITE_TAGLINE_MAX),
-    })
-    .optional(),
-  about: z
-    .object({
-      title: z.string().max(SITE_SECTION_TITLE_MAX),
-      content: boundedRichTextDoc(SITE_ABOUT_MAX_LENGTH),
-    })
-    .optional(),
-  themes: z.array(siteThemeCardSchema).max(SITE_THEMES_MAX).optional(),
-  actions: z.array(siteActionTileSchema).max(SITE_ACTIONS_MAX).optional(),
-  contact: z
-    .object({
-      title: z.string().max(SITE_SECTION_TITLE_MAX),
-      backgroundImageUrl: urlField,
-      backgroundFocus: siteImageFocusSchema.optional(),
-    })
-    .optional(),
-  socialFeed: z
-    .object({
-      title: z.string().max(SITE_SECTION_TITLE_MAX),
-      instagramUsername: z.string().max(INSTAGRAM_USERNAME_MAX).optional(),
-      showFeed: z.boolean(),
-    })
-    .optional(),
+  blocks: siteBlockListSchema,
 });
 export type SiteSections = z.infer<typeof siteSectionsSchema>;
+
+/** A new, empty block of `type`, with the default texts the page has always started with. */
+export function defaultSiteBlock<T extends SiteBlockType>(
+  type: T,
+  newId: () => string
+): SiteBlockOf<T> {
+  const id = newId();
+  const blocks: { [K in SiteBlockType]: () => SiteBlockOf<K> } = {
+    hero: () => ({ id, type: 'hero' }),
+    about: () => ({ id, type: 'about', title: 'Wer ich bin', content: emptyRichTextDoc() }),
+    heroImage: () => ({
+      id,
+      type: 'heroImage',
+      imageUrl: '',
+      title: 'Gemeinsam für eine nachhaltige Zukunft!',
+      subtitle: '',
+    }),
+    themes: () => ({ id, type: 'themes', items: [] }),
+    actions: () => ({ id, type: 'actions', items: [] }),
+    socialFeed: () => ({
+      id,
+      type: 'socialFeed',
+      title: 'Instagram',
+      instagramUsername: '',
+      // Starts hidden: a feed needs a username first; the toolbar shows it.
+      hidden: true,
+    }),
+    contact: () => ({ id, type: 'contact', title: 'Kontakt', backgroundImageUrl: '' }),
+  };
+  return blocks[type]() as SiteBlockOf<T>;
+}
+
+/** The page a new site starts with: one block of each type, in the standard order. */
+export function defaultSiteBlocks(newId: () => string): SiteBlock[] {
+  return SITE_BLOCK_TYPES.map((spec) => defaultSiteBlock(spec.type, newId));
+}
 
 const LINK_MESSAGE = 'Link muss mit https:// beginnen';
 const IMAGE_MESSAGE = 'Bild muss aus der Mediathek stammen';
@@ -362,6 +520,21 @@ const snapshotPhone = z
 
 const EMPTY_LEGAL = { name: '', street: '', postal_code: '', city: '', email: '' };
 
+/** One hero, first: an existing one moves up, a missing one is added. */
+export function withHeroOnTop<B extends { id: string; type: SiteBlockType }>(blocks: B[]): B[] {
+  const hero = blocks.find((block) => block.type === 'hero');
+  const rest = blocks.filter((block) => block.type !== 'hero');
+  const top = hero ?? (defaultSiteBlock('hero', () => uniqueHeroId(blocks)) as unknown as B);
+  return [top, ...rest];
+}
+
+function uniqueHeroId(blocks: readonly { id: string }[]): string {
+  const taken = new Set(blocks.map((block) => block.id));
+  let id = 'hero';
+  for (let n = 2; taken.has(id); n += 1) id = `hero-${n}`;
+  return id;
+}
+
 function snapshotSchemaFor(mode: 'publish' | 'preview') {
   // `.catch` keeps the output type, so both modes infer the same shape.
   const lenient = <T extends z.ZodType>(schema: T, fallback: z.output<T>): T =>
@@ -373,61 +546,59 @@ function snapshotSchemaFor(mode: 'publish' | 'preview') {
 
   const focus = lenient(siteImageFocusSchema.optional(), undefined);
 
+  const blockObjects = siteBlockObjects({
+    image,
+    focus,
+    sectionTitle,
+    bannerTitle: lenient(z.string().max(SITE_TITLE_MAX), ''),
+    bannerSubtitle: lenient(z.string().max(SITE_TAGLINE_MAX), ''),
+    actionText: lenient(z.string().max(SITE_ACTION_TEXT_MAX), ''),
+    link: lenient(snapshotLink, ''),
+    instagram: lenient(
+      z
+        .union([z.literal(''), z.string().regex(/^[A-Za-z0-9._]{1,30}$/, INSTAGRAM_MESSAGE)])
+        .optional(),
+      ''
+    ),
+    richText,
+    items: (item, max) => lenient(z.array(item).max(max), []),
+    hidden: lenient(z.boolean().optional(), undefined),
+    layout: lenient(siteHeroLayoutSchema.optional(), undefined),
+  });
+  const block = z.discriminatedUnion('type', [
+    blockObjects.hero,
+    blockObjects.about,
+    blockObjects.heroImage,
+    blockObjects.themes,
+    blockObjects.actions,
+    blockObjects.socialFeed,
+    blockObjects.contact,
+  ]);
+  // Publishing checks the page as a whole; the preview drops a block that does not parse and
+  // puts a hero on top, so one broken block never blanks the editor.
+  const blocks =
+    mode === 'preview'
+      ? z
+          .array(z.unknown())
+          .max(SITE_BLOCKS_MAX)
+          .catch([])
+          .transform((raw) =>
+            withHeroOnTop(
+              raw.flatMap((entry) => {
+                const parsed = block.safeParse(entry);
+                return parsed.success ? [parsed.data] : [];
+              })
+            )
+          )
+      : z
+          .array(block)
+          .max(SITE_BLOCKS_MAX)
+          .superRefine((list, ctx) => checkSitePage(list, ctx));
+
   const sections = z.object({
     header: lenient(siteHeaderStyleSchema.optional(), undefined),
     profileImageFocus: focus,
-    heroImage: z
-      .object({
-        imageUrl: image,
-        imageFocus: focus,
-        title: lenient(z.string().max(SITE_TITLE_MAX), ''),
-        subtitle: lenient(z.string().max(SITE_TAGLINE_MAX), ''),
-      })
-      .optional(),
-    about: z.object({ title: sectionTitle, content: richText(SITE_ABOUT_MAX_LENGTH) }).optional(),
-    themes: lenient(
-      z
-        .array(
-          z.object({
-            imageUrl: image,
-            imageFocus: focus,
-            title: sectionTitle,
-            content: richText(SITE_THEME_CONTENT_MAX_LENGTH),
-          })
-        )
-        .max(SITE_THEMES_MAX)
-        .optional(),
-      []
-    ),
-    actions: lenient(
-      z
-        .array(
-          z.object({
-            imageUrl: image,
-            imageFocus: focus,
-            text: lenient(z.string().max(SITE_ACTION_TEXT_MAX), ''),
-            link: lenient(snapshotLink, ''),
-          })
-        )
-        .max(SITE_ACTIONS_MAX)
-        .optional(),
-      []
-    ),
-    contact: z
-      .object({ title: sectionTitle, backgroundImageUrl: image, backgroundFocus: focus })
-      .optional(),
-    socialFeed: z
-      .object({
-        title: sectionTitle,
-        instagramUsername: lenient(
-          z
-            .union([z.literal(''), z.string().regex(/^[A-Za-z0-9._]{1,30}$/, INSTAGRAM_MESSAGE)])
-            .optional(),
-          ''
-        ),
-        showFeed: z.boolean(),
-      })
-      .optional(),
+    blocks,
   });
 
   const socialLinks =
@@ -467,7 +638,7 @@ function snapshotSchemaFor(mode: 'publish' | 'preview') {
   });
 
   return z.object({
-    version: z.literal(1),
+    version: z.literal(2),
     locale: localeSchema,
     site_title: lenient(z.string().trim().min(1, 'Titel fehlt').max(SITE_TITLE_MAX), ''),
     tagline: lenient(z.string().max(SITE_TAGLINE_MAX), ''),
@@ -478,7 +649,6 @@ function snapshotSchemaFor(mode: 'publish' | 'preview') {
     sections,
     legal: mode === 'preview' ? legalLenient.catch(EMPTY_LEGAL) : legal,
     variant: lenient(siteVariantSchema.default(DEFAULT_SITE_VARIANT), DEFAULT_SITE_VARIANT),
-    hidden_sections: lenient(z.array(siteOptionalSectionSchema).max(6).default([]), []),
   });
 }
 
@@ -536,8 +706,12 @@ export type SiteSnapshotSource = Pick<
   | 'legal'
 >;
 
-const toPreviewUrl = (url: string | null | undefined): string =>
-  (url ?? '').replace(/^(\/api\/share\/[A-Za-z0-9_-]+)\/download$/, '$1/preview');
+// A stored or half-typed value can be anything; the schema blanks a non-string afterwards.
+const toPreviewUrl = (url: unknown): string =>
+  (typeof url === 'string' ? url : '').replace(
+    /^(\/api\/share\/[A-Za-z0-9_-]+)\/download$/,
+    '$1/preview'
+  );
 
 const GREETING_PREFIX =
   /^\s{0,8}(?:(?:hallo|hi|hey|servus|moin|moin moin|grüß gott|grüß dich|grüezi|guten tag|liebe besucher\*?innen)[\s,!.:–-]{0,8})?(?:ich bin|ich heiße|mein name ist|ich heisse)\s{1,8}/i;
@@ -578,40 +752,51 @@ function localizeActionLink(link: string, locale: SupportedLocale): string {
   return KNOWN_MEMBER_URLS.has(sameMemberUrl(link)) ? SITE_MEMBER_LINKS[locale] : link;
 }
 
-function normaliseSections(sections: SiteSections | null, locale: SupportedLocale): SiteSections {
-  if (!sections) return {};
-  const { hidden: _hidden, ...rest } = sections;
-  const out: SiteSections = { ...rest };
-  if (sections.heroImage) {
-    out.heroImage = { ...sections.heroImage, imageUrl: toPreviewUrl(sections.heroImage.imageUrl) };
+function normaliseBlock(block: SiteBlock, locale: SupportedLocale): SiteBlock {
+  switch (block.type) {
+    case 'heroImage':
+      return { ...block, imageUrl: toPreviewUrl(block.imageUrl) };
+    case 'themes':
+      return {
+        ...block,
+        items: block.items.map((item) => ({ ...item, imageUrl: toPreviewUrl(item.imageUrl) })),
+      };
+    case 'actions':
+      return {
+        ...block,
+        items: block.items.map((item) => ({
+          ...item,
+          link: localizeActionLink(item.link, locale),
+          imageUrl: toPreviewUrl(item.imageUrl),
+        })),
+      };
+    case 'contact':
+      return { ...block, backgroundImageUrl: toPreviewUrl(block.backgroundImageUrl) };
+    default:
+      return block;
   }
-  if (sections.themes) {
-    out.themes = sections.themes.map((t) => ({ ...t, imageUrl: toPreviewUrl(t.imageUrl) }));
-  }
-  if (sections.actions) {
-    out.actions = sections.actions.map((a) => ({
-      ...a,
-      link: localizeActionLink(a.link, locale),
-      imageUrl: toPreviewUrl(a.imageUrl),
-    }));
-  }
-  if (sections.contact) {
-    out.contact = {
-      ...sections.contact,
-      backgroundImageUrl: toPreviewUrl(sections.contact.backgroundImageUrl),
-    };
-  }
-  return out;
 }
 
-function snapshotCandidate(source: SiteSnapshotSource, locale: SupportedLocale) {
+export interface SiteSnapshotOptions {
+  /** Keep hidden blocks (marked `hidden: true`), for the editor canvas. */
+  includeHidden?: boolean;
+}
+
+function snapshotCandidate(
+  source: SiteSnapshotSource,
+  locale: SupportedLocale,
+  options: SiteSnapshotOptions = {}
+) {
   const legal = source.legal ?? {};
   const socialLinks = Object.fromEntries(
     Object.entries(source.social_links ?? {}).filter(([, value]) => value.trim() !== '')
   );
-  const hidden = new Set<string>(source.sections?.hidden ?? []);
+  const sections = source.sections;
+  const blocks = (sections?.blocks ?? [])
+    .filter((block) => options.includeHidden || !block.hidden)
+    .map((block) => normaliseBlock(block, locale));
   return {
-    version: 1,
+    version: 2,
     locale,
     site_title: source.site_title,
     tagline: source.tagline ?? '',
@@ -619,7 +804,11 @@ function snapshotCandidate(source: SiteSnapshotSource, locale: SupportedLocale) 
     contact_email: source.contact_email ?? '',
     contact_phone: source.contact_phone ?? '',
     social_links: socialLinks,
-    sections: normaliseSections(source.sections, locale),
+    sections: {
+      ...(sections?.header ? { header: sections.header } : {}),
+      ...(sections?.profileImageFocus ? { profileImageFocus: sections.profileImageFocus } : {}),
+      blocks,
+    },
     legal: {
       name: legal.name ?? '',
       street: legal.street ?? '',
@@ -629,10 +818,22 @@ function snapshotCandidate(source: SiteSnapshotSource, locale: SupportedLocale) 
       ...(legal.phone ? { phone: legal.phone } : {}),
     },
     variant: readSiteVariant(source.theme),
-    hidden_sections: SITE_SECTION_IDS.filter(
-      (id): id is SiteOptionalSection => id !== 'hero' && hidden.has(id)
-    ),
   };
+}
+
+/** `sections.blocks.3.items.1.link` → `blocks.<blockId>.items.<itemId>.link`, the editor's address. */
+function issuePath(path: readonly PropertyKey[], blocks: readonly SiteBlock[]): string {
+  if (path[0] !== 'sections' || path[1] !== 'blocks' || typeof path[2] !== 'number') {
+    return path.map(String).join('.');
+  }
+  const block = blocks[path[2]];
+  if (!block) return 'blocks';
+  const rest = path.slice(3).map(String);
+  if (rest[0] === 'items' && 'items' in block && rest[1] !== undefined) {
+    const item = block.items[Number(rest[1])];
+    if (item) rest[1] = item.id;
+  }
+  return ['blocks', block.id, ...rest].join('.');
 }
 
 export function buildSiteSnapshot(
@@ -642,12 +843,13 @@ export function buildSiteSnapshot(
   if (!source.legal) {
     return { ok: false, issues: [{ path: 'legal', message: 'Impressumsangaben fehlen' }] };
   }
-  const parsed = publishedSiteSnapshotSchema.safeParse(snapshotCandidate(source, locale));
+  const candidate = snapshotCandidate(source, locale);
+  const parsed = publishedSiteSnapshotSchema.safeParse(candidate);
   if (parsed.success) return { ok: true, snapshot: parsed.data };
   return {
     ok: false,
     issues: parsed.error.issues.map((issue) => ({
-      path: issue.path.join('.'),
+      path: issuePath(issue.path, candidate.sections.blocks),
       message: issue.message,
     })),
   };
@@ -656,9 +858,10 @@ export function buildSiteSnapshot(
 /** Never fails: whatever does not validate is replaced by its empty value, for the editor preview. */
 export function buildSitePreviewSnapshot(
   source: SiteSnapshotSource,
-  locale: SupportedLocale
+  locale: SupportedLocale,
+  options: SiteSnapshotOptions = {}
 ): PublishedSiteSnapshot {
-  return previewSiteSnapshotSchema.parse(snapshotCandidate(source, locale));
+  return previewSiteSnapshotSchema.parse(snapshotCandidate(source, locale, options));
 }
 
 export const siteResponseSchema = z.object({ site: siteSchema });

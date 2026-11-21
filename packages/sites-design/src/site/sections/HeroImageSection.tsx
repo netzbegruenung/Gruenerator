@@ -1,8 +1,9 @@
 /** @jsxRuntime automatic @jsxImportSource react */
-import { SECTION_ANCHORS } from '../../model/visibility.js';
 import {
+  blockField,
   CONTAINER,
   editableText,
+  type Placement,
   Section,
   type SectionContext,
   SectionHeading,
@@ -10,20 +11,27 @@ import {
 import { Placeholder } from '../Placeholder.js';
 import { SiteImage } from '../SiteImage.js';
 
-export function HeroImageSection({ ctx }: { ctx: SectionContext }) {
+export function HeroImageSection({
+  ctx,
+  place,
+}: {
+  ctx: SectionContext;
+  place: Placement<'heroImage'>;
+}) {
   const { snapshot, mode, copy } = ctx;
-  const anchor = SECTION_ANCHORS.heroImage;
-  const band = snapshot.sections.heroImage;
-  const imageUrl = band?.imageUrl ?? '';
-  const title = band?.title.trim() ?? '';
-  const subtitle = band?.subtitle.trim() ?? '';
+  const { anchor, block: band } = place;
+  const imageUrl = band.imageUrl;
+  const title = band.title.trim();
+  const subtitle = band.subtitle.trim();
   const hasImage = imageUrl !== '';
+  const imageField = blockField(band, 'imageUrl');
+  const titleField = blockField(band, 'title');
+  const subtitleField = blockField(band, 'subtitle');
 
   return (
     <Section
-      section="heroImage"
-      anchor={anchor}
-      ground={hasImage ? 'photo' : 'deep'}
+      ctx={ctx}
+      place={place}
       className="site:relative site:isolate site:flex site:min-h-[clamp(22rem,50vw,36rem)] site:items-center site:overflow-hidden site:py-section"
     >
       {hasImage && (
@@ -31,8 +39,8 @@ export function HeroImageSection({ ctx }: { ctx: SectionContext }) {
           <SiteImage
             url={imageUrl}
             slot="banner"
-            field="sections.heroImage.imageUrl"
-            focus={band?.imageFocus}
+            field={imageField}
+            focus={band.imageFocus}
             className="site:absolute site:inset-0 site:-z-20"
           />
           <div
@@ -45,11 +53,11 @@ export function HeroImageSection({ ctx }: { ctx: SectionContext }) {
         {title !== '' || ctx.edit ? (
           <SectionHeading
             id={`${anchor}-titel`}
-            field="sections.heroImage.title"
+            field={titleField}
             center
             className="site:mx-auto site:max-w-[20ch] site:text-banner"
           >
-            {editableText(ctx, 'sections.heroImage.title', copy.editBannerTitle, title)}
+            {editableText(ctx, titleField, copy.editBannerTitle, title)}
           </SectionHeading>
         ) : (
           <h2 id={`${anchor}-titel`} className="site:sr-only">
@@ -58,15 +66,15 @@ export function HeroImageSection({ ctx }: { ctx: SectionContext }) {
         )}
         {(subtitle !== '' || ctx.edit) && (
           <p
-            data-field="sections.heroImage.subtitle"
+            data-field={subtitleField}
             className="site:mx-auto site:mt-6 site:max-w-[40ch] site:text-lead"
           >
-            {editableText(ctx, 'sections.heroImage.subtitle', copy.editBannerSubtitle, subtitle)}
+            {editableText(ctx, subtitleField, copy.editBannerSubtitle, subtitle)}
           </p>
         )}
         {!hasImage && title === '' && !ctx.edit && (
           <Placeholder
-            field="sections.heroImage.imageUrl"
+            field={imageField}
             text={copy.emptyHeroImage}
             mode={ctx.mode}
             className="site:mx-auto site:max-w-prose"

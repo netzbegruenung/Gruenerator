@@ -1,11 +1,12 @@
 /** @jsxRuntime automatic @jsxImportSource react */
 import { isRichTextDocEmpty } from '@gruenerator/contracts';
 
-import { sectionGround } from '../../model/grounds.js';
-import { SECTION_ANCHORS } from '../../model/visibility.js';
 import {
   CONTAINER,
   editableText,
+  innerId,
+  itemField,
+  type Placement,
   Section,
   type SectionContext,
   SectionHeading,
@@ -14,21 +15,21 @@ import { Placeholder } from '../Placeholder.js';
 import { SiteImage } from '../SiteImage.js';
 import { SiteRichText } from '../SiteRichText.js';
 
-export function ThemesSection({ ctx }: { ctx: SectionContext }) {
-  const { snapshot, copy } = ctx;
-  const anchor = SECTION_ANCHORS.themes;
-  const ground = sectionGround(snapshot.variant, 'themes', snapshot.locale);
+export function ThemesSection({ ctx, place }: { ctx: SectionContext; place: Placement<'themes'> }) {
+  const { copy } = ctx;
+  const { anchor, ground, block } = place;
   const cardGround = ground === 'paper' ? 'surface' : 'paper';
-  const themes = snapshot.sections.themes ?? [];
+  const themes = block.items;
+  const listField = `blocks.${block.id}`;
 
   return (
-    <Section section="themes" anchor={anchor} ground={ground} className="site:py-section">
+    <Section ctx={ctx} place={place} className="site:py-section">
       <div className={`${CONTAINER} site:mb-8`}>
         <SectionHeading id={`${anchor}-titel`}>{copy.themesHeading}</SectionHeading>
       </div>
       {themes.length === 0 ? (
         <div className={CONTAINER}>
-          <Placeholder field="sections.themes" text={copy.emptyThemes} mode={ctx.mode} />
+          <Placeholder field={listField} text={copy.emptyThemes} mode={ctx.mode} />
         </div>
       ) : (
         <div
@@ -38,14 +39,14 @@ export function ThemesSection({ ctx }: { ctx: SectionContext }) {
           className="site:snap-x site:snap-mandatory site:scroll-px-gutter site:overflow-x-auto site:overscroll-x-contain site:pb-2 site:focus-visible:outline-offset-[-3px] site:lg:mx-auto site:lg:max-w-page site:lg:snap-none site:lg:overflow-visible site:lg:px-gutter site:lg:pb-0"
         >
           <ul
-            data-field="sections.themes"
+            data-field={listField}
             className="site:grid site:w-max site:auto-cols-[85vw] site:grid-flow-col site:gap-6 site:px-gutter site:md:auto-cols-[42vw] site:lg:w-auto site:lg:grid-flow-row site:lg:grid-cols-3 site:lg:gap-8 site:lg:px-0"
           >
             {themes.map((theme, i) => {
-              const titleId = `thema-${i + 1}-titel`;
+              const titleId = innerId(place, `thema-${i + 1}-titel`);
               const title = theme.title.trim();
               return (
-                <li key={i} data-index={i} className="site:flex site:snap-start">
+                <li key={theme.id} data-item-id={theme.id} className="site:flex site:snap-start">
                   <article
                     aria-labelledby={titleId}
                     data-ground={cardGround}
@@ -54,19 +55,19 @@ export function ThemesSection({ ctx }: { ctx: SectionContext }) {
                     <SiteImage
                       url={theme.imageUrl}
                       slot="card"
-                      field={`sections.themes.${i}.imageUrl`}
+                      field={itemField(block, theme.id, 'imageUrl')}
                       focus={theme.imageFocus}
                       className="site:aspect-[16/10]"
                     />
                     <div className="site:flex site:grow site:flex-col site:p-6 site:lg:p-8">
                       <h3
                         id={titleId}
-                        data-field={`sections.themes.${i}.title`}
+                        data-field={itemField(block, theme.id, 'title')}
                         className="site:mb-3 site:text-h3 site:leading-[1.2] site:text-heading site:hyphens-manual site:break-words"
                       >
                         {editableText(
                           ctx,
-                          `sections.themes.${i}.title`,
+                          itemField(block, theme.id, 'title'),
                           `${copy.navThemes} ${i + 1}`,
                           title || `${copy.navThemes} ${i + 1}`
                         )}
@@ -74,17 +75,20 @@ export function ThemesSection({ ctx }: { ctx: SectionContext }) {
                       {ctx.edit ? (
                         <div
                           data-rich-text=""
-                          data-field={`sections.themes.${i}.content`}
+                          data-field={itemField(block, theme.id, 'content')}
                           className="site:max-w-prose site:hyphens-auto"
                         >
-                          {ctx.edit.richText(`sections.themes.${i}.content`, copy.editThemeText)}
+                          {ctx.edit.richText(
+                            itemField(block, theme.id, 'content'),
+                            copy.editThemeText
+                          )}
                         </div>
                       ) : (
                         !isRichTextDocEmpty(theme.content) && (
                           <SiteRichText
                             content={theme.content}
                             headingOffset={2}
-                            field={`sections.themes.${i}.content`}
+                            field={itemField(block, theme.id, 'content')}
                           />
                         )
                       )}

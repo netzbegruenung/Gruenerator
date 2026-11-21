@@ -100,6 +100,7 @@ function serve(
   uploads = 0;
   server.use(
     http.get(`${API}/auth/templates/popular`, () => HttpResponse.json({ items: [] })),
+    http.get(`${API}/video-projects`, () => HttpResponse.json([])),
     http.get(`${API}/content/mediathek`, ({ request }) => {
       const params = new URL(request.url).searchParams;
       listQueries.push(params);

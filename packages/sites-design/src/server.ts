@@ -6,7 +6,7 @@ import { type SiteFontFile } from './model/fonts.js';
 import { reportHref } from './model/links.js';
 import { type SiteDocumentKind } from './model/meta.js';
 import { sitePaths } from './model/paths.js';
-import { visibleSections } from './model/visibility.js';
+import { visibleBlocks } from './model/visibility.js';
 import { SiteDocument } from './document/SiteDocument.js';
 
 export { siteFontFaceCss, siteFontFiles, siteFontPreloads } from './model/fonts.js';
@@ -35,7 +35,8 @@ export function renderSitePage(input: RenderSitePageInput): { html: string } {
   const paths = sitePaths(handle);
   const canonical = `${origin}${paths[document]}`;
   const withScript =
-    document === 'home' && visibleSections(snapshot, 'public').includes('socialFeed');
+    document === 'home' &&
+    visibleBlocks(snapshot, 'public').some((block) => block.type === 'socialFeed');
 
   const markup = renderToStaticMarkup(
     createElement(SiteDocument, {

@@ -27,7 +27,7 @@ const LARGEST = 'patrick-hendry-vlA_C_HTc1A-unsplash.jpg';
 
 const snapshot = (overrides: Record<string, unknown> = {}): PublishedSiteSnapshot =>
   publishedSiteSnapshotSchema.parse({
-    version: 1,
+    version: 2,
     locale: 'de-DE',
     site_title: 'Anna Beispiel',
     tagline: '',
@@ -36,7 +36,15 @@ const snapshot = (overrides: Record<string, unknown> = {}): PublishedSiteSnapsho
     contact_phone: '',
     social_links: {},
     sections: {
-      socialFeed: { title: 'Instagram', instagramUsername: 'anna', showFeed: true },
+      blocks: [
+        { id: 'hero', type: 'hero' },
+        {
+          id: 'feed',
+          type: 'socialFeed',
+          title: 'Instagram',
+          instagramUsername: 'anna',
+        },
+      ],
     },
     legal: {
       name: 'Anna Beispiel',
@@ -53,11 +61,16 @@ const GERMAN = snapshot();
 const AUSTRIAN = snapshot({ locale: 'de-AT' });
 const WITH_HERO = snapshot({
   sections: {
-    heroImage: {
-      imageUrl: `/api/image-picker/stock-image/${LARGEST}`,
-      title: 'Für ein grünes Morgen',
-      subtitle: '',
-    },
+    blocks: [
+      { id: 'hero', type: 'hero' },
+      {
+        id: 'banner',
+        type: 'heroImage',
+        imageUrl: `/api/image-picker/stock-image/${LARGEST}`,
+        title: 'Für ein grünes Morgen',
+        subtitle: '',
+      },
+    ],
   },
 });
 

@@ -1,4 +1,9 @@
-import { SITE_ACTION_TEXT_MAX, SITE_ACTIONS_MAX, SITE_URL_MAX } from '@gruenerator/contracts';
+import {
+  SITE_ACTION_TEXT_MAX,
+  SITE_ACTIONS_MAX,
+  SITE_URL_MAX,
+  type SiteDraft,
+} from '@gruenerator/contracts';
 import { cn } from '@gruenerator/shared/utils';
 import { Button, Input } from '@gruenerator/ui';
 
@@ -19,24 +24,28 @@ const LINK_SUGGESTIONS = [
 ];
 
 interface ActionTileEditorProps {
+  blockId: string;
   id: string;
   index: number;
   count: number;
 }
 
-function ActionTileEditor({ id, index, count }: ActionTileEditorProps) {
+function actionTile(d: SiteDraft, blockId: string, id: string) {
+  const block = d.blocks.find((entry) => entry.id === blockId);
+  return block?.type === 'actions' ? block.items.find((item) => item.id === id) : undefined;
+}
+
+function ActionTileEditor({ blockId, id, index, count }: ActionTileEditorProps) {
   const { registerField, handleFieldFocus, handleFieldBlur } = useFieldRegistry();
-  const { updateAction, removeAction, moveAction } = useDraftActions();
-  const text = useDraft((d) => d.actions.find((action) => action.id === id)?.text ?? '');
-  const link = useDraft((d) => d.actions.find((action) => action.id === id)?.link ?? '');
-  const imageUrl = useDraft((d) => d.actions.find((action) => action.id === id)?.imageUrl ?? '');
-  const imageFocus = useDraft(
-    (d) => d.actions.find((action) => action.id === id)?.imageFocus ?? null
-  );
-  const base = `sections.actions.${index}`;
+  const { updateItem, removeItem, moveItem } = useDraftActions();
+  const text = useDraft((d) => actionTile(d, blockId, id)?.text ?? '');
+  const link = useDraft((d) => actionTile(d, blockId, id)?.link ?? '');
+  const imageUrl = useDraft((d) => actionTile(d, blockId, id)?.imageUrl ?? '');
+  const imageFocus = useDraft((d) => actionTile(d, blockId, id)?.imageFocus ?? null);
+  const base = `blocks.${blockId}.items.${id}`;
   const highlighted = useEditorStore(
     (s) =>
-      s.highlightedElement?.panel === 'actions' && s.highlightedElement.path.startsWith(`${base}.`)
+      s.highlightedElement?.panel === blockId && s.highlightedElement.path.startsWith(`${base}.`)
   );
   const name = text || `Aktion ${index + 1}`;
 
@@ -57,14 +66,14 @@ function ActionTileEditor({ id, index, count }: ActionTileEditorProps) {
           canMoveUp={index > 0}
           canMoveDown={index < count - 1}
           canRemove={count > 1}
-          onMoveUp={() => moveAction(id, index - 1)}
-          onMoveDown={() => moveAction(id, index + 1)}
-          onRemove={() => removeAction(id)}
+          onMoveUp={() => moveItem(blockId, id, index - 1)}
+          onMoveDown={() => moveItem(blockId, id, index + 1)}
+          onRemove={() => removeItem(blockId, id)}
         />
       </div>
 
       <Field
-        panel="actions"
+        panel={blockId}
         path={`${base}.text`}
         htmlFor={`action-${id}-text`}
         label="Button-Text"
@@ -73,22 +82,22 @@ function ActionTileEditor({ id, index, count }: ActionTileEditorProps) {
           ref={(el) => registerField(`${base}.text`, el)}
           id={`action-${id}-text`}
           value={text}
-          onChange={(e) => updateAction(id, { text: e.target.value })}
-          onFocus={() => handleFieldFocus('actions', `${base}.text`)}
+          onChange={(e) => updateItem(blockId, id, { text: e.target.value })}
+          onFocus={() => handleFieldFocus(blockId, `${base}.text`)}
           onBlur={handleFieldBlur}
           placeholder="z.B. Unterstütze uns!"
           maxLength={SITE_ACTION_TEXT_MAX}
         />
       </Field>
 
-      <Field panel="actions" path={`${base}.link`} htmlFor={`action-${id}-link`} label="Link">
+      <Field panel={blockId} path={`${base}.link`} htmlFor={`action-${id}-link`} label="Link">
         <Input
           ref={(el) => registerField(`${base}.link`, el)}
           id={`action-${id}-link`}
           type="url"
           value={link}
-          onChange={(e) => updateAction(id, { link: e.target.value })}
-          onFocus={() => handleFieldFocus('actions', `${base}.link`)}
+          onChange={(e) => updateItem(blockId, id, { link: e.target.value })}
+          onFocus={() => handleFieldFocus(blockId, `${base}.link`)}
           onBlur={handleFieldBlur}
           placeholder="https://... oder #section"
           maxLength={SITE_URL_MAX}
@@ -101,7 +110,7 @@ function ActionTileEditor({ id, index, count }: ActionTileEditorProps) {
               size="xs"
               variant={link === suggestion.link ? 'secondary' : 'outline'}
               aria-pressed={link === suggestion.link}
-              onClick={() => updateAction(id, { link: suggestion.link })}
+              onClick={() => updateItem(blockId, id, { link: suggestion.link })}
             >
               {suggestion.label}
             </Button>
@@ -110,7 +119,7 @@ function ActionTileEditor({ id, index, count }: ActionTileEditorProps) {
       </Field>
 
       <Field
-        panel="actions"
+        panel={blockId}
         path={`${base}.imageUrl`}
         labelId={`action-${id}-image-label`}
         label="Hintergrundbild"
@@ -118,7 +127,7 @@ function ActionTileEditor({ id, index, count }: ActionTileEditorProps) {
         <ImageUpload
           labelledBy={`action-${id}-image-label`}
           value={imageUrl}
-          onChange={(url) => updateAction(id, { imageUrl: url })}
+          onChange={(url) => updateItem(blockId, id, { imageUrl: url })}
           aspectRatio="16/9"
           placeholder="Aktionsbild"
         />
@@ -126,7 +135,7 @@ function ActionTileEditor({ id, index, count }: ActionTileEditorProps) {
           <FocalPointPicker
             src={imageUrl}
             value={imageFocus}
-            onChange={(focus) => updateAction(id, { imageFocus: focus })}
+            onChange={(focus) => updateItem(blockId, id, { imageFocus: focus })}
           />
         )}
       </Field>
@@ -134,9 +143,12 @@ function ActionTileEditor({ id, index, count }: ActionTileEditorProps) {
   );
 }
 
-export function ActionsSectionEditor() {
-  const { addAction } = useDraftActions();
-  const ids = useDraft((d) => d.actions.map((action) => action.id));
+export function ActionsSectionEditor({ blockId }: { blockId: string }) {
+  const { addItem } = useDraftActions();
+  const ids = useDraft((d) => {
+    const block = d.blocks.find((entry) => entry.id === blockId);
+    return block?.type === 'actions' ? block.items.map((item) => item.id) : [];
+  });
 
   return (
     <div>
@@ -148,14 +160,14 @@ export function ActionsSectionEditor() {
 
       <div className="flex flex-col gap-md mb-md">
         {ids.map((id, index) => (
-          <ActionTileEditor key={id} id={id} index={index} count={ids.length} />
+          <ActionTileEditor key={id} blockId={blockId} id={id} index={index} count={ids.length} />
         ))}
       </div>
 
       <AddItemButton
         label="Aktion"
         disabled={ids.length >= SITE_ACTIONS_MAX}
-        onAdd={() => addAction()}
+        onAdd={() => addItem(blockId)}
       />
     </div>
   );

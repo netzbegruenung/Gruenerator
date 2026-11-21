@@ -57,3 +57,4 @@ export * from './videoAi.js';
 export * from './studioAssets.js';
 export * from './contentReports.js';
 export * from './parteitage.js';
+export * from './videoProjects.js';

@@ -15,14 +15,16 @@ export const DOCS_SUBTYPES = COLLAB_SUBTYPES;
  * Document-only subtypes (excludes boards and canvas, which have their own
  * listing endpoints). Sheets stay in on purpose: they share the /docs list.
  */
-export const DOCS_ONLY_SUBTYPES = COLLAB_SUBTYPES.filter((s) => s !== 'boards' && s !== 'canvas');
+export const DOCS_ONLY_SUBTYPES = COLLAB_SUBTYPES.filter(
+  (s) => s !== 'boards' && s !== 'canvas' && s !== 'video'
+);
 
 /**
  * The user's own "office" content for recall — docs, boards, sheets,
  * presentations (everything except `canvas`, which is the sharepic surface with
  * its own gallery). Broader than DOCS_ONLY_SUBTYPES because recall wants boards.
  */
-export const OFFICE_SUBTYPES = COLLAB_SUBTYPES.filter((s) => s !== 'canvas');
+export const OFFICE_SUBTYPES = COLLAB_SUBTYPES.filter((s) => s !== 'canvas' && s !== 'video');
 
 /** Marker for permissions auto-granted when a user visits an 'authenticated' share link */
 export const GRANTED_BY_SHARE_LINK = 'auto:share_link';

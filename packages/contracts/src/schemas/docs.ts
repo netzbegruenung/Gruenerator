@@ -31,6 +31,7 @@ export const COLLAB_SUBTYPE_VALUES = [
   'canvas',
   'sheets',
   'presentations',
+  'video',
 ] as const;
 
 export const collabSubtypeSchema = z.enum(COLLAB_SUBTYPE_VALUES);

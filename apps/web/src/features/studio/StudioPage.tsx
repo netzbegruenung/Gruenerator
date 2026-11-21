@@ -24,6 +24,7 @@ import {
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import { useFirstName } from '../../hooks/useFirstName';
 import { useAuthStore } from '../../stores/authStore';
+import VideoProjectsSection from '../image-studio/components/VideoProjectsSection';
 import { SubscribedCollectionSection } from '../marketplace/SubscribedCollectionSection';
 import { LinkedEntryCard } from '../media-library/components/LinkedEntryCard';
 import { MediaCard } from '../media-library/components/MediaCard';
@@ -213,6 +214,9 @@ function Studio(): JSX.Element {
         <StudioTiles />
 
         <SubscribedCollectionSection show="assets" />
+
+        {/* Video-Editor projects live outside the Mediathek query; the section hides when empty. */}
+        <VideoProjectsSection />
 
         <UploadQueueList queue={queue} progress={progress} onDismiss={dismiss} />
 

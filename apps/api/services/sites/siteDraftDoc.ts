@@ -34,10 +34,6 @@ async function loadSiteDoc(siteId: string): Promise<Y.Doc | null> {
   }
   const ydoc = new Y.Doc();
   Y.applyUpdate(ydoc, new Uint8Array(Buffer.from(update, 'base64')));
-  if (!isSiteDocSeeded(ydoc)) {
-    ydoc.destroy();
-    throw new UnseededSiteDraftError(siteId);
-  }
   return ydoc;
 }
 
@@ -46,18 +42,24 @@ export async function readSiteDraft(siteId: string): Promise<SiteDraft | null> {
   const ydoc = await loadSiteDoc(siteId);
   if (!ydoc) return null;
   try {
+    if (!isSiteDocSeeded(ydoc)) throw new UnseededSiteDraftError(siteId);
     return decodeSiteDraft(ydoc);
   } finally {
     ydoc.destroy();
   }
 }
 
-/** Seeds the room from the row unless it has state. `seeded: false` is success too. */
+/**
+ * Seeds the room from the row unless it holds a current seed. `seeded: false` is success too.
+ * A room with state but no current seed (an old layout written back by an open tab) is seeded:
+ * Hocuspocus decides that atomically, so two prepares cannot both seed.
+ */
 export async function ensureSiteDraft(site: Site): Promise<{ seeded: boolean }> {
   const existing = await loadSiteDoc(site.id);
   if (existing) {
+    const seeded = isSiteDocSeeded(existing);
     existing.destroy();
-    return { seeded: false };
+    if (seeded) return { seeded: false };
   }
   const update = encodeSiteSeed(siteDraftFromSite(site), new Date().toISOString());
   try {

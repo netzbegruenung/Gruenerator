@@ -19,7 +19,7 @@ import { useDraft } from '../../draft/SiteDraftContext';
 import { settleLegalSave } from '../../hooks/legalSaveGate';
 import { SitePublishError, useSite, type SiteData } from '../../hooks/useSite';
 import { useToast } from '../../hooks/useToast';
-import { panelForPath } from '../../preview/fieldPaths';
+import { blockIdForPath } from '../../preview/fieldPaths';
 import { useAuth } from '../../SitesContext';
 import { useEditorStore } from '../../stores/editorStore';
 import { SitesApiError } from '../../utils/errorHandler';
@@ -139,7 +139,7 @@ export function PublishControls({ site, provider }: PublishControlsProps) {
 
   const pickIssue = (path: string) => {
     pickedIssue.current = true;
-    focusPath(panelForPath(path) ?? 'legal', path);
+    focusPath(blockIdForPath(path, draft) ?? 'legal', path);
     setIssuesOpen(false);
   };
 
@@ -178,7 +178,7 @@ export function PublishControls({ site, provider }: PublishControlsProps) {
             else triggerRef.current?.focus();
           }}
         >
-          <PublishIssues issues={shownIssues} onPick={pickIssue} />
+          <PublishIssues issues={shownIssues} draft={draft} onPick={pickIssue} />
         </PopoverContent>
       </Popover>
       <DropdownMenu>
