@@ -2,18 +2,23 @@ import { SITE_SECTION_TITLE_MAX } from '@gruenerator/contracts';
 import { Input, Label, Switch } from '@gruenerator/ui';
 import { FaInstagram } from 'react-icons/fa';
 
-import { useDraft, useDraftActions } from '../../../draft/SiteDraftContext';
+import { useDraftActions, useDraftBlock } from '../../../draft/SiteDraftContext';
 import { useFieldRegistry } from '../../../hooks/useFieldRegistry';
 import { Field, SectionHeading } from '../common/Field';
 
 const cleanUsername = (value: string) => value.replace(/^@/, '').replace(/[^a-zA-Z0-9._]/g, '');
 
-export function SocialFeedSectionEditor() {
+export function SocialFeedSectionEditor({ blockId }: { blockId: string }) {
   const { registerField, handleFieldFocus, handleFieldBlur } = useFieldRegistry();
-  const { setField } = useDraftActions();
-  const showFeed = useDraft((d) => d.socialFeed.showFeed);
-  const title = useDraft((d) => d.socialFeed.title);
-  const username = useDraft((d) => d.socialFeed.instagramUsername);
+  const { setBlockField } = useDraftActions();
+  const block = useDraftBlock(blockId, 'socialFeed');
+  if (!block) return null;
+  const { showFeed, title } = block;
+  const username = block.instagramUsername ?? '';
+  const set = (patch: Parameters<typeof setBlockField<'socialFeed'>>[2]) =>
+    setBlockField(blockId, 'socialFeed', patch);
+  const titlePath = `blocks.${blockId}.title`;
+  const userPath = `blocks.${blockId}.instagramUsername`;
 
   return (
     <div>
@@ -26,7 +31,7 @@ export function SocialFeedSectionEditor() {
         <Switch
           id="socialfeed-show"
           checked={showFeed}
-          onCheckedChange={(checked) => setField('socialFeed.showFeed', checked)}
+          onCheckedChange={(checked) => set({ showFeed: checked })}
         />
         <Label htmlFor="socialfeed-show" className="text-base text-foreground">
           Instagram-Feed anzeigen
@@ -36,17 +41,17 @@ export function SocialFeedSectionEditor() {
       {showFeed && (
         <>
           <Field
-            panel="socialFeed"
-            path="sections.socialFeed.title"
+            panel={blockId}
+            path={titlePath}
             htmlFor="socialfeed-title"
             label="Abschnittstitel"
           >
             <Input
-              ref={(el) => registerField('sections.socialFeed.title', el)}
+              ref={(el) => registerField(titlePath, el)}
               id="socialfeed-title"
               value={title}
-              onChange={(e) => setField('socialFeed.title', e.target.value)}
-              onFocus={() => handleFieldFocus('socialFeed', 'sections.socialFeed.title')}
+              onChange={(e) => set({ title: e.target.value })}
+              onFocus={() => handleFieldFocus(blockId, titlePath)}
               onBlur={handleFieldBlur}
               placeholder="Instagram"
               maxLength={SITE_SECTION_TITLE_MAX}
@@ -54,8 +59,8 @@ export function SocialFeedSectionEditor() {
           </Field>
 
           <Field
-            panel="socialFeed"
-            path="sections.socialFeed.instagramUsername"
+            panel={blockId}
+            path={userPath}
             htmlFor="socialfeed-username"
             label="Instagram-Benutzername"
             hint="Der Benutzername deines öffentlichen Instagram-Profils"
@@ -65,15 +70,11 @@ export function SocialFeedSectionEditor() {
                 @
               </span>
               <Input
-                ref={(el) => registerField('sections.socialFeed.instagramUsername', el)}
+                ref={(el) => registerField(userPath, el)}
                 id="socialfeed-username"
                 value={username}
-                onChange={(e) =>
-                  setField('socialFeed.instagramUsername', cleanUsername(e.target.value))
-                }
-                onFocus={() =>
-                  handleFieldFocus('socialFeed', 'sections.socialFeed.instagramUsername')
-                }
+                onChange={(e) => set({ instagramUsername: cleanUsername(e.target.value) })}
+                onFocus={() => handleFieldFocus(blockId, userPath)}
                 onBlur={handleFieldBlur}
                 placeholder="benutzername"
                 maxLength={30}

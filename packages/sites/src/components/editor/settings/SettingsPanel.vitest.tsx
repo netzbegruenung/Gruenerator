@@ -1,5 +1,3 @@
-import { buildSitePreviewSnapshot, siteDraftToSnapshotSource } from '@gruenerator/contracts';
-import { visibleSections } from '@gruenerator/sites-design';
 import { screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -24,16 +22,9 @@ vi.mock('../../../SitesContext', () => ({
   useAuth: () => ({ user: { id: 'u1', locale: 'de-DE' } }),
 }));
 
-import { useDraft } from '../../../draft/SiteDraftContext';
 import { renderWithDraft } from '../../../test/renderWithDraft';
 
 import { SettingsPanel } from './SettingsPanel';
-
-function PreviewSections() {
-  const draft = useDraft((d) => d);
-  const snapshot = buildSitePreviewSnapshot(siteDraftToSnapshotSource(draft, null), 'de-DE');
-  return <p data-testid="preview">{visibleSections(snapshot, 'preview').join(',')}</p>;
-}
 
 describe('SettingsPanel', () => {
   beforeEach(() => {
@@ -73,18 +64,5 @@ describe('SettingsPanel', () => {
     expect(
       screen.getByText('Die Adresse lässt sich nach dem ersten Veröffentlichen nicht mehr ändern.')
     ).toBeInTheDocument();
-  });
-
-  it('hiding a section writes hidden and the preview drops it', async () => {
-    const { user } = renderWithDraft(
-      <>
-        <SettingsPanel />
-        <PreviewSections />
-      </>
-    );
-    expect(screen.getByTestId('preview').textContent).toContain('actions');
-    await user.click(screen.getByRole('switch', { name: 'Aktionen' }));
-    expect(screen.getByTestId('preview').textContent).not.toContain('actions');
-    expect(screen.getByTestId('preview').textContent).toContain('hero');
   });
 });

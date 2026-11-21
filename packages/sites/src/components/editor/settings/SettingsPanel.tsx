@@ -9,7 +9,6 @@ import { SectionHeading } from '../common/Field';
 
 import { AddressField } from './AddressField';
 import { DesignChoice } from './DesignChoice';
-import { SectionVisibility } from './SectionVisibility';
 import { VariantPicker } from './VariantPicker';
 
 function AddressSettings() {
@@ -78,25 +77,11 @@ export function SettingsPanel() {
         <VariantPicker />
       </section>
 
-      <section className="mb-xl" aria-labelledby="settings-header">
+      <section aria-labelledby="settings-header">
         <h4 id="settings-header" className="mb-sm text-base font-semibold text-foreground">
           Kopfzeile
         </h4>
         <DesignChoice field="header" />
-      </section>
-
-      <section className="mb-xl" aria-labelledby="settings-hero">
-        <h4 id="settings-hero" className="mb-sm text-base font-semibold text-foreground">
-          Kopfbereich
-        </h4>
-        <DesignChoice field="heroLayout" />
-      </section>
-
-      <section aria-labelledby="settings-sections">
-        <h4 id="settings-sections" className="mb-sm text-base font-semibold text-foreground">
-          Sichtbare Abschnitte
-        </h4>
-        <SectionVisibility />
       </section>
     </div>
   );

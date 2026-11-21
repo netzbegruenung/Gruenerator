@@ -1,4 +1,4 @@
-import { type SiteBlockType, type SiteDraft } from '@gruenerator/contracts';
+import { type SiteBlockOf, type SiteBlockType, type SiteDraft } from '@gruenerator/contracts';
 import {
   addSiteBlock,
   addSiteItem,
@@ -107,6 +107,14 @@ export function useDraft<T>(selector: (draft: SiteDraft) => T): T {
     store,
     useShallow((state) => selector(state.draft))
   );
+}
+
+/** The block with `id` if it is of `type`, else null (removed meanwhile, or another type). */
+export function useDraftBlock<T extends SiteBlockType>(id: string, type: T): SiteBlockOf<T> | null {
+  return useDraft((draft) => {
+    const block = draft.blocks.find((entry) => entry.id === id);
+    return block?.type === type ? (block as SiteBlockOf<T>) : null;
+  });
 }
 
 /** Reads the current draft at call time, for event handlers that must not re-render on edits. */
