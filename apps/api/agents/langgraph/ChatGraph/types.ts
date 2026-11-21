@@ -136,6 +136,8 @@ export interface GeneratedImageResult {
   prompt: string;
   style: ImageStyle;
   generationTimeMs: number;
+  /** Mediathek row of the image (`shared_media.share_token`); absent when the write failed or on messages from before 11/2026. */
+  shareToken?: string;
 }
 
 /** A collaborative document (presentation / sheet / text doc) created within a

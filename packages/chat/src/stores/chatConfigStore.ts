@@ -138,6 +138,12 @@ export interface ChatConfig {
     initialProps: Record<string, unknown>;
     review: SharepicChatReview;
   }) => Promise<Record<string, unknown> | null>;
+  /**
+   * Saves a sharepic the chat just made as a canvas (idempotent per thread and
+   * variant), so it lands in the Studio's Mediathek without being opened.
+   * Returns the canvas id, null when it could not be saved. Web only.
+   */
+  saveSharepic?: (variant: SharepicVariant, threadId: string) => Promise<string | null>;
   /** Runs Python in a browser Pyodide worker (in-chat code execution). */
   runPython?: RunPython;
   /** Current state of a chat-edited sharepic canvas (GET /api/canvas/:id/state). */
@@ -343,6 +349,7 @@ interface ChatConfigStore extends ResolvedChatConfig {
   renderSharepic?: ChatConfig['renderSharepic'];
   renderSharepicSheet?: ChatConfig['renderSharepicSheet'];
   reviewSharepic?: ChatConfig['reviewSharepic'];
+  saveSharepic?: ChatConfig['saveSharepic'];
   runPython?: RunPython;
   fetchSharepicState?: ChatConfig['fetchSharepicState'];
   fetchSharepicVersions?: ChatConfig['fetchSharepicVersions'];
@@ -483,6 +490,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       renderSharepic: config?.renderSharepic,
       renderSharepicSheet: config?.renderSharepicSheet,
       reviewSharepic: config?.reviewSharepic,
+      saveSharepic: config?.saveSharepic,
       runPython: config?.runPython,
       fetchSharepicState: config?.fetchSharepicState,
       fetchSharepicVersions: config?.fetchSharepicVersions,
