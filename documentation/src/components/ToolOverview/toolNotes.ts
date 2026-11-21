@@ -32,7 +32,7 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
     readMore: { label: 'Office', href: '/docs/features/office' },
   },
   canvas: {
-    note: 'Alles Visuelle auf einer Seite: oben die Werkzeuge, darunter deine Mediathek mit allen Videos, Sharepics, KI-Bildern, Uploads und Audios — hochladen, filtern, durchsuchen, Titel und Alt-Text pflegen, teilen oder in den Papierkorb legen. Sharepics und KI-Bilder entstehen im Chat und landen von selbst hier.',
+    note: 'Alles Visuelle auf einer Seite: oben die Werkzeuge, darunter deine Mediathek mit allen Videos, Sharepics, KI-Bildern, Uploads und Audios — per Ziehen hochladen, filtern, durchsuchen, Titel und Alt-Text pflegen, teilen oder in den Papierkorb legen. Sharepics und KI-Bilder entstehen im Chat und landen von selbst hier.',
     platform: ['web', 'desktop', 'mobile'],
   },
   wissen: {
@@ -71,10 +71,6 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
     note: 'Fertige Design-Vorlagen im grünen Erscheinungsbild — Ausgangspunkt für Sharepics, wenn du nicht bei null anfangen willst.',
     platform: ['web', 'desktop', 'mobile'],
   },
-  'canvas-ki': {
-    note: 'Öffnet den Chat: Dort beschreibst du ein Sharepic oder ein KI-Bild, und der Grünerator erstellt es. Feinschliff, auch Freistellen, machst du danach im Editor.',
-    platform: ['web', 'desktop', 'mobile'],
-  },
   'reels-untertitel': {
     note: 'Untertitelt Videoclips automatisch und brennt die Untertitel ein. Gedacht für kurze Social-Clips.',
     platform: ['web', 'desktop', 'mobile'],
@@ -82,19 +78,6 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
   'studio-videoeditor': {
     note: 'Schneidet Clips auf einer Zeitleiste, setzt Texte ins Bild und legt Musik darunter. Nimm ihn, wenn ein Clip mehr braucht als Untertitel. Noch in der Beta.',
     platform: ['web'],
-  },
-  'studio-ki-schnitt': {
-    note: 'Du lädst Rohvideos hoch, dazu auf Wunsch Bilder, Logo und Musik, und die KI schneidet daraus einen ersten Entwurf. Den verbesserst du in Korrekturrunden oder übergibst ihn in den Video Editor. Nimm ihn, wenn du noch keinen fertigen Clip hast, sondern nur Material.',
-    platform: ['web'],
-  },
-  parteitage: {
-    note: 'Die Reden eines Parteitags als fertige 9:16-Reels: je Rede in den Video Editor laden oder die ganze Rede nur untertiteln lassen. Vorerst nur für Instanz-Admins sichtbar, die einzelnen Parteitage sind zunächst passwortgeschützt.',
-    platform: ['web'],
-    readMore: { label: 'Parteitage', href: '/docs/features/parteitage' },
-  },
-  'studio-voice': {
-    note: 'Grünerator Voice verwandelt Text in gesprochene Sprache — als Sprechertext für ein Reel, Ansage für den Anrufbeantworter, Vorlesefassung eines Textes oder Audiodeskription. Die Datei landet in der Mediathek.',
-    platform: ['web', 'desktop'],
   },
 
   // ── Studio — Werkzeuge ────────────────────────────────────────────────────
@@ -104,14 +87,6 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
   },
   sticker: {
     note: 'Sticker und Hintergründe für dein Profilbild: unter „Entdecken“ öffnet sich der Marktplatz mit dem, was andere geteilt haben: liken, merken oder melden. Eigene Sticker bleiben privat, bis du sie mit Bestätigung der Bildrechte öffentlich machst.',
-    platform: ['web'],
-  },
-  'bild-erweitern': {
-    note: 'Erweitert ein Bild per KI auf ein anderes Format, zum Beispiel von Quer- auf Hochformat. Eine Vorschau zeigt vorab, welche Flächen die KI ergänzt.',
-    platform: ['web'],
-  },
-  'bildgenerator-at': {
-    note: 'Nur für Österreich: ein Link zum Sharepic-Bildgenerator der Grünen Österreich auf bildgenerator.gruene.at. Er läuft außerhalb des Grünerators — was du dort erstellst, landet nicht in deiner Mediathek.',
     platform: ['web'],
   },
 
@@ -147,6 +122,10 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
   },
   uebersetzer: {
     note: 'Übersetzt Texte und ganze Dokumente (DOCX, PPTX, PDF …) mit DeepL — das gepflegte Grünen-Glossar wird automatisch angewendet.',
+    platform: ['web', 'desktop'],
+  },
+  voice: {
+    note: 'Grünerator Voice verwandelt Text in gesprochene Sprache — als Sprechertext für ein Reel, Ansage für den Anrufbeantworter, Vorlesefassung eines Textes oder Audiodeskription. Die Datei landet in der Mediathek.',
     platform: ['web', 'desktop'],
   },
   transkription: {

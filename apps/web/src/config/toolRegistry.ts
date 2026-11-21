@@ -34,8 +34,8 @@ export type ToolIconRef =
 export type OfficeCreateKind = 'doc' | 'board' | 'sheet' | 'pres' | 'gallery';
 
 /** Which tile strip a tool's colored tile lives in: the Arbeiten tab's
- * area/organise rows or the /studio landing strip (`studio`) or its "Weitere Tools" menu (`studio-werkzeuge`). */
-export type WorkplaceTileGroup = 'bereiche' | 'organisieren' | 'studio' | 'studio-werkzeuge';
+ * area/organise rows or the /studio landing strip (`studio`). */
+export type WorkplaceTileGroup = 'bereiche' | 'organisieren' | 'studio';
 
 /** Who sees a tool. Omitted means `'all'`. */
 export type ToolAudience = 'de-DE' | 'de-AT' | 'all';
@@ -305,6 +305,7 @@ const TOOLS = [
     title: 'Voice',
     path: '/voice',
     icon: { navigation: 'voice' },
+    menuItem: { description: 'Text vertonen' },
     search: {
       id: 'tool-voice',
       title: 'Grünerator Voice',
@@ -347,13 +348,12 @@ const TOOLS = [
     menuItem: { description: 'Verbrauch & CO₂ des Grünerators' },
   },
   // F1: id of the former KI-Bilder tile. Sharepics and KI-Bilder are made in
-  // the chat now, so the tile (and the KI-Bild search hit) opens the chat.
+  // the chat now; only the KI-Bild search hit is left, and it opens the chat.
   {
     id: 'canvas-ki',
     title: 'Chat',
     path: '/chat',
     icon: { navigation: 'messenger' },
-    tile: { group: 'studio', description: 'Sharepics & KI-Bilder per Beschreibung' },
     search: {
       id: 'tool-imagine',
       title: 'KI-Bild erstellen',
@@ -460,7 +460,6 @@ const TOOLS = [
     title: 'KI-Schnitt',
     path: '/studio/ki-schnitt',
     icon: { navigation: 'kiSchnitt' },
-    tile: { group: 'studio-werkzeuge', description: 'Rohvideos automatisch schneiden' },
     search: {
       id: 'tool-ki-schnitt',
       title: 'KI-Schnitt',
@@ -473,49 +472,12 @@ const TOOLS = [
     title: 'Parteitage',
     path: '/parteitage',
     icon: { navigation: 'reel' },
-    tile: { group: 'studio-werkzeuge', description: 'Reden als Reels' },
     search: {
       id: 'tool-parteitage',
       title: 'Parteitage',
       subtitle: 'Reden vom Parteitag untertiteln und schneiden',
       keywords: ['parteitag', 'ldk', 'bdk', 'rede', 'reel'],
     },
-  },
-  {
-    id: 'studio-voice',
-    title: 'Voice',
-    path: '/voice',
-    icon: { navigation: 'voice' },
-    tile: { group: 'studio-werkzeuge', description: 'Text vertonen' },
-  },
-  {
-    id: 'bild-erweitern',
-    title: 'Bild erweitern',
-    path: '/studio/erweitern',
-    icon: { navigation: 'bild-erweitern' },
-    tile: { group: 'studio-werkzeuge', description: 'Auf ein neues Format ergänzen' },
-    search: {
-      id: 'tool-bild-erweitern',
-      subtitle: 'KI ergänzt dein Bild auf ein neues Format',
-      keywords: [
-        'erweitern',
-        'bild erweitern',
-        'outpaint',
-        'format',
-        'seitenverhaeltnis',
-        'ergaenzen',
-        'bild',
-      ],
-    },
-    theme: true,
-  },
-  {
-    id: 'bildgenerator-at',
-    title: 'Bildgenerator',
-    href: 'https://bildgenerator.gruene.at/',
-    audience: 'de-AT',
-    icon: { actions: 'link' },
-    tile: { group: 'studio-werkzeuge', description: 'Sharepics der Grünen Österreich' },
   },
   // The Mediathek is the /studio page now; kept for its search hit (F1 id).
   {
@@ -650,6 +612,10 @@ export const LEGACY_TOOL_ID_ALIASES: Record<string, ToolId> = {
   'canvas-sharepics': 'canvas-vorlagen',
   // „Hintergrund entfernen" lives in the canvas editor now; its tile left the Studio.
   freisteller: 'canvas',
+  // Voice left the Studio's tool menu for the workplace's „Weitere" menu (11/2026).
+  'studio-voice': 'voice',
+  // „Bild erweitern" is the canvas editor's „Erweitern" on a selected image now.
+  'bild-erweitern': 'canvas',
 };
 
 // Legacy ids kept ONLY so already-pinned favourites still resolve — they are
@@ -679,6 +645,16 @@ const LEGACY_FAVOURITE_ITEMS: readonly {
   { id: 'agents', title: 'Grüneratoren', path: '/grueneratoren', icon: { component: RiSpyLine } },
   // The Mediathek tile left with the merge into the /studio page (11/2026).
   { id: 'mediathek', title: 'Mediathek', path: '/studio', icon: { navigation: 'mediathek' } },
+  // KI-Schnitt and Parteitage left with the Studio's „Weitere Werkzeuge" menu (11/2026).
+  {
+    id: 'studio-ki-schnitt',
+    title: 'KI-Schnitt',
+    path: '/studio/ki-schnitt',
+    icon: { navigation: 'kiSchnitt' },
+  },
+  { id: 'parteitage', title: 'Parteitage', path: '/parteitage', icon: { navigation: 'reel' } },
+  // The Studio's Chat tile left too; the chat has its own place in the sidebar.
+  { id: 'canvas-ki', title: 'Chat', path: '/chat', icon: { navigation: 'messenger' } },
 ];
 
 // Row order of the "Weitere" menu — reorder the menu here, not in TOOLS. Every
@@ -687,6 +663,7 @@ const MENU_ORDER = [
   'uebersetzer',
   'mcp',
   'transkription',
+  'voice',
   'scanner',
   'zeichenzaehler',
   'newsletter',
@@ -705,7 +682,6 @@ const SEARCH_ORDER = [
   'tool-imagine',
   'tool-profilbild',
   'tool-sticker',
-  'tool-bild-erweitern',
   'tool-mediathek',
   'tool-scanner',
   'tool-transkription',
@@ -893,7 +869,7 @@ export function legacyFavouriteItems(): DerivedFavouriteItem[] {
  * strip — mirroring the old `[...WORKPLACE_TOOLS, ...CANVAS_TOOLS]` order. */
 export function gridFavouriteItems(): DerivedFavouriteItem[] {
   const out: DerivedFavouriteItem[] = [];
-  for (const group of ['organisieren', 'studio', 'studio-werkzeuge'] as const) {
+  for (const group of ['organisieren', 'studio'] as const) {
     for (const tile of toolsWithTile(group)) {
       if (tile.path == null || tile.href != null) continue;
       out.push({ id: tile.id, title: tile.title, path: tile.path, icon: tile.icon });

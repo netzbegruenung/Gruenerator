@@ -109,22 +109,6 @@ export const CATALOG: ToolCatalogEntry[] = [
     keywords: ['sticker', 'aufkleber', 'hintergrund', 'profilbild', 'wahlkampf'],
   },
   {
-    id: 'tool-bild-erweitern',
-    title: 'Bild erweitern',
-    subtitle: 'KI ergänzt dein Bild auf ein neues Format',
-    path: '/studio/erweitern',
-    icon: nav('bild-erweitern'),
-    keywords: [
-      'erweitern',
-      'bild erweitern',
-      'outpaint',
-      'format',
-      'seitenverhaeltnis',
-      'ergaenzen',
-      'bild',
-    ],
-  },
-  {
     id: 'tool-mediathek',
     title: 'Mediathek',
     subtitle: 'Alle deine Bilder, Sharepics, KI-Bilder, Videos und Audios',

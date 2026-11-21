@@ -1,7 +1,5 @@
-import { SUPPORTED_AUDIO_TYPES, acceptForMediaType } from '@gruenerator/shared/media-library';
-import { Button } from '@gruenerator/ui';
-import { useRef, type JSX } from 'react';
-import { HiPlus } from 'react-icons/hi';
+import { type JSX } from 'react';
+import { HiFilter, HiOutlineFilter } from 'react-icons/hi';
 import { LuArrowDownUp } from 'react-icons/lu';
 
 import {
@@ -9,13 +7,12 @@ import {
   GridSizeToggle,
   type GridSize,
 } from '../../../components/common/Gallery/parts';
-import { PageHeroSearch } from '../../../components/common/PageHero';
 
 import type { MediaLibraryFilters, MediaTypeFilter } from '../hooks/useMediaLibraryFilters';
 import type { SortOrder } from '@gruenerator/shared/media-library';
 
-/** The tabs above „Deine Inhalte" (Studio design). Videos include the Reels. */
-export const STUDIO_TABS: { id: MediaTypeFilter; label: string }[] = [
+/** The type filter of „Deine Inhalte". Videos include the Reels. */
+export const STUDIO_FILTERS: { id: MediaTypeFilter; label: string }[] = [
   { id: 'all', label: 'Alle' },
   { id: 'video', label: 'Videos' },
   { id: 'sharepic', label: 'Sharepics' },
@@ -29,47 +26,38 @@ const SORT_OPTIONS: { id: SortOrder; label: string }[] = [
   { id: 'oldest', label: 'Älteste zuerst' },
 ];
 
-/** Search, upload, sort and tile size — the Studio hero's icon row (the type is a tab row). */
+/** Label of a `?typ=` value; older links (reel, image) have no menu entry. */
+function studioFilterLabel(type: MediaTypeFilter): string {
+  return STUDIO_FILTERS.find((f) => f.id === type)?.label ?? type;
+}
+
+/** Filter, sort and tile size — the icon row beside „Deine Inhalte" (as on /vorlagen). */
 export function MediaToolbar({
   filters,
   gridSize,
   onToggleGridSize,
-  onFiles,
 }: {
   filters: MediaLibraryFilters;
   gridSize: GridSize;
   onToggleGridSize: () => void;
-  onFiles: (files: FileList) => void;
 }): JSX.Element {
-  const fileRef = useRef<HTMLInputElement>(null);
-
+  const typeFiltered = filters.type !== 'all';
   return (
-    <>
-      <PageHeroSearch
-        query={filters.searchInput}
-        onQuery={filters.setSearchInput}
-        placeholder="Studio durchsuchen…"
-      />
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label="Dateien hochladen"
-        title="Dateien hochladen"
-        onClick={() => fileRef.current?.click()}
-      >
-        <HiPlus aria-hidden className="size-[18px]" />
-      </Button>
-      <input
-        ref={fileRef}
-        type="file"
-        accept={[acceptForMediaType('all'), ...SUPPORTED_AUDIO_TYPES].join(',')}
-        multiple
-        hidden
-        aria-label="Dateien auswählen"
-        onChange={(e) => {
-          if (e.target.files?.length) onFiles(e.target.files);
-          e.target.value = '';
-        }}
+    <div className="flex items-center gap-1">
+      <FilterMenuButton
+        label={typeFiltered ? `Filter: ${studioFilterLabel(filters.type)}` : 'Filter'}
+        menuLabel="Anzeigen"
+        value={filters.type}
+        options={STUDIO_FILTERS}
+        onChange={(value) => filters.setType(value as MediaTypeFilter)}
+        active={typeFiltered}
+        icon={
+          typeFiltered ? (
+            <HiFilter aria-hidden className="size-[18px]" />
+          ) : (
+            <HiOutlineFilter aria-hidden className="size-[18px]" />
+          )
+        }
       />
       <FilterMenuButton
         label={filters.sort === 'oldest' ? 'Sortierung: Älteste zuerst' : 'Sortierung'}
@@ -81,6 +69,6 @@ export function MediaToolbar({
         icon={<LuArrowDownUp aria-hidden className="size-[18px]" />}
       />
       <GridSizeToggle gridSize={gridSize} onToggle={onToggleGridSize} />
-    </>
+    </div>
   );
 }

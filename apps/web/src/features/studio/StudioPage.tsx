@@ -1,47 +1,44 @@
 import { type MediaItem } from '@gruenerator/shared/media-library';
-import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from '@gruenerator/ui';
-import { useCallback, useMemo, useRef, useState, type DragEvent, type JSX } from 'react';
-import { HiArrowUpTray, HiOutlineSquares2X2 } from 'react-icons/hi2';
+import { Button } from '@gruenerator/ui';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type DragEvent,
+  type JSX,
+  type RefObject,
+} from 'react';
+import { HiArrowUpTray } from 'react-icons/hi2';
 import { useNavigate } from 'react-router-dom';
 
 import {
-  FilterChip,
-  GalleryCountRow,
   GalleryEmptyState,
   GalleryGrid,
   GallerySkeleton,
   useGridSize,
 } from '../../components/common/Gallery/parts';
 import LoginRequired from '../../components/common/LoginRequired/LoginRequired';
-import { PageHero, PageShell } from '../../components/common/PageHero';
+import { PageHero, PageHeroSearch, PageShell } from '../../components/common/PageHero';
 import { ShareMediaModal } from '../../components/common/ShareMediaModal';
-import { useCanSeeAdminTools, isAdminOnlyTool } from '../../config/adminToolsGate';
-import {
-  CANVAS_TOOLS,
-  STUDIO_WERKZEUGE,
-  filterWorkplaceTools,
-} from '../../config/workplaceToolsConfig';
+import { CANVAS_TOOLS, filterWorkplaceTools } from '../../config/workplaceToolsConfig';
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import { useFirstName } from '../../hooks/useFirstName';
-import { useAuthStore } from '../../stores/authStore';
 import VideoProjectsSection from '../image-studio/components/VideoProjectsSection';
 import { SubscribedCollectionSection } from '../marketplace/SubscribedCollectionSection';
 import { LinkedEntryCard } from '../media-library/components/LinkedEntryCard';
 import { MediaCard } from '../media-library/components/MediaCard';
 import { MediaDetailDialog } from '../media-library/components/MediaDetailDialog';
-import { MediaToolbar, STUDIO_TABS } from '../media-library/components/MediaToolbar';
+import { MediaToolbar } from '../media-library/components/MediaToolbar';
 import { UploadQueueList } from '../media-library/components/UploadQueueList';
 import { useMediaDownload } from '../media-library/hooks/useMediaDownload';
-import {
-  useMediaLibraryFilters,
-  type MediaTypeFilter,
-} from '../media-library/hooks/useMediaLibraryFilters';
+import { useMediaLibraryFilters } from '../media-library/hooks/useMediaLibraryFilters';
 import { useMediathek, type MediathekEntry } from '../media-library/hooks/useMediathek';
 import { useUploadQueue } from '../media-library/hooks/useUploadQueue';
 import { mediaTitle } from '../media-library/mediaFormat';
 import { useTrashUndoToast } from '../trash/trashUndoToast';
 import { PopularVorlagenRow } from '../vorlagen/components/PopularVorlagenRow';
-import { OfficeMenuPill, OfficeTile } from '../workplace/components/ToolsSection';
+import { OfficeTile } from '../workplace/components/ToolsSection';
 
 import { cn } from '@/utils/cn';
 
@@ -81,40 +78,40 @@ function useFileDrop(onFiles: (files: FileList) => void) {
   };
 }
 
+/** Column count of the grid inside `ref`; 0 while unknown (no layout, e.g. in tests). */
+function useGridColumns(ref: RefObject<HTMLDivElement | null>, gridSize: string): number {
+  const [cols, setCols] = useState(0);
+  useEffect(() => {
+    const grid = ref.current?.firstElementChild;
+    if (!grid || typeof ResizeObserver === 'undefined') return undefined;
+    // Fires once on observe, then on every resize (the breakpoints change the columns).
+    const observer = new ResizeObserver(() => {
+      const tracks = getComputedStyle(grid).gridTemplateColumns;
+      setCols(tracks && tracks !== 'none' ? tracks.split(' ').length : 0);
+    });
+    observer.observe(grid);
+    return () => observer.disconnect();
+  }, [ref, gridSize]);
+  return cols;
+}
+
+/** „Deine Inhalte" opens on two rows; „Mehr anzeigen" shows the rest. */
+const COLLAPSED_ROWS = 2;
+
 /** Every Studio tile wears the page's green (`TOOL_THEME.canvas`), not its own hue. */
 const STUDIO_THEME = 'canvas';
 const HERO_DESCRIPTION = 'Videos, Sharepics, KI-Bilder und Uploads an einem Ort.';
 
-/** The six creation tiles, then the remaining tools in one menu pill. */
+/** The five creation tiles; unlike the workplace squares their height follows the content. */
 function StudioTiles(): JSX.Element {
-  const locale = useAuthStore((s) => s.locale);
-  const canSeeAdminTools = useCanSeeAdminTools();
-  const more = useMemo(
-    () =>
-      filterWorkplaceTools(STUDIO_WERKZEUGE).filter(
-        (t) =>
-          (!t.audience || t.audience === 'all' || t.audience === locale) &&
-          (canSeeAdminTools || !isAdminOnlyTool(t.id))
-      ),
-    [locale, canSeeAdminTools]
-  );
   return (
-    <section aria-label="Neu erstellen" className="flex flex-col gap-sm">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-6">
-        {filterWorkplaceTools(CANVAS_TOOLS).map((tool) => (
-          <OfficeTile key={tool.id} tool={tool} themeKey={STUDIO_THEME} />
-        ))}
-      </div>
-      {more.length > 0 && (
-        <div className="flex justify-end">
-          <OfficeMenuPill
-            styleKey={STUDIO_THEME}
-            icon={HiOutlineSquares2X2}
-            title="Weitere Werkzeuge"
-            tools={more}
-          />
-        </div>
-      )}
+    <section
+      aria-label="Neu erstellen"
+      className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 [&_a]:aspect-auto"
+    >
+      {filterWorkplaceTools(CANVAS_TOOLS).map((tool) => (
+        <OfficeTile key={tool.id} tool={tool} themeKey={STUDIO_THEME} />
+      ))}
     </section>
   );
 }
@@ -123,17 +120,8 @@ function Studio(): JSX.Element {
   const firstName = useFirstName();
   const navigate = useNavigate();
   const filters = useMediaLibraryFilters();
-  const {
-    entries,
-    total,
-    hasMore,
-    isLoading,
-    isFetchingNextPage,
-    error,
-    loadMore,
-    remove,
-    update,
-  } = useMediathek({ typ: filters.type, search: filters.search, sort: filters.sort });
+  const { entries, hasMore, isLoading, isFetchingNextPage, error, loadMore, remove, update } =
+    useMediathek({ typ: filters.type, search: filters.search, sort: filters.sort });
 
   const [gridSize, toggleGridSize] = useGridSize('mediathek-grid-size');
   const { queue, progress, enqueue, dismiss } = useUploadQueue();
@@ -190,10 +178,16 @@ function Studio(): JSX.Element {
   const handleDownload = useCallback((item: MediaItem) => void download(item), [download]);
 
   const settled = !isLoading;
+  const gridRef = useRef<HTMLDivElement>(null);
+  const columns = useGridColumns(gridRef, gridSize);
+  const [expanded, setExpanded] = useState(false);
+  const collapsed = !expanded && columns > 0;
+  const shown = collapsed ? entries.slice(0, columns * COLLAPSED_ROWS) : entries;
+  const canExpand = collapsed && (entries.length > shown.length || hasMore);
 
   return (
     <PageShell wide>
-      <div className="relative flex flex-col gap-md" {...dropProps}>
+      <div className="relative flex flex-col gap-lg pt-lg" {...dropProps}>
         <PageHero
           title={firstName ? `Dein Studio, ${firstName}` : 'Dein Studio'}
           description={
@@ -202,11 +196,10 @@ function Studio(): JSX.Element {
             </p>
           }
           toolbar={
-            <MediaToolbar
-              filters={filters}
-              gridSize={gridSize}
-              onToggleGridSize={toggleGridSize}
-              onFiles={enqueue}
+            <PageHeroSearch
+              query={filters.searchInput}
+              onQuery={filters.setSearchInput}
+              placeholder="Studio durchsuchen…"
             />
           }
         />
@@ -220,53 +213,24 @@ function Studio(): JSX.Element {
 
         <UploadQueueList queue={queue} progress={progress} onDismiss={dismiss} />
 
-        {/* The tabs filter the one result panel below; `?typ=` values without a tab
-            (older links: reel, image) still get their panel. */}
-        <Tabs
-          value={filters.type}
-          onValueChange={(value) => filters.setType(value as MediaTypeFilter)}
-          className="mt-md gap-md"
-        >
+        <section aria-labelledby="studio-inhalte" className="mt-md flex flex-col gap-md">
           <div className="mt-md flex flex-wrap items-center justify-between gap-x-lg gap-y-sm">
-            <h2 className="text-xl font-semibold text-foreground-heading">Deine Inhalte</h2>
-            <div className="max-w-full overflow-x-auto">
-              <TabsList aria-label="Inhalte filtern">
-                {STUDIO_TABS.map((tab) => (
-                  <TabsTrigger key={tab.id} value={tab.id}>
-                    {tab.label}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </div>
+            <h2 id="studio-inhalte" className="text-xl font-semibold text-foreground-heading">
+              Deine Inhalte
+            </h2>
+            <MediaToolbar filters={filters} gridSize={gridSize} onToggleGridSize={toggleGridSize} />
           </div>
 
-          <TabsContent value={filters.type} className="flex flex-col gap-md">
-            {settled && !error && (
-              <GalleryCountRow
-                count={`${total} ${total === 1 ? 'Medium' : 'Medien'}`}
-                onReset={filters.isFiltered ? filters.reset : undefined}
-              >
-                {filters.sort === 'oldest' && (
-                  <FilterChip label="Älteste zuerst" onRemove={() => filters.setSort('newest')} />
-                )}
-                {filters.searchInput.trim() && (
-                  <FilterChip
-                    label={`„${filters.searchInput.trim()}“`}
-                    onRemove={() => filters.setSearchInput('')}
-                  />
-                )}
-              </GalleryCountRow>
-            )}
-
-            {error ? (
-              <p className="text-center text-error">{error}</p>
-            ) : (
-              <>
+          {error ? (
+            <p className="text-center text-error">{error}</p>
+          ) : (
+            <>
+              <div ref={gridRef}>
                 <GalleryGrid size={gridSize}>
                   {!settled && entries.length === 0 ? (
                     <GallerySkeleton className="aspect-[4/5]" />
                   ) : (
-                    entries.map((entry, index) =>
+                    shown.map((entry, index) =>
                       entry.kind === 'media' ? (
                         <MediaCard
                           key={`media-${entry.id}`}
@@ -289,40 +253,46 @@ function Studio(): JSX.Element {
                   )}
                   {isFetchingNextPage && <GallerySkeleton count={4} className="aspect-[4/5]" />}
                 </GalleryGrid>
+              </div>
 
-                {settled && entries.length === 0 && (
-                  <GalleryEmptyState
-                    {...(filters.isFiltered
-                      ? {
-                          title: 'Keine Medien gefunden',
-                          hint: 'Versuche einen anderen Suchbegriff oder Filter.',
-                          action: (
-                            <Button variant="outline" size="sm" onClick={filters.reset}>
-                              Alle Medien anzeigen
-                            </Button>
-                          ),
-                        }
-                      : {
-                          title: 'Noch keine Medien',
-                          hint: 'Lade Bilder oder Videos hoch oder zieh sie hierher. Was du im Chat an Sharepics und KI-Bildern erstellst, landet automatisch hier, ebenso Reels und Audios.',
-                        })}
-                  />
-                )}
+              {settled && entries.length === 0 && (
+                <GalleryEmptyState
+                  {...(filters.isFiltered
+                    ? {
+                        title: 'Keine Medien gefunden',
+                        hint: 'Versuche einen anderen Suchbegriff oder Filter.',
+                        action: (
+                          <Button variant="outline" size="sm" onClick={filters.reset}>
+                            Alle Medien anzeigen
+                          </Button>
+                        ),
+                      }
+                    : {
+                        title: 'Noch keine Medien',
+                        hint: 'Zieh Bilder oder Videos hierher. Was du im Chat an Sharepics und KI-Bildern erstellst, landet automatisch hier, ebenso Reels und Audios.',
+                      })}
+                />
+              )}
 
-                {hasMore && (
-                  <Button
-                    variant="outline"
-                    className="self-center"
-                    onClick={() => void loadMore()}
-                    disabled={isFetchingNextPage}
-                  >
-                    {isFetchingNextPage ? 'Lädt …' : 'Mehr laden'}
-                  </Button>
-                )}
-              </>
-            )}
-          </TabsContent>
-        </Tabs>
+              {canExpand && (
+                <Button variant="outline" className="self-center" onClick={() => setExpanded(true)}>
+                  Mehr anzeigen
+                </Button>
+              )}
+
+              {hasMore && !collapsed && (
+                <Button
+                  variant="outline"
+                  className="self-center"
+                  onClick={() => void loadMore()}
+                  disabled={isFetchingNextPage}
+                >
+                  {isFetchingNextPage ? 'Lädt …' : 'Mehr laden'}
+                </Button>
+              )}
+            </>
+          )}
+        </section>
 
         <PopularVorlagenRow />
 

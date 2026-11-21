@@ -200,7 +200,7 @@ describe('StudioPage', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'Dein Studio' })).toBeInTheDocument();
     const tiles = within(screen.getByRole('region', { name: 'Neu erstellen' }));
-    expect(tiles.getByRole('link', { name: /Chat/ })).toHaveAttribute('href', '/chat');
+    expect(tiles.queryByRole('link', { name: /Chat/ })).toBeNull();
     expect(tiles.getByRole('link', { name: /Video-Editor/ })).toHaveAttribute(
       'href',
       '/studio/videoeditor'
@@ -212,25 +212,26 @@ describe('StudioPage', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Deine Inhalte' })).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: 'Bild a' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Rede' })).toBeInTheDocument();
-    expect(screen.getByText('2 Medien')).toBeInTheDocument();
     expect(screen.getByText('Video')).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('filters by type through the tabs and keeps it in the address', async () => {
+  it('filters by type through the filter menu and keeps it in the address', async () => {
     serve();
     const user = userEvent.setup();
     renderPage();
     await screen.findByRole('button', { name: 'Bild a' });
 
-    await user.click(screen.getByRole('tab', { name: 'Videos' }));
+    await user.click(screen.getByRole('button', { name: 'Filter' }));
+    await user.click(await screen.findByRole('menuitemradio', { name: 'Videos' }));
 
     expect(screen.getByLabelText('Adresse')).toHaveTextContent('?typ=video');
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Bild a' })).toBeNull());
     expect(listQueries.at(-1)?.get('typ')).toBe('video');
-    expect(screen.getByRole('tab', { name: 'Videos' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('button', { name: 'Filter: Videos' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('tab', { name: 'Alle' }));
+    await user.click(screen.getByRole('button', { name: 'Filter: Videos' }));
+    await user.click(await screen.findByRole('menuitemradio', { name: 'Alle' }));
     expect(await screen.findByRole('button', { name: 'Bild a' })).toBeInTheDocument();
   });
 
@@ -304,19 +305,23 @@ describe('StudioPage', () => {
 
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Bild a' })).toBeNull());
     expect(deletes).toEqual(['a']);
-    expect(screen.getByText('1 Medium')).toBeInTheDocument();
   });
 
-  it('uploads picked files one by one and reports each', async () => {
+  it('uploads dropped files one by one and reports each', async () => {
     serve([]);
-    const user = userEvent.setup({ applyAccept: false });
     renderPage();
     await screen.findByText('Noch keine Medien');
+    const page = screen.getByRole('heading', { level: 1 }).closest('div.relative')!;
 
-    await user.upload(screen.getByLabelText('Dateien auswählen'), [
-      new File(['a'], 'foto.png', { type: 'image/png' }),
-      new File(['b'], 'notiz.txt', { type: 'text/plain' }),
-    ]);
+    fireEvent.drop(page, {
+      dataTransfer: {
+        types: ['Files'],
+        files: [
+          new File(['a'], 'foto.png', { type: 'image/png' }),
+          new File(['b'], 'notiz.txt', { type: 'text/plain' }),
+        ],
+      },
+    });
 
     expect(await screen.findByText('Hochgeladen')).toBeInTheDocument();
     expect(
@@ -335,7 +340,6 @@ describe('StudioPage', () => {
     expect(await screen.findByRole('button', { name: 'Wahlkampf-Reel' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Plakat' })).toBeInTheDocument();
     expect(screen.getByText('Reel')).toBeInTheDocument();
-    expect(screen.getByText('3 Medien')).toBeInTheDocument();
   });
 
   it('opens Reels only from the address filter', async () => {
@@ -369,6 +373,43 @@ describe('StudioPage', () => {
       expect(screen.queryByRole('button', { name: 'Wahlkampf-Reel' })).toBeNull()
     );
     expect(deletes).toEqual(['r1']);
+  });
+
+  it('opens on two rows and shows the rest on „Mehr anzeigen“', async () => {
+    // jsdom has no layout: fake a two-column grid that reports itself once observed.
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(private readonly cb: () => void) {}
+        observe() {
+          this.cb();
+        }
+        disconnect() {}
+      }
+    );
+    const realStyle = window.getComputedStyle.bind(window);
+    const styleSpy = vi
+      .spyOn(window, 'getComputedStyle')
+      .mockImplementation((el, pseudo) =>
+        el.className.includes('auto-fill')
+          ? ({ gridTemplateColumns: '100px 100px' } as CSSStyleDeclaration)
+          : realStyle(el, pseudo)
+      );
+    try {
+      serve(['a', 'b', 'c', 'd', 'e'].map((id) => mediaItem(id)));
+      const user = userEvent.setup();
+      renderPage();
+
+      expect(await screen.findByRole('button', { name: 'Bild d' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Bild e' })).toBeNull();
+
+      await user.click(screen.getByRole('button', { name: 'Mehr anzeigen' }));
+      expect(screen.getByRole('button', { name: 'Bild e' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Mehr anzeigen' })).toBeNull();
+    } finally {
+      styleSpy.mockRestore();
+      vi.unstubAllGlobals();
+    }
   });
 
   it('keeps the drop hint while the pointer moves across tiles', async () => {

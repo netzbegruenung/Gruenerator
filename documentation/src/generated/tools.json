@@ -65,12 +65,6 @@
       "title": "Studio — Bilder, Sharepics, Reels",
       "tools": [
         {
-          "id": "canvas-ki",
-          "title": "Chat",
-          "description": "Sharepics & KI-Bilder per Beschreibung",
-          "path": "/chat"
-        },
-        {
           "id": "studio-videoeditor",
           "title": "Video-Editor",
           "description": "Reels mit Schnitt, Text & Musik",
@@ -99,42 +93,6 @@
           "title": "Sticker & Hintergründe",
           "description": "Sticker & Hintergründe entdecken",
           "path": "/studio/sticker"
-        }
-      ]
-    },
-    {
-      "id": "studio-werkzeuge",
-      "title": "Studio — Weitere Tools",
-      "tools": [
-        {
-          "id": "studio-ki-schnitt",
-          "title": "KI-Schnitt",
-          "description": "Rohvideos automatisch schneiden",
-          "path": "/studio/ki-schnitt"
-        },
-        {
-          "id": "parteitage",
-          "title": "Parteitage",
-          "description": "Reden als Reels",
-          "path": "/parteitage"
-        },
-        {
-          "id": "studio-voice",
-          "title": "Voice",
-          "description": "Text vertonen",
-          "path": "/voice"
-        },
-        {
-          "id": "bild-erweitern",
-          "title": "Bild erweitern",
-          "description": "Auf ein neues Format ergänzen",
-          "path": "/studio/erweitern"
-        },
-        {
-          "id": "bildgenerator-at",
-          "title": "Bildgenerator",
-          "description": "Sharepics der Grünen Österreich",
-          "external": true
         }
       ]
     },
@@ -185,6 +143,12 @@
           "path": "/transkription"
         },
         {
+          "id": "voice",
+          "title": "Voice",
+          "description": "Text vertonen",
+          "path": "/voice"
+        },
+        {
           "id": "scanner",
           "title": "Scanner",
           "description": "Fotos & Scans zu Text",
@@ -220,11 +184,6 @@
       "title": "Grüneratoren",
       "path": "/grueneratoren",
       "subtitle": "Deine Agents, Rezepte und Aufgaben"
-    },
-    "tool-bild-erweitern": {
-      "title": "Bild erweitern",
-      "path": "/studio/erweitern",
-      "subtitle": "KI ergänzt dein Bild auf ein neues Format"
     },
     "tool-chat": {
       "title": "Chat",

@@ -150,16 +150,9 @@ export const OFFICE_SUITE_TOOLS: OfficeSuiteTool[] = [
   },
 ] satisfies RegisteredSuiteTool[];
 
-// The six creation tiles of the /studio page (Studio design 11/2026). Sharepics
-// and KI-Bilder are made in the chat, so the first tile opens it.
+// The five creation tiles of the /studio page (Studio design 11/2026).
+// Sharepics and KI-Bilder are made in the chat, which has no tile here.
 export const CANVAS_TOOLS: WorkplaceToolItem[] = [
-  {
-    id: 'canvas-ki',
-    title: 'Chat',
-    description: 'Sharepics & KI-Bilder per Beschreibung',
-    path: '/chat',
-    icon: getIcon('navigation', 'messenger')!,
-  },
   {
     id: 'studio-videoeditor',
     title: 'Video-Editor',
@@ -195,46 +188,6 @@ export const CANVAS_TOOLS: WorkplaceToolItem[] = [
     description: 'Sticker & Hintergründe entdecken',
     path: '/studio/sticker',
     icon: getIcon('navigation', 'sticker')!,
-  },
-] satisfies RegisteredTile[];
-
-// Further tools in the „Weitere Werkzeuge" menu below the /studio tiles.
-export const STUDIO_WERKZEUGE: WorkplaceToolItem[] = [
-  {
-    id: 'studio-ki-schnitt',
-    title: 'KI-Schnitt',
-    description: 'Rohvideos automatisch schneiden',
-    path: '/studio/ki-schnitt',
-    icon: getIcon('navigation', 'kiSchnitt')!,
-  },
-  {
-    id: 'parteitage',
-    title: 'Parteitage',
-    description: 'Reden als Reels',
-    path: '/parteitage',
-    icon: getIcon('navigation', 'reel')!,
-  },
-  {
-    id: 'studio-voice',
-    title: 'Voice',
-    description: 'Text vertonen',
-    path: '/voice',
-    icon: getIcon('navigation', 'voice')!,
-  },
-  {
-    id: 'bild-erweitern',
-    title: 'Bild erweitern',
-    description: 'Auf ein neues Format ergänzen',
-    path: '/studio/erweitern',
-    icon: getIcon('navigation', 'bild-erweitern')!,
-  },
-  {
-    id: 'bildgenerator-at',
-    title: 'Bildgenerator',
-    description: 'Sharepics der Grünen Österreich',
-    href: 'https://bildgenerator.gruene.at/',
-    audience: 'de-AT',
-    icon: getIcon('actions', 'link')!,
   },
 ] satisfies RegisteredTile[];
 
@@ -296,6 +249,13 @@ export const TOOL_MENUS: WorkplaceToolMenu[] = [
         description: 'Audio zu Text',
         path: '/transkription',
         icon: getIcon('navigation', 'transkription')!,
+      },
+      {
+        id: 'voice',
+        title: 'Voice',
+        description: 'Text vertonen',
+        path: '/voice',
+        icon: getIcon('navigation', 'voice')!,
       },
       {
         id: 'scanner',

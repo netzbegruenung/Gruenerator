@@ -6,7 +6,6 @@ import { buildFeatureIndex } from '../features/global-search/featureIndex';
 import { useAuthStore } from '../stores/authStore';
 
 import { isAdminOnlyPath, isAdminOnlyTool, withAdminToolGate } from './adminToolsGate';
-import { STUDIO_WERKZEUGE } from './workplaceToolsConfig';
 
 const Page = withAdminToolGate(() => <p>Admin-Inhalt</p>);
 const setAdmin = (isAdmin: boolean) =>
@@ -48,10 +47,5 @@ describe('admin tools gate', () => {
       buildFeatureIndex({ ...base, canSeeAdminTools }).map((h) => h.path);
     expect(paths(false).some(isAdminOnlyPath)).toBe(false);
     expect(paths(true)).toEqual(expect.arrayContaining(['/parteitage', '/studio/ki-schnitt']));
-  });
-
-  it('marks the studio tiles of both tools as admin-only', () => {
-    const adminTiles = STUDIO_WERKZEUGE.filter((t) => isAdminOnlyTool(t.id)).map((t) => t.id);
-    expect(adminTiles).toEqual(['studio-ki-schnitt', 'parteitage']);
   });
 });

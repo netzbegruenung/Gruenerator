@@ -217,7 +217,6 @@ const ProfilbildRedirect = lazy(() =>
   Promise.resolve({ default: createRedirect('/studio/profilbild') })
 );
 const ProfilbildPage = lazy(() => import('../features/studio-tools/pages/ProfilbildPage'));
-const BildErweiternPage = lazy(() => import('../features/studio-tools/pages/BildErweiternPage'));
 const StudioAssetsPage = lazy(() => import('../features/studio-assets/StudioAssetsPage'));
 // „Entdecken" ist im Marktplatz aufgegangen; der alte Pfad leitet für immer
 // weiter (URL-Sonderrecht, CLAUDE.md), samt Suche.
@@ -245,8 +244,9 @@ const ImageStudioKiRedirect = lazy(() =>
 const ImageStudioKiTypeRedirect = ImageStudioKiRedirect;
 
 // Sharepics and KI-Bilder are made in the chat. The former creator pages
-// (/studio/freitext, /studio/bild) lead there, „Hintergrund entfernen" is part
-// of the canvas editor (its page /studio/freistellen leads to the Studio).
+// (/studio/freitext, /studio/bild) lead there. „Hintergrund entfernen" and
+// „Erweitern" are part of the canvas editor (their pages /studio/freistellen
+// and /studio/erweitern lead to the Studio).
 const ToChatRedirect = lazy(() => Promise.resolve({ default: createRedirect('/chat') }));
 const ReisekostenListPage = lazy(() => import('../features/reisekosten/ReisekostenListPage'));
 const ReisekostenEventPage = lazy(() => import('../features/reisekosten/EventPage'));
@@ -888,11 +888,7 @@ const standardRoutes: RouteConfig[] = [
     component: ProfilbildPage,
     layoutMode: 'sidebarOnly',
   },
-  {
-    path: '/studio/erweitern',
-    component: BildErweiternPage,
-    layoutMode: 'sidebarOnly',
-  },
+  { path: '/studio/erweitern', component: CanvasToStudioRedirect },
   { path: '/studio/freistellen', component: CanvasToStudioRedirect },
   { path: '/studio/mediathek', component: MediathekRedirect },
   {
