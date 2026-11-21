@@ -74,6 +74,8 @@ export interface RecipeSummary {
   mention: string;
   title: string;
   source: 'system' | 'user';
+  /** Zeilen-id eines Nutzer-Rezepts — der Folge-Turn erkennt daran sein Projekt-Rezept. */
+  id?: string;
 }
 
 export interface RecipeRegistry {
@@ -199,10 +201,11 @@ export function createRecipeRegistry(
       return [...loaded.values()].map((r) => r.mention);
     },
     summaries() {
-      return [...loaded.values()].map(({ mention, title, source }) => ({
+      return [...loaded.values()].map(({ mention, title, source, id }) => ({
         mention,
         title,
         source,
+        ...(id ? { id } : {}),
       }));
     },
     render() {

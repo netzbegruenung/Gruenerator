@@ -369,6 +369,7 @@ describe('streamAgenticResponse — Mistral prompt cache', () => {
     lastTurnArtifacts: () => [],
     lastTurnIntent: () => null,
     lastTurnOffer: () => null,
+    lastTurnRecipes: () => [],
     sources: () => [],
     lastGeneratedImageUrl: () => null,
   };

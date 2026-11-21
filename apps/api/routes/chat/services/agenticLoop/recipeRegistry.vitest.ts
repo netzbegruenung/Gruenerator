@@ -19,6 +19,16 @@ const recipe = (mention: string, body = 'Schreibe kurz.') => ({
 });
 
 describe('createRecipeRegistry', () => {
+  it('names a user recipe by its row id in the summaries, a system recipe without one', () => {
+    const reg = createRecipeRegistry();
+    reg.register(recipe('presse'));
+    reg.register({ ...recipe('antwortbrief'), source: 'user', id: 'r-1' });
+    expect(reg.summaries()).toEqual([
+      { mention: 'presse', title: 'Titel presse', source: 'system' },
+      { mention: 'antwortbrief', title: 'Titel antwortbrief', source: 'user', id: 'r-1' },
+    ]);
+  });
+
   it('lets a chosen recipe replace the preloaded agent default instead of stacking', () => {
     const reg = createRecipeRegistry();
     reg.register({ ...recipe('buerger-berlin'), preloaded: true });

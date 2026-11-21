@@ -25,8 +25,10 @@ import {
   type ArtifactMetadataShape,
   ROW_WINDOW,
   toArtifacts,
+  toRecipesUsed,
   toSources,
   toToolSteps,
+  type UsedRecipeRef,
 } from './threadToolProjections.js';
 
 import type { SearchResult, ThreadToolContext } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -755,6 +757,7 @@ interface ThreadToolRow extends ArtifactMetadataShape {
   searchResults?: unknown[] | null;
   intent?: unknown;
   offer?: unknown;
+  recipesUsed?: unknown;
 }
 
 function intentOf(row: ThreadToolRow | undefined): string | null {
@@ -833,6 +836,8 @@ export interface ThreadToolHistory {
   lastTurnIntent(): string | null;
   /** The artifact the assistant turn right before this one offered — null when none. */
   lastTurnOffer(): ArtifactKindId | null;
+  /** The recipes the assistant turn right before this one loaded — empty when it loaded none. */
+  lastTurnRecipes(): UsedRecipeRef[];
   sources(limit?: number): SearchResult[];
   lastGeneratedImageUrl(): string | null;
 }
@@ -865,6 +870,7 @@ export async function readThreadToolHistory(threadId: string): Promise<ThreadToo
       newestIsLastTurn ? toArtifacts(rows.slice(0, 1), Number.MAX_SAFE_INTEGER) : [],
     lastTurnIntent: () => (newestIsLastTurn ? intentOf(rows[0]) : null),
     lastTurnOffer: () => (newestIsLastTurn ? parseRecordedOffer(rows[0]?.offer) : null),
+    lastTurnRecipes: () => (newestIsLastTurn ? toRecipesUsed(rows[0]) : []),
     sources: (limit = 10) => toSources(rows, limit),
     lastGeneratedImageUrl: () => toLastGeneratedImageUrl(rows),
   };

@@ -49,7 +49,7 @@ import {
 } from '../threadPersistenceService.js';
 import { isWolkePhoto } from '../wolkePhoto.js';
 
-import { loopAgentDefaultRecipe } from './agentDefaultRecipe.js';
+import { carriedProjectRecipes, loopAgentDefaultRecipe } from './agentDefaultRecipe.js';
 import { type AskHumanGate } from './askHumanGate.js';
 import {
   ATTACHED_DOC_SNIPPET_CHARS,
@@ -398,6 +398,31 @@ export async function assembleToolCatalog(
       log.warn(
         `[Rezept] Agent-Default nicht verfügbar: ${agentDefault.mention ?? agentDefault.recipeId}`
       );
+    }
+  }
+
+  // Folgeauftrag im Projekt: das Projekt-Rezept des vorigen Turns vorab, wie
+  // ein Agent-Default (`preloaded`) — wählt das Modell eine andere Textsorte,
+  // weicht es. Ein Agent-Default geht vor.
+  if (!agentDefault) {
+    for (const recipeId of carriedProjectRecipes(state, toolHistory?.lastTurnRecipes() ?? [])) {
+      const resolved = await deps.resolveRecipe({
+        mention: null,
+        recipeId,
+        userId: userId ?? null,
+        visualBlocks: state.visualBlocks ?? [],
+      });
+      if (!resolved || resolved.id !== recipeId) continue;
+      recipeRegistry.register({
+        id: resolved.id,
+        mention: resolved.mention,
+        title: catalogDescription(resolved.title, 120),
+        body: resolved.body,
+        source: resolved.source,
+        recommendedTools: recommendedToolsFor(resolved.mention, isMounted),
+        preloaded: true,
+      });
+      log.info(`[Rezept] vorab geladen=${resolved.mention} (Projekt, voriger Turn)`);
     }
   }
 
