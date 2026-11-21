@@ -54,6 +54,17 @@ beforeEach(() => {
 });
 
 describe('listMediathek', () => {
+  // node-postgres hands a BIGINT back as a string; a numeric mock hid that the
+  // wire schema then dropped every shared_media row from the Mediathek.
+  it('keeps a media row whose BIGINT file_size arrives as a string', async () => {
+    respond([{ kind: 'media', id: 'm1' }], {
+      media: [mediaRow('m1', { file_size: '2048', content_origin: 'ki' })],
+    });
+    const result = await listMediathek('user-1', { typ: 'all' });
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toMatchObject({ kind: 'media', id: 'm1', fileSize: 2048 });
+  });
+
   it('keeps the page order across kinds and includes autosaved drafts', async () => {
     respond(
       [

@@ -26,10 +26,10 @@ const preview = (name: string, { zoom = true }: { zoom?: boolean } = {}): ReactN
 
 /** The picture on the front sheet of a card, keyed by tool id. */
 export const TOOL_PREVIEWS: Partial<Record<string, ReactNode>> = {
-  'reels-untertitel': preview('video'),
+  canvas: preview('video'),
   wissen: preview('notebooks', { zoom: false }),
   'canvas-vorlagen': preview('vorlagen', { zoom: false }),
   profilbild: preview('profilbild'),
-  'studio-voice': preview('voice', { zoom: false }),
+  voice: preview('voice', { zoom: false }),
   uebersetzer: preview('uebersetzer'),
 };

@@ -1,3 +1,4 @@
+import { useAgentStore } from '@gruenerator/chat/stores';
 import {
   type CanvasContentItem,
   type MediathekItem,
@@ -12,7 +13,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { server } from '../../test/msw-server';
 
-import MediaLibraryPage from './MediaLibraryPage';
+import StudioPage from './StudioPage';
 
 import { axe, renderWithProviders, userEvent } from '@/test-utils';
 
@@ -99,6 +100,8 @@ function serve(
   deletes = [];
   uploads = 0;
   server.use(
+    http.get(`${API}/auth/templates/popular`, () => HttpResponse.json({ items: [] })),
+    http.get(`${API}/video-projects`, () => HttpResponse.json([])),
     http.get(`${API}/content/mediathek`, ({ request }) => {
       const params = new URL(request.url).searchParams;
       listQueries.push(params);
@@ -165,14 +168,14 @@ function Where() {
   return <output aria-label="Adresse">{useLocation().search}</output>;
 }
 
-function renderPage(route = '/studio/mediathek') {
+function renderPage(route = '/studio') {
   return renderWithProviders(
     <Routes>
       <Route
-        path="/studio/mediathek"
+        path="/studio"
         element={
           <>
-            <MediaLibraryPage />
+            <StudioPage />
             <Where />
           </>
         }
@@ -191,17 +194,43 @@ beforeEach(() => {
   localStorage.clear();
 });
 
-describe('MediaLibraryPage', () => {
-  it('lists the library as cards under one page heading', async () => {
+describe('StudioPage', () => {
+  it('shows the creation tiles and the library under one page heading', async () => {
     serve();
     const { container } = renderPage();
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Mediathek' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Dein Studio' })).toBeInTheDocument();
+    const tiles = within(screen.getByRole('navigation', { name: 'Neu erstellen' }));
+    expect(tiles.getByRole('link', { name: /Sharepic im Chat erstellen/ })).toHaveAttribute(
+      'href',
+      '/chat'
+    );
+    expect(tiles.getByRole('link', { name: /Video-Editor/ })).toHaveAttribute(
+      'href',
+      '/studio/videoeditor'
+    );
+    expect(tiles.getByRole('link', { name: /Auto-Untertitel/ })).toBeInTheDocument();
+    expect(tiles.getAllByRole('link')).toHaveLength(3);
+    expect(screen.getByRole('link', { name: 'Sticker & Hintergründe' })).toHaveAttribute(
+      'href',
+      '/studio/sticker'
+    );
+    expect(screen.getByRole('heading', { level: 2, name: 'Deine Inhalte' })).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: 'Bild a' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Rede' })).toBeInTheDocument();
-    expect(screen.getByText('2 Medien')).toBeInTheDocument();
-    expect(screen.getByText('Video')).toBeInTheDocument();
+    expect(screen.getByText(/^Video · /)).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('opens the chat with a Sharepic order already typed in', async () => {
+    serve();
+    const user = userEvent.setup();
+    useAgentStore.getState().setPendingDraft(null);
+    renderPage();
+
+    await user.click(screen.getByRole('link', { name: /Sharepic im Chat erstellen/ }));
+
+    expect(useAgentStore.getState().pendingDraft).toBe('Erstelle ein Sharepic zum Thema ');
   });
 
   it('filters by type through the filter menu and keeps it in the address', async () => {
@@ -216,14 +245,16 @@ describe('MediaLibraryPage', () => {
     expect(screen.getByLabelText('Adresse')).toHaveTextContent('?typ=video');
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Bild a' })).toBeNull());
     expect(listQueries.at(-1)?.get('typ')).toBe('video');
+    expect(screen.getByRole('button', { name: 'Filter: Videos' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Filter „Videos“ entfernen' }));
+    await user.click(screen.getByRole('button', { name: 'Filter: Videos' }));
+    await user.click(await screen.findByRole('menuitemradio', { name: 'Alle' }));
     expect(await screen.findByRole('button', { name: 'Bild a' })).toBeInTheDocument();
   });
 
   it('opens a type filter from the address', async () => {
     serve();
-    renderPage('/studio/mediathek?typ=video');
+    renderPage('/studio?typ=video');
     expect(await screen.findByRole('button', { name: 'Rede' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Bild a' })).toBeNull();
     expect(listQueries[0]?.get('typ')).toBe('video');
@@ -246,7 +277,7 @@ describe('MediaLibraryPage', () => {
   it('says so and offers the way back when a filter finds nothing', async () => {
     serve([mediaItem('a')]);
     const user = userEvent.setup();
-    renderPage('/studio/mediathek?typ=audio');
+    renderPage('/studio?typ=audio');
 
     expect(await screen.findByText('Keine Medien gefunden')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Alle Medien anzeigen' }));
@@ -291,19 +322,23 @@ describe('MediaLibraryPage', () => {
 
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Bild a' })).toBeNull());
     expect(deletes).toEqual(['a']);
-    expect(screen.getByText('1 Medium')).toBeInTheDocument();
   });
 
-  it('uploads picked files one by one and reports each', async () => {
+  it('uploads dropped files one by one and reports each', async () => {
     serve([]);
-    const user = userEvent.setup({ applyAccept: false });
     renderPage();
     await screen.findByText('Noch keine Medien');
+    const page = screen.getByRole('heading', { level: 1 }).closest('div.relative')!;
 
-    await user.upload(screen.getByLabelText('Dateien auswählen'), [
-      new File(['a'], 'foto.png', { type: 'image/png' }),
-      new File(['b'], 'notiz.txt', { type: 'text/plain' }),
-    ]);
+    fireEvent.drop(page, {
+      dataTransfer: {
+        types: ['Files'],
+        files: [
+          new File(['a'], 'foto.png', { type: 'image/png' }),
+          new File(['b'], 'notiz.txt', { type: 'text/plain' }),
+        ],
+      },
+    });
 
     expect(await screen.findByText('Hochgeladen')).toBeInTheDocument();
     expect(
@@ -321,13 +356,12 @@ describe('MediaLibraryPage', () => {
 
     expect(await screen.findByRole('button', { name: 'Wahlkampf-Reel' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Plakat' })).toBeInTheDocument();
-    expect(screen.getByText('Reel')).toBeInTheDocument();
-    expect(screen.getByText('3 Medien')).toBeInTheDocument();
+    expect(screen.getByText(/^Reel · /)).toBeInTheDocument();
   });
 
   it('opens Reels only from the address filter', async () => {
     serve([mediaItem('a'), reel('r1', 'Wahlkampf-Reel')]);
-    renderPage('/studio/mediathek?typ=reel');
+    renderPage('/studio?typ=reel');
 
     expect(await screen.findByRole('button', { name: 'Wahlkampf-Reel' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Bild a' })).toBeNull();
@@ -356,6 +390,43 @@ describe('MediaLibraryPage', () => {
       expect(screen.queryByRole('button', { name: 'Wahlkampf-Reel' })).toBeNull()
     );
     expect(deletes).toEqual(['r1']);
+  });
+
+  it('opens on two rows and shows the rest on „Mehr anzeigen“', async () => {
+    // jsdom has no layout: fake a two-column grid that reports itself once observed.
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(private readonly cb: () => void) {}
+        observe() {
+          this.cb();
+        }
+        disconnect() {}
+      }
+    );
+    const realStyle = window.getComputedStyle.bind(window);
+    const styleSpy = vi
+      .spyOn(window, 'getComputedStyle')
+      .mockImplementation((el, pseudo) =>
+        el.className.includes('auto-fill')
+          ? ({ gridTemplateColumns: '100px 100px' } as CSSStyleDeclaration)
+          : realStyle(el, pseudo)
+      );
+    try {
+      serve(['a', 'b', 'c', 'd', 'e'].map((id) => mediaItem(id)));
+      const user = userEvent.setup();
+      renderPage();
+
+      expect(await screen.findByRole('button', { name: 'Bild d' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Bild e' })).toBeNull();
+
+      await user.click(screen.getByRole('button', { name: 'Mehr anzeigen' }));
+      expect(screen.getByRole('button', { name: 'Bild e' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Mehr anzeigen' })).toBeNull();
+    } finally {
+      styleSpy.mockRestore();
+      vi.unstubAllGlobals();
+    }
   });
 
   it('keeps the drop hint while the pointer moves across tiles', async () => {

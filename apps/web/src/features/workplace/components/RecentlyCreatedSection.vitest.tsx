@@ -97,6 +97,7 @@ describe('RecentlyCreatedSection layout', () => {
     const { container } = renderWithProviders(<RecentlyCreatedSection />);
     loading = false;
 
-    expect(container.querySelectorAll('section > div > div')).toHaveLength(2);
+    // The heading row plus two skeletons (jsdom has no grid layout, so the phone fallback applies).
+    expect(container.querySelectorAll('section > div > div')).toHaveLength(3);
   });
 });
