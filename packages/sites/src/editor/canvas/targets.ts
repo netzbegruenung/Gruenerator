@@ -1,12 +1,7 @@
-import {
-  siteOptionalSectionSchema,
-  type SiteDraft,
-  type SiteImageFocus,
-  type SiteOptionalSection,
-} from '@gruenerator/contracts';
+import { type SiteBlock, type SiteDraft, type SiteImageFocus } from '@gruenerator/contracts';
 
 import { type SiteDraftActions } from '../../draft/SiteDraftContext';
-import { type EditorSelection, type SectionType } from '../../stores/editorStore';
+import { type EditorSelection } from '../../stores/editorStore';
 
 export interface ImageValue {
   url: string;
@@ -26,79 +21,87 @@ export interface ImageTarget {
   ): void;
 }
 
-const SECTION_IMAGES: Partial<Record<SectionType, ImageTarget>> = {
-  hero: {
-    path: 'profile_image',
-    aspectRatio: '4/5',
-    read: (d) => ({ url: d.profile_image, focus: d.profileImageFocus ?? null }),
-    write: (a, _d, p) => {
-      if (p.url !== undefined) a.setField('profile_image', p.url);
-      if (p.focus !== undefined) a.setField('profileImageFocus', p.focus);
-    },
-  },
-  heroImage: {
-    path: 'sections.heroImage.imageUrl',
-    aspectRatio: '16/9',
-    read: (d) => ({ url: d.heroImage.imageUrl, focus: d.heroImage.imageFocus ?? null }),
-    write: (a, _d, p) => {
-      if (p.url !== undefined) a.setField('heroImage.imageUrl', p.url);
-      if (p.focus !== undefined) a.setField('heroImage.imageFocus', p.focus);
-    },
-  },
-  contact: {
-    path: 'sections.contact.backgroundImageUrl',
-    aspectRatio: '16/9',
-    read: (d) => ({
-      url: d.contact.backgroundImageUrl,
-      focus: d.contact.backgroundFocus ?? null,
-    }),
-    write: (a, _d, p) => {
-      if (p.url !== undefined) a.setField('contact.backgroundImageUrl', p.url);
-      if (p.focus !== undefined) a.setField('contact.backgroundFocus', p.focus);
-    },
+const findBlock = (draft: SiteDraft, id: string): SiteBlock | undefined =>
+  draft.blocks.find((block) => block.id === id);
+
+const PORTRAIT: ImageTarget = {
+  path: 'profile_image',
+  aspectRatio: '4/5',
+  read: (d) => ({ url: d.profile_image, focus: d.profileImageFocus ?? null }),
+  write: (a, _d, p) => {
+    if (p.url !== undefined) a.setField('profile_image', p.url);
+    if (p.focus !== undefined) a.setField('profileImageFocus', p.focus);
   },
 };
 
-function cardImage(list: 'themes' | 'actions', index: number): ImageTarget {
+function bannerImage(blockId: string): ImageTarget {
   return {
-    path: `sections.${list}.${index}.imageUrl`,
-    aspectRatio: list === 'themes' ? '16/10' : '4/5',
+    path: `blocks.${blockId}.imageUrl`,
+    aspectRatio: '16/9',
     read: (d) => {
-      const card = d[list][index];
-      return { url: card?.imageUrl ?? '', focus: card?.imageFocus ?? null };
+      const block = findBlock(d, blockId);
+      return block?.type === 'heroImage'
+        ? { url: block.imageUrl, focus: block.imageFocus ?? null }
+        : { url: '', focus: null };
     },
-    write: (a, d, p) => {
-      const id = d[list][index]?.id;
-      if (!id) return;
-      const patch = {
+    write: (a, _d, p) =>
+      a.setBlockField(blockId, 'heroImage', {
         ...(p.url !== undefined ? { imageUrl: p.url } : {}),
         ...(p.focus !== undefined ? { imageFocus: p.focus } : {}),
-      };
-      if (list === 'themes') a.updateTheme(id, patch);
-      else a.updateAction(id, patch);
-    },
+      }),
   };
 }
 
-export type CardList = 'themes' | 'actions';
+function contactImage(blockId: string): ImageTarget {
+  return {
+    path: `blocks.${blockId}.backgroundImageUrl`,
+    aspectRatio: '16/9',
+    read: (d) => {
+      const block = findBlock(d, blockId);
+      return block?.type === 'contact'
+        ? { url: block.backgroundImageUrl, focus: block.backgroundFocus ?? null }
+        : { url: '', focus: null };
+    },
+    write: (a, _d, p) =>
+      a.setBlockField(blockId, 'contact', {
+        ...(p.url !== undefined ? { backgroundImageUrl: p.url } : {}),
+        ...(p.focus !== undefined ? { backgroundFocus: p.focus } : {}),
+      }),
+  };
+}
 
-export const isCardList = (section: SectionType): section is CardList =>
-  section === 'themes' || section === 'actions';
+function cardImage(blockId: string, itemId: string, type: 'themes' | 'actions'): ImageTarget {
+  return {
+    path: `blocks.${blockId}.items.${itemId}.imageUrl`,
+    aspectRatio: type === 'themes' ? '16/10' : '4/5',
+    read: (d) => {
+      const block = findBlock(d, blockId);
+      const item =
+        block && 'items' in block ? block.items.find((entry) => entry.id === itemId) : undefined;
+      return { url: item?.imageUrl ?? '', focus: item?.imageFocus ?? null };
+    },
+    write: (a, _d, p) =>
+      a.updateItem(blockId, itemId, {
+        ...(p.url !== undefined ? { imageUrl: p.url } : {}),
+        ...(p.focus !== undefined ? { imageFocus: p.focus } : {}),
+      }),
+  };
+}
 
-/** The image the toolbar's image button edits: the clicked card's, else the section's own. */
-export function imageTarget(selection: EditorSelection): ImageTarget | null {
-  if (isCardList(selection.section)) {
-    return selection.index !== null ? cardImage(selection.section, selection.index) : null;
+/** The image the toolbar's image button edits: the clicked card's, else the block's own. */
+export function imageTarget(selection: EditorSelection, draft: SiteDraft): ImageTarget | null {
+  const block = findBlock(draft, selection.blockId);
+  switch (block?.type) {
+    case 'hero':
+      return PORTRAIT;
+    case 'heroImage':
+      return bannerImage(block.id);
+    case 'contact':
+      return contactImage(block.id);
+    case 'themes':
+    case 'actions':
+      return selection.itemId !== null ? cardImage(block.id, selection.itemId, block.type) : null;
+    default:
+      return null;
   }
-  return SECTION_IMAGES[selection.section] ?? null;
-}
-
-export function isOptionalSection(section: SectionType): section is SiteOptionalSection {
-  return (siteOptionalSectionSchema.options as readonly string[]).includes(section);
-}
-
-/** `hidden` with `section` added, in the schema's section order. */
-export function hiddenWith(hidden: readonly SiteOptionalSection[], section: SiteOptionalSection) {
-  const next = new Set([...hidden, section]);
-  return siteOptionalSectionSchema.options.filter((option) => next.has(option));
 }

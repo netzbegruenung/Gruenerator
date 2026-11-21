@@ -204,6 +204,35 @@ describe('PublishControls', () => {
     });
   });
 
+  it('jumps from an issue in a card to its block and opens the form', async () => {
+    const tile = (id: string, link: string) => ({ id, text: 'Los', link, imageUrl: '' });
+    const blocks = [
+      { id: 'hero', type: 'hero' as const },
+      { id: 'ac1', type: 'actions' as const, items: [tile('a', '#kontakt')] },
+      { id: 'ac2', type: 'actions' as const, items: [tile('b', '#a'), tile('c', 'javascript:x')] },
+    ];
+    hoisted.togglePublish.mockRejectedValue(
+      new SitePublishError('Veröffentlichen nicht möglich', [
+        { path: 'blocks.ac2.items.c.link', message: 'Link muss mit https:// beginnen' },
+      ])
+    );
+    const { user } = renderWithDraft(
+      <PublishControls site={site()} provider={fakeProvider().provider} />,
+      { blocks }
+    );
+    await user.click(screen.getByRole('button', { name: 'Veröffentlichen' }));
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Aktionen 2, Kachel 2: Link: Link muss mit https:// beginnen',
+      })
+    );
+    expect(useEditorStore.getState()).toMatchObject({
+      selection: { blockId: 'ac2', itemId: 'c' },
+      elementPanel: 'details',
+      focusedField: { panel: 'ac2', path: 'blocks.ac2.items.c.link' },
+    });
+  });
+
   it('shows the 503 message and publishes nothing else', async () => {
     const { SitesApiError } = await import('../../utils/errorHandler');
     hoisted.togglePublish.mockRejectedValue(

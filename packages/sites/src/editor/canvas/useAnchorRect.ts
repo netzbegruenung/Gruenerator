@@ -9,19 +9,19 @@ export interface AnchorRect {
   height: number;
 }
 
-/** The element the toolbar points at: the clicked card, else the clicked field, else the section. */
+/** The element the toolbar points at: the clicked card, else the clicked field, else the block. */
 export function anchorElement(doc: Document, selection: EditorSelection): Element | null {
-  const section = doc.querySelector(`[data-section="${selection.section}"]`);
-  if (!section) return null;
-  if (selection.index !== null) {
-    const card = section.querySelector(`[data-index="${selection.index}"]`);
+  const block = doc.querySelector(`[data-block-id="${CSS.escape(selection.blockId)}"]`);
+  if (!block) return null;
+  if (selection.itemId !== null) {
+    const card = block.querySelector(`[data-item-id="${CSS.escape(selection.itemId)}"]`);
     if (card) return card;
   }
   if (selection.path !== null) {
-    const field = section.querySelector(`[data-field="${CSS.escape(selection.path)}"]`);
+    const field = block.querySelector(`[data-field="${CSS.escape(selection.path)}"]`);
     if (field) return field;
   }
-  return section;
+  return block;
 }
 
 /**

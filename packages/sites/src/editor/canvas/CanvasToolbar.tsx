@@ -1,10 +1,14 @@
-import { SITE_ACTIONS_MAX, SITE_THEMES_MAX } from '@gruenerator/contracts';
+import { SITE_BLOCKS_MAX, siteBlockSpec, type SiteBlockType } from '@gruenerator/contracts';
 import { cn } from '@gruenerator/shared/utils';
 import { Button } from '@gruenerator/ui';
 import { type ReactNode } from 'react';
 import {
+  FiArrowDown,
   FiArrowLeft,
   FiArrowRight,
+  FiArrowUp,
+  FiCopy,
+  FiEye,
   FiEyeOff,
   FiImage,
   FiPlus,
@@ -14,20 +18,23 @@ import {
 } from 'react-icons/fi';
 
 import { useDraft, useDraftActions, useDraftReader } from '../../draft/SiteDraftContext';
-import { SECTION_LABELS, useEditorStore, type EditorSelection } from '../../stores/editorStore';
+import { useEditorStore, type EditorSelection } from '../../stores/editorStore';
+import { SITE_BLOCK_UI } from '../blockUi';
 
-import { hiddenWith, imageTarget, isCardList, isOptionalSection } from './targets';
+import { imageTarget } from './targets';
 import { type AnchorRect } from './useAnchorRect';
 
 const TOOLBAR_HEIGHT = 44;
 /** Rough width of the widest toolbar, to keep it on the canvas. */
-const TOOLBAR_WIDTH = 420;
+const TOOLBAR_WIDTH = 520;
 /** The element panel's width (400px) plus its margin. */
 const PANEL_SPACE = 432;
 const GAP = 8;
 
+type ListType = 'themes' | 'actions';
 const CARD_NOUN = { themes: 'Thema', actions: 'Aktion' } as const;
-const CARD_MAX = { themes: SITE_THEMES_MAX, actions: SITE_ACTIONS_MAX } as const;
+const isListType = (type: SiteBlockType): type is ListType =>
+  type === 'themes' || type === 'actions';
 
 function ToolButton({
   label,
@@ -59,43 +66,35 @@ function ToolButton({
   );
 }
 
-function CardTools({
-  selection,
-}: {
-  selection: EditorSelection & { section: 'themes' | 'actions' };
-}) {
-  const list = selection.section;
-  const count = useDraft((d) => d[list].length);
-  const readDraft = useDraftReader();
+function CardTools({ selection, type }: { selection: EditorSelection; type: ListType }) {
+  const { blockId, itemId } = selection;
+  const ids = useDraft((d) => {
+    const block = d.blocks.find((entry) => entry.id === blockId);
+    return block && 'items' in block ? block.items.map((item) => item.id) : [];
+  });
   const actions = useDraftActions();
   const select = useEditorStore((s) => s.select);
-  const noun = CARD_NOUN[list];
-  const index = selection.index;
+  const noun = CARD_NOUN[type];
+  const index = itemId === null ? -1 : ids.indexOf(itemId);
 
   const move = (to: number) => {
-    if (index === null) return;
-    const id = readDraft()[list][index]?.id;
-    if (!id) return;
-    if (list === 'themes') actions.moveTheme(id, to);
-    else actions.moveAction(id, to);
-    select({ section: list, path: null, index: to });
+    if (itemId === null) return;
+    actions.moveItem(blockId, itemId, to);
+    select({ blockId, itemId, path: null });
   };
   const remove = () => {
-    if (index === null) return;
-    const id = readDraft()[list][index]?.id;
-    if (!id) return;
-    if (list === 'themes') actions.removeTheme(id);
-    else actions.removeAction(id);
-    select({ section: list, path: null, index: null });
+    if (itemId === null) return;
+    actions.removeItem(blockId, itemId);
+    select({ blockId, itemId: null, path: null });
   };
   const add = () => {
-    const id = list === 'themes' ? actions.addTheme() : actions.addAction();
-    if (id) select({ section: list, path: null, index: readDraft()[list].length - 1 });
+    const id = actions.addItem(blockId);
+    if (id) select({ blockId, itemId: id, path: null });
   };
 
   return (
     <>
-      {index !== null && (
+      {index !== -1 && (
         <>
           <ToolButton
             label={`${noun} nach links`}
@@ -107,7 +106,7 @@ function CardTools({
           <ToolButton
             label={`${noun} nach rechts`}
             onClick={() => move(index + 1)}
-            disabled={index >= count - 1}
+            disabled={index >= ids.length - 1}
           >
             <FiArrowRight aria-hidden="true" />
           </ToolButton>
@@ -116,9 +115,77 @@ function CardTools({
           </ToolButton>
         </>
       )}
-      <ToolButton label={`${noun} hinzufügen`} onClick={add} disabled={count >= CARD_MAX[list]}>
+      <ToolButton
+        label={`${noun} hinzufügen`}
+        onClick={add}
+        disabled={ids.length >= siteBlockSpec(type).itemMax}
+      >
         <FiPlus aria-hidden="true" />
         <span className="hidden sm:inline">{noun}</span>
+      </ToolButton>
+    </>
+  );
+}
+
+/** Move, copy, hide and delete for any block but the profile, which is pinned on top. */
+function BlockTools({
+  blockId,
+  type,
+  label,
+}: {
+  blockId: string;
+  type: SiteBlockType;
+  label: string;
+}) {
+  const actions = useDraftActions();
+  const select = useEditorStore((s) => s.select);
+  const index = useDraft((d) => d.blocks.findIndex((block) => block.id === blockId));
+  const count = useDraft((d) => d.blocks.length);
+  const sameType = useDraft((d) => d.blocks.filter((block) => block.type === type).length);
+  const hidden = useDraft((d) => d.blocks[index]?.hidden === true);
+  const { max } = siteBlockSpec(type);
+  const canCopy = count < SITE_BLOCKS_MAX && (max === null || sameType < max);
+
+  return (
+    <>
+      <ToolButton
+        label={`${label} nach oben`}
+        onClick={() => actions.moveBlock(blockId, index - 1)}
+        disabled={index <= 1}
+      >
+        <FiArrowUp aria-hidden="true" />
+      </ToolButton>
+      <ToolButton
+        label={`${label} nach unten`}
+        onClick={() => actions.moveBlock(blockId, index + 1)}
+        disabled={index >= count - 1}
+      >
+        <FiArrowDown aria-hidden="true" />
+      </ToolButton>
+      <ToolButton
+        label={`${label} doppeln`}
+        onClick={() => {
+          const copy = actions.duplicateBlock(blockId);
+          if (copy) select({ blockId: copy, itemId: null, path: null });
+        }}
+        disabled={!canCopy}
+      >
+        <FiCopy aria-hidden="true" />
+      </ToolButton>
+      <ToolButton
+        label={`${label} ${hidden ? 'einblenden' : 'ausblenden'}`}
+        onClick={() => actions.setBlockHidden(blockId, !hidden)}
+        pressed={hidden}
+      >
+        {hidden ? <FiEye aria-hidden="true" /> : <FiEyeOff aria-hidden="true" />}
+      </ToolButton>
+      <ToolButton
+        label={`${label} löschen`}
+        onClick={() => {
+          if (actions.removeBlock(blockId)) select(null);
+        }}
+      >
+        <FiTrash2 aria-hidden="true" />
       </ToolButton>
     </>
   );
@@ -142,14 +209,21 @@ export function CanvasToolbar({
   const panel = useEditorStore((s) => s.elementPanel);
   const openElementPanel = useEditorStore((s) => s.openElementPanel);
   const select = useEditorStore((s) => s.select);
-  const hidden = useDraft((d) => d.hidden);
-  const { setField } = useDraftActions();
-  const image = imageTarget(selection);
-  const section = selection.section;
+  const readDraft = useDraftReader();
+  const type = useDraft(
+    (d) => d.blocks.find((block) => block.id === selection.blockId)?.type ?? null
+  );
+  const itemIndex = useDraft((d) => {
+    const block = d.blocks.find((entry) => entry.id === selection.blockId);
+    return block && 'items' in block && selection.itemId !== null
+      ? block.items.findIndex((item) => item.id === selection.itemId)
+      : -1;
+  });
+  if (!type) return null;
+  const image = imageTarget(selection, readDraft());
+  const blockLabel = SITE_BLOCK_UI[type].label;
   const label =
-    isCardList(section) && selection.index !== null
-      ? `${CARD_NOUN[section]} ${selection.index + 1}`
-      : SECTION_LABELS[section];
+    isListType(type) && itemIndex !== -1 ? `${CARD_NOUN[type]} ${itemIndex + 1}` : blockLabel;
 
   // Above the anchor where there is room, else just inside its top edge; never off the canvas.
   const top = Math.min(
@@ -180,25 +254,17 @@ export function CanvasToolbar({
           <span className="hidden sm:inline">Bild</span>
         </ToolButton>
       )}
-      {isCardList(section) && <CardTools selection={{ ...selection, section }} />}
+      {isListType(type) && <CardTools selection={selection} type={type} />}
       <ToolButton
-        label={`${SECTION_LABELS[section]} bearbeiten`}
+        label={`${blockLabel} bearbeiten`}
         onClick={() => toggle('details')}
         pressed={panel === 'details'}
       >
         <FiSliders aria-hidden="true" />
         <span className="hidden sm:inline">Bearbeiten</span>
       </ToolButton>
-      {isOptionalSection(section) && (
-        <ToolButton
-          label={`${SECTION_LABELS[section]} ausblenden`}
-          onClick={() => {
-            setField('hidden', hiddenWith(hidden, section));
-            select(null);
-          }}
-        >
-          <FiEyeOff aria-hidden="true" />
-        </ToolButton>
+      {!siteBlockSpec(type).pinned && (
+        <BlockTools blockId={selection.blockId} type={type} label={blockLabel} />
       )}
       <ToolButton label="Auswahl aufheben" onClick={() => select(null)}>
         <FiX aria-hidden="true" />

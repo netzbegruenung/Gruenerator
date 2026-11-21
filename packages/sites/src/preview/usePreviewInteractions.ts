@@ -1,20 +1,17 @@
 import { useEffect } from 'react';
 
-import { useEditorStore, SECTION_ORDER, type EditorSelection } from '../stores/editorStore';
+import { useEditorStore, type EditorSelection } from '../stores/editorStore';
 
-const isSection = (id: string | null): id is EditorSelection['section'] =>
-  id !== null && (SECTION_ORDER as string[]).includes(id);
-
-/** The selection a click or focus on `target` inside the page stands for; null outside sections. */
+/** The selection a click or focus on `target` inside the page stands for; null outside blocks. */
 export function selectionAt(target: Element | null): EditorSelection | null {
-  const section = target?.closest?.('[data-section]')?.getAttribute('data-section') ?? null;
-  if (!isSection(section)) return null;
+  const block = target?.closest?.('[data-block-id]');
+  const blockId = block?.getAttribute('data-block-id') ?? null;
+  if (!block || !blockId) return null;
   const path = target?.closest?.('[data-field]')?.getAttribute('data-field') ?? null;
-  const card =
-    section === 'themes' || section === 'actions'
-      ? target?.closest?.('[data-index]')?.getAttribute('data-index')
-      : null;
-  return { section, path, index: card != null ? Number(card) : null };
+  const item = target?.closest?.('[data-item-id]');
+  // A card belongs to this block only if it sits inside it.
+  const itemId = item && block.contains(item) ? item.getAttribute('data-item-id') : null;
+  return { blockId, itemId, path };
 }
 
 /**
@@ -44,26 +41,26 @@ export function usePreviewSelection(doc: Document | null): void {
   }, [doc]);
 }
 
-/** Outlines the selected section and the highlighted field inside the page. */
+/** Outlines the selected block and card, and the highlighted field inside the page. */
 export function usePreviewHighlight(doc: Document | null): void {
-  const section = useEditorStore((s) => s.selection?.section ?? null);
-  const index = useEditorStore((s) => s.selection?.index ?? null);
+  const blockId = useEditorStore((s) => s.selection?.blockId ?? null);
+  const itemId = useEditorStore((s) => s.selection?.itemId ?? null);
   const path = useEditorStore((s) => s.highlightedElement?.path ?? s.selection?.path ?? null);
   useEffect(() => {
     if (!doc) return;
     const apply = () => {
-      for (const element of doc.querySelectorAll('[data-section]')) {
+      for (const element of doc.querySelectorAll('[data-block-id]')) {
         element.toggleAttribute(
           'data-editor-selected',
-          element.getAttribute('data-section') === section
+          element.getAttribute('data-block-id') === blockId
         );
       }
-      for (const element of doc.querySelectorAll('[data-section] [data-index]')) {
+      for (const element of doc.querySelectorAll('[data-block-id] [data-item-id]')) {
         element.toggleAttribute(
           'data-editor-selected',
-          index !== null &&
-            element.closest('[data-section]')?.getAttribute('data-section') === section &&
-            element.getAttribute('data-index') === String(index)
+          itemId !== null &&
+            element.closest('[data-block-id]')?.getAttribute('data-block-id') === blockId &&
+            element.getAttribute('data-item-id') === itemId
         );
       }
       for (const element of doc.querySelectorAll('[data-field]')) {
@@ -74,9 +71,9 @@ export function usePreviewHighlight(doc: Document | null): void {
       }
     };
     apply();
-    // Sections and fields re-render with every draft change; keep the marks on the new nodes.
+    // Blocks and fields re-render with every draft change; keep the marks on the new nodes.
     const observer = new MutationObserver(apply);
     observer.observe(doc.body, { childList: true, subtree: true });
     return () => observer.disconnect();
-  }, [doc, section, index, path]);
+  }, [doc, blockId, itemId, path]);
 }

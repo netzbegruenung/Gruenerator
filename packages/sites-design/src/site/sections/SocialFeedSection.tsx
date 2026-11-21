@@ -1,12 +1,12 @@
 /** @jsxRuntime automatic @jsxImportSource react */
 import { type ReactNode } from 'react';
 
-import { sectionGround } from '../../model/grounds.js';
-import { SECTION_ANCHORS } from '../../model/visibility.js';
 import { InstagramConsent } from '../InstagramConsent.js';
 import {
+  blockField,
   CONTAINER,
   editableText,
+  type Placement,
   Section,
   type SectionContext,
   SectionHeading,
@@ -15,38 +15,32 @@ import { Placeholder } from '../Placeholder.js';
 
 export function SocialFeedSection({
   ctx,
+  place,
   renderInstagram,
 }: {
   ctx: SectionContext;
+  place: Placement<'socialFeed'>;
   renderInstagram: ((username: string) => ReactNode) | null;
 }) {
-  const { snapshot, mode, copy } = ctx;
-  const anchor = SECTION_ANCHORS.socialFeed;
-  const feed = snapshot.sections.socialFeed;
-  const username = feed?.instagramUsername ?? '';
-  const title = feed?.title.trim() || copy.socialFeedDefault;
+  const { mode, copy } = ctx;
+  const { anchor, block: feed } = place;
+  const username = feed.instagramUsername ?? '';
+  const title = feed.title.trim() || copy.socialFeedDefault;
+  const titleField = blockField(feed, 'title');
+  const userField = blockField(feed, 'instagramUsername');
 
   return (
-    <Section
-      section="socialFeed"
-      anchor={anchor}
-      ground={sectionGround(snapshot.variant, 'socialFeed', snapshot.locale)}
-      className="site:py-section"
-    >
+    <Section ctx={ctx} place={place} className="site:py-section">
       <div className={CONTAINER}>
         <div className="site:mb-8">
-          <SectionHeading id={`${anchor}-titel`} field="sections.socialFeed.title">
-            {editableText(ctx, 'sections.socialFeed.title', copy.socialFeedDefault, title)}
+          <SectionHeading id={`${anchor}-titel`} field={titleField}>
+            {editableText(ctx, titleField, copy.socialFeedDefault, title)}
           </SectionHeading>
         </div>
         {username === '' ? (
-          <Placeholder
-            field="sections.socialFeed.instagramUsername"
-            text={copy.emptyInstagram}
-            mode={mode}
-          />
+          <Placeholder field={userField} text={copy.emptyInstagram} mode={mode} />
         ) : (
-          <div data-field="sections.socialFeed.instagramUsername">
+          <div data-field={userField}>
             {mode === 'preview' && renderInstagram ? (
               renderInstagram(username)
             ) : (
