@@ -92,4 +92,14 @@ describe.skipIf(!url)('videoProjectRepository (db)', () => {
     expect(after).toMatchObject({ title: 'Neu', aspect_ratio: '16:9' });
     expect((await repo.updateVideoProject(project.id, u2, { title: 'x' })).kind).toBe('forbidden');
   });
+
+  it('lists only projects that have stored Yjs state', async () => {
+    const { project } = await repo.createVideoProject(u1, { title: 'Ungespeichert' });
+    expect((await repo.listVideoProjects(u1)).map((p) => p.id)).not.toContain(project.id);
+    await pool.query(
+      'INSERT INTO yjs_document_updates (document_id, update_data) VALUES ($1, $2)',
+      [project.id, Buffer.from([0])]
+    );
+    expect((await repo.listVideoProjects(u1)).map((p) => p.id)).toContain(project.id);
+  });
 });

@@ -121,12 +121,17 @@ function toVideoProject(row: JoinedRow, canEdit: boolean): VideoProject {
 
 // ── Reads ──────────────────────────────────────────────────────────────────
 
+/** Only projects with stored Yjs state: every editor visit creates a project, unedited ones stay out of the Studio. */
 export async function listVideoProjects(userId: string): Promise<VideoProject[]> {
   const rows = (await db.query(
     `SELECT ${SELECT_COLUMNS}
      FROM collaborative_documents cd
      INNER JOIN video_projects vp ON vp.document_id = cd.id
      WHERE ${VIDEO_ACCESS_WHERE}
+       AND (
+         EXISTS (SELECT 1 FROM yjs_document_updates u WHERE u.document_id = cd.id)
+         OR EXISTS (SELECT 1 FROM yjs_document_snapshots s WHERE s.document_id = cd.id)
+       )
      ORDER BY cd.updated_at DESC`,
     [VIDEO_SUBTYPE, userId, userId]
   )) as JoinedRow[];
