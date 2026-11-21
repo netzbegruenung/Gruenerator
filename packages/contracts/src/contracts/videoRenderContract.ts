@@ -7,6 +7,7 @@
 import { initContract } from '@ts-rest/core';
 
 import {
+  videoRenderAvailabilityResponseSchema,
   videoRenderBodySchema,
   videoRenderErrorResponseSchema,
   videoRenderFileResponseSchema,
@@ -26,6 +27,16 @@ const errors = {
 
 export const videoRenderContract = c.router(
   {
+    /** Listed before `/:id` so Express does not read it as a job id. */
+    availability: {
+      method: 'GET',
+      path: '/api/video-render/availability',
+      responses: {
+        200: videoRenderAvailabilityResponseSchema,
+        401: videoRenderErrorResponseSchema,
+      },
+      summary: 'Whether server rendering is configured',
+    },
     /** Queue a render. */
     start: {
       method: 'POST',

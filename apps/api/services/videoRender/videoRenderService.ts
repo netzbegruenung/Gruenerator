@@ -39,11 +39,22 @@ export function resetVideoRenderJobs(): void {
   jobs.clear();
 }
 
-function upstreamBase(): string {
+function configuredBase(): string | null {
   const configured = env.VIDEO_RENDER_URL?.trim();
   if (configured) return configured.replace(/\/+$/, '');
   if (env.NODE_ENV === 'development') return 'http://localhost:3050';
-  throw new VideoRenderUnavailableError(VIDEO_RENDER_UNAVAILABLE);
+  return null;
+}
+
+/** Configured, not probed: a configured but stopped service still answers 503 per job. */
+export function isVideoRenderAvailable(): boolean {
+  return configuredBase() !== null;
+}
+
+function upstreamBase(): string {
+  const base = configuredBase();
+  if (base === null) throw new VideoRenderUnavailableError(VIDEO_RENDER_UNAVAILABLE);
+  return base;
 }
 
 function mediaBaseUrl(): string {

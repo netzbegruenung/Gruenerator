@@ -1,10 +1,8 @@
 import { type PublicTextForm, type TextForm } from '@gruenerator/contracts';
-import { type Agent } from '@gruenerator/shared/agents';
 import {
   DEFAULT_SCHEDULE,
   type FormState,
   type ScheduleState,
-  type UserAgentInput,
 } from '@gruenerator/shared/grueneratoren';
 import { isModelEnabledByDefault, TEXT_MODELS } from '@gruenerator/shared/models';
 import { slugifyName, slugSuffixFrom } from '@gruenerator/shared/utils';
@@ -42,43 +40,6 @@ export type RandomBytes = (count: number) => Uint8Array;
 /** Suffix klein, damit der Identifier `^[a-z0-9-]+$` erfüllt. */
 export function newAgentIdentifier(title: string, randomBytes: RandomBytes): string {
   return `${slugifyName(title, 'agent')}-${slugSuffixFrom(randomBytes).toLowerCase()}`;
-}
-
-const COPY_SUFFIX = ' (Kopie)';
-
-/** `title` ist auf 100 Zeichen begrenzt — der Zusatz muss hineinpassen. */
-export function copyTitle(title: string): string {
-  const room = MAX_TITLE - COPY_SUFFIX.length;
-  return `${title.length > room ? title.slice(0, room).trimEnd() : title}${COPY_SUFFIX}`;
-}
-
-/** Duplikat wie im Web (`useDuplicateAgent`): gewöhnliches Anlegen mit kopierten Feldern. */
-export function duplicateAgentInput(agent: Agent, randomBytes: RandomBytes): UserAgentInput {
-  return {
-    identifier: newAgentIdentifier(agent.title, randomBytes),
-    title: copyTitle(agent.title),
-    description: agent.description,
-    systemRole: agent.systemRole,
-    avatar: agent.avatar,
-    iconKey: agent.iconKey,
-    backgroundColor: agent.backgroundColor,
-    tags: [...agent.tags],
-    model: agent.model,
-    defaultModel: agent.defaultModel,
-    provider: agent.provider,
-    params: agent.params,
-    openingMessage: agent.openingMessage,
-    openingQuestions: [...agent.openingQuestions],
-    locale: agent.locale,
-    author: agent.author,
-    ...(agent.defaultNotebookIds && { defaultNotebookIds: [...agent.defaultNotebookIds] }),
-    ...(agent.plugins && { plugins: [...agent.plugins] }),
-    ...(agent.enabledTools && { enabledTools: [...agent.enabledTools] }),
-    ...(agent.fewShotExamples && { fewShotExamples: [...agent.fewShotExamples] }),
-    inlineSourceLinks: agent.inlineSourceLinks,
-    defaultRecipeMention: agent.defaultRecipeMention,
-    defaultRecipeId: agent.defaultRecipeId,
-  };
 }
 
 /** Das gespeicherte {model, provider}-Paar zurück auf eine Katalog-Id. */

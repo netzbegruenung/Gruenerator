@@ -76,9 +76,6 @@ vi.mock('../agents/api', () => ({
   useSharedUserAgents: () => ({ data: sharedUserAgents.current }),
   usePublicUserAgents: () => ({ data: publicAgents.current, isSuccess: true }),
   useDeleteUserAgent: () => ({ mutate: vi.fn() }),
-  // Duplizieren legt einen neuen Agenten an — die Kachel zieht den Haken über
-  // `useDuplicateAgent`, auch wenn keine dieser Prüfungen ihn auslöst.
-  useCreateUserAgent: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 vi.mock('../recurring-tasks/api', () => ({
@@ -458,9 +455,10 @@ describe('GrueneratorenPage — Meine Rezepte', () => {
     renderPage();
 
     expect(
-      await screen.findByText(/Du hast noch keine eigenen Agents oder Rezepte erstellt/)
+      await screen.findByText(/Du hast noch keine eigenen Rezepte erstellt/)
     ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Agent erstellen/ })).toBeInTheDocument();
+    // Neue Agents gibt es nicht mehr — der Leerzustand bietet nur noch Rezepte an.
+    expect(screen.queryByRole('link', { name: /Agent erstellen/ })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Rezept erstellen/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Zum Marktplatz/ })).toBeInTheDocument();
   });
@@ -577,7 +575,7 @@ describe('GrueneratorenPage — Suche', () => {
 });
 
 describe('GrueneratorenPage — „Neu"-Menü', () => {
-  it('bietet drei Einträge und ist per Tastatur bedienbar', async () => {
+  it('bietet Rezept und Aufgabe, aber keinen neuen Agent, und ist per Tastatur bedienbar', async () => {
     renderPage();
 
     const trigger = await screen.findByRole('button', { name: 'Neu' });
@@ -586,7 +584,6 @@ describe('GrueneratorenPage — „Neu"-Menü', () => {
 
     const items = await screen.findAllByRole('menuitem');
     expect(items.map((el) => el.textContent)).toEqual([
-      'Agent',
       'Rezept',
       'Wiederkehrende Aufgabe',
       // „Verlauf & Steuerung" hing vorher an der Abschnittsüberschrift der
@@ -595,8 +592,8 @@ describe('GrueneratorenPage — „Neu"-Menü', () => {
     ]);
 
     // Opening via keyboard already focuses the first item (Radix's roving
-    // tabindex) — one more ArrowDown moves to "Rezept", the second entry.
-    await userEvent.keyboard('{ArrowDown}{Enter}');
+    // tabindex) — "Rezept".
+    await userEvent.keyboard('{Enter}');
     expect(navigate).toHaveBeenCalledWith('/agentura/rezept/neu');
   });
 

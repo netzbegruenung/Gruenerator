@@ -36,12 +36,7 @@ import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { getAgentForUser } from '../chat/agents/agentLoader.js';
 import { createNotebookDirect, notebookUrl } from '../chat/agents/notebookTools.js';
 import { RECURRING_TASKS_URL } from '../chat/agents/recurringTaskTools.js';
-import {
-  createUserAgentSafely,
-  prepareUserAgentInput,
-  resolveUserAgentDeps,
-  userAgentUrl,
-} from '../chat/agents/userAgentTools.js';
+import { AGENT_CREATION_CLOSED } from '../chat/agents/userAgentTools.js';
 import { hasWriteAccess } from '../chat/confirmController.js';
 import { checkNotebookAccess } from '../notebook/notebookAccess.js';
 
@@ -516,51 +511,12 @@ export async function createRecurringTaskMcp(
 }
 
 /**
- * `user_agents` create als zweistufiges confirm-Protokoll — im Chat ist das
- * eine Karte, weil die Rolle ein LLM-Entwurf ist, den die Person vor dem
- * Speichern sehen soll. Der Entwurf wird bei JEDEM Aufruf neu gemacht, auch
- * beim zweiten mit confirm=true: der Rückfragetext ist keine Reservierung,
- * und zwischen den Aufrufen gibt es keinen Speicher. Wer die gezeigte Rolle
- * exakt will, gibt sie als systemRole mit.
+ * `user_agents` create: Agents laufen aus, neue gibt es nicht mehr. Die Aktion
+ * bleibt im MCP-Werkzeug (Aktionsnamen sind F0 für externe Clients) und nennt
+ * den Grund.
  */
-export async function createUserAgentMcp(
-  userId: string,
-  args: Record<string, unknown>
-): Promise<ToolResult> {
-  const profile = await getProfileService().getProfileById(userId);
-  const userLocale = profile?.locale === 'de-AT' ? 'de-AT' : 'de-DE';
-  const strings = (key: string): string[] | undefined =>
-    Array.isArray(args[key]) ? (args[key] as unknown[]).map(String) : undefined;
-  const prepared = await prepareUserAgentInput({
-    userId,
-    userLocale,
-    // MCP kennt die Profilrollen nicht — ungefiltert heißt: alle Rezepte gelten.
-    roles: null,
-    brief: typeof args.brief === 'string' ? args.brief : '',
-    ...(typeof args.title === 'string' ? { title: args.title } : {}),
-    ...(typeof args.systemRole === 'string' ? { systemRole: args.systemRole } : {}),
-    fields: {
-      ...(strings('enabledTools') ? { enabledTools: strings('enabledTools') } : {}),
-      ...(strings('skillMentions') ? { skillMentions: strings('skillMentions') } : {}),
-      ...(strings('defaultNotebookIds')
-        ? { defaultNotebookIds: strings('defaultNotebookIds') }
-        : {}),
-    },
-    deps: resolveUserAgentDeps(undefined),
-  });
-  if ('error' in prepared) return prepared;
-  const { input, preview } = prepared;
-  if (args.confirm !== true) {
-    return {
-      needsConfirmation: true,
-      note: `Grünerator-Agent anlegen? ${preview.map((p) => `${p.key}: ${p.value}`).join(' · ')}. Frage die Person und rufe create erst mit confirm=true erneut auf (gern mit systemRole, wenn die Rolle genau so bleiben soll).`,
-    };
-  }
-  const agent = await createUserAgentSafely(userId, input);
-  return {
-    ok: true,
-    note: `Grünerator-Agent „${agent.title}" angelegt (${absolutizeUrl(userAgentUrl(agent.identifier))}).`,
-  };
+export function createUserAgentMcp(): Promise<ToolResult> {
+  return Promise.resolve({ error: AGENT_CREATION_CLOSED });
 }
 
 export async function shareUserAgentMcp(

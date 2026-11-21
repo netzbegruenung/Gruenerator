@@ -166,7 +166,8 @@ async function processProjectExport(
       styleOptions,
       'manual',
       stylePreference,
-      locale
+      locale,
+      heightPreference
     );
 
     const assFilePath = await assService.createTempAssFile(assResult.content, project.id);

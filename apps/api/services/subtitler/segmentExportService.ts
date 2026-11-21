@@ -366,7 +366,8 @@ export async function exportWithSegmentsAndSubtitles(
       styleOptions,
       'manual',
       subtitleConfig.stylePreference || 'standard',
-      subtitleConfig.locale || 'de-DE'
+      subtitleConfig.locale || 'de-DE',
+      subtitleConfig.heightPreference || 'standard'
     );
 
     const assFilePath = await assService.createTempAssFile(assResult.content, exportToken);

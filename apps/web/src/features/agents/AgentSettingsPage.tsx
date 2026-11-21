@@ -55,6 +55,7 @@ function AgentSettingsPage() {
       initialState={hydrateFormState(agent)}
       initialSchedule={task ? recurrenceToSchedule(task) : null}
       recurringTaskId={task?.id}
+      agent={agent}
     />
   );
 }
