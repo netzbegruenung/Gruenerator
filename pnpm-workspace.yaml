@@ -27,11 +27,13 @@ packages:
 # the same state froze every dependency change for the whole window (#3216).
 minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
-  # Vector export (SVG, vector PDF with brand CMYK, PPTX with SVG pictures;
-  # Movm/ggraphic#187-#189, #192). core alpha.3 published 2026-11-06 14:25 UTC,
-  # editor alpha.6 2026-11-06 14:26 UTC. Inert from 2026-11-09 14:27 UTC, remove then.
-  - '@ggraphic/core@0.1.0-alpha.3'
-  - '@ggraphic/editor@0.1.0-alpha.6'
+  # ggraphic spread-set order keys (Movm/ggraphic#224, lift id /2): schema alpha.6 and core
+  # alpha.7 published 2026-11-19 ~00:12 UTC. Inert from 2026-11-22 00:15 UTC, remove then.
+  - '@ggraphic/schema@0.1.0-alpha.6'
+  - '@ggraphic/core@0.1.0-alpha.7'
+  # ggraphic document tabs see the pages (Movm/ggraphic#226, „Design" tab #5850): editor
+  # alpha.18 published 2026-11-19 20:15 UTC. Inert from 2026-11-22 20:20 UTC, remove then.
+  - '@ggraphic/editor@0.1.0-alpha.18'
 # No exemption by semver: the hijacked releases this gate exists for (chalk/debug,
 # Shai-Hulud) shipped as patch bumps. An urgent fix gets an exact-version entry
 # in a `minimumReleaseAgeExclude:` list here (`name@x.y.z`, with why, publish date
@@ -178,27 +180,6 @@ allowBuilds:
 # `@`, `.`, `-`, `_`, `+`, `/`, `,`, umlauts, an emoji, `§` and newlines): the
 # produced link nodes are identical for every one of them.
 #
-# `@better-auth/oauth-provider` (1.7.6, still in 1.7.7) seeds `ba_oauth_resources` in its plugin
-# `init` (because `mcp({ resource })` in apps/api/config/betterAuth.ts passes a
-# resource). `betterAuth()` runs that init at module import, before
-# PostgresService has applied the migration that creates the table, and caches
-# the result in `auth.$context`. The plugin means to defer on a missing table,
-# but its MISSING_TABLE_PATTERN only tests `err.message`, and Drizzle wraps the
-# pg error as `Failed query: …` with `relation … does not exist` in `cause`. So
-# the first boot after a deploy rejected `$context` for good, and every auth
-# request answered 500 until the process restarted (beta, 24.09.2026, #3670).
-#
-# The patch catches the init-time seed and logs a warning. The library's own
-# lazy path (`getResource` -> `seedResourcesOnce`) then seeds on the first
-# resource access. It is not a silent swallow: that path resets and rethrows on
-# failure, so a seed that keeps failing fails every resource lookup loudly and
-# is retried on the next one. Only the resource endpoints fail, not sign-in.
-# The patch is chosen over building `auth` lazily after migrations because
-# `auth` is a module-level export that 15 files import. Guarded by incident 7 in
-# apps/api/config/authRegressions.vitest.ts. Drop it once upstream matches the
-# pattern against `cause` or stops seeding in `init`. pnpm fails the install when
-# the patch no longer applies, so a better-auth bump cannot skip it silently.
-#
 # `react-native-markdown-display@7.0.2` keys every AST node from a global
 # counter (`getUniqueID()` in tokensToAST.js and AstRenderer.js), so each parse
 # hands React new keys and it remounts the whole native tree of a message. In
@@ -296,7 +277,6 @@ allowBuilds:
 # the zod peer but ships the same declarations (ts-rest#852, #871, #872), and
 # the repo has had no commit since 2025-06-02 (ts-rest#797, #866).
 patchedDependencies:
-  '@better-auth/oauth-provider@1.7.7': patches/@better-auth__oauth-provider@1.7.7.patch
   '@blocknote/xl-ai@0.57.0': patches/@blocknote__xl-ai@0.57.0.patch
   '@expo/config-plugins@58.0.10': patches/@expo__config-plugins@58.0.10.patch
   '@ts-rest/core@3.52.1': patches/@ts-rest__core@3.52.1.patch
@@ -358,20 +338,12 @@ auditConfig:
     # parses its own stats file, nothing ships in the app. Re-check 2026-11-14.
     - GHSA-mjw6-4jj6-33hc
     - GHSA-hqr4-qq8f-hg3x
-    # postcss-selector-parser <7.1.6 (GHSA-rj75-hqrm-r3gf). Only 6.1.4 under
-    # apps/wordpress → @wordpress/scripts / sass-loader → webpack → cssnano
-    # (stylehacks, postcss-merge-rules, postcss-minify-selectors declare
-    # ^6.0.16, postcss-calc ^6.0.11); no patched 6.x, a >=7.1.6 floor would
-    # cross the major. Build-time CSS minification of our own plugin styles.
-    # Re-check 2026-11-14.
+    # postcss-selector-parser <6.1.5 (GHSA-rj75-hqrm-r3gf). Only 6.1.4 under
+    # documentation → @docusaurus/* → webpack → cssnano (stylehacks,
+    # postcss-merge-rules, postcss-minify-selectors). Build-time CSS
+    # minification of our own docs styles. The advisory now lists 6.1.5 as
+    # patched, so a floor inside the 6.x line can replace this entry.
     - GHSA-rj75-hqrm-r3gf
-    # @opentelemetry/instrumentation-{pg,mysql2,knex,mysql,mongoose,tedious}
-    # (GHSA-qqmp-wf37-98f9). Only via apps/wordpress → @wordpress/scripts →
-    # @wordpress/e2e-test-utils-playwright → lighthouse → @sentry/node 9.47.1,
-    # which pins every instrumentation exactly (e.g. instrumentation-pg
-    # 0.51.1), so no floor is possible. Lighthouse runs no database driver;
-    # wp-scripts is build/e2e tooling only. Re-check 2026-11-14.
-    - GHSA-qqmp-wf37-98f9
     # sprintf-js <=1.1.3 (GHSA-hp3w-g68c-fv3c, no patched release). Only via
     # packages/shared → gray-matter → js-yaml 3 → argparse 1 → sprintf-js
     # 1.0.3. gray-matter is a devDependency used by scripts/build-agents.ts
@@ -383,9 +355,7 @@ auditConfig:
     # (GHSA-mrhx-c7xc-m3w5). Our own validation runs on zod 4 (>=4.6.6). What
     # remains is tooling that keeps its own nested zod 3, which has no patched
     # release: apps/mobile → expo → @expo/cli (dev server / CLI, never in the
-    # app bundle) and apps/wordpress → @wordpress/scripts → puppeteer-core →
-    # chromium-bidi (build/e2e tooling; its schemas parse the browser's
-    # protocol messages, not user input).
+    # app bundle).
     # ignoreGhsas cannot be scoped to a version, so the `zod@>=4 <5` floor
     # override below keeps every zod 4 copy at >=4.6.6. Re-check 2026-11-25.
     - GHSA-mrhx-c7xc-m3w5
@@ -399,10 +369,22 @@ auditConfig:
     - GHSA-g3hv-75wg-m249
     - GHSA-3g3m-2fjr-6pw4
     # deepmerge <=4.3.1 prototype poisoning of returned objects (low, no
-    # patched release). Via @expo/config, @svgr/plugin-svgo, jest-config and
-    # the @wordpress/* editor packages; they merge their own config and block
-    # attribute objects, no code of ours imports deepmerge. Re-check 2026-12-01.
+    # patched release). Via @expo/config, @svgr/plugin-svgo and jest-config;
+    # they merge their own config objects, no code of ours imports deepmerge. Re-check 2026-12-01.
     - GHSA-gcqx-w48m-w2h4
+    # picomatch <=4.0.7 ReDoS through single-branch repeated extglobs
+    # (GHSA-fc5q-39xc-vjpf / CVE-2026-112366, high, no patched release: 4.0.7
+    # is the latest 4.x and 2.3.2 the latest 2.x; the advisory range was
+    # published 2026-10-19 and widened 2026-11-17, which turned the Guards job
+    # red). Reachable only with an attacker-chosen glob such as `+(*)`. We
+    # import none of picomatch/micromatch/minimatch ourselves; the copies come
+    # from build and dev tooling fed with config globs (metro, expo, eslint,
+    # vite/tinyglobby, jest) and, in apps/api, solely via @sentry/node →
+    # @sentry/bundler-plugins → webpack → webpack-dev-server, which the
+    # runtime never loads. `pnpm why picomatch --prod` finds no copy under
+    # apps/web or services/hocuspocus. A floor is impossible (no fix). Re-check
+    # 2026-12-02; drop once picomatch ships a fix.
+    - GHSA-fc5q-39xc-vjpf
 
 # Moved here from package.json's `pnpm.overrides`. scripts/sync-pnpm-overrides.mjs
 # and scripts/check-override-ranges.mjs read this block.
@@ -422,10 +404,10 @@ overrides:
   basic-ftp: '>=6.0.1'
   markdown-it: '>=14.3.3 <15'
   tar: '>=7.5.11'
-  smol-toml: '>=1.9.0'
+  smol-toml: '>=1.9.1'
   undici: '>=8.12.4'
   '@qdrant/js-client-rest>undici': ^7.30.1
-  jsdom: 31.0.0
+  jsdom: 31.0.1
   # jsdom 31 drives parse5-parser-stream with parse5 8.1's tokenizer
   # (`flushCharacters`); the stream package only asks for ^8.0.0 and got 8.0.1.
   parse5@>=8 <9: '>=8.1.0 <9'
@@ -464,7 +446,7 @@ overrides:
   lodash-es: '>=4.18.0'
   lodash: '>=4.18.0'
   '@esbuild-kit/core-utils>esbuild': ^0.25.0
-  axios: '>=1.19.0'
+  axios: '>=1.21.1'
   postcss: '>=8.5.32'
   uuid: '>=14.0.2'
   qs: '>=6.16.1'
@@ -501,13 +483,13 @@ overrides:
   '@blocknote/xl-ai>ai': ^6.0.224
   '@blocknote/shadcn>tailwind-merge': 2.6.0
   '@types/node': 26.6.6
-  '@tanstack/react-query': ^5.106.1
-  zustand: 5.0.16
+  '@tanstack/react-query': ^5.107.1
+  zustand: 5.1.0
   katex: ^0.19.0
   pyodide: ^314.0.7
-  react-dropzone: ^20.1.2
+  react-dropzone: ^20.2.0
   prosemirror-view: ^1.42.6
-  prosemirror-model: ^1.25.12
+  prosemirror-model: ^1.25.13
   prosemirror-transform: ^1.12.2
   '@blocknote/core': ^0.57.0
   '@blocknote/react': ^0.57.0
@@ -515,30 +497,30 @@ overrides:
   '@blocknote/xl-ai': ^0.57.0
   '@blocknote/xl-docx-exporter': ^0.57.0
   '@blocknote/xl-odt-exporter': ^0.57.0
-  '@assistant-ui/core': ^0.3.32
-  '@assistant-ui/store': ^0.3.22
-  '@assistant-ui/react': ^0.15.32
-  '@assistant-ui/tap': ^0.9.24
-  '@assistant-ui/react-markdown': ^0.14.24
-  '@assistant-ui/react-streamdown': ^0.3.21
+  '@assistant-ui/core': ^0.3.36
+  '@assistant-ui/store': ^0.3.23
+  '@assistant-ui/react': ^0.15.36
+  '@assistant-ui/tap': ^0.9.26
+  '@assistant-ui/react-markdown': ^0.14.26
+  '@assistant-ui/react-streamdown': ^0.3.22
   '@assistant-ui/react-native': 0.1.51
-  '@tiptap/core': ^3.33.0
-  '@tiptap/extension-bold': ^3.33.0
-  '@tiptap/extension-code': ^3.33.0
-  '@tiptap/extension-collaboration': ^3.33.0
-  '@tiptap/extension-document': ^3.33.0
-  '@tiptap/extension-hard-break': ^3.33.0
-  '@tiptap/extension-heading': ^3.33.0
-  '@tiptap/extension-image': ^3.33.0
-  '@tiptap/extension-italic': ^3.33.0
-  '@tiptap/extension-list': ^3.33.0
-  '@tiptap/extension-paragraph': ^3.33.0
-  '@tiptap/extension-strike': ^3.33.0
-  '@tiptap/extension-table': ^3.33.0
-  '@tiptap/extension-text': ^3.33.0
-  '@tiptap/extension-underline': ^3.33.0
-  '@tiptap/extensions': ^3.33.0
-  '@tiptap/pm': ^3.33.0
-  '@tiptap/react': ^3.33.0
-  '@tiptap/static-renderer': ^3.33.0
+  '@tiptap/core': ^3.34.0
+  '@tiptap/extension-bold': ^3.34.0
+  '@tiptap/extension-code': ^3.34.0
+  '@tiptap/extension-collaboration': ^3.34.0
+  '@tiptap/extension-document': ^3.34.0
+  '@tiptap/extension-hard-break': ^3.34.0
+  '@tiptap/extension-heading': ^3.34.0
+  '@tiptap/extension-image': ^3.34.0
+  '@tiptap/extension-italic': ^3.34.0
+  '@tiptap/extension-list': ^3.34.0
+  '@tiptap/extension-paragraph': ^3.34.0
+  '@tiptap/extension-strike': ^3.34.0
+  '@tiptap/extension-table': ^3.34.0
+  '@tiptap/extension-text': ^3.34.0
+  '@tiptap/extension-underline': ^3.34.0
+  '@tiptap/extensions': ^3.34.0
+  '@tiptap/pm': ^3.34.0
+  '@tiptap/react': ^3.34.0
+  '@tiptap/static-renderer': ^3.34.0
   '@babel/core': 7.29.13

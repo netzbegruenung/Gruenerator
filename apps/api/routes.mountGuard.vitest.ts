@@ -240,6 +240,11 @@ describe('routes.ts mount order', () => {
         auth: "app.use('/api/presentations', requireAuth",
         mount: 'mountPresentationsContractRouter(app)',
       },
+      {
+        path: '/api/sites/generate',
+        auth: "app.use('/api/sites', standardMutationLimiter, requireAuth, requireSitesAccess)",
+        mount: 'mountSitesContractRouter(app)',
+      },
     ];
 
     for (const { path: aiPath, auth, mount } of cases) {
@@ -255,6 +260,52 @@ describe('routes.ts mount order', () => {
       expect(mountCall, `${mount} not found`).toBeGreaterThan(-1);
       expect(gate, `${aiPath} consent must follow its auth`).toBeGreaterThan(authCall);
       expect(gate, `${aiPath} consent must precede ${mount}`).toBeLessThan(mountCall);
+    }
+  });
+
+  /**
+   * Site generation sits inside the sites contract, so its limiter and consent gate go on the
+   * sub-path, after the /api/sites auth and sites-access gate and before the contract mount.
+   */
+  it('gates /api/sites/generate with consent and the AI limiter before the sites contract mounts', () => {
+    const auth = firstIndexOf(
+      "app.use('/api/sites', standardMutationLimiter, requireAuth, requireSitesAccess)"
+    );
+    const gate = firstIndexOf(
+      "app.use('/api/sites/generate', aiGenerationLimiter, requireAiConsent)"
+    );
+    const mountCall = firstIndexOf('mountSitesContractRouter(app)');
+
+    expect(auth).toBeGreaterThan(-1);
+    expect(
+      gate,
+      '/api/sites/generate needs aiGenerationLimiter and requireAiConsent'
+    ).toBeGreaterThan(-1);
+    expect(mountCall).toBeGreaterThan(-1);
+    expect(gate, 'the gate must follow the /api/sites auth').toBeGreaterThan(auth);
+    expect(gate, 'the gate must precede the sites contract mount').toBeLessThan(mountCall);
+  });
+
+  /**
+   * KI-Schnitt: creating a project and every correction round call a model,
+   * so both POSTs carry the generation limiter and the consent gate, after the
+   * prefix auth and before the contract mount.
+   */
+  it('gates the KI-Schnitt model calls before the contract mount', () => {
+    const auth = firstIndexOf("app.use('/api/video-ai', requireAuth");
+    const mountCall = firstIndexOf('mountVideoAiContractRouter(app)');
+    expect(auth).toBeGreaterThan(-1);
+    expect(mountCall).toBeGreaterThan(-1);
+
+    for (const aiPath of ['/api/video-ai/projects', '/api/video-ai/projects/:id/revise']) {
+      const gate = routesSource.search(
+        new RegExp(
+          `app\\.post\\(\\s*'${escapeRegExp(aiPath)}',\\s*aiGenerationLimiter,\\s*requireAiConsent`
+        )
+      );
+      expect(gate, `${aiPath} needs aiGenerationLimiter and requireAiConsent`).toBeGreaterThan(-1);
+      expect(gate, `${aiPath} gate must follow its auth`).toBeGreaterThan(auth);
+      expect(gate, `${aiPath} gate must precede the mount`).toBeLessThan(mountCall);
     }
   });
 

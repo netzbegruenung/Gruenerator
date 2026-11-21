@@ -2,15 +2,13 @@
  * ChatGraph Type Definitions
  *
  * Defines the state structure and types for the LangGraph-based chat system.
- * This provides explicit control flow for agentic chat, solving the AI SDK
- * toolChoice: 'required' loop trap.
+ * This provides explicit control flow for agentic chat.
  *
  * NOTE: req/res are intentionally NOT part of the graph state.
  * The controller handles HTTP streaming via the @ai-sdk/langchain adapter,
  * keeping the graph decoupled from transport concerns.
  */
 
-import type { ForbiddableArtifact } from './nodes/fastPathGuards.js';
 import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
 import type {
   NotebookEditPolicy,
@@ -22,6 +20,7 @@ import type { EditableArtifact } from '../../../routes/chat/services/editAddress
 import type { RenderedMemory } from '../../../services/memory/memoryPrompt.js';
 import type { SystemCollection } from '../../../services/notebook/systemNotebookSources.js';
 import type { UserAgentInput } from '../../../services/userAgents/userAgentsRepository.js';
+import type { ForbiddableArtifact } from './nodes/fastPathGuards.js';
 import type {
   WolkeFileRef,
   ConnectFileRef,
@@ -521,7 +520,8 @@ export interface ThreadAttachment {
   summary: string | null;
   /** Ob die Originalbytes des Anhangs gespeichert sind (`file_data`). Für PDFs
    *  ist das gleichbedeutend mit „beim Upload als ausfüllbares Formular
-   *  erkannt" — siehe die DB-seitige ThreadAttachment. */
+   *  erkannt", für Fotos mit „nicht über 8 MB" — siehe die DB-seitige
+   *  ThreadAttachment. */
   hasFileData: boolean;
   createdAt: Date;
 }
@@ -593,6 +593,12 @@ export interface ChatGraphInput {
    * 60-Sekunden-Cache; `undefined` heißt „nicht ermittelt", nicht „keine".
    */
   cloudConnectionCount?: number | undefined;
+  /**
+   * Welche Atlassian-Produkte (Jira/Confluence) das Konto verbunden hat — das
+   * Tor für `atlassian` im Werkzeugkatalog. 60-Sekunden-Cache in
+   * `buildStreamContext`; `undefined` heißt „nicht ermittelt", nicht „keine".
+   */
+  atlassianConnections?: { jira: boolean; confluence: boolean } | undefined;
   /** THIS turn's fillable-PDF attachments (name + base64), for the PDF form
    *  tools. Needed separately from `threadAttachments`, which carries no bytes
    *  and is only written after the turn completes — on the very first turn
@@ -694,6 +700,8 @@ export interface ChatGraphInput {
   /** Zeilen-id der gewählten Textform. Schlägt die Mention beim Nachschlag. */
   activeRecipeId?: string | undefined;
   userInstructions?: string | undefined;
+  /** Anweisungen des Projekts, in dem der Chat liegt (`group_instructions`). */
+  projectInstructions?: { projectName: string; text: string } | null | undefined;
   contextWindowTokens?: number | undefined;
 }
 
@@ -730,16 +738,6 @@ export interface ChatGraphState {
   injectionSuspected?: boolean | undefined;
 
   /**
-   * This `agentic` turn reached the loop via Tier-3.5 demotion of a RETRIEVAL
-   * heuristic (web/search/examples/bundestag/…), not because the user asked
-   * for open-ended work. The loop requires a first tool call on such turns —
-   * without it the planner answered "Da ich in diesem Turn keine aktuellen
-   * Recherche-Ergebnisse habe …" to a plain factual question it was supposed
-   * to look up.
-   */
-  loopDemotedFromRetrieval?: boolean | undefined;
-
-  /**
    * Counterpart for PROSE verdicts: this `agentic` turn reached the loop
    * because the classifier's prose verdict (`produktion`, `direct`, …) goes
    * through `proseGoesToLoop`. Carries that verdict so the auto policy keeps
@@ -756,11 +754,8 @@ export interface ChatGraphState {
    * Vorwürfe zu identifizieren" — followed by `intent: direct`, zero searches,
    * and an answer that invented the facts.
    *
-   * Same consequence as {@link loopDemotedFromRetrieval} (a recognised
-   * retrieval need that produces no tool call), different source: that one
-   * comes from the Tier-3.5 heuristic demotion, this one from the model
-   * contradicting itself. Kept as a separate field so the log tells you WHICH
-   * of the two happened.
+   * The turn goes to the loop (`turnPlan`), where the model decides with the
+   * tools at hand whether to look it up.
    */
   classifierContradictedResearch?: boolean | undefined;
 
@@ -878,6 +873,8 @@ export interface ChatGraphState {
   hasTabularAttachment: boolean;
   /** See the input-side field: the tool-catalog gate for `cloud_files`. */
   cloudConnectionCount: number;
+  /** See the input-side field: the tool-catalog gate for `atlassian`. */
+  atlassianConnections: { jira: boolean; confluence: boolean };
   /** See the input-side field: this turn's fillable PDFs, name + base64. */
   pdfFormAttachments: Array<{ name: string; data: string }>;
   /** See `ChatGraphInput.turnTabularTexts`. */
@@ -1056,6 +1053,9 @@ export interface ChatGraphState {
 
   // User profile instructions (from profiles.custom_prompt, additive to all modes)
   userInstructions: string | null;
+
+  // Anweisungen der Projekt-Admins für alle Chats im Projekt (group_instructions).
+  projectInstructions: { projectName: string; text: string } | null;
 
   // The person's explicit memory for this turn (services/memory). `memoryContext`
   // is the rendered, numbered text the prompt shows; `memories` is the same
@@ -1386,8 +1386,8 @@ export interface ChatGraphState {
   // muss wissen, was die Person GEWÄHLT hat, und `state.intent` allein sagt das
   // nicht — ein Klassifikator-Verdikt sieht dort genauso aus.
   //
-  // Zwei Leser, beide im Loop: der erste Werkzeugaufruf wird beim NAMEN genannt
-  // statt nur „irgendeiner" verlangt (`pinnedFirstTool`), und der Pin selbst
+  // Zwei Leser, beide im Loop: das Werkzeug wird dem Modell beim NAMEN
+  // angekündigt (`buildPinnedToolNote`, nicht erzwungen), und der Pin selbst
   // zwingt den Turn in die Schleife (`turnPlan`) — dort und nur dort gibt es
   // Werkzeuge. Ein Werkzeugname und keine `ChatIntentId`, damit eine Erwähnung
   // eine Fähigkeit festzurren kann, deren Intent stillgelegt ist (`@umfragen`).
@@ -1578,6 +1578,37 @@ export interface CreateGroupPayload {
   description: string | null;
 }
 
+/** Eine Antragsgrün-Seite auf antragsgruen.de (`services/antragsgruen/hosting/`). */
+export interface CreateAntragsgruenSitePayload {
+  title: string;
+  organization: string;
+  subdomain: string;
+  agenda?: AntragsgruenAgendaEntry[] | null;
+}
+
+/** Ein Tagesordnungspunkt, wie ihn `services/antragsgruen/hosting/agenda.ts` setzt. */
+export interface AntragsgruenAgendaEntry {
+  code: string | null;
+  title: string;
+  time: string | null;
+  motions: boolean;
+}
+
+export interface SetAntragsgruenAgendaPayload {
+  subdomain: string;
+  entries: AntragsgruenAgendaEntry[];
+}
+
+/** Ein Antrag auf einer über den Grünerator angelegten Antragsgrün-Seite. */
+export interface CreateAntragsgruenMotionPayload {
+  subdomain: string;
+  title: string;
+  text: string;
+  reason: string | null;
+  organization: string | null;
+  agendaItem?: string | null;
+}
+
 export interface JoinGroupPayload {
   joinToken: string;
   groupName: string;
@@ -1729,6 +1760,9 @@ export type PendingAction = {
   | { type: 'share_user_agent'; payload: ShareUserAgentPayload }
   | { type: 'share_text_form'; payload: ShareTextFormPayload }
   | { type: 'apply_canvas_deck_edit'; payload: ApplyCanvasDeckEditPayload }
+  | { type: 'create_antragsgruen_site'; payload: CreateAntragsgruenSitePayload }
+  | { type: 'create_antragsgruen_motion'; payload: CreateAntragsgruenMotionPayload }
+  | { type: 'set_antragsgruen_agenda'; payload: SetAntragsgruenAgendaPayload }
 );
 
 /**

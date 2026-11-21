@@ -1,4 +1,3 @@
-import { CanvasEditorSkeleton } from '@gruenerator/canvas-editor/skeleton';
 import { isChannelVisibleIn, type InstanceChannel } from '@gruenerator/shared/instances';
 import { stickerDiscoverToMarketplaceHref } from '@gruenerator/shared/marketplace';
 import {
@@ -11,16 +10,19 @@ import {
 } from 'react';
 import { Navigate, useLocation, useParams } from 'react-router-dom';
 
+import { CanvasEditorRouteSkeleton } from '../features/image-studio/CanvasEditorRouteSkeleton';
 import { loadCanvasStudioPage } from '../features/image-studio/routeChunks';
 import { type BriefingCardId } from '../features/monitor/briefing/BriefingCard';
-import { BriefingSkeleton } from '../features/monitor/briefing/BriefingView';
+import { BriefingSkeleton } from '../features/monitor/briefing/BriefingSkeleton';
 import { loadNotebookOverview, loadNotebookPage } from '../features/notebook/routeChunks';
 import { WissenDashboardSkeleton } from '../features/notebook/wissen/WissenSkeletons';
 import { isDesktopApp } from '../utils/platform';
 import { startTabLink } from '../utils/startpage';
 
+import { withAdminToolGate } from './adminToolsGate';
 import { SHOW_AGENT_CREATOR } from './featureFlags';
 import { CURRENT_INSTANCE } from './instance';
+import { withSitesGate } from './sitesGate';
 
 /**
  * Route configuration interface
@@ -272,10 +274,6 @@ const LandesverbandAdminPage = lazy(
 );
 const GrueneApiTestPage = lazy(() => import('../features/admin/GrueneApiTestPage'));
 const ConnectorTestPage = lazy(() => import('../features/admin/ConnectorTestPage'));
-// Playground stillgelegt: die Seite war der zweite Ort mit freier Modellwahl und
-// musste deshalb in der Datenschutzerklärung als Empfänger benannt werden. Die
-// Route bleibt auskommentiert, bis entschieden ist, ob sie zurückkommt.
-// const PlaygroundPage = lazy(() => import('../features/playground/PlaygroundPage'));
 const IconAnimationTestPage = lazy(() => import('../features/playground/IconAnimationTestPage'));
 const KugelVoiceTestPage = lazy(() => import('../features/playground/KugelVoiceTestPage'));
 const BundestagQaPage = lazy(() => import('../features/bundestag/BundestagQaPage'));
@@ -324,6 +322,23 @@ const NotebookEditPage = lazy(() =>
 const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPage'));
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
 const VideoEditorPage = lazy(() => import('../features/videoeditor/VideoEditorPage'));
+// KI-Schnitt and Parteitage are admin only for now — see adminToolsGate.
+const KiSchnittNewPage = lazy(async () => {
+  const { default: Page } = await import('../features/video-ai/KiSchnittNewPage');
+  return { default: withAdminToolGate(Page) };
+});
+const KiSchnittProjectPage = lazy(async () => {
+  const { default: Page } = await import('../features/video-ai/KiSchnittProjectPage');
+  return { default: withAdminToolGate(Page) };
+});
+const ParteitageListPage = lazy(async () => {
+  const { default: Page } = await import('../features/parteitage/ParteitageListPage');
+  return { default: withAdminToolGate(Page) };
+});
+const ParteitagPage = lazy(async () => {
+  const { default: Page } = await import('../features/parteitage/ParteitagPage');
+  return { default: withAdminToolGate(Page) };
+});
 const SharedVideoPage = lazy(() => import('../features/subtitler/components/SharedVideoPage'));
 const SharedMediaPage = lazy(() => import('../features/shared-media/SharedMediaPage'));
 const SharedChatPage = lazy(() => import('../features/chat/SharedChatPage'));
@@ -404,10 +419,11 @@ const MonitorTransparenzPage = lazy(
 );
 const ExperimentsIndexPage = lazy(() => import('../features/experiments/ExperimentsIndexPage'));
 const CollabDocRoute = lazy(() => import('../features/docs/CollabDocRoute'));
-const SitesHomePage = lazy(() => import('../features/sites/SitesHomePage'));
-const SitesLoginPage = lazy(() => import('../features/sites/SitesLoginPage'));
-const SitesDemoPage = lazy(() => import('../features/sites/SitesDemoPage'));
-const SitesEditPage = lazy(() => import('../features/sites/SitesEditPage'));
+const SitesEditPage = lazy(async () => {
+  const { default: Page } = await import('../features/sites/SitesEditPage');
+  return { default: withSitesGate(Page) };
+});
+const SitesLegacyRedirect = lazy(() => Promise.resolve({ default: createRedirect('/sites') }));
 const AgentBuilderPage = lazy(() => import('../features/agents/AgentBuilderPage'));
 const AgentCreatorPage = lazy(() => import('../features/agents/AgentCreatorPage'));
 const AgentSettingsPage = lazy(() => import('../features/agents/AgentSettingsPage'));
@@ -609,7 +625,6 @@ const standardRoutes: RouteConfig[] = [
   },
   { path: '/admin/gruene-api', component: GrueneApiTestPage },
   { path: '/admin/konnektoren', component: ConnectorTestPage },
-  // { path: '/playground', component: PlaygroundPage },
   { path: '/icon-test', component: IconAnimationTestPage, channel: 'internal' },
   { path: '/kugel-test', component: KugelVoiceTestPage, channel: 'internal' },
   { path: '/labor/bundestag', component: BundestagQaPage, channel: 'internal' },
@@ -945,6 +960,27 @@ const standardRoutes: RouteConfig[] = [
     component: VideoEditorPage,
     layoutMode: 'immersive',
   },
+  {
+    accent: 'studio',
+    path: '/studio/videoeditor/:slug',
+    component: VideoEditorPage,
+    layoutMode: 'immersive',
+  },
+  // KI-Schnitt: before /studio/:category, like every literal studio path.
+  { accent: 'studio', path: '/studio/ki-schnitt', component: KiSchnittNewPage },
+  { accent: 'studio', path: '/studio/ki-schnitt/:slug', component: KiSchnittProjectPage },
+  {
+    accent: 'studio',
+    path: '/parteitage',
+    component: ParteitageListPage,
+    layoutMode: 'default',
+  },
+  {
+    accent: 'studio',
+    path: '/parteitage/:slug',
+    component: ParteitagPage,
+    layoutMode: 'default',
+  },
   { path: '/studio/gallery', component: MediathekRedirect },
   // Collaborative canvas — must come before /studio/:category so the literal
   // "canvas" segment matches first instead of being interpreted as a category.
@@ -953,7 +989,7 @@ const standardRoutes: RouteConfig[] = [
     accent: 'studio',
     component: CollabCanvasStudioPage,
     layoutMode: 'immersive',
-    fallback: createElement(CanvasEditorSkeleton),
+    fallback: createElement(CanvasEditorRouteSkeleton),
   },
   // Experimental free-text creator — literal path, before /studio/:category.
   {
@@ -968,7 +1004,7 @@ const standardRoutes: RouteConfig[] = [
     accent: 'studio',
     component: SharepicVorlageInstantiatePage,
     layoutMode: 'immersive',
-    fallback: createElement(CanvasEditorSkeleton),
+    fallback: createElement(CanvasEditorRouteSkeleton),
   },
   // Copies a print Vorlage into a new canvas — the collection launchpad links here.
   {
@@ -976,7 +1012,7 @@ const standardRoutes: RouteConfig[] = [
     accent: 'studio',
     component: PrintVorlageInstantiatePage,
     layoutMode: 'immersive',
-    fallback: createElement(CanvasEditorSkeleton),
+    fallback: createElement(CanvasEditorRouteSkeleton),
   },
   { path: '/studio/:category', component: RetiredStudioCategoryRedirect },
   { path: '/studio/:category/:type', component: RetiredStudioCategoryRedirect },
@@ -997,10 +1033,11 @@ const standardRoutes: RouteConfig[] = [
   { path: '/boards/public/:id', component: PublicBoardPage, layoutMode: 'noChrome', public: true },
   { path: '/boards/:id', component: BoardPage, layoutMode: 'sidebarOnly' },
   // Sites Feature Routes — embedded candidate site builder
-  { path: '/sites', component: SitesHomePage, layoutMode: 'sidebarOnly' },
-  { path: '/sites/login', component: SitesLoginPage, layoutMode: 'immersive', public: true },
-  { path: '/sites/demo', component: SitesDemoPage, layoutMode: 'sidebarOnly' },
-  { path: '/sites/edit', component: SitesEditPage, layoutMode: 'sidebarOnly' },
+  { path: '/sites', component: SitesEditPage, layoutMode: 'immersive' },
+  { path: '/sites/:handle', component: SitesEditPage, layoutMode: 'immersive' },
+  { path: '/sites/login', component: SitesLegacyRedirect, layoutMode: 'immersive', public: true },
+  { path: '/sites/demo', component: SitesLegacyRedirect, layoutMode: 'sidebarOnly' },
+  { path: '/sites/edit', component: SitesLegacyRedirect, layoutMode: 'sidebarOnly' },
   { path: '*', component: NotFound, public: true },
 ];
 

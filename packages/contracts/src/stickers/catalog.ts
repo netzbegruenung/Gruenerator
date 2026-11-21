@@ -323,7 +323,7 @@ export const SYSTEM_STICKERS = [
 export type SystemSticker = (typeof SYSTEM_STICKERS)[number];
 
 // Moved to @ggraphic/schema (the editor core places stickers); kept so existing imports resolve.
-export type { StickerRef } from '@ggraphic/schema/media/stickerRef';
+export type { StickerRef } from '@ggraphic/schema';
 
 export type AssetStickerId = `asset:${string}`;
 

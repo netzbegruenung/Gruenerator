@@ -7,8 +7,8 @@
  * exchange → refresh). We only mediate persistence (encrypted at rest) and the
  * redirect/callback via a one-time Redis state (see mcpOAuthState).
  *
- * Blueprint: LobeChat's connector OAuth service, mapped onto our Canva-style
- * popup + Redis-state precedent. Non-sensitive OIDC config is stored plaintext
+ * Blueprint: LobeChat's connector OAuth service, mapped onto our
+ * popup + Redis-state flow. Non-sensitive OIDC config is stored plaintext
  * in `oauth_meta`; the client secret + tokens are encrypted. Token refresh is
  * lazy (on read) and guarded by a Redis lock so concurrent tool calls near
  * expiry can't race to invalidate a single-use refresh token.

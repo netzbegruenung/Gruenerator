@@ -24,9 +24,12 @@ interface ApiThread {
   threadType?: string;
   notebookCollectionId?: string | null;
   notebookCollectionIds?: string[] | null;
+  groupId?: string | null;
   tags?: string[];
   slugSuffix?: string | null;
   accessType?: 'owner' | 'shared' | 'group' | null;
+  teamShared?: boolean;
+  shared?: boolean;
   readOnly?: boolean | null;
   briefing?: { day: string; unread: boolean } | null;
   createdAt: string;
@@ -88,6 +91,26 @@ export function getThreadAgentId(remoteId: string): string | null {
 // or against an older server that doesn't send the fields.
 const threadAccessTypeCache = new Map<string, 'owner' | 'shared' | 'group'>();
 const threadReadOnlyCache = new Set<string>();
+// Own threads that carry a group share (team chats). Together with a non-owner
+// access type this is what opens the live-sync socket.
+const threadTeamSharedCache = new Set<string>();
+// Threads shared with anyone (person, link, public, any group): the owner needs
+// the live-sync room for those too, as before team chats existed.
+const threadSharedCache = new Set<string>();
+
+/** A thread other people write into: someone else's, or shared with a group. */
+export function isThreadCollaborative(remoteId: string): boolean {
+  return (
+    threadTeamSharedCache.has(remoteId) ||
+    threadSharedCache.has(remoteId) ||
+    getThreadAccessType(remoteId) !== 'owner'
+  );
+}
+
+/** A Projekt chat the whole team writes in (own team chat or via the group share). */
+export function isThreadTeamChat(remoteId: string): boolean {
+  return threadTeamSharedCache.has(remoteId) || getThreadAccessType(remoteId) === 'group';
+}
 
 export function getThreadAccessType(remoteId: string): 'owner' | 'shared' | 'group' {
   return threadAccessTypeCache.get(remoteId) ?? 'owner';
@@ -95,6 +118,26 @@ export function getThreadAccessType(remoteId: string): 'owner' | 'shared' | 'gro
 
 export function isThreadReadOnly(remoteId: string): boolean {
   return threadReadOnlyCache.has(remoteId);
+}
+
+/** A thread this client just created as a team chat: opens the live-sync
+ *  channel for the creator now, not only after the next list() refresh. */
+export function markThreadTeamShared(remoteId: string): void {
+  threadTeamSharedCache.add(remoteId);
+  tagListeners.forEach((l) => l());
+}
+
+/** Test seam: what list() records about a thread's sharing. */
+export function cacheThreadShareMetaForTest(
+  remoteId: string,
+  meta: { accessType: 'owner' | 'shared' | 'group'; teamShared: boolean; shared?: boolean }
+): void {
+  if (meta.shared) threadSharedCache.add(remoteId);
+  else threadSharedCache.delete(remoteId);
+  threadAccessTypeCache.set(remoteId, meta.accessType);
+  if (meta.teamShared) threadTeamSharedCache.add(remoteId);
+  else threadTeamSharedCache.delete(remoteId);
+  tagListeners.forEach((l) => l());
 }
 
 // Tagesbriefing threads that were not opened yet; drives the "Neu" badge.
@@ -149,9 +192,11 @@ function forgetThreadCaches(remoteId: string): void {
   threadTypeCache.delete(remoteId);
   notebookCollectionCache.delete(remoteId);
   threadAgentCache.delete(remoteId);
+  threadGroupCache.delete(remoteId);
   threadTagsCache.delete(remoteId);
   threadAccessTypeCache.delete(remoteId);
   threadReadOnlyCache.delete(remoteId);
+  threadTeamSharedCache.delete(remoteId);
   unreadBriefingCache.delete(remoteId);
 }
 
@@ -205,6 +250,22 @@ export function setThreadTagsCache(remoteId: string, tags: string[]): void {
   updateThreadTagsCache(remoteId, tags);
 }
 
+// Projekt a thread is filed in (chat_threads.group_id), for the chat's
+// "Projekt / Titel" crumb. Same listener channel as the tags cache.
+const threadGroupCache = new Map<string, string | null>();
+
+export function getThreadGroupId(remoteId: string): string | null {
+  return threadGroupCache.get(remoteId) ?? null;
+}
+
+/** Record where a thread is filed (list(), creation, or a move) and notify
+ *  subscribers only on a real change. */
+export function setThreadGroupId(remoteId: string, groupId: string | null): void {
+  if ((threadGroupCache.get(remoteId) ?? null) === groupId) return;
+  threadGroupCache.set(remoteId, groupId);
+  tagListeners.forEach((l) => l());
+}
+
 function isExternal(remoteId: string) {
   return remoteId.startsWith(EXTERNAL_PREFIX);
 }
@@ -249,6 +310,12 @@ export function createGrueneratorThreadListAdapter(
     /** After the DELETE, only when the thread went to the Papierkorb (not for empty or doc chats). */
     onTrashed?: (remoteId: string, title: string | null) => void;
     getExternalThreads?: () => ExternalThreadEntry[];
+    /**
+     * Whether the draft with this local id is still the open thread. Its first
+     * send creates the thread lazily, and the POST can come back after the user
+     * has opened another one (#5719).
+     */
+    isMainThread?: (localId: string) => boolean;
   }
 ): RemoteThreadListAdapter {
   let cachedThreads: ApiThread[] = [];
@@ -309,9 +376,22 @@ export function createGrueneratorThreadListAdapter(
           updateThreadTagsCache(t.id, t.tags ?? []);
           cacheThreadSlug(t.id, t.slugSuffix);
           threadAgentCache.set(t.id, t.agentId);
+          setThreadGroupId(t.id, t.groupId ?? null);
           const accessType = t.accessType ?? 'owner';
           if (threadAccessTypeCache.get(t.id) !== accessType) {
             threadAccessTypeCache.set(t.id, accessType);
+            shareMetaChanged = true;
+          }
+          const teamShared = t.teamShared === true;
+          if (threadTeamSharedCache.has(t.id) !== teamShared) {
+            if (teamShared) threadTeamSharedCache.add(t.id);
+            else threadTeamSharedCache.delete(t.id);
+            shareMetaChanged = true;
+          }
+          const shared = t.shared === true;
+          if (threadSharedCache.has(t.id) !== shared) {
+            if (shared) threadSharedCache.add(t.id);
+            else threadSharedCache.delete(t.id);
             shareMetaChanged = true;
           }
           const readOnly = t.readOnly === true;
@@ -380,7 +460,7 @@ export function createGrueneratorThreadListAdapter(
       }
     },
 
-    async initialize(_localId: string) {
+    async initialize(localId: string) {
       if (pendingInit) return pendingInit;
       pendingInit = (async (): Promise<{ remoteId: string; externalId: undefined }> => {
         // assistant-ui contracts initialize() to mint a NEW remoteId per local thread.
@@ -393,16 +473,43 @@ export function createGrueneratorThreadListAdapter(
         const state = useAgentStore.getState();
         const effectiveAgentId = state.selectedAgentId ?? agentId;
         const threadMode = state.threadMode;
+        // A Projekt page hands the chat over with the Projekt it belongs to:
+        // filed here, at creation, so the first turn already reads the Projekt.
+        const pendingGroup = state.pendingGroup;
+        if (pendingGroup) useAgentStore.getState().setPendingGroup(null);
+        const groupId =
+          pendingGroup && pendingGroup.expiresAt > Date.now() ? pendingGroup.id : null;
+        const teamShared = !!groupId && pendingGroup?.teamShared === true;
         const result = await apiClient.post<{ id: string; slugSuffix?: string | null }>(
           '/api/chat-service/threads',
           {
             agentId: effectiveAgentId,
             threadType: threadMode,
+            ...(groupId ? { groupId } : {}),
+            ...(teamShared ? { teamShared: true } : {}),
           }
         );
         threadTypeCache.set(result.id, threadMode);
         threadAgentCache.set(result.id, effectiveAgentId);
         cacheThreadSlug(result.id, result.slugSuffix);
+        if (groupId) setThreadGroupId(result.id, groupId);
+        // Seed the share meta so the live-sync socket opens for the creator now,
+        // not only after the next list() refresh.
+        if (teamShared) {
+          threadTeamSharedCache.add(result.id);
+          tagListeners.forEach((l) => l());
+        }
+        // The store mirrors the OPEN thread. If the user has opened another one
+        // while the POST was in flight, MainThreadSyncEffect already points the
+        // store at it, and a mint now would re-point it at this thread (title,
+        // regenerate rights) and wipe that thread's compaction state and
+        // interpreter files (#5719). The run still lands here: assistant-ui
+        // hands it this remoteId as `unstable_threadId` once initialize()
+        // resolves. Returning to this thread later goes through
+        // MainThreadSyncEffect like any other switch.
+        if (callbacks?.isMainThread?.(localId) === false) {
+          return { remoteId: result.id, externalId: undefined };
+        }
         useAgentStore.getState().mintThreadFromDraft(result.id);
         // Der Produktionspfad der Rollen-Promotion: das Backend sendet
         // `thread_created` (und damit `onThreadCreated`) nur für Threads, die

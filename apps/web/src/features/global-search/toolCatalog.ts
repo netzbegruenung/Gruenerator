@@ -22,6 +22,8 @@ import { CURRENT_INSTANCE } from '../../config/instance';
 import type { IconType } from '../../config/icons';
 import type { ToolSearchId } from '../../config/toolRegistry';
 
+import { PiGlobe } from '@/config/shellIcons.generated';
+
 export interface ToolCatalogEntry {
   id: string;
   title: string;
@@ -57,6 +59,22 @@ export const CATALOG: ToolCatalogEntry[] = [
     path: '/studio/videoeditor',
     icon: nav('videoEditor'),
     keywords: ['video editor', 'video', 'editor', 'schneiden', 'timeline', 'reel', 'musik', 'clip'],
+  },
+  {
+    id: 'tool-ki-schnitt',
+    title: 'KI-Schnitt',
+    subtitle: 'Aus Rohvideos einen fertigen Clip schneiden lassen',
+    path: '/studio/ki-schnitt',
+    icon: nav('kiSchnitt'),
+    keywords: ['ki-schnitt', 'ki schnitt', 'schnitt', 'schneiden', 'rohvideo', 'reel', 'video'],
+  },
+  {
+    id: 'tool-parteitage',
+    title: 'Parteitage',
+    subtitle: 'Reden vom Parteitag untertiteln und schneiden',
+    path: '/parteitage',
+    icon: nav('reel'),
+    keywords: ['parteitag', 'ldk', 'bdk', 'rede', 'reel'],
   },
   {
     id: 'tool-studio',
@@ -305,6 +323,14 @@ export const CATALOG: ToolCatalogEntry[] = [
       'organisation',
       'zusammenarbeit',
     ],
+  },
+  {
+    id: 'tool-sites',
+    title: 'Sites',
+    subtitle: 'Eigene Website für Kandidat*innen erstellen',
+    path: '/sites',
+    icon: PiGlobe,
+    keywords: ['sites', 'website', 'webseite', 'homepage', 'kandidatur', 'kandidat', 'seite'],
   },
 ] satisfies RegisteredEntry[];
 

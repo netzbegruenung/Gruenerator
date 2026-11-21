@@ -81,11 +81,17 @@ export {
   getThreadAgentId,
   getThreadAccessType,
   isThreadReadOnly,
+  isThreadTeamChat,
+  isThreadCollaborative,
+  markThreadTeamShared,
+  setThreadGroupId,
+  subscribeThreadTags,
   resolveThreadBySlugSuffix,
   requestThreadListReload,
   subscribeThreadListReload,
   type ExternalThreadEntry,
 } from './runtime/GrueneratorThreadListAdapter';
+export { mayReplaceTurn } from './hooks/mayReplaceTurn';
 export { requestDailyBriefingNow, useDailyBriefing } from './hooks/useDailyBriefing';
 
 // External Thread Context
@@ -251,26 +257,22 @@ export { useUserLandesverbaende, type UserLandesverbaende } from './hooks/useUse
 export { useThreadSharing } from './hooks/useThreadSharing';
 
 // Data sources for the typed-mention pickers (Nextcloud share links, connected
-// accounts, Canva). RN-safe: react-query over the configured chat fetch.
+// accounts). RN-safe: react-query over the configured chat fetch.
 export {
   useUserShareLinksQuery,
   useWolkeBrowseQuery,
   useConnectProvidersQuery,
+  useConnectedProvidersQuery,
   useConnectBrowseQuery,
-  useCanvaDesignsQuery,
+  MCP_SERVER_MENTIONS_QUERY_KEY,
   type ChatShareLink,
   type ChatWolkeFile,
   type ChatConnectProvider,
   type ChatConnectFile,
-  type ChatCanvaDesign,
 } from './hooks/useMentionablesQuery';
-export {
-  type WolkeFileToken,
-  type ConnectFileToken,
-  type CanvaDesignToken,
-} from './lib/mentionables';
+export { type WolkeFileToken, type ConnectFileToken } from './lib/mentionables';
 
-// Typed-mention attachments (Wolke / Connect / web page) and the Canva draft
+// Typed-mention attachments (Wolke / Connect / web page) and draft
 // insertion. Shared so the recognition triple the backend keys on cannot drift
 // between platforms — see lib/mentionAttachments.ts.
 export {
@@ -278,8 +280,6 @@ export {
   buildConnectAttachment,
   buildWebpageAttachment,
   normalizeWebpageUrl,
-  canvaDesignsMarkdown,
-  appendToDraft,
   type MentionAttachment,
 } from './lib/mentionAttachments';
 export { joinWolkePath, wolkeParentPath, isWolkeRoot } from './lib/wolkePath';
@@ -458,6 +458,7 @@ export * as grueneratorHomeIconGeometry from './components/icons/grueneratorHome
 
 // Lib
 export { chatSuggestions } from './lib/suggestions';
+export { resolveSkillIcon } from './lib/skillIcons';
 export {
   agentsList,
   listedAgentsList,

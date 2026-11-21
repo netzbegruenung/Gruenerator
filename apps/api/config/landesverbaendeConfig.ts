@@ -1348,6 +1348,31 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           ],
           disableOffPathFilter: true,
         },
+        {
+          // Landtagswahlprogramm 2027 (LTW 18.04.2027), online seit 16.11.2026 als
+          // Landingpage + Präambel + neun Kapitel-Seiten an Root-Permalinks. Keine
+          // Archivseite verlinkt sie, deshalb staticUrls. Das Gesamt-PDF
+          // (/uploads/sites/2/2026/11/Unser-Wahlprogramm-Landtagswahl-2027.pdf)
+          // bleibt bewusst draußen: es ist derselbe Text und würde jede Passage
+          // doppelt einspeisen.
+          type: 'wahlprogramm',
+          path: '/',
+          listSelector: 'article a[href], h2 a, h3 a',
+          staticUrls: [
+            'https://gruene-saar.de/unser-wahlprogramm/',
+            'https://gruene-saar.de/unser-wahlprogramm-praeambel/',
+            'https://gruene-saar.de/unser-wahlprogramm-kapitel-1/',
+            'https://gruene-saar.de/unser-wahlprogramm-kapitel-2/',
+            'https://gruene-saar.de/unser-wahlprogramm-kapitel-3/',
+            'https://gruene-saar.de/unser-wahlprogramm-kapitel-4/',
+            'https://gruene-saar.de/unser-wahlprogramm-kapitel-5/',
+            'https://gruene-saar.de/unser-wahlprogramm-kapitel-6/',
+            'https://gruene-saar.de/unser-wahlprogramm-kapitel-7/',
+            'https://gruene-saar.de/unser-wahlprogramm-kapitel-8/',
+            'https://gruene-saar.de/unser-wahlprogramm-kapitel-9/',
+          ],
+          disableOffPathFilter: true,
+        },
         // Die zwei Wolke-Freigaben (Wahlprüfsteine-Arbeitsordner, Protokolle) sind
         // bewusst nicht mehr konfiguriert: beide enthielten personenbezogene und
         // interne Dateien. Die öffentlichen Antworten bleiben als gespeicherte
@@ -1372,6 +1397,11 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       // wpApi (auto-disables the off-path filter). Category ids verified live via
       // /wp-json/wp/v2/categories on 10.11.2026: 29 = presse (110 posts in the
       // 5y window), 5 = beschluesse (77, full text inline, no PDFs).
+      // Re-checked 12.11.2026: 1 = aktuelles (Landesregierungs-Erfolge,
+      // Positionen), 431 = faq („Fragen und Antworten zu …"), 558 = soundingboard
+      // (event reports). Posts often carry several of these, so each path
+      // excludes the categories the paths before it already cover — one post,
+      // one content_type.
       id: 'nordrhein-westfalen-lv',
       name: 'Grüne NRW',
       shortName: 'NRW',
@@ -1390,7 +1420,25 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           type: 'beschluss',
           path: '/kategorie/beschluesse/',
           listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
-          wpApi: { categoryId: 5, boundByAge: true },
+          wpApi: { categoryId: 5, excludeCategoryIds: [29], boundByAge: true },
+        },
+        {
+          type: 'faq',
+          path: '/kategorie/faq/',
+          listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
+          wpApi: { categoryId: 431, excludeCategoryIds: [5, 29], boundByAge: true },
+        },
+        {
+          type: 'veranstaltung',
+          path: '/kategorie/soundingboard/',
+          listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
+          wpApi: { categoryId: 558, excludeCategoryIds: [5, 29, 431], boundByAge: true },
+        },
+        {
+          type: 'blog',
+          path: '/kategorie/aktuelles/',
+          listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
+          wpApi: { categoryId: 1, excludeCategoryIds: [5, 29, 431, 558], boundByAge: true },
         },
       ],
       contentSelectors: {
@@ -1406,7 +1454,14 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       // gruene-fraktion-nrw.de: same Sunflower/WordPress setup, permalinks
       // /YYYY/MM/DD/<slug>/. 135 = pressemitteilung (595 in the 5y window),
       // 137 = publikationen (the /publikationen/ page lists exactly this
-      // category; 5 in the window). The article page appends related posts with
+      // category; 5 in the window). 144 = fachnewsletter is a child of 137, but
+      // WP's `categories=` filter does not include children, so it needs its own
+      // path (209 posts in the window, checked 12.11.2026). Newer newsletters
+      // carry 137 as well — the publikationen path excludes 144 so each post
+      // lands under one content_type. 138 = GRÜN.KOMMT always carries 135 and is
+      // covered by presse. The remaining posts carry only topic categories
+      // (Anträge, Kleine Anfragen) and are deliberately not scraped yet.
+      // The article page appends related posts with
       // `.entry-content.has-small-font-size` excerpts — excluded from the content
       // selector, otherwise every article would carry its neighbours' teasers.
       id: 'nordrhein-westfalen-fraktion',
@@ -1427,7 +1482,13 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           type: 'blog',
           path: '/publikationen/',
           listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
-          wpApi: { categoryId: 137, boundByAge: true },
+          wpApi: { categoryId: 137, excludeCategoryIds: [135, 144], boundByAge: true },
+        },
+        {
+          type: 'newsletter',
+          path: '/category/publikationen/fachnewsletter/',
+          listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
+          wpApi: { categoryId: 144, excludeCategoryIds: [135], boundByAge: true },
         },
       ],
       contentSelectors: {
@@ -1494,10 +1555,21 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       label: 'Wahlprogramm',
       shortName: 'SL',
       // Landtagswahlprogramm 2022, found by the /dokumente-2/ PDF archive whose
-      // path type is 'beschluss' (#3808).
+      // path type is 'beschluss' (#3808), plus the Landtagswahlprogramm 2027 pages.
       contentType: 'wahlprogramm',
       urls: [
         'https://gruene-saar.de/wp-content/uploads/sites/2/2022/02/22-02-17-wahlprogramm-ltw-2022.pdf',
+        'https://gruene-saar.de/unser-wahlprogramm/',
+        'https://gruene-saar.de/unser-wahlprogramm-praeambel/',
+        'https://gruene-saar.de/unser-wahlprogramm-kapitel-1/',
+        'https://gruene-saar.de/unser-wahlprogramm-kapitel-2/',
+        'https://gruene-saar.de/unser-wahlprogramm-kapitel-3/',
+        'https://gruene-saar.de/unser-wahlprogramm-kapitel-4/',
+        'https://gruene-saar.de/unser-wahlprogramm-kapitel-5/',
+        'https://gruene-saar.de/unser-wahlprogramm-kapitel-6/',
+        'https://gruene-saar.de/unser-wahlprogramm-kapitel-7/',
+        'https://gruene-saar.de/unser-wahlprogramm-kapitel-8/',
+        'https://gruene-saar.de/unser-wahlprogramm-kapitel-9/',
       ],
     },
   ],
@@ -1507,10 +1579,14 @@ export const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
   presse: 'Pressemitteilung',
   beschluss: 'Beschluss/Resolution',
   antrag: 'Antrag/Motion',
+  aenderungsantrag: 'Änderungsantrag',
   blog: 'Blog/News',
   wahlprogramm: 'Wahlprogramm',
   wahlpruefstein: 'Wahlprüfstein',
   instagram: 'Instagram-Post',
+  newsletter: 'Newsletter',
+  faq: 'Fragen und Antworten',
+  veranstaltung: 'Veranstaltungsbericht',
 };
 
 export const CMS_TYPES: Record<CMSType, CMSType> = {

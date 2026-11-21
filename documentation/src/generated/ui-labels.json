@@ -107,6 +107,9 @@
   "canvas.creme": {
     "title": "Creme"
   },
+  "canvas.design": {
+    "title": "Design"
+  },
   "canvas.download": {
     "title": "Download"
   },
@@ -212,6 +215,11 @@
     "subtitle": "Bilder mit KI erstellen & bearbeiten",
     "path": "/studio"
   },
+  "catalog.tool-ki-schnitt": {
+    "title": "KI-Schnitt",
+    "subtitle": "Aus Rohvideos einen fertigen Clip schneiden lassen",
+    "path": "/studio/ki-schnitt"
+  },
   "catalog.tool-marktplatz": {
     "title": "Marktplatz",
     "subtitle": "Agents, Rezepte, Vorlagen und Sticker entdecken",
@@ -226,6 +234,11 @@
     "title": "Notebooks",
     "subtitle": "Wissensmanagement & Recherche",
     "path": "/notebooks"
+  },
+  "catalog.tool-parteitage": {
+    "title": "Parteitage",
+    "subtitle": "Reden vom Parteitag untertiteln und schneiden",
+    "path": "/parteitage"
   },
   "catalog.tool-profilbild": {
     "title": "Profilbild",
@@ -246,6 +259,11 @@
     "title": "Scanner",
     "subtitle": "Fotos & Scans in Text umwandeln",
     "path": "/scanner"
+  },
+  "catalog.tool-sites": {
+    "title": "Sites",
+    "subtitle": "Eigene Website für Kandidat*innen erstellen",
+    "path": "/sites"
   },
   "catalog.tool-sticker": {
     "title": "Sticker & Hintergründe",
@@ -443,6 +461,11 @@
     "subtitle": "Dokumente, Boards, Tabellen & Slides",
     "path": "/office"
   },
+  "workplace.parteitage": {
+    "title": "Parteitage",
+    "subtitle": "Reden als Reels",
+    "path": "/parteitage"
+  },
   "workplace.presentations": {
     "title": "Leere Präsentation",
     "subtitle": "Leere Foliensammlung"
@@ -471,10 +494,20 @@
     "title": "Leere Tabelle",
     "subtitle": "Leere Kalkulationstabelle"
   },
+  "workplace.sites": {
+    "title": "Sites",
+    "subtitle": "Website für deine Kandidatur",
+    "path": "/sites"
+  },
   "workplace.sticker": {
     "title": "Sticker & Hintergründe",
     "subtitle": "Sticker erstellen, teilen & entdecken",
     "path": "/studio/sticker"
+  },
+  "workplace.studio-ki-schnitt": {
+    "title": "KI-Schnitt",
+    "subtitle": "Rohvideos automatisch schneiden",
+    "path": "/studio/ki-schnitt"
   },
   "workplace.studio-videoeditor": {
     "title": "Video-Editor",

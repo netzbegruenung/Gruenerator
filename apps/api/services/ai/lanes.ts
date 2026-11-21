@@ -1,8 +1,8 @@
 /**
  * Which model answers which kind of request.
  *
- * One registry, replacing an if/else chain of ~23 `type === '…'` comparisons in
- * `services/providers/providerSelector.ts`. Same decisions, readable as a table:
+ * One registry. It replaced an if/else chain of ~23 `type === '…'` comparisons
+ * (`providerSelector.ts`, deleted). Same decisions, readable as a table:
  * you can see at a glance that every sharepic lane is Mistral Medium and every
  * legislative lane is verdigado, which was the point of the chain and was the
  * one thing it did not show.
@@ -15,9 +15,7 @@
  * problem this file exists to reduce. `generate.ts` composes the two.
  *
  * NOT a `z.enum` in `packages/contracts`: lane ids never cross the wire. Routes
- * derive them from their own configuration, never from a request body. The one
- * neighbour that IS wire-facing — the playground's explicit provider/model — is
- * an override and keeps its existing contract schema.
+ * derive them from their own configuration, never from a request body.
  */
 
 import {
@@ -53,10 +51,6 @@ const MISTRAL_LARGE = 'mistral-large-4';
  *  schreiben denselben Modellnamen verschieden, ein hart notierter Name
  *  überlebt den nächsten Wechsel als 404. */
 const GEMMA_4 = GEMMA_31B_PRIMARY.model;
-/** Gemma 4 bei GreenPT — welche Gewichte, ist unbelegt (siehe GEMMA_4_GREENPT in
- *  routes/chat/agents/providers.ts). Gewählt ist es dafür, dass es den
- *  erzwungenen Tool-Call bedient statt JSON als Prosa zu schreiben. Siehe ARTIFACT_MODEL in services/providers/providerSelector.ts. */
-const GEMMA_4_GREENPT = 'gemma4';
 
 /**
  * Every routed lane. A `type` that is not here answers on `default`, and
@@ -105,9 +99,25 @@ export const AI_LANES = {
     structuredMode: 'tool',
   },
 
+  // — KI-Schnitt (services/videoAi/): eine Lane für alle vier Schritte, das
+  //   `label` des Aufrufs unterscheidet sie in Logs und Nutzung. `:speed` wie
+  //   `bundestag_read`. Stufe A (decideCut.ts): welche Sätze des Rohmaterials
+  //   in welcher Reihenfolge, mit Reasoning 8–11 s; 15 min Rohmaterial sind
+  //   ~12k Token, über der Schwelle, ab der `:balanced` am 60-s-Gateway
+  //   scheitert (Spike vom 10.11.2026, apps/api/evals/video-ai/spike-2026-11-10.md,
+  //   Abschnitt 5). Kontaktbögen (describeFrames.ts): ein 3×3-Raster pro
+  //   Aufruf, ohne Reasoning, 3–4 s und ~530 Prompt-Token (Spike, Abschnitt 3).
+  //   Gestaltung (decideDesign.ts): Titel, Bauchbinde, Einblendungen auf die
+  //   fertige Zeitleiste. Korrekturrunde (reviseEdl.ts): Feedback in eigenen
+  //   Worten → feste Ops auf den aktuellen Plan, mit Reasoning wie Stufe A.
+  video_ai: {
+    provider: GEMMA_31B_ON_MELIOUS_SPEED.provider,
+    model: GEMMA_31B_ON_MELIOUS_SPEED.model,
+    structuredMode: 'tool',
+  },
+
   // — Fertige Texte. Gemma 4 schreibt das beste Deutsch; es sitzt aus demselben
-  //   Grund im Synth-Slot des Chat-Loops. Siehe TEXT_TYPES in
-  //   services/providers/providerSelector.ts.
+  //   Grund im Synth-Slot des Chat-Loops.
   //
   //   Die Anträge saßen auf GPT-OSS mit der Notiz "reasoning is handled via
   //   reasoningEffort". Auf DIESEM Pfad stimmte das nie: der Ausführungspfad
@@ -145,18 +155,23 @@ export const AI_LANES = {
   //   selecting a matching model.
   website: { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
 
+  // — Flyer text → structured analysis. Was on `default` without a row, same model,
+  //   now said out loud.
+  'flyer-analysis': { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
+
   // — Artefakte über erzwungene Tool-Calls (aiObject). These had no
   //   lane at all, so both tables put them on `default` — GPT-OSS, which
   //   answers a forced tool call with prose. That killed a PDF generation in
   //   production: two attempts, both stop_reason=stop, no tool call.
   //
-  //   `doc_generation` liegt seit dem 03.08.2026 NICHT mehr auf Mistral: dort
-  //   ruft Medium 3.5 das Tool gar nicht auf und läuft ins Token-Limit,
-  //   während Gemma 4 auf GreenPT beides richtig macht. Messwerte und
-  //   Begründung bei ARTIFACT_MODEL in
-  //   services/providers/providerSelector.ts — der Tabelle, die auf dem
-  //   Artefakt-Pfad tatsächlich greift.
-  doc_generation: { provider: 'greenpt', model: GEMMA_4_GREENPT, structuredMode: 'tool' },
+  //   `doc_generation` liegt seit dem 03.08.2026 NICHT auf Mistral: Medium 3.5
+  //   rief das Tool in keinem Lauf auf und lief ins Token-Limit, Gemma 4 rief
+  //   `create_pdf_document` / `create_presentation` in 10 von 10 Läufen sauber
+  //   auf (gemessen auf GreenPT). Seit 19.11.2026 auf dem Gemma-Primär statt
+  //   GreenPT: dort riss der erste Versuch lokal 3 von 3 Mal das 60-s-Budget
+  //   (#5842), Melious lieferte danach in 10–14 s. Das grössere Output-Budget in
+  //   services/ai/config.ts gehört weiter dazu.
+  doc_generation: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
   board_generation: { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
   canvas_ai_suggest: { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
   // — Editor-Op-Planer (board/sheet/presentation), der `edit_document`-
@@ -184,16 +199,6 @@ export const AI_LANES = {
     structuredMode: 'tool',
   },
   image_picker: {
-    provider: LANE.provider,
-    model: LANE.model,
-    structuredMode: 'tool',
-  },
-  antrag_question_generation: {
-    provider: LANE.provider,
-    model: LANE.model,
-    structuredMode: 'tool',
-  },
-  antrag_qa_summary: {
     provider: LANE.provider,
     model: LANE.model,
     structuredMode: 'tool',
@@ -328,9 +333,7 @@ export function providerForModel(modelName = ''): ProviderName {
  * stand hier `'cortecs'` fest an erster Stelle, und der Wechsel auf Melious
  * hätte jede Mistral- und GreenPT-Lane weiter zuerst an Cortecs geschickt. Für
  * die Gemma-Lanes selbst ändert die Reihenfolge nichts: `laneFallback` filtert
- * den eigenen Primär heraus. Sie wirkt für die anderen — allen voran
- * `doc_generation` auf GreenPT, dessen Ausweichkette bis zum 28.08.2026 keinen
- * einzigen Host derselben Modellfamilie enthielt.
+ * den eigenen Primär heraus. Sie wirkt für die anderen, die Mistral-Lanes.
  *
  * Der Preis steht in `gemmaHosts.ts`: beide Hosts sind VORAUSBEZAHLT, ein
  * leeres Guthaben ist ein schneller Fehlschlag, und die verbleibenden Anbieter

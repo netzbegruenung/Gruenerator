@@ -11,6 +11,7 @@ import {
   notebookResolvedAnswerModeSchema,
 } from './notebookAnswerMode.js';
 import {
+  sharepicChatReviewSchema,
   sharepicFormSchema,
   sharepicPhotoAttributionSchema,
   sharepicSpecSchema,
@@ -48,6 +49,10 @@ export const chatErrorCodeSchema = z.enum([
   'unauthorized',
   'invalid_request',
   'internal',
+  // A second send into a thread whose turn is still answering (team chats).
+  'thread_busy',
+  // Edit/regenerate on a message another member wrote (team chats).
+  'not_your_message',
   // Tool-based editor edits (editor_operations path): planning exhausted its
   // retries server-side, or the client bridge failed to apply the ops.
   'edit_planning_failed',
@@ -168,6 +173,8 @@ export const searchIntentSchema = z.enum([
   'abgeordnetenwatch',
   'bundestag',
   'abgeordnetenhaus',
+  // Antragsgrün GRÜNE NRW (`@antragsgruennrw`): Parteitagsanträge aus Index + Live-API.
+  'antragsgruen',
   // EXPERIMENTAL first-party system MCP sources (Deutsche Bahn / Open-Meteo /
   // ARD-Tagesschau) — built-in like bundestag, active only when the matching
   // SYSTEM_MCP_*_URL env is set (see apps/api services/mcp/connectorAdapters.ts).
@@ -368,6 +375,10 @@ export const confirmActionTypeSchema = z.enum([
   'share_text_form',
   // Karte des `edit_presentation`-Werkzeugs bei Folien-Löschung (10/2026), additiv.
   'apply_canvas_deck_edit',
+  // Karte des `antragsgruen_seite_anlegen`-Werkzeugs (11/2026), additiv.
+  'create_antragsgruen_site',
+  'create_antragsgruen_motion',
+  'set_antragsgruen_agenda',
 ]);
 export type ConfirmActionType = z.infer<typeof confirmActionTypeSchema>;
 
@@ -796,6 +807,8 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
        *  distinct from `error` — a decline is the safety rules working, and
        *  reporting it as a failure invites the user to simply retry. */
       declined: z.boolean().optional(),
+      /** What the turn ordered: the browser reviews the rendered variants against it. */
+      review: sharepicChatReviewSchema.optional(),
     })
     .passthrough(),
   sharepic_minted: z.object({ variantId: z.string(), canvasId: z.string() }).passthrough(),

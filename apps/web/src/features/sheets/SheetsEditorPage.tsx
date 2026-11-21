@@ -466,6 +466,7 @@ function SheetsEditorContent() {
       {showShareModal && (
         <Suspense fallback={null}>
           <ShareModal
+            heading="Sheet teilen"
             documentId={id!}
             documentTitle={docData.title}
             onClose={() => setShowShareModal(false)}

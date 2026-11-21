@@ -1,124 +1,100 @@
 import { cn } from '@gruenerator/shared/utils';
-import { useRef, useEffect } from 'react';
+import { Input, Textarea } from '@gruenerator/ui';
 
-import { useSectionFocus } from '../../../hooks/useSectionFocus';
-import { useEditorStore } from '../../../stores/editorStore';
+import { useDraftActions, useDraftBlock } from '../../../draft/SiteDraftContext';
+import { useFieldRegistry } from '../../../hooks/useFieldRegistry';
+import { Field, SectionHeading } from '../common/Field';
+import { FocalPointPicker } from '../common/FocalPointPicker';
 import { ImageUpload } from '../common/ImageUpload';
-
-import type { HeroImageSectionType as HeroImageSection } from '@gruenerator/sites-design';
-
-interface HeroImageSectionEditorProps {
-  data: HeroImageSection;
-  onChange: (data: HeroImageSection) => void;
-}
 
 const MAX_TITLE_LENGTH = 60;
 const MAX_SUBTITLE_LENGTH = 200;
 
-export function HeroImageSectionEditor({ data, onChange }: HeroImageSectionEditorProps) {
-  const { registerField, handleFieldFocus, handleFieldBlur } = useSectionFocus();
-  const { highlightedElement } = useEditorStore();
+function Counter({ length, max }: { length: number; max: number }) {
+  return (
+    <div
+      className={cn(
+        'text-xs text-grey-500 dark:text-grey-400 text-right mt-1',
+        length > max * 0.9 && 'text-yellow-600'
+      )}
+    >
+      {length} / {max} Zeichen
+    </div>
+  );
+}
 
-  const titleRef = useRef<HTMLInputElement>(null);
-  const subtitleRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    registerField('heroImage', 'title', titleRef.current);
-    registerField('heroImage', 'subtitle', subtitleRef.current);
-  }, [registerField]);
-
-  const updateField = (field: keyof HeroImageSection, value: string) => {
-    onChange({ ...data, [field]: value });
-  };
-
-  const isFieldHighlighted = (field: string) => {
-    return highlightedElement?.section === 'heroImage' && highlightedElement?.field === field;
-  };
+export function HeroImageSectionEditor({ blockId }: { blockId: string }) {
+  const { registerField, handleFieldFocus, handleFieldBlur } = useFieldRegistry();
+  const { setBlockField } = useDraftActions();
+  const block = useDraftBlock(blockId, 'heroImage');
+  if (!block) return null;
+  const { imageUrl, title, subtitle } = block;
+  const imageFocus = block.imageFocus ?? null;
+  const set = (patch: Parameters<typeof setBlockField<'heroImage'>>[2]) =>
+    setBlockField(blockId, 'heroImage', patch);
+  const titlePath = `blocks.${blockId}.title`;
+  const subtitlePath = `blocks.${blockId}.subtitle`;
 
   return (
     <div>
-      <h3 className="flex items-center gap-2 m-0 mb-md text-lg font-semibold text-foreground">
-        Hero-Bild
-      </h3>
+      <SectionHeading>Hero-Bild</SectionHeading>
 
       <div className="flex gap-6 items-stretch mb-5 max-[600px]:flex-col max-[600px]:items-center">
-        <div className="shrink-0 basis-[120px] w-[120px] min-w-[120px] flex max-[600px]:w-[100px]">
+        <div className="shrink-0 basis-[120px] w-[120px] min-w-[120px] flex flex-col max-[600px]:w-[100px]">
           <ImageUpload
-            value={data.imageUrl}
-            onChange={(url) => updateField('imageUrl', url)}
+            value={imageUrl}
+            onChange={(url) => set({ imageUrl: url })}
             placeholder="Bild"
             size="fill"
           />
+          {imageUrl && (
+            <FocalPointPicker
+              src={imageUrl}
+              value={imageFocus}
+              onChange={(focus) => set({ imageFocus: focus })}
+            />
+          )}
         </div>
 
-        <div className="flex-1 min-w-0 flex flex-col gap-4">
-          <div
-            className={cn(
-              'mb-0',
-              isFieldHighlighted('title') && 'animate-[field-highlight_1s_ease]'
-            )}
+        <div className="flex-1 min-w-0 flex flex-col">
+          <Field
+            panel={blockId}
+            path={titlePath}
+            htmlFor={`${blockId}-title`}
+            label="Hauptbotschaft"
           >
-            <label
-              htmlFor="heroimage-title"
-              className="block text-sm font-medium text-foreground mb-1.5"
-            >
-              Hauptbotschaft
-            </label>
-            <input
-              ref={titleRef}
-              id="heroimage-title"
-              type="text"
-              value={data.title}
-              onChange={(e) => updateField('title', e.target.value)}
-              onFocus={() => handleFieldFocus('heroImage', 'title')}
+            <Input
+              ref={(el) => registerField(titlePath, el)}
+              id={`${blockId}-title`}
+              value={title}
+              onChange={(e) => set({ title: e.target.value })}
+              onFocus={() => handleFieldFocus(blockId, titlePath)}
               onBlur={handleFieldBlur}
               placeholder="Gemeinsam für eine nachhaltige Zukunft!"
               maxLength={MAX_TITLE_LENGTH}
-              className="w-full py-2.5 px-3 text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
             />
-            <div
-              className={cn(
-                'text-xs text-grey-500 dark:text-grey-400 text-right mt-1',
-                data.title.length > MAX_TITLE_LENGTH * 0.9 && 'text-yellow-600'
-              )}
-            >
-              {data.title.length} / {MAX_TITLE_LENGTH} Zeichen
-            </div>
-          </div>
+            <Counter length={title.length} max={MAX_TITLE_LENGTH} />
+          </Field>
 
-          <div
-            className={cn(
-              'mb-0',
-              isFieldHighlighted('subtitle') && 'animate-[field-highlight_1s_ease]'
-            )}
+          <Field
+            panel={blockId}
+            path={subtitlePath}
+            htmlFor={`${blockId}-subtitle`}
+            label="Untertitel"
           >
-            <label
-              htmlFor="heroimage-subtitle"
-              className="block text-sm font-medium text-foreground mb-1.5"
-            >
-              Untertitel
-            </label>
-            <textarea
-              ref={subtitleRef}
-              id="heroimage-subtitle"
-              value={data.subtitle}
-              onChange={(e) => updateField('subtitle', e.target.value)}
-              onFocus={() => handleFieldFocus('heroImage', 'subtitle')}
+            <Textarea
+              ref={(el) => registerField(subtitlePath, el)}
+              id={`${blockId}-subtitle`}
+              value={subtitle}
+              onChange={(e) => set({ subtitle: e.target.value })}
+              onFocus={() => handleFieldFocus(blockId, subtitlePath)}
               onBlur={handleFieldBlur}
               placeholder="Ein unterstützender Satz zu deiner Hauptbotschaft..."
               rows={2}
               maxLength={MAX_SUBTITLE_LENGTH}
-              className="w-full py-2.5 px-3 text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15 resize-y min-h-[100px]"
             />
-            <div
-              className={cn(
-                'text-xs text-grey-500 dark:text-grey-400 text-right mt-1',
-                data.subtitle.length > MAX_SUBTITLE_LENGTH * 0.9 && 'text-yellow-600'
-              )}
-            >
-              {data.subtitle.length} / {MAX_SUBTITLE_LENGTH} Zeichen
-            </div>
-          </div>
+            <Counter length={subtitle.length} max={MAX_SUBTITLE_LENGTH} />
+          </Field>
         </div>
       </div>
     </div>

@@ -97,6 +97,9 @@ export const DECISION_POINTS = {
       // benannter Erstell-Intent, vor dem Anhang-Rückfall auf `produktion`.
       'tier2_attachment_create_order',
       'tier2_image_attachment_create_order',
+      // Bildbearbeitung ohne Anhang, im Thread liegt ein gespeichertes Foto →
+      // Loop, `edit_image` wählt zwischen erzeugtem Bild und Foto (#5879).
+      'tier2_image_edit_thread_photo_loop',
       // Erstell-Auftrag über gewähltem Material (Wolke, Connect, @Dokument,
       // Notebook-Quelle) statt Zwangssuche: Wolke-Fotos → Sharepic, sonst Loop.
       'tier2_cloud_photo_create_order',

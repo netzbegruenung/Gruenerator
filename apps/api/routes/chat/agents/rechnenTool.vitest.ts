@@ -25,7 +25,7 @@ const { makeRechnenTool } = await import('./rechnenTool.js');
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { SSEWriter } from '../services/sseHelpers.js';
 
-type RunInput = { auftrag: string; text?: string; anhang?: string };
+type RunInput = { auftrag: string; text?: string; anhang?: string; textlaenge?: boolean };
 
 function setup(state = {} as ChatGraphState) {
   const sent: { event: string; data: unknown }[] = [];
@@ -53,7 +53,7 @@ describe('rechnen', () => {
 
     const out = (await run({ auftrag: '20 % von 340' })) as Record<string, unknown>;
 
-    expect(calls).toEqual([['Anfrage: "20 % von 340"', '20 % von 340']]);
+    expect(calls).toEqual([['Anfrage: "20 % von 340"', '20 % von 340', { wholeText: false }]]);
     expect(state.computedResult).toEqual(RESULT);
     expect(state.computedResultFresh).toBe(true);
     expect(sent).toEqual([{ event: 'compute', data: { compute: RESULT } }]);
@@ -68,8 +68,39 @@ describe('rechnen', () => {
     await run({ auftrag: 'Zähle die Zeichen', text: 'Mehr Radwege jetzt' });
 
     expect(calls).toEqual([
-      ['Anfrage: "Zähle die Zeichen"\n\nText:\nMehr Radwege jetzt', 'Mehr Radwege jetzt'],
+      [
+        'Anfrage: "Zähle die Zeichen"\n\nText:\nMehr Radwege jetzt',
+        'Mehr Radwege jetzt',
+        { wholeText: true },
+      ],
     ]);
+  });
+
+  // A 3,900-character text took 20–23 s through the plan model and ran the
+  // tool into its 20 s timeout: a pure length count asks no model.
+  it('counts the length of a handed-over text without the plan model', async () => {
+    const { state, sent, run } = setup();
+
+    const out = (await run({
+      auftrag: 'Zeichen zählen',
+      text: 'Mehr Radwege für alle!',
+      textlaenge: true,
+    })) as Record<string, unknown>;
+
+    expect(calls).toEqual([]);
+    expect(out.ok).toBe(true);
+    expect(out.ergebnis).toContain('Zeichen (inkl. Leerzeichen): 22');
+    expect(state.computedResultFresh).toBe(true);
+    expect(sent.map((s) => s.event)).toEqual(['compute']);
+  });
+
+  it('still plans when the length flag comes without a text', async () => {
+    planAndCompute.mockResolvedValue({ result: RESULT, operation: 'arithmetic' });
+    const { run } = setup();
+
+    await run({ auftrag: '20 % von 340', textlaenge: true });
+
+    expect(calls).toHaveLength(1);
   });
 
   // #5493: a paste is read by name, not copied into the call.
@@ -85,7 +116,7 @@ describe('rechnen', () => {
     await run({ auftrag: 'Zähle die Termine', anhang: 'eingefügter text.txt' });
 
     expect(calls).toEqual([
-      ['Anfrage: "Zähle die Termine"\n\nText:\nTermine 2027', 'Termine 2027'],
+      ['Anfrage: "Zähle die Termine"\n\nText:\nTermine 2027', 'Termine 2027', { wholeText: true }],
     ]);
   });
 

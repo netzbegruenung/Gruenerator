@@ -17,6 +17,7 @@ import { buildToolObservationReplay } from '../services/agenticLoop/mcpReplay.js
 
 import {
   boundSystemNotebook,
+  boundUserNotebook,
   makeNotebookSourcesTool,
   normalizeArgs,
   notebookForPrompt,
@@ -274,6 +275,49 @@ describe('Agent mit eigenem Notebook', () => {
     });
     expect((await run({ action: 'list' })).collection).toBe('saarland');
     expect(helper.getNotebookCollection).not.toHaveBeenCalled();
+  });
+});
+
+// Live 19.11.2026: ein Agent mit eigenen Notebooks bekam ohne notebookId
+// „Kein Notebook ausgewählt" — die Beschreibung versprach das des Agenten.
+describe('Agent mit eigenem (Nutzer-)Notebook', () => {
+  const OWN = '6f1c2e9a-0000-4000-8000-000000000001';
+
+  it('nimmt ohne notebookId das eigene Notebook des Agenten', async () => {
+    const { run, helper } = makeCtx({ agentNotebookIds: [OWN] });
+    helper.getNotebookCollection.mockResolvedValue({ id: OWN, name: 'Beschlüsse KV' } as never);
+    const result = await run({ action: 'list' });
+    expect(helper.getNotebookCollection).toHaveBeenCalledWith(OWN);
+    expect(result.error).not.toBe(
+      'Kein Notebook ausgewählt — gib notebookId an: bei eigenen Notebooks den ref aus notebooks action="list", bei System-Notebooks den Schlüssel (z. B. berlin, deutschland).'
+    );
+  });
+
+  it('lässt ein gebundenes System-Notebook vorgehen', async () => {
+    const { run, helper } = makeCtx({ agentNotebookIds: [OWN, 'saarland-notebook'] });
+    expect((await run({ action: 'list' })).collection).toBe('saarland');
+    expect(helper.getNotebookCollection).not.toHaveBeenCalled();
+  });
+
+  it('fragt ohne user_content kein eigenes Notebook nach', async () => {
+    const { run, helper } = makeCtx({ agentNotebookIds: [OWN], systemOnly: true });
+    await run({ action: 'list' });
+    expect(helper.getNotebookCollection).not.toHaveBeenCalled();
+  });
+});
+
+describe('boundUserNotebook', () => {
+  const OWN = '6f1c2e9a-0000-4000-8000-000000000001';
+  const state = (defaultNotebookIds: string[], enabledTools: Record<string, boolean> = {}) =>
+    ({ agentConfig: { defaultNotebookIds }, enabledTools }) as unknown as ChatGraphState;
+
+  it('nennt das erste eigene Notebook des Agenten', () => {
+    expect(boundUserNotebook(state(['saarland-notebook', OWN]))).toBe(OWN);
+  });
+
+  it('ist null ohne eigenes Notebook und ohne user_content', () => {
+    expect(boundUserNotebook(state(['saarland-notebook']))).toBeNull();
+    expect(boundUserNotebook(state([OWN], { user_content: false }))).toBeNull();
   });
 });
 

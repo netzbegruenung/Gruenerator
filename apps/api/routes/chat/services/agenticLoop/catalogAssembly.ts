@@ -15,14 +15,19 @@
  */
 import { skillRole } from '@gruenerator/shared/agents';
 
+import {
+  agentNotebookDocIds,
+  searchScopedDocuments,
+} from '../../../../agents/langgraph/ChatGraph/nodes/agentNotebookScope.js';
 import { lastUserText } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { executeMultiDocFanout } from '../../../../agents/langgraph/ChatGraph/nodes/searchNode.js';
+import { McpServerRegistry } from '../../../../services/mcp/McpServerRegistry.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { makeAskHumanTool } from '../../agents/askHumanTool.js';
 import { preferredLvRecipeMention } from '../../agents/lvRecipePreference.js';
 import { loadMcpCatalog as loadMcpCatalogReal, type McpCatalog } from '../../agents/mcpCatalog.js';
 import { CRAWL_SNIPPET_CHARS, readNamedPages } from '../../agents/namedPages.js';
-import { boundSystemNotebook } from '../../agents/notebookSourceTools.js';
+import { boundSystemNotebook, boundUserNotebook } from '../../agents/notebookSourceTools.js';
 import {
   buildRecipeCatalog as buildRecipeCatalogReal,
   catalogDescription,
@@ -30,9 +35,10 @@ import {
   resolveRecipe as resolveRecipeReal,
   type RecipeCatalogEntry,
 } from '../../agents/recipeCatalog.js';
-import { makeRecipeTool, methodEntries } from '../../agents/recipeTools.js';
+import { makeRecipeTool } from '../../agents/recipeTools.js';
 import { buildChatToolCatalog as buildChatToolCatalogReal } from '../../agents/toolCatalog.js';
 import { isTabularAttachment } from '../attachmentProcessingService.js';
+import { extractTextContent } from '../messageHelpers.js';
 import { sendChatWarning, type SSEWriter } from '../sseHelpers.js';
 import {
   getRecentThreadSources,
@@ -74,8 +80,8 @@ import {
 } from './types.js';
 import { wrapToolsForLoop, type ToolHooks } from './wrapTools.js';
 
-import type { ToolActivity } from './toolActivity.js';
 import type { ChatGraphState, PriorLookup } from '../../../../agents/langgraph/ChatGraph/types.js';
+import type { ToolActivity } from './toolActivity.js';
 import type { ModelMessage, ToolSet } from 'ai';
 import type { Request } from 'express';
 
@@ -150,6 +156,8 @@ export interface CatalogDeps {
   loadMcpCatalog: typeof loadMcpCatalogReal;
   buildRecipeCatalog: typeof buildRecipeCatalogReal;
   resolveRecipe: typeof resolveRecipeReal;
+  /** True when the sticky server id is another person's row. */
+  isForeignMcpServer: (userId: string, ref: string) => Promise<boolean>;
 }
 
 const defaultDeps: CatalogDeps = {
@@ -157,6 +165,7 @@ const defaultDeps: CatalogDeps = {
   loadMcpCatalog: loadMcpCatalogReal,
   buildRecipeCatalog: buildRecipeCatalogReal,
   resolveRecipe: resolveRecipeReal,
+  isForeignMcpServer: (userId, ref) => McpServerRegistry.isForeignServer(userId, ref),
 };
 
 export interface AssembledCatalog {
@@ -261,7 +270,23 @@ export async function assembleToolCatalog(
   let staleConnectorName: string | null = null;
   if (!disableMcp && userId && (state.intent === 'mcp' || state.intent === 'agentic')) {
     const explicitScope = state.mcpServerScope ?? null;
-    const scope = explicitScope ?? (threadId ? await getThreadLastMcpServer(threadId) : null);
+    let scope = explicitScope ?? (threadId ? await getThreadLastMcpServer(threadId, userId) : null);
+    // The sticky slot is per person (#5675), so it normally holds the sender's
+    // own server. A slot written before that — one per thread, by whoever used
+    // a connector last — may still name another member's: it is neither
+    // mounted nor reported as "gone" on this sender's turn.
+    if (!explicitScope && scope) {
+      try {
+        if (await deps.isForeignMcpServer(userId, scope)) {
+          log.info('[StickyRefs] skipped foreign ref', { kind: 'mcp' });
+          scope = null;
+        }
+      } catch (err) {
+        // An unverifiable owner is not a verified one: skip the sticky server.
+        log.warn(`[catalogAssembly] sticky MCP owner check failed; skipping: ${err}`);
+        scope = null;
+      }
+    }
     if (scope) {
       // One loader for every connector — a known one (Bahn, Wetter, …) is a
       // row like any other, and a legacy `system-<key>` scope resolves to it.
@@ -290,7 +315,7 @@ export async function assembleToolCatalog(
         // The resolved row id, not the scope: a pinned connector still sends
         // the legacy alias, and the thread should not keep carrying it.
         const sticky = mcpCatalog.resolvedServerId ?? scope;
-        void setThreadLastMcpServer(threadId, sticky).catch((err: unknown) => {
+        void setThreadLastMcpServer(threadId, userId, sticky).catch((err: unknown) => {
           log.warn(`[catalogAssembly] could not persist sticky MCP scope: ${err}`);
         });
       }
@@ -476,11 +501,16 @@ export async function assembleToolCatalog(
     });
     recipeCatalog = recipeCatalog
       .filter((entry) => pinnedKey === null || recipeKey(entry) !== pinnedKey)
-      .map((entry) =>
-        entry.recommendedTools
-          ? { ...entry, recommendedTools: entry.recommendedTools.filter(isMounted) }
-          : entry
-      );
+      .flatMap((entry) => {
+        if (!entry.recommendedTools) return [entry];
+        const recommendedTools = entry.recommendedTools.filter(isMounted);
+        // Ein Methoden-Rezept, das nur über seine Werkzeuge wirkt (Antragsgrün-
+        // Seite, nuudel-Umfrage), ist ohne eines davon ein Versprechen ohne
+        // Mittel: das Modell lud `antragsgruen-seite` und meldete „Seite
+        // angelegt", ohne dass `antragsgruen_seite_anlegen` montiert war (#5804).
+        if (recommendedTools.length === 0 && skillRole(entry.mention) === 'methode') return [];
+        return [{ ...entry, recommendedTools }];
+      });
     if (recipeCatalog.length > 0) {
       tools.rezept_laden = makeRecipeTool({
         isMounted,
@@ -501,20 +531,6 @@ export async function assembleToolCatalog(
             userLocale: state.userLocale ?? null,
           }),
       });
-      // Die Methoden allein, für den erzwungenen Recherche-Schritt (#3880):
-      // `rezept_laden` bleibt dort draussen, weil der Planer unter `required`
-      // sonst eine Textsorte lädt statt zu suchen. Nur montiert, wo es eine
-      // Methode gibt; sichtbar ist es nirgends sonst (`toolScope`).
-      if (methodEntries(recipeCatalog).length > 0) {
-        tools[METHOD_RECIPE_TOOL] = makeRecipeTool({
-          isMounted,
-          catalog: recipeCatalog,
-          registry: recipeRegistry,
-          userId: userId ?? null,
-          visualBlocks: state.visualBlocks ?? [],
-          only: 'methode',
-        });
-      }
     }
   }
 
@@ -544,10 +560,13 @@ export async function assembleToolCatalog(
     userText: state.lastUserTextNoMentions ?? lastUserText(state),
     pinnedTool: state.mentionPinnedTool ?? null,
     priorToolNames: priorToolNames(toolHistory),
+    previousUserText: previousUserText(state.messages ?? []),
     // Ein Agent mit eigenem Notebook liest es mit `notebook_quellen` — der
     // Prompt sagt ihm das (`buildToolUsageBlock`), also darf das Werkzeug nicht
     // hinter „meine Inhalte" warten.
-    ...(boundSystemNotebook(state) != null && { keepVisible: ['notebook_quellen'] }),
+    ...((boundSystemNotebook(state) ?? boundUserNotebook(state)) != null && {
+      keepVisible: ['notebook_quellen'],
+    }),
     enforce: isToolScopeEnforced() && !toolAllowlist,
   });
   Object.assign(tools, toolScope.loaderTools());
@@ -573,6 +592,16 @@ function lastTurnConnectorName(toolHistory: ThreadToolHistory | null | undefined
   } catch {
     return null;
   }
+}
+
+/** Die Nachricht der Person im Turn vor dem aktuellen (für `createToolScope`). */
+function previousUserText(messages: readonly ModelMessage[]): string | null {
+  let seen = 0;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i]?.role !== 'user') continue;
+    if (++seen === 2) return extractTextContent(messages[i].content);
+  }
+  return null;
 }
 
 /** Die vorhandene Projektion lesen, nie werfen. */
@@ -602,15 +631,6 @@ export function createLoopGuards(
     // thread with prior research would have been told it had "already found
     // enough" before running a single search.
     getSourceCount: () => sourceRegistry.freshSize,
-    // The web is NOT gated behind the internal document search — no exemption
-    // list either, because there is nothing left to be exempt from. Which
-    // retrieval a question needs is the classifier's call, made with the whole
-    // message and the thread in hand. All the loop still does is refuse to let
-    // an internal search that found NOTHING end in an answer from model memory.
-    internalFallback: {
-      requiredTool: 'gruenerator_search',
-      fallbackTool: 'web_search',
-    },
   });
 }
 
@@ -668,8 +688,7 @@ const NOT_A_LOOKUP: ReadonlySet<string> = new Set([
 
 /**
  * Schlägt dieses Werkzeug etwas NACH? Die eine Stelle, an der die drei Listen
- * oben zusammenkommen — `priorTurnRetrievalFailed` und der Zuschnitt des
- * erzwungenen ersten Schritts (`forcedFirstStepTools`) stellen dieselbe Frage.
+ * oben zusammenkommen — `priorTurnRetrievalFailed` stellt dieselbe Frage.
  * Verbindungs-Werkzeuge (`serverName`) entscheidet der Aufrufer, weil der
  * Name allein sie nicht verrät.
  */
@@ -925,7 +944,7 @@ export async function seedAttachedDocuments(params: {
  * Eine gewählte Cloud-Datei ist Material des Loop-Turns. `retrievableAttachedSources` lässt `wolke`/`connect` aber
  * bewusst aus (die Modi von `dokumente_lesen` lesen aus Qdrant), und
  * `cloud_files` kannte den gewählten Pfad nicht. Gelesen wurde die Datei
- * deshalb nie; der erzwungene erste Aufruf ging an `gruenerator_search`, und
+ * deshalb nie; der Planer griff zu `gruenerator_search`, und
  * die Antwort fasste fremde Programme zusammen (live 02.11.2026). Gelesen wird
  * hier über denselben Fan-out wie im Einzeldurchlauf.
  *
@@ -1105,6 +1124,86 @@ export async function seedAttachedPages(params: {
 }
 
 /**
+ * Die eigenen Notebooks des Agenten (`defaultNotebookIds` mit Nutzer-UUIDs),
+ * vorab gelesen wie im Einzeldurchlauf: eine Suche über ihre Dokumente, nur
+ * wenn der Turn selbst nichts gewählt hat (`agentNotebookDocIds`).
+ *
+ * Ohne den Abruf sah der Loop die Notebooks nie — `gruenerator_search` kennt
+ * nur System-Sammlungen, und der Prompt nannte sie nicht. Live 19.11.2026:
+ * ein Bürgermail-Agent mit drei eigenen Notebooks schrieb einmal aus dem
+ * System-Notebook Berlin und einmal „kein Zugriff auf interne Dokumente".
+ *
+ * Der Replay läuft unter `notebook_quellen` (`find`), wenn es montiert ist —
+ * das Werkzeug, mit dem der Planer in denselben Notebooks weiterlesen kann.
+ */
+export async function seedAgentNotebooks(params: {
+  state: ChatGraphState;
+  sourceRegistry: SourceRegistry;
+  isMounted: boolean;
+  onInfo: (message: string) => void;
+  onError: (message: string) => void;
+}): Promise<SeededAttachedDocuments> {
+  const { state } = params;
+  const documentIds = agentNotebookDocIds(state);
+  if (documentIds.length === 0) return NOTHING_SEEDED;
+  const query = attachedDocsQuery(state);
+  if (!query) return NOTHING_SEEDED;
+  try {
+    const results = await searchScopedDocuments({
+      query,
+      userId: state.agentConfig.userId,
+      documentIds,
+      documentNotebookIds: state.documentNotebookIds,
+    });
+    if (results.length === 0) {
+      params.onInfo(
+        `[Agentic] Vorab-Abruf über ${documentIds.length} Dokument(e) der Agent-Notebooks ohne Treffer`
+      );
+      return NOTHING_SEEDED;
+    }
+    const block = params.sourceRegistry.seedAttached(results, ATTACHED_DOC_SNIPPET_CHARS);
+    params.onInfo(
+      `[Agentic] ${results.length} Passage(n) aus den Notebooks des Agenten vorab abgerufen`
+    );
+    if (!params.isMounted) return { replay: [], delivered: true };
+
+    const toolCallId = `seed-agent-notebooks-${state.agentConfig.userId ?? 'anon'}`;
+    return {
+      delivered: true,
+      replay: [
+        {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool-call' as const,
+              toolCallId,
+              toolName: 'notebook_quellen',
+              input: { action: 'find', query },
+            },
+          ],
+        },
+        {
+          role: 'tool',
+          content: [
+            {
+              type: 'tool-result' as const,
+              toolCallId,
+              toolName: 'notebook_quellen',
+              output: { type: 'text' as const, value: block },
+            },
+          ],
+        },
+      ],
+    };
+  } catch (err) {
+    params.onError(
+      `[Agentic] Vorab-Abruf der Agent-Notebooks übersprungen: ${err instanceof Error ? err.message : err}`
+    );
+    return NOTHING_SEEDED;
+  }
+}
+
+/**
  * Der eine Vorab-Abruf für das Material eines Loop-Turns (#5266): ruft die
  * Seeds je Leseweg (`resolveTurnMaterial`) und meldet EIN `delivered` an
  * `shouldForceFirstToolCall`. Bis dahin standen drei Aufrufe nebeneinander im
@@ -1148,9 +1247,16 @@ export async function seedTurnMaterial(params: {
     onInfo,
     onError,
   });
+  const agentNotebooks = await seedAgentNotebooks({
+    state,
+    sourceRegistry,
+    isMounted: isMounted('notebook_quellen'),
+    onInfo,
+    onError,
+  });
   return {
-    replay: [...docs.replay, ...cloud.replay, ...pages.replay],
-    delivered: docs.delivered || cloud.delivered || pages.delivered,
+    replay: [...docs.replay, ...cloud.replay, ...pages.replay, ...agentNotebooks.replay],
+    delivered: docs.delivered || cloud.delivered || pages.delivered || agentNotebooks.delivered,
     writerNote: unreadableCloudFilesNote(cloud.unreadable),
   };
 }

@@ -65,6 +65,7 @@ export const userTemplatesContract = c.router(
         400: userTemplatesErrorResponseSchema,
         403: userTemplatesErrorResponseSchema,
         404: userTemplatesErrorResponseSchema,
+        409: userTemplatesErrorResponseSchema,
         500: userTemplatesErrorResponseSchema,
       },
       summary: 'Save a canvas as a Grünerator-Vorlage',

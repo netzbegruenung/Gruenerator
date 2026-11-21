@@ -50,7 +50,6 @@ export {
   handleRouteError,
   handleValidationError,
   handleAttachmentError,
-  handleAiClientError,
   withErrorHandler,
   addCorrelationId,
 } from './routes.js';

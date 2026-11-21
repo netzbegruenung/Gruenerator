@@ -362,6 +362,36 @@ describe('createToolScope — das Ergebnis des Laders', () => {
   });
 });
 
+describe('createToolScope — die Beschreibung des Laders', () => {
+  const describeLoader = (toolNames: readonly string[]) => {
+    const scope = createToolScope({ toolNames, userText: 'xyz', enforce: true });
+    return (scope.loaderTools()['antragsgruen_werkzeuge_laden'] as { description: string })
+      .description;
+  };
+  const NRW = ['antragsgruen', 'antragsgruen_lesen', 'antragsgruen_auswerten'];
+  const SITE = [
+    'antragsgruen_seite_anlegen',
+    'antragsgruen_antrag_stellen',
+    'antragsgruen_tagesordnung',
+    'antragsgruen_seite_lesen',
+  ];
+
+  // #5804: ohne Zugangsdaten fehlen die Seiten-Werkzeuge; ein Lader, der sie
+  // ankündigt, liess das Modell „Seite angelegt" melden.
+  it('kündigt keine Seiten-Werkzeuge an, die nicht montiert sind', () => {
+    const text = describeLoader(NRW);
+    for (const name of SITE) expect(text).not.toContain(name);
+    expect(text).toContain('antragsgruen_lesen');
+    expect(text).toContain('nicht');
+  });
+
+  it('nennt beide Teile, wenn alles montiert ist', () => {
+    const text = describeLoader([...NRW, ...SITE]);
+    for (const name of [...NRW, ...SITE]) expect(text).toContain(name);
+    expect(text).not.toContain('kann der Grünerator hier nicht');
+  });
+});
+
 describe('createToolScope — keepVisible', () => {
   // Ein Agent mit eigenem Notebook: notebook_quellen steht von Anfang an,
   // die übrigen eigenen Inhalte der Person bleiben hinter dem Lader.
@@ -377,5 +407,61 @@ describe('createToolScope — keepVisible', () => {
     expect(active).not.toContain('documents');
     expect(active).toContain(LOADER);
     expect(scope.deferredToolNames()).not.toContain('notebook_quellen');
+  });
+});
+
+describe('createToolScope — die Antwort auf eine Rückfrage', () => {
+  // Live 16.11.2026: „Wir brauchen ein Antragsgrün …" → Rückfrage → „KMV Köln
+  // März 2027, die Adresse schlag du vor." Die Gruppe war zu, das Anlegen wurde
+  // nur angekündigt.
+  it('keeps a group open for the turn right after its hint matched', () => {
+    const scope = createToolScope({
+      toolNames: MOUNTED,
+      userText: 'Die vom Radentscheid, bitte.',
+      previousUserText: 'Welche Aufgaben stehen auf meinem Board?',
+      enforce: true,
+    });
+    expect(scope.activeTools([])).toBeUndefined();
+  });
+
+  it('does not open a group because of an unrelated earlier message', () => {
+    const scope = createToolScope({
+      toolNames: MOUNTED,
+      userText: 'Die vom Radentscheid, bitte.',
+      previousUserText: 'Schreib eine Pressemitteilung zum Radentscheid',
+      enforce: true,
+    });
+    expect(scope.activeTools([])).not.toContain(PERSONAL[0]);
+  });
+});
+
+describe('createToolScope — nuudel-Gruppe', () => {
+  const NUUDEL = DEFERRABLE_GROUPS.find((g) => g.id === 'nuudel')!;
+  const mounted = ['gruenerator_search', 'web_search', 'umfragen', ...NUUDEL.tools];
+  const opensOnText = (userText: string) => {
+    const active = createToolScope({ toolNames: mounted, userText, enforce: true }).activeTools();
+    return active === undefined || NUUDEL.tools.every((t) => active.includes(t));
+  };
+
+  it('öffnet bei Wörtern, die eine eigene Abstimmung meinen', () => {
+    for (const t of [
+      'Mach ein Doodle für das OV-Treffen',
+      'Erstelle eine Terminumfrage für Dezember',
+      'Wir müssen einen Termin finden für die KMV',
+      'Leg eine nuudel-Umfrage an',
+      'Schick mir den Abstimmungslink nochmal',
+    ]) {
+      expect(opensOnText(t), t).toBe(true);
+    }
+  });
+
+  // „Umfrage" allein meint meist Wahlumfragen — dafür gibt es `umfragen`.
+  it('bleibt bei Wahl- und Meinungsumfragen zu', () => {
+    for (const t of [
+      'Wie steht die Umfrage der Grünen in Bayern?',
+      'Neue Umfragen zur Landtagswahl',
+    ]) {
+      expect(opensOnText(t), t).toBe(false);
+    }
   });
 });

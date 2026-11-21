@@ -1,10 +1,13 @@
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
+import { ownsThreadSql } from '../../../services/groups/projectThreadScope.js';
 import { type ThreadId, type UserId } from '../../../utils/types/branded.js';
 
 /**
  * Access levels for a chat thread, ordered by strength.
  *
- * - `owner`  — `chat_threads.user_id = userId`; may manage shares.
+ * - `owner`  — `chat_threads.user_id = userId`, unless the thread is a team
+ *              chat of a project the user has left (`ownsThreadSql`); may
+ *              manage shares.
  * - `write`  — may read and send messages: explicit `permissions` entry,
  *              `is_public`, a group share with `write:true` (legacy rows
  *              without a `write` key count as writable), or — for doc-linked
@@ -43,11 +46,11 @@ export async function getThreadAccessLevel(
     has_write_grant: boolean;
     is_link_shared: boolean;
   }>(
-    `SELECT (user_id = $2) AS is_owner,
-            (permissions ? $2::text OR is_public = true) AS has_write_grant,
-            (COALESCE(share_mode, 'private') = 'authenticated') AS is_link_shared
-     FROM chat_threads
-     WHERE id = $1 AND deleted_at IS NULL
+    `SELECT ${ownsThreadSql('ct', '$2')} AS is_owner,
+            (ct.permissions ? $2::text OR ct.is_public = true) AS has_write_grant,
+            (COALESCE(ct.share_mode, 'private') = 'authenticated') AS is_link_shared
+     FROM chat_threads ct
+     WHERE ct.id = $1 AND ct.deleted_at IS NULL
      LIMIT 1`,
     [threadId, userId]
   );
@@ -134,4 +137,9 @@ export async function canAccessThread(threadId: ThreadId, userId: UserId): Promi
 export async function canWriteThread(threadId: ThreadId, userId: UserId): Promise<boolean> {
   const level = await getThreadAccessLevel(threadId, userId);
   return level === 'write' || level === 'owner';
+}
+
+/** True when the user owns the thread (see `owner` above). */
+export async function isThreadOwner(threadId: ThreadId, userId: UserId): Promise<boolean> {
+  return (await getThreadAccessLevel(threadId, userId)) === 'owner';
 }

@@ -1,4 +1,3 @@
-import { type GroupContentType } from '@gruenerator/contracts';
 import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
 import {
   useAddGroupLink,
@@ -10,6 +9,8 @@ import {
   useGroupMembers as useGroupMembersShared,
   useJoinGroup,
   useLeaveGroup,
+  useRemoveGroupContent,
+  useSetGroupContentWrite,
   useSetGroupMute,
   useUpdateGroupLink,
   useUpdateMemberRole as useUpdateMemberRoleShared,
@@ -17,6 +18,7 @@ import {
   useUserGroups,
   getGroupInitials,
   GROUPS_QUERY_KEY,
+  groupContentKey,
   groupDetailsKey,
   type GroupLink,
   type GroupMember,
@@ -240,9 +242,9 @@ interface GroupContentData {
 
 export const useGroupSharing = (groupId: string | null, _options: UseGroupsOptions = {}) => {
   const { user, isAuthenticated, loading: authLoading } = useOptimizedAuth();
-  const queryClient = useQueryClient();
 
-  const groupContentQueryKey = ['groupContent', groupId];
+  // Derselbe Schlüssel, den die Teilen-Dialoge der Inhalte nach jedem Schritt auffrischen.
+  const groupContentQueryKey = groupContentKey(groupId ?? '');
 
   const fetchGroupContentFn = async (): Promise<GroupContentData> => {
     if (!user?.id || !groupId) {
@@ -274,19 +276,8 @@ export const useGroupSharing = (groupId: string | null, _options: UseGroupsOptio
     meta: { silent: true },
   });
 
-  const unshareContentMutation = useMutation({
-    mutationFn: async ({ contentId, contentType }: { contentId: string; contentType: string }) => {
-      if (!groupId) throw new Error('Group ID missing');
-      const res = await getContractsClient().groups.removeGroupContent({
-        params: { groupId, contentId },
-        body: { contentType: contentType as GroupContentType },
-      });
-      if (res.status !== 200) throw apiErrorFromResponse(res);
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: groupContentQueryKey });
-    },
-  });
+  const unshareContentMutation = useRemoveGroupContent(groupId);
+  const setShareWriteMutation = useSetGroupContentWrite(groupId);
 
   return {
     groupContent: groupContentQuery.data || {},
@@ -299,6 +290,7 @@ export const useGroupSharing = (groupId: string | null, _options: UseGroupsOptio
       return groupContentQuery.refetch();
     },
     unshareContent: unshareContentMutation,
+    setShareWrite: setShareWriteMutation,
   };
 };
 

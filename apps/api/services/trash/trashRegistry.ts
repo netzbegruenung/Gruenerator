@@ -69,7 +69,12 @@ import {
   trashAbrechnung,
 } from '../reisekosten/abrechnungService.js';
 import { getSharedMediaService, type TrashedShareRow } from '../sharedMediaService.js';
-import { purgeUserSite, restoreUserSite, USER_SITE_TRASH } from '../sites/userSiteTrash.js';
+import {
+  purgeUserSite,
+  restoreUserSite,
+  trashUserSite,
+  USER_SITE_TRASH,
+} from '../sites/userSiteTrash.js';
 import {
   STUDIO_ASSET_TRASH,
   purgeStudioAsset,
@@ -94,6 +99,11 @@ import {
   purgeUserAgent,
   USER_AGENT_TRASH,
 } from '../userAgents/userAgentsRepository.js';
+import {
+  purgeVideoAiProject,
+  trashVideoAiProject,
+  VIDEO_AI_PROJECT_TRASH,
+} from '../videoAi/projectRepository.js';
 
 import {
   getTrashedOwnedRow,
@@ -445,7 +455,7 @@ const userSiteHandler = ownedRowHandler<Titled>({
   kind: 'user_site',
   table: USER_SITE_TRASH,
   title: (row) => titled(row.title, 'Unbenannte Website'),
-  trash: (userId, id) => trashOwnedRow(USER_SITE_TRASH, userId, id),
+  trash: trashUserSite,
   restore: restoreUserSite,
   purge: purgeUserSite,
 });
@@ -504,6 +514,14 @@ const podcastHandler = ownedRowHandler<Titled>({
   title: (row) => titled(row.title, 'Unbenannter Podcast'),
   trash: trashPodcast,
   purge: purgePodcast,
+});
+
+const videoAiProjectHandler = ownedRowHandler<Titled>({
+  kind: 'video_ai_project',
+  table: VIDEO_AI_PROJECT_TRASH,
+  title: (row) => titled(row.title, 'Unbenannter KI-Schnitt'),
+  trash: trashVideoAiProject,
+  purge: purgeVideoAiProject,
 });
 
 const studioAssetHandler = ownedRowHandler<Titled & Pick<StudioAssetRow, 'kind'>>({
@@ -567,6 +585,7 @@ export const TRASH_KINDS = {
   explainable: explainableHandler,
   podcast: podcastHandler,
   studio_asset: studioAssetHandler,
+  video_ai_project: videoAiProjectHandler,
 } satisfies Record<TrashKind, TrashKindHandler>;
 
 export function trashHandlerFor(kind: TrashKind): TrashKindHandler {

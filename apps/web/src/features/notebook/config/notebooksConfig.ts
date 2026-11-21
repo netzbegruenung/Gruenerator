@@ -93,6 +93,7 @@ const NOTEBOOK_PATHS = {
   'landtag-nrw-notebook': '/notebooks/landtag-nrw',
   'landtag-berlin-notebook': '/notebooks/landtag-berlin',
   'landtag-bayern-notebook': '/notebooks/landtag-bayern',
+  'parteitage-notebook': '/notebooks/parteitage',
   'wahlpruefsteine-notebook': '/notebooks/wahlpruefsteine',
 } satisfies Record<NotebookId, string>;
 

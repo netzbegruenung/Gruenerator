@@ -11,6 +11,10 @@ import { truncateDocument } from '../../../agents/langgraph/ChatGraph/nodes/resp
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { loadCanvasAsContext } from '../../../services/canvas/canvasContext.js';
 import {
+  CanvasDocumentNewerReadError,
+  CanvasLiveStateUnavailableError,
+} from '../../../services/canvas/canvasWriteErrors.js';
+import {
   formatPresentationAsContext,
   loadPresentationState,
 } from '../../../services/presentations/PresentationGenerationService.js';
@@ -22,13 +26,13 @@ import { appendTurnMaterial, replaceFileItems, setTurnMaterial } from './materia
 import { sendChatWarning } from './sseHelpers.js';
 import { resolveWholeDocumentTurn } from './wholeDocument.js';
 
-import type { ProcessedAttachmentMeta } from './attachmentProcessingService.js';
-import type { SSEWriter } from './sseHelpers.js';
 import type {
   ChatGraphState,
   ProcessedAttachment,
   TurnMaterialItem,
 } from '../../../agents/langgraph/ChatGraph/types.js';
+import type { ProcessedAttachmentMeta } from './attachmentProcessingService.js';
+import type { SSEWriter } from './sseHelpers.js';
 
 const log = createLogger('ChatGraphController');
 
@@ -47,7 +51,7 @@ export async function readMentionedDocs(
 > {
   return getPostgresInstance().query(
     `SELECT id, title, content, document_subtype FROM collaborative_documents
-     WHERE id = ANY($1::uuid[]) AND is_deleted = false AND document_subtype NOT IN ('boards', 'sheets')
+     WHERE id = ANY($1::uuid[]) AND is_deleted = false AND document_subtype NOT IN ('boards', 'sheets', 'video')
      AND (created_by = $2::uuid OR permissions ? $2::text OR is_public = true
           OR id IN (SELECT gcs.content_id::uuid FROM group_content_shares gcs
                     INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $2::uuid AND gm.is_active = TRUE
@@ -247,7 +251,21 @@ export async function enrichContext(opts: {
                 return `### ${d.title}\n\n${truncated}`;
               }
               if (d.document_subtype === 'canvas') {
-                const canvasText = ((await loadCanvasAsContext(d.id, userId)) ?? '').trim();
+                let canvasText: string;
+                try {
+                  canvasText = ((await loadCanvasAsContext(d.id, userId)) ?? '').trim();
+                } catch (err) {
+                  // Without this the whole context build fails. The model gets the reason as the
+                  // content instead of a silent gap, so it does not answer about a partial canvas.
+                  if (
+                    err instanceof CanvasDocumentNewerReadError ||
+                    err instanceof CanvasLiveStateUnavailableError
+                  ) {
+                    log.warn(`[ChatGraph] Canvas ${d.id} not readable: ${err.message}`);
+                    return `### ${d.title}\n\n(${err.message})`;
+                  }
+                  throw err;
+                }
                 if (!canvasText) return null;
                 const truncated = truncateDocument(canvasText, perDocBudget, mentionQuery);
                 log.info(

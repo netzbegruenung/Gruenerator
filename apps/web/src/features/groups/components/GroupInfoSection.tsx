@@ -1,9 +1,12 @@
-import { type GroupContentType } from '@gruenerator/contracts';
-import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
-import { type GroupFeedItem } from '@gruenerator/shared/groups';
 import {
-  Badge,
+  type GroupFeedItem,
+  addableKey,
+  canManageShare,
+  sharedContentKeys,
+} from '@gruenerator/shared/groups';
+import {
   Button,
+  cn,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -15,6 +18,13 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  Popover,
+  PopoverAnchor,
+  PopoverContent,
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  useIsMobile,
 } from '@gruenerator/ui';
 import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import {
@@ -34,6 +44,7 @@ import {
 import { HiOutlineBellSlash } from 'react-icons/hi2';
 import { PiPlus } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 import { RobotAvatar } from '../../../components/common/RobotAvatar';
 import { resolveApiAssetUrl } from '../../../utils/platform';
@@ -48,12 +59,20 @@ import {
   type GroupLink,
 } from '../hooks/useGroups';
 
-import AddContentToGroupModal from './AddContentToGroupModal';
+import { AddExistingPicker, type PickerItem } from './AddExistingPicker';
+import { AddLinkDialog } from './AddLinkDialog';
 import { GroupContentArea } from './feed/GroupContentArea';
 import GroupJoinRequestsSection from './GroupJoinRequestsSection';
 import GroupLinksSection from './GroupLinksSection';
 import GroupMembersList from './GroupMembersList';
 import GroupVisibilityDialog from './GroupVisibilityDialog';
+import { ProjectAddMenu } from './ProjectAddMenu';
+import { ProjectChatComposer } from './ProjectChatComposer';
+import { ProjectInstructionsCard } from './ProjectInstructionsCard';
+import { ProjectKnowledgeList } from './ProjectKnowledgeList';
+import { ProjectMembersCard } from './ProjectMembersCard';
+import { type ShareActions } from './shareActions';
+import { ShareNoteDialog } from './ShareNoteDialog';
 import { SpaceChatsSection } from './SpaceChatsSection';
 
 export interface GroupInfo {
@@ -105,6 +124,8 @@ interface GroupInfoSectionProps {
   feedItems: GroupFeedItem[];
   isLoadingSharedContent: boolean;
   onUnshareContent?: (contentId: string, contentType: string) => void;
+  /** Docs, Sheets, Präsentationen, Boards: Mitglieder bearbeiten (`true`) oder lesen nur. */
+  onSetShareWrite?: (contentId: string, write: boolean) => void;
   refetchSharedContent?: () => void;
   currentUserId?: string;
   currentUserName?: string | null;
@@ -148,6 +169,7 @@ const GroupInfoSection = memo(
     feedItems,
     isLoadingSharedContent,
     onUnshareContent,
+    onSetShareWrite,
     refetchSharedContent,
     currentUserId,
     currentUserName,
@@ -247,8 +269,15 @@ const GroupInfoSection = memo(
       },
       [cloneTemplate, navigate]
     );
-    const [showAddContent, setShowAddContent] = useState(false);
-    const [shareInitialNote, setShareInitialNote] = useState('');
+    // „Vorhandenes hinzufügen“: am Hinzufügen-Knopf verankert, aus dem Feed-Composer
+    // (der seine Notiz mitbringt) als Dialog.
+    // Auf dem Handy kommen beide als Sheet von unten.
+    const [picker, setPicker] = useState<'menu' | 'composer' | null>(null);
+    const isMobile = useIsMobile();
+    const [composerNote, setComposerNote] = useState('');
+    const [linkOpen, setLinkOpen] = useState(false);
+    // Die gerade hinzugefügte Freigabe, zu der „Notiz schreiben“ eine Notiz setzt.
+    const [noteKey, setNoteKey] = useState<string | null>(null);
     const avatarInputRef = useRef<HTMLInputElement>(null);
     const [avatarTimestamp, setAvatarTimestamp] = useState(Date.now());
 
@@ -282,6 +311,62 @@ const GroupInfoSection = memo(
     const isTeam = !isPersonal && !isSystem;
     const canShare = !isSystem || !!data?.isAdmin;
     const groupLinks = data?.groupInfo?.links ?? [];
+    // Chats gibt es in Projekten und Gruppen, nicht im System-Projekt „Grünerator".
+    const showChats = canShare && !isSystem;
+    // Beiträge gehören in den Austausch; alles andere ist Wissen und steht als Zeile da.
+    const knowledgeItems = useMemo(() => feedItems.filter((i) => i.kind !== 'post'), [feedItems]);
+    const sharedKeys = useMemo(() => sharedContentKeys(feedItems), [feedItems]);
+    // Wer verwalten darf, entscheidet dieselbe Regel wie auf dem Server
+    // (`updateContentPermissions`, `removeGroupContent`): Admin oder die Person,
+    // die geteilt hat.
+    const isAdmin = !!data?.isAdmin;
+    const shareActions = useMemo<ShareActions | null>(() => {
+      if (!onUnshareContent || !onSetShareWrite) return null;
+      const canManage = (item: GroupFeedItem) => canManageShare(item, isAdmin, currentUserId);
+      return {
+        canManage,
+        canRemove: canManage,
+        onSetWrite: (item, write) => onSetShareWrite(item.id, write),
+        onRemove: (item) => onUnshareContent(item.id, item.contentType),
+      };
+    }, [isAdmin, currentUserId, onUnshareContent, onSetShareWrite]);
+    const noteShareId = noteKey
+      ? (feedItems.find((i) => i.key === noteKey)?.share?.shareId ?? null)
+      : null;
+
+    const handleAdded = useCallback(
+      (items: PickerItem[], done: boolean) => {
+        refetchSharedContent?.();
+        if (!done) return;
+        // Wer aus dem Composer kommt, hat die Notiz schon geschrieben.
+        const withNote = picker === 'composer' && composerNote.trim() !== '';
+        setPicker(null);
+        const [only] = items;
+        if (items.length === 1 && only && !withNote) {
+          // 8 s statt der 4 s von sonner: genug Zeit, die Aktion zu lesen und zu treffen.
+          toast('Zum Projekt hinzugefügt', {
+            duration: 8000,
+            action: { label: 'Notiz schreiben', onClick: () => setNoteKey(addableKey(only)) },
+          });
+        } else {
+          toast(
+            items.length === 1 ? 'Zum Projekt hinzugefügt' : `${items.length} Inhalte hinzugefügt`
+          );
+        }
+      },
+      [refetchSharedContent, picker, composerNote]
+    );
+
+    const pickerContent = (
+      <AddExistingPicker
+        groupId={groupId}
+        sharedKeys={sharedKeys}
+        currentUserId={currentUserId ?? null}
+        note={picker === 'composer' ? composerNote : null}
+        writeDocuments={isTeam}
+        onAdded={handleAdded}
+      />
+    );
 
     // Leaving is a member action, not an admin one: everybody except the
     // creator can leave (the backend rejects the creator — they must delete).
@@ -335,31 +420,6 @@ const GroupInfoSection = memo(
       target.style.height = 'auto';
       target.style.height = target.scrollHeight + 2 + 'px';
     }, []);
-
-    const handleShareContent = useCallback(
-      async (
-        contentType: string,
-        itemId: string | number,
-        options: {
-          permissions: { read: boolean; write: boolean; collaborative: boolean };
-          targetGroupId: string;
-          note: string | null;
-        }
-      ) => {
-        const res = await getContractsClient().groups.shareContent({
-          params: { groupId: options.targetGroupId },
-          body: {
-            contentType: contentType as GroupContentType,
-            contentId: String(itemId),
-            permissions: options.permissions,
-            note: options.note,
-          },
-        });
-        if (res.status !== 200)
-          throw apiErrorFromResponse(res, 'Inhalt konnte nicht geteilt werden.');
-      },
-      []
-    );
 
     return (
       <>
@@ -460,7 +520,6 @@ const GroupInfoSection = memo(
                   <h1 className="text-3xl max-md:text-xl font-semibold text-foreground-heading m-0 truncate">
                     {data?.groupInfo?.name}
                   </h1>
-                  {data?.isAdmin && <Badge variant="default">Admin</Badge>}
                 </div>
                 <p className="text-[15px] text-muted-foreground mt-xs m-0">
                   {isPersonal
@@ -469,6 +528,11 @@ const GroupInfoSection = memo(
                       ? 'Für alle im Grünerator'
                       : `Gruppe · ${memberCount} ${memberCount === 1 ? 'Mitglied' : 'Mitglieder'}`}
                 </p>
+                {isTeam && data?.groupInfo?.description && (
+                  <p className="m-0 mt-xs line-clamp-2 whitespace-pre-wrap text-sm text-muted-foreground">
+                    {data.groupInfo.description}
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -495,17 +559,49 @@ const GroupInfoSection = memo(
               </span>
             )}
             {canShare && (
-              <Button
-                variant="brand"
-                onClick={() => {
-                  setShareInitialNote('');
-                  setShowAddContent(true);
-                }}
-                className="max-sm:size-9 max-sm:rounded-full max-sm:p-0"
+              <Popover
+                open={picker === 'menu' && !isMobile}
+                onOpenChange={(open) => !open && setPicker(null)}
               >
-                <PiPlus aria-hidden />
-                <span className="max-sm:sr-only">Inhalte teilen</span>
-              </Button>
+                <PopoverAnchor asChild>
+                  <div className="flex">
+                    {isSystem ? (
+                      <Button
+                        variant="brand"
+                        onClick={() => setPicker('menu')}
+                        className="max-sm:size-9 max-sm:rounded-full max-sm:p-0"
+                      >
+                        <PiPlus aria-hidden />
+                        <span className="max-sm:sr-only">Hinzufügen</span>
+                      </Button>
+                    ) : (
+                      <ProjectAddMenu
+                        groupId={groupId}
+                        onPickExisting={() => setPicker('menu')}
+                        {...(data?.isAdmin && onAddLink && { onAddLink: () => setLinkOpen(true) })}
+                        onFileAdded={(count) => {
+                          refetchSharedContent?.();
+                          onSuccessMessage?.(
+                            count === 1 ? 'Datei hinzugefügt.' : `${count} Dateien hinzugefügt.`
+                          );
+                        }}
+                        onTextAdded={() => {
+                          refetchSharedContent?.();
+                          onSuccessMessage?.('Text hinzugefügt.');
+                        }}
+                        onError={(message) => onErrorMessage?.(message)}
+                      />
+                    )}
+                  </div>
+                </PopoverAnchor>
+                <PopoverContent
+                  align="end"
+                  sideOffset={8}
+                  className="w-[min(500px,calc(100vw-2rem))] overflow-hidden rounded-xl p-0"
+                >
+                  {pickerContent}
+                </PopoverContent>
+              </Popover>
             )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -523,7 +619,7 @@ const GroupInfoSection = memo(
                   <>
                     <DropdownMenuItem onClick={() => setMembersDialogOpen(true)}>
                       <HiOutlineUserGroup className="size-4 mr-xs" />
-                      Mitglieder ({memberCount})
+                      Mitglieder verwalten ({memberCount})
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                   </>
@@ -637,55 +733,110 @@ const GroupInfoSection = memo(
           currentUserId={currentUserId ?? null}
           currentUserName={currentUserName ?? null}
           members={members ?? []}
-          description={data?.groupInfo?.description ?? null}
-          linkCount={groupLinks.length}
-          onShowMembers={() => setMembersDialogOpen(true)}
           onOpenShare={
             canShare
               ? (note) => {
-                  setShareInitialNote(note ?? '');
-                  setShowAddContent(true);
+                  setComposerNote(note ?? '');
+                  setPicker('composer');
                 }
               : null
           }
-          onRemove={
-            data?.isAdmin && onUnshareContent
-              ? (item) => onUnshareContent(item.id, item.contentType)
-              : null
-          }
+          actions={shareActions}
           onUseTemplate={handleCloneTemplate}
           cloningId={cloneTemplate.isPending ? (cloneTemplate.variables ?? null) : null}
-          extraAllSections={
-            <>
-              {onUpdateLink && onDeleteLink && groupLinks.length > 0 && (
-                <div id="abschnitt-links" className="scroll-mt-lg">
-                  <GroupLinksSection
-                    links={groupLinks}
-                    isAdmin={!!data?.isAdmin}
-                    onUpdateLink={onUpdateLink}
-                    onDeleteLink={onDeleteLink}
-                    isUpdatingLink={!!isUpdatingLink}
+          overview={({ onDiscuss }) => (
+            <div className="flex flex-col gap-lg min-[900px]:flex-row min-[900px]:items-start min-[900px]:gap-xl">
+              {showChats && (
+                <div className="flex min-w-0 flex-1 flex-col gap-md">
+                  <ProjectChatComposer
+                    groupId={groupId}
+                    groupName={data?.groupInfo?.name ?? ''}
+                    isPersonal={isPersonal || isSystem}
                   />
+                  <SpaceChatsSection groupId={groupId} />
                 </div>
               )}
-              <SpaceChatsSection groupId={groupId} />
-            </>
-          }
+              <div
+                className={cn(
+                  'flex min-w-0 flex-col gap-md',
+                  showChats ? 'min-[900px]:w-[340px] min-[900px]:shrink-0' : 'flex-1'
+                )}
+              >
+                {!isSystem && (
+                  <ProjectInstructionsCard
+                    groupId={groupId}
+                    isAdmin={!!data?.isAdmin}
+                    onSuccessMessage={onSuccessMessage}
+                    onErrorMessage={onErrorMessage}
+                  />
+                )}
+                <ProjectKnowledgeList
+                  items={knowledgeItems}
+                  onUseTemplate={handleCloneTemplate}
+                  actions={shareActions}
+                  onDiscuss={onDiscuss}
+                />
+                {onUpdateLink && onDeleteLink && groupLinks.length > 0 && (
+                  <div id="abschnitt-links" className="scroll-mt-lg">
+                    <GroupLinksSection
+                      links={groupLinks}
+                      isAdmin={!!data?.isAdmin}
+                      onUpdateLink={onUpdateLink}
+                      onDeleteLink={onDeleteLink}
+                      isUpdatingLink={!!isUpdatingLink}
+                    />
+                  </div>
+                )}
+                {isTeam && (
+                  <ProjectMembersCard
+                    members={members ?? []}
+                    onShowMembers={() => setMembersDialogOpen(true)}
+                  />
+                )}
+              </div>
+            </div>
+          )}
         />
 
-        <AddContentToGroupModal
-          isOpen={showAddContent}
-          onClose={() => setShowAddContent(false)}
-          groupId={groupId}
-          initialNote={shareInitialNote}
-          onShareContent={handleShareContent}
-          onSuccess={() => {
-            setShowAddContent(false);
-            refetchSharedContent?.();
-          }}
-          {...(data?.isAdmin && { onAddLink })}
-          isAddingLink={isAddingLink}
-        />
+        <Dialog
+          open={picker === 'composer' && !isMobile}
+          onOpenChange={(open) => !open && setPicker(null)}
+        >
+          <DialogContent
+            showCloseButton={false}
+            className="gap-0 overflow-hidden p-0 sm:max-w-[500px]"
+          >
+            <DialogTitle className="sr-only">Vorhandenes hinzufügen</DialogTitle>
+            {pickerContent}
+          </DialogContent>
+        </Dialog>
+        <Sheet open={picker !== null && isMobile} onOpenChange={(open) => !open && setPicker(null)}>
+          <SheetContent
+            side="bottom"
+            showCloseButton={false}
+            // Kein Autofokus: sonst schiebt die Tastatur die Liste weg, bevor man sie sieht.
+            onOpenAutoFocus={(e) => e.preventDefault()}
+            className="gap-0 overflow-hidden rounded-t-2xl p-0 pb-[env(safe-area-inset-bottom)] outline-none"
+          >
+            <SheetTitle className="sr-only">Vorhandenes hinzufügen</SheetTitle>
+            <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-grey-300 dark:bg-grey-600" />
+            {pickerContent}
+          </SheetContent>
+        </Sheet>
+        {linkOpen && onAddLink && (
+          <AddLinkDialog
+            onClose={() => setLinkOpen(false)}
+            onAddLink={onAddLink}
+            isAddingLink={isAddingLink}
+          />
+        )}
+        {noteKey && (
+          <ShareNoteDialog
+            groupId={groupId}
+            shareId={noteShareId}
+            onClose={() => setNoteKey(null)}
+          />
+        )}
 
         {isTeam && data?.isAdmin && (
           <GroupVisibilityDialog
@@ -800,9 +951,10 @@ const GroupInfoSection = memo(
             <DialogHeader>
               <DialogTitle>Gruppe verlassen</DialogTitle>
               <DialogDescription>
-                Du verlierst den Zugriff auf alle Inhalte dieser Gruppe. Die Gruppe selbst und deine
-                eigenen Inhalte bleiben bestehen. Ein erneuter Beitritt ist nur über eine neue
-                Einladung möglich.
+                Du verlierst den Zugriff auf alle Inhalte dieser Gruppe, auch auf Team-Chats, die du
+                begonnen hast: sie bleiben in der Gruppe. Die Gruppe selbst und deine privaten
+                Inhalte bleiben bestehen. Ein erneuter Beitritt ist nur über eine neue Einladung
+                möglich.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="gap-xs">

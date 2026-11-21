@@ -7,8 +7,7 @@
  * rides along on the provider's top-level redirect back to us — and the tokens
  * are stored only when that session is the user the one-time Redis state was
  * issued to. Exchanges the code for tokens, then returns an auto-closing popup
- * page that postMessages the result to the opener (origin-locked) — the
- * Canva-style pattern.
+ * page that postMessages the result to the opener (origin-locked).
  */
 
 import { Router, type Request, type Response, type Application } from 'express';

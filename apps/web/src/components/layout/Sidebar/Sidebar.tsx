@@ -12,11 +12,10 @@ import {
 } from '@gruenerator/ui';
 import { useEffect, useMemo, useCallback, useRef, useState, memo, lazy, Suspense } from 'react';
 import { type IconType } from 'react-icons';
-import { FiSidebar } from 'react-icons/fi';
-import { PiSignIn, PiSparkle, PiStarFill } from 'react-icons/pi';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { getFavouriteItemsById } from '../../../config/sidebarFavouritesConfig';
+import { useCanSeeSites } from '../../../config/sitesGate';
 import { useUserAgents } from '../../../features/agents/api';
 import { useItemUsage } from '../../../features/usage/useItemUsage';
 import useAgentFavoritesStore from '../../../stores/agentFavoritesStore';
@@ -41,6 +40,7 @@ import { getAgentIcon } from './sidebarAgentConfig';
 import { headerIconButtonClass, iconClass, menuLinkClass } from './sidebarStyles';
 
 import { CURRENT_INSTANCE } from '@/config/instance';
+import { FiSidebar, PiSignIn, PiSparkle, PiStarFill } from '@/config/shellIcons.generated';
 import { cn } from '@/utils/cn';
 import { isWorkplaceSurface, startTabLink } from '@/utils/startpage';
 import '../../../assets/styles/components/layout/sidebar.css';
@@ -53,9 +53,11 @@ interface SidebarProps {
   isDesktop?: boolean;
   /** `state`: router state for the target, e.g. a notebook's fresh conversation. */
   onNavigate?: (path: string, title: string, state?: unknown) => void;
+  /** The rail is slid off-screen (`.sidebar-hidden`) while closed: take it out of tab order and AT. */
+  railHidden?: boolean;
 }
 
-const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
+const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { isOpen, close, open, toggle, forceExpanded } = useSidebarStore();
@@ -66,6 +68,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
 
   const locale = useAuthStore((state) => state.locale);
   const isAustrian = locale === 'de-AT';
+  const canSeeSites = useCanSeeSites();
   // Workplace paints a wide, tinted gradient behind the (fixed, translucent)
   // sidebar. bg-background/70 alone still reads as a near-solid panel — at
   // 70% opacity barely any of the gradient shows even with blur — so
@@ -94,7 +97,10 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
     [profileHydrated, profileRoles, profileLocale]
   );
 
-  const directMenuItems = useMemo(() => getDirectMenuItems({ isAustrian }), [isAustrian]);
+  const directMenuItems = useMemo(
+    () => getDirectMenuItems({ isAustrian, canSeeSites }),
+    [isAustrian, canSeeSites]
+  );
   const mobileOnlyItems = useMemo(() => getMobileOnlyMenuItems(), []);
   // The "start" icon goes straight to /start (the page picks the user's preferred
   // tab) so the click, the mobile <Link to>, and active highlighting all resolve
@@ -592,6 +598,9 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
             isDesktop && isOpen && 'w-[220px]'
           )}
           aria-label="Hauptnavigation"
+          // Slid off-screen at width 0 while closed (.sidebar-hidden): without
+          // `inert` its links stay tabbable and focus lands off-screen.
+          inert={railHidden && !sidebarExpanded}
           onMouseEnter={isDesktop ? open : undefined}
           onMouseLeave={isDesktop && !forceExpanded ? handleMouseLeave : undefined}
         >

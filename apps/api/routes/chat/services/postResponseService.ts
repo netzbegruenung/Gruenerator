@@ -17,6 +17,7 @@ import {
   generateThreadTitle,
   threadNeedsTitle,
 } from '../../../services/chat/threadTitleService.js';
+import { notifyTeamChatTurn } from '../../../services/notifications/groupChatNotifications.js';
 import { withRetry } from '../../../services/search/searchRetryStrategy.js';
 import { createLogger } from '../../../utils/logger.js';
 import { reportBackgroundError } from '../../../utils/reportBackgroundError.js';
@@ -603,6 +604,11 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
       isNewThread,
       imageGenerated: !!generatedImage,
     });
+
+    // A human message was written this turn (regenerate keeps the old row and
+    // has no `userMessageId`): tell the team chat's other participants. Fire
+    // and forget — the helper swallows its own errors.
+    if (userMessageId && userId) void notifyTeamChatTurn({ threadId, senderId: userId });
 
     log.info(`[ChatGraph] Message persisted for thread ${threadId}`);
 

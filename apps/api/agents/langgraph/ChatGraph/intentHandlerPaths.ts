@@ -50,6 +50,8 @@ export const INTENT_HANDLER_PATHS: Record<SearchIntent, string> = {
     'handled via search branch (intent !== direct) — searchNode case calls BundestagEnrichedService (Bundestag MCP / DIP)',
   abgeordnetenhaus:
     'loop only — @abgeordnetenhaus pins the landtag tool (parlament berlin: PARDOK live via services/landtag/berlin + passages of the landtag-berlin notebook)',
+  antragsgruen:
+    'loop only — @antragsgruennrw pins the antragsgruen tool (Antragsgrün GRÜNE NRW: landesverbaende_documents index + live status via services/antragsgruen)',
   bahn: 'RETIRED as a verdict (availability: retired) — the Deutsche-Bahn tools live on as a managed connector, mounted by loadManagedMcpCatalog when a turn is scoped to it (@mention or pinned). No tier produces this intent any more, so nothing here is reachable',
   reise:
     'RETIRED as a verdict — was the umbrella that mounted bahn + hotel + wetter together. Each connector is mounted on its own by @mention now, so the umbrella has nothing left to bundle',
@@ -88,7 +90,7 @@ export const INTENT_HANDLER_PATHS: Record<SearchIntent, string> = {
     "tool-based: the loop's edit_document tool plans ops (boardAiService) and streams editor_operations",
   modify_board: 'routes to respond, then confirm_action SSE + pendingActionStore',
   share_doc: 'short-circuits before LLM — resolves group, emits confirm_action SSE',
-  mcp: 'RETIRED as a verdict (availability: retired, #4043) — a connector turn is `agentic` with mcpServerScope set (@<server> pin, the server named in prose, or the Tier-2.7 follow-up); the scope forces the loop (turnPlan mustLoop), mounts the server (catalogAssembly) and forces the first call (forceFirstToolCall mcp_scope). No tier produces this intent any more',
+  mcp: 'RETIRED as a verdict (availability: retired, #4043) — a connector turn is `agentic` with mcpServerScope set (@<server> pin, the server named in prose, or the Tier-2.7 follow-up); the scope forces the loop (turnPlan mustLoop) and mounts the server (catalogAssembly). No tier produces this intent any more',
   chat_history:
     'handled via chat_history branch in executeIntentPipeline — recall tool-loop over the own threads (flag-gated), else recallContext injection',
   agentic:

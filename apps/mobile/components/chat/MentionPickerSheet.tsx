@@ -3,17 +3,14 @@ import {
   buildConnectAttachment,
   buildWebpageAttachment,
   buildWolkeAttachment,
-  canvaDesignsMarkdown,
   isWolkeRoot,
   normalizeWebpageUrl,
   joinWolkePath,
-  useCanvaDesignsQuery,
   useConnectBrowseQuery,
   useConnectProvidersQuery,
   useUserShareLinksQuery,
   useWolkeBrowseQuery,
   wolkeParentPath,
-  type CanvaDesignToken,
   type ConnectFileToken,
   type WolkeFileToken,
 } from '@gruenerator/chat';
@@ -29,19 +26,17 @@ import { SkeletonRows } from '../common/Skeleton';
 import type { Theme } from '../../theme/colors';
 
 /** Which source the sheet is browsing. */
-export type MentionPickerSource = 'wolke' | 'connect' | 'canva' | 'webpage';
+export type MentionPickerSource = 'wolke' | 'connect' | 'webpage';
 
 const TITLES: Record<MentionPickerSource, string> = {
   wolke: 'Aus der Cloud',
   connect: 'Aus der Cloud',
-  canva: 'Canva-Designs',
   webpage: 'Link anhängen',
 };
 
 const EMPTY_HINTS: Record<MentionPickerSource, string> = {
   wolke: 'Keine Ablage verbunden. Verbindungen richtest du im Profil ein.',
   connect: 'Keine Ablage verbunden. Verbindungen richtest du im Profil ein.',
-  canva: 'Canva ist nicht verbunden. Verbindungen richtest du im Profil ein.',
   // Never shown: the webpage body is an input, not a list, so it has nothing
   // to be empty of. The record is exhaustive so a new source cannot forget one.
   webpage: '',
@@ -113,7 +108,11 @@ function Status({
 
 type CloudSource = { kind: 'wolke' | 'drive'; id: string; label: string };
 
-const DRIVE_LABELS: Record<string, string> = { microsoft: 'OneDrive', google: 'Google Drive' };
+const DRIVE_LABELS: Record<string, string> = {
+  microsoft: 'OneDrive',
+  google: 'Google Drive',
+  'microsoft-teams': 'Teams',
+};
 
 /**
  * Wolke-Freigaben und verbundene Laufwerke in einer Ansicht, wie web's
@@ -287,40 +286,6 @@ function CloudBody({
   );
 }
 
-/** Canva: a flat list of the user's designs. */
-function CanvaBody({
-  theme,
-  selection,
-  onToggle,
-}: {
-  theme: Theme;
-  selection: Map<string, CanvaDesignToken>;
-  onToggle: (design: CanvaDesignToken) => void;
-}) {
-  const { data, isLoading } = useCanvaDesignsQuery('', true);
-  const designs = data?.designs ?? [];
-
-  if (isLoading) return <Status loading empty={false} hint="" theme={theme} />;
-  if (designs.length === 0) {
-    return <Status loading={false} empty hint={EMPTY_HINTS.canva} theme={theme} />;
-  }
-
-  return (
-    <>
-      {designs.map((design) => (
-        <Row
-          key={design.id}
-          icon="color-palette-outline"
-          label={design.title}
-          theme={theme}
-          selected={selection.has(design.id)}
-          onPress={() => onToggle({ id: design.id, title: design.title, viewUrl: design.viewUrl })}
-        />
-      ))}
-    </>
-  );
-}
-
 /**
  * A URL typed by hand. Unlike the other three this is an input, not a browse
  * list — and unlike them it needs no connected account, so it is the one picker
@@ -359,12 +324,11 @@ function WebpageBody({
 
 /**
  * The typed `@`-mention pickers — cloud storage (Wolke + connected drives),
- * Canva, a link — as one sheet. Web has three separate floating popovers; on a phone
+ * a link — as one sheet. Web has separate floating popovers; on a phone
  * they are the same gesture and the same list, so they are the same surface.
  *
- * Wolke and Connect picks become **attachments**; Canva picks become a markdown
- * link in the draft. Both shapes come from `@gruenerator/chat` rather than being
- * rebuilt here — the backend recognises a mention only by an exact
+ * Wolke, Connect and link picks become **attachments**. Their shapes come from
+ * `@gruenerator/chat` rather than being rebuilt here — the backend recognises a mention only by an exact
  * contentType/kind pair, and a mismatch fails silently.
  */
 export const MentionPickerSheet = memo(function MentionPickerSheet({
@@ -372,28 +336,24 @@ export const MentionPickerSheet = memo(function MentionPickerSheet({
   theme,
   onClose,
   onAttach,
-  onInsertText,
 }: {
   source: MentionPickerSource | null;
   theme: Theme;
   onClose: () => void;
   onAttach: (attachment: CreateAttachment) => void;
-  onInsertText: (markdown: string) => void;
 }) {
   const [wolke, setWolke] = useState<Map<string, WolkeFileToken>>(new Map());
   const [connect, setConnect] = useState<Map<string, ConnectFileToken>>(new Map());
-  const [canva, setCanva] = useState<Map<string, CanvaDesignToken>>(new Map());
   const [webpageUrl, setWebpageUrl] = useState('');
 
   // The URL counts as "one pick" only once it parses, so the confirm button
   // cannot be pressed on a half-typed address.
   const normalizedUrl = normalizeWebpageUrl(webpageUrl);
-  const count = wolke.size + connect.size + canva.size + (normalizedUrl ? 1 : 0);
+  const count = wolke.size + connect.size + (normalizedUrl ? 1 : 0);
 
   const reset = useCallback(() => {
     setWolke(new Map());
     setConnect(new Map());
-    setCanva(new Map());
     setWebpageUrl('');
   }, []);
 
@@ -422,23 +382,12 @@ export const MentionPickerSheet = memo(function MentionPickerSheet({
     });
   }, []);
 
-  const toggleCanva = useCallback((design: CanvaDesignToken) => {
-    setCanva((prev) => {
-      const next = new Map(prev);
-      if (next.has(design.id)) next.delete(design.id);
-      else next.set(design.id, design);
-      return next;
-    });
-  }, []);
-
   const confirm = useCallback(() => {
     for (const file of wolke.values()) onAttach(buildWolkeAttachment(file));
     for (const file of connect.values()) onAttach(buildConnectAttachment(file));
     if (normalizedUrl) onAttach(buildWebpageAttachment(normalizedUrl));
-    const markdown = canvaDesignsMarkdown([...canva.values()]);
-    if (markdown) onInsertText(markdown);
     close();
-  }, [wolke, connect, canva, normalizedUrl, onAttach, onInsertText, close]);
+  }, [wolke, connect, normalizedUrl, onAttach, close]);
 
   const body = useMemo(() => {
     switch (source) {
@@ -454,14 +403,12 @@ export const MentionPickerSheet = memo(function MentionPickerSheet({
             onToggleConnect={toggleConnect}
           />
         );
-      case 'canva':
-        return <CanvaBody theme={theme} selection={canva} onToggle={toggleCanva} />;
       case 'webpage':
         return <WebpageBody theme={theme} value={webpageUrl} onChange={setWebpageUrl} />;
       default:
         return null;
     }
-  }, [source, theme, wolke, connect, canva, webpageUrl, toggleWolke, toggleConnect, toggleCanva]);
+  }, [source, theme, wolke, connect, webpageUrl, toggleWolke, toggleConnect]);
 
   return (
     <BottomSheet visible={source != null} onClose={close} maxHeight="80%">

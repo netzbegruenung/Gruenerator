@@ -4,6 +4,8 @@ import { useCallback, useRef, useState } from 'react';
 
 import { MEDIATHEK_QUERY_KEY } from './useMediathek';
 
+import { resumableMediathekUpload } from '@/utils/resumableMediaUpload';
+
 export interface QueuedUpload {
   id: number;
   name: string;
@@ -20,6 +22,7 @@ export function useUploadQueue() {
   const failure = useRef<string | null>(null);
   const queryClient = useQueryClient();
   const { upload, progress } = useMediaUpload({
+    resumableUpload: resumableMediathekUpload,
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: MEDIATHEK_QUERY_KEY }),
     onError: (message) => {
       failure.current = message;

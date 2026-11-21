@@ -1,5 +1,11 @@
-import { CiMemoPad } from 'react-icons/ci';
+import GrueneratorGPTIcon from '../components/common/GrueneratorGPTIcon';
+import GrueneratorHomeIcon from '../components/icons/GrueneratorHomeIcon';
+
+import type { ComponentType } from 'react';
+import type { IconBaseProps } from 'react-icons';
+
 import {
+  CiMemoPad,
   FaInstagram,
   FaFacebook,
   FaTwitter,
@@ -8,10 +14,12 @@ import {
   FaBook,
   FaTiktok,
   FaMagic,
-} from 'react-icons/fa';
-import { FaFileWord } from 'react-icons/fa6';
-import { FiUpload, FiFile, FiX, FiFileText, FiCheck } from 'react-icons/fi';
-import {
+  FaFileWord,
+  FiUpload,
+  FiFile,
+  FiX,
+  FiFileText,
+  FiCheck,
   HiInformationCircle,
   HiOutlineTrash,
   HiRefresh,
@@ -32,15 +40,11 @@ import {
   HiVolumeUp,
   HiVolumeOff,
   HiOutlineDocumentText,
-} from 'react-icons/hi';
-import {
   IoDownloadOutline,
   IoCopyOutline,
   IoShareOutline,
   IoAccessibilityOutline,
   IoAccessibility,
-} from 'react-icons/io5';
-import {
   PiFileText,
   PiNewspaper,
   PiMagicWand,
@@ -78,14 +82,9 @@ import {
   PiPresentation,
   PiImages,
   PiLeaf,
-} from 'react-icons/pi';
-import { RiMagicLine, RiRobot3Line } from 'react-icons/ri';
-
-import GrueneratorGPTIcon from '../components/common/GrueneratorGPTIcon';
-import GrueneratorHomeIcon from '../components/icons/GrueneratorHomeIcon';
-
-import type { ComponentType } from 'react';
-import type { IconBaseProps } from 'react-icons';
+  RiMagicLine,
+  RiRobot3Line,
+} from '@/config/shellIcons.generated';
 
 /**
  * Icon component type used throughout the registry
@@ -136,6 +135,7 @@ export type NavigationIconName =
   | 'suche'
   | 'reel'
   | 'videoEditor'
+  | 'kiSchnitt'
   | 'sharepic'
   | 'datenbank'
   | 'vorlagen'
@@ -266,6 +266,7 @@ export const ICONS: IconRegistry = {
     suche: PiMagnifyingGlass,
     reel: PiVideoCamera,
     videoEditor: PiFilmSlate,
+    kiSchnitt: PiMagicWand,
     sharepic: PiImageSquare,
     datenbank: PiArchive,
     vorlagen: PiPaintBrush,

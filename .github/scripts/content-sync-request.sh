@@ -28,51 +28,57 @@ finish_failed() { # <message> <http-code>
 
 BODY=$(echo "$BODY" | jq -c '. + {background: true}')
 
-echo "POST $CONTENT_SYNC_API_URL/api/internal/content-sync/source/$SOURCE_PATH ($BODY)" >&2
-RESPONSE=$(curl -s -w '\n%{http_code}' -X POST \
-  "$CONTENT_SYNC_API_URL/api/internal/content-sync/source/$SOURCE_PATH" \
-  -H "x-admin-token: $ADMIN_TOKEN" -H "Content-Type: application/json" \
-  -d "$BODY" --max-time "$TIMEOUT")
-HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-RESPONSE_BODY=$(echo "$RESPONSE" | sed '$d')
+# POSTs the sync; on 202 sets JOB_ID/JOB_URL, otherwise finishes the script.
+trigger() {
+  echo "POST $CONTENT_SYNC_API_URL/api/internal/content-sync/source/$SOURCE_PATH ($BODY)" >&2
+  RESPONSE=$(curl -s -w '\n%{http_code}' -X POST \
+    "$CONTENT_SYNC_API_URL/api/internal/content-sync/source/$SOURCE_PATH" \
+    -H "x-admin-token: $ADMIN_TOKEN" -H "Content-Type: application/json" \
+    -d "$BODY" --max-time "$TIMEOUT")
+  HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+  RESPONSE_BODY=$(echo "$RESPONSE" | sed '$d')
 
-if [ "$HTTP_CODE" != "202" ]; then
-  # 409 busy, 5xx — or a backend without background support, which ignores the
-  # flag and answers 200 with the full synchronous result. Pass both through.
-  #
-  # Name that second case out loud. A backend predating #1632 runs the sync
-  # synchronously, so the short hourly runs still come back 200 (looks healthy)
-  # while the nightly full LV walks outlive the proxy's ~5 min ceiling and 504.
-  # That asymmetry is exactly what made #1639 read as a flaky sync for weeks
-  # instead of as a missing production rollout.
-  case "$HTTP_CODE" in
-    200)
-      echo "WARNING: backend answered 200 synchronously and ignored 'background: true'." >&2
-      echo "  It predates #1632 (pollable background jobs). Short runs survive; full" >&2
-      echo "  nightly runs will 504 at the proxy until master is rolled out to prod." >&2
-      ;;
-    504)
-      echo "ERROR: 504 from the reverse proxy on the trigger call itself." >&2
-      echo "  A backend with background support answers 202 immediately, so this means" >&2
-      echo "  'background: true' was ignored and the sync ran synchronously past the" >&2
-      echo "  proxy's ~5 min ceiling. Roll master out to prod (see issue #1639)." >&2
-      ;;
-  esac
-  echo "$RESPONSE_BODY" > "$OUT_FILE"
-  echo "$HTTP_CODE"
-  exit 0
-fi
+  if [ "$HTTP_CODE" != "202" ]; then
+    # 409 busy, 5xx — or a backend without background support, which ignores the
+    # flag and answers 200 with the full synchronous result. Pass both through.
+    #
+    # Name that second case out loud. A backend predating #1632 runs the sync
+    # synchronously, so the short hourly runs still come back 200 (looks healthy)
+    # while the nightly full LV walks outlive the proxy's ~5 min ceiling and 504.
+    # That asymmetry is exactly what made #1639 read as a flaky sync for weeks
+    # instead of as a missing production rollout.
+    case "$HTTP_CODE" in
+      200)
+        echo "WARNING: backend answered 200 synchronously and ignored 'background: true'." >&2
+        echo "  It predates #1632 (pollable background jobs). Short runs survive; full" >&2
+        echo "  nightly runs will 504 at the proxy until master is rolled out to prod." >&2
+        ;;
+      504)
+        echo "ERROR: 504 from the reverse proxy on the trigger call itself." >&2
+        echo "  A backend with background support answers 202 immediately, so this means" >&2
+        echo "  'background: true' was ignored and the sync ran synchronously past the" >&2
+        echo "  proxy's ~5 min ceiling. Roll master out to prod (see issue #1639)." >&2
+        ;;
+    esac
+    echo "$RESPONSE_BODY" > "$OUT_FILE"
+    echo "$HTTP_CODE"
+    exit 0
+  fi
 
-JOB_ID=$(echo "$RESPONSE_BODY" | jq -r '.jobId // empty' 2>/dev/null)
-if [ -z "$JOB_ID" ]; then
-  finish_failed "202 response carried no jobId: $(echo "$RESPONSE_BODY" | head -c 300)" 500
-fi
-JOB_URL="$CONTENT_SYNC_API_URL/api/internal/content-sync/jobs/$JOB_ID"
-echo "Sync accepted as job $JOB_ID — polling (timeout ${TIMEOUT}s)" >&2
+  JOB_ID=$(echo "$RESPONSE_BODY" | jq -r '.jobId // empty' 2>/dev/null)
+  if [ -z "$JOB_ID" ]; then
+    finish_failed "202 response carried no jobId: $(echo "$RESPONSE_BODY" | head -c 300)" 500
+  fi
+  JOB_URL="$CONTENT_SYNC_API_URL/api/internal/content-sync/jobs/$JOB_ID"
+  echo "Sync accepted as job $JOB_ID — polling (timeout ${TIMEOUT}s)" >&2
+}
+
+trigger
 
 DEADLINE=$((SECONDS + TIMEOUT))
 INTERVAL=5
 MISSES=0
+RETRIED=false
 while [ "$SECONDS" -lt "$DEADLINE" ]; do
   POLL=$(curl -s -w '\n%{http_code}' --max-time 60 \
     -H "x-admin-token: $ADMIN_TOKEN" "$JOB_URL" || printf '\n000')
@@ -91,6 +97,15 @@ while [ "$SECONDS" -lt "$DEADLINE" ]; do
   elif [ "$STATUS" = "running" ]; then
     MISSES=0
     echo "Job $JOB_ID still running (${SECONDS}s elapsed)" >&2
+  elif [ "$STATUS" = "failed" ] && [ "$RETRIED" = "false" ] &&
+    [ "$(echo "$POLL_BODY" | jq -r '.result.orphaned // false')" = "true" ]; then
+    # The API restarted mid-run (deploy, reboot): nothing finished the work and
+    # the lock died with the worker, so one fresh trigger is safe (#5717).
+    echo "Job $JOB_ID orphaned: $(echo "$POLL_BODY" | jq -r '.result.error') — re-triggering once" >&2
+    RETRIED=true
+    INTERVAL=5
+    trigger
+    continue
   else
     echo "$POLL_BODY" | jq '.result // {}' > "$OUT_FILE"
     if [ "$STATUS" = "completed" ]; then echo "200"; else echo "500"; fi

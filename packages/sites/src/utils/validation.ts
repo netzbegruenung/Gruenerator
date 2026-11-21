@@ -1,3 +1,5 @@
+import { WEBSITE_DESCRIPTION_MAX, WEBSITE_DESCRIPTION_MIN } from '@gruenerator/contracts';
+
 export const validators = {
   subdomain: (value: string): string | null => {
     if (!value) return 'Subdomain ist erforderlich';
@@ -24,8 +26,9 @@ export const validators = {
 
   description: (value: string): string | null => {
     if (!value) return 'Beschreibung ist erforderlich';
-    if (value.length < 50) return 'Mindestens 50 Zeichen für gute KI-Ergebnisse empfohlen';
-    if (value.length > 5000) return 'Maximal 5000 Zeichen';
+    if (value.length < WEBSITE_DESCRIPTION_MIN)
+      return `Mindestens ${WEBSITE_DESCRIPTION_MIN} Zeichen für gute KI-Ergebnisse empfohlen`;
+    if (value.length > WEBSITE_DESCRIPTION_MAX) return `Maximal ${WEBSITE_DESCRIPTION_MAX} Zeichen`;
     return null;
   },
 

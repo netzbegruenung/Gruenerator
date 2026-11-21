@@ -18,8 +18,6 @@ import {
   altTextResponseSchema,
   slideAltTextBodySchema,
   slideAltTextResponseSchema,
-  websiteGenerateBodySchema,
-  websiteGenerateResponseSchema,
   texteErrorSchema,
 } from '../schemas/texte.js';
 
@@ -60,24 +58,5 @@ export const texteContract = c.router({
       500: texteErrorSchema,
     },
     summary: 'Alt-Texte für die Seiten eines Sharepics erzeugen',
-  },
-
-  /**
-   * POST /api/texte/website
-   * Vollständige Landing-Page-Struktur für den Kandidat*innen-Seitenbauer,
-   * inklusive der vom Bildwähler ergänzten Bild-URLs.
-   */
-  generateWebsiteContent: {
-    method: 'POST',
-    path: '/api/texte/website',
-    body: websiteGenerateBodySchema,
-    responses: {
-      200: websiteGenerateResponseSchema,
-      400: texteErrorSchema,
-      401: texteErrorSchema,
-      403: texteErrorSchema,
-      500: texteErrorSchema,
-    },
-    summary: 'Landing-Page-Inhalte erzeugen',
   },
 });

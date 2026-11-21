@@ -1,115 +1,92 @@
 import { create } from 'zustand';
 
-export type SectionType =
-  'hero' | 'about' | 'heroImage' | 'themes' | 'actions' | 'socialFeed' | 'contact';
+/** A block's form (by block id), or the settings and Impressum outside the page. */
+export type EditorPanel = 'settings' | 'legal' | (string & {});
 
 export interface FocusedField {
-  section: SectionType;
-  field: string;
-  index?: number;
+  panel: EditorPanel;
+  path: string;
 }
 
-export interface HighlightedElement {
-  section: SectionType;
-  field?: string;
-  index?: number;
+/** What the person clicked on the page: a block, and inside it a field and/or a card. */
+export interface EditorSelection {
+  blockId: string;
+  /** Id of the theme card or action tile under the click. */
+  itemId: string | null;
+  /** `data-field` path under the click, null on the block background. */
+  path: string | null;
 }
+
+/** The floating panel next to the page: a section's details or its image. */
+export type ElementPanel = 'details' | 'image';
 
 interface EditorState {
-  activeSection: SectionType | null;
+  selection: EditorSelection | null;
+  /** The panel shown for the selection; null shows only the toolbar. */
+  elementPanel: ElementPanel | null;
+  /** Settings or Impressum dialog. */
+  dialog: 'settings' | 'legal' | null;
+  /** A field to focus once its form is mounted (publish issues jump there). */
   focusedField: FocusedField | null;
-  highlightedElement: HighlightedElement | null;
-  isScrollLocked: boolean;
-  isMobileEditorOpen: boolean;
-  scrollSource: 'preview' | 'sidebar' | null;
-  pendingScrollTo: SectionType | null;
+  highlightedElement: FocusedField | null;
 
-  setActiveSection: (section: SectionType | null) => void;
-  navigateToSection: (section: SectionType) => void;
-  focusField: (section: SectionType, field: string, index?: number) => void;
-  setHighlightedElement: (element: HighlightedElement | null) => void;
+  select: (selection: EditorSelection | null) => void;
+  openElementPanel: (panel: ElementPanel | null) => void;
+  openDialog: (dialog: 'settings' | 'legal' | null) => void;
+  /** Opens the form that holds `path` and focuses the field there. */
+  focusPath: (panel: EditorPanel, path: string) => void;
+  setHighlightedElement: (element: FocusedField | null) => void;
   clearFocus: () => void;
-  setScrollLocked: (locked: boolean) => void;
-  setScrollSource: (source: 'preview' | 'sidebar' | null) => void;
-  clearPendingScroll: () => void;
-  toggleMobileEditor: () => void;
-  setMobileEditorOpen: (open: boolean) => void;
 }
 
+const ITEM_ID = /^blocks\.[^.]+\.items\.([^.]+)\./;
+const itemIdOf = (path: string): string | null => ITEM_ID.exec(path)?.[1] ?? null;
+
+const sameSelection = (a: EditorSelection | null, b: EditorSelection | null): boolean =>
+  a === b ||
+  (a !== null &&
+    b !== null &&
+    a.blockId === b.blockId &&
+    a.path === b.path &&
+    a.itemId === b.itemId);
+
 export const useEditorStore = create<EditorState>((set) => ({
-  activeSection: 'hero',
+  selection: null,
+  elementPanel: null,
+  dialog: null,
   focusedField: null,
   highlightedElement: null,
-  isScrollLocked: false,
-  isMobileEditorOpen: false,
-  scrollSource: null,
-  pendingScrollTo: null,
 
-  setActiveSection: (section) => set({ activeSection: section }),
-
-  navigateToSection: (section) =>
-    set({
-      activeSection: section,
-      pendingScrollTo: section,
-      scrollSource: 'sidebar',
+  select: (selection) =>
+    set((state) => {
+      if (sameSelection(state.selection, selection)) return state;
+      // A panel belongs to the block it was opened for.
+      const keepPanel = selection !== null && state.selection?.blockId === selection.blockId;
+      return { selection, elementPanel: keepPanel ? state.elementPanel : null };
     }),
 
-  focusField: (section, field, index) =>
-    set({
-      activeSection: section,
-      focusedField: { section, field, index },
-      highlightedElement: { section, field, index },
-      isMobileEditorOpen: true,
-    }),
+  openElementPanel: (elementPanel) => set({ elementPanel }),
+
+  openDialog: (dialog) => set({ dialog }),
+
+  focusPath: (panel, path) =>
+    set(
+      panel === 'settings' || panel === 'legal'
+        ? {
+            dialog: panel === 'settings' ? 'settings' : 'legal',
+            focusedField: { panel, path },
+            highlightedElement: { panel, path },
+          }
+        : {
+            selection: { blockId: panel, itemId: itemIdOf(path), path },
+            elementPanel: 'details',
+            dialog: null,
+            focusedField: { panel, path },
+            highlightedElement: { panel, path },
+          }
+    ),
 
   setHighlightedElement: (element) => set({ highlightedElement: element }),
 
-  clearFocus: () =>
-    set({
-      focusedField: null,
-      highlightedElement: null,
-    }),
-
-  setScrollLocked: (locked) => set({ isScrollLocked: locked }),
-
-  setScrollSource: (source) => set({ scrollSource: source }),
-
-  clearPendingScroll: () => set({ pendingScrollTo: null }),
-
-  toggleMobileEditor: () =>
-    set((state) => ({
-      isMobileEditorOpen: !state.isMobileEditorOpen,
-    })),
-
-  setMobileEditorOpen: (open) => set({ isMobileEditorOpen: open }),
+  clearFocus: () => set({ focusedField: null, highlightedElement: null }),
 }));
-
-export const SECTION_ORDER: SectionType[] = [
-  'hero',
-  'about',
-  'heroImage',
-  'themes',
-  'actions',
-  'socialFeed',
-  'contact',
-];
-
-export const SECTION_LABELS: Record<SectionType, string> = {
-  hero: 'Profil',
-  about: 'Über mich',
-  heroImage: 'Hero-Bild',
-  themes: 'Themen',
-  actions: 'Aktionen',
-  socialFeed: 'Instagram',
-  contact: 'Kontakt',
-};
-
-export const SECTION_ICONS: Record<SectionType, string> = {
-  hero: 'person',
-  about: 'info',
-  heroImage: 'image',
-  themes: 'category',
-  actions: 'bolt',
-  socialFeed: 'camera_alt',
-  contact: 'mail',
-};

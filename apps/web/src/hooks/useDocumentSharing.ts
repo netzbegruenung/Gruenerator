@@ -1,5 +1,7 @@
 import { useCollabDocSharing, type CollabShareApiClient } from '@gruenerator/docs';
+import { ApiError } from '@gruenerator/shared/api';
 import { type QueryKey } from '@tanstack/react-query';
+import axios from 'axios';
 
 import apiClient from '../components/utils/apiClient';
 
@@ -10,12 +12,32 @@ export type {
   SharingGroupShare,
 } from '@gruenerator/docs';
 
+/**
+ * Axios-Fehler wie der Docs-Client als `ApiError` mit Status und dem Satz des
+ * Servers — sonst zeigte der Teilen-Dialog „Request failed with status code 403“.
+ */
+async function call<T>(request: () => Promise<{ data: T }>): Promise<T> {
+  try {
+    return (await request()).data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      const body = error.response.data as { error?: unknown; message?: unknown } | undefined;
+      const text = body?.error ?? body?.message;
+      throw new ApiError(
+        error.response.status,
+        typeof text === 'string' && text ? text : error.message
+      );
+    }
+    throw error;
+  }
+}
+
 /** Adapts the apps/web axios client to the minimal client the shared hook needs. */
 const collabShareClient: CollabShareApiClient = {
-  get: async <T>(url: string) => (await apiClient.get<T>(url)).data,
-  post: async <T>(url: string, data?: unknown) => (await apiClient.post<T>(url, data)).data,
-  put: async <T>(url: string, data?: unknown) => (await apiClient.put<T>(url, data)).data,
-  delete: async <T>(url: string) => (await apiClient.delete<T>(url)).data,
+  get: <T>(url: string) => call(() => apiClient.get<T>(url)),
+  post: <T>(url: string, data?: unknown) => call(() => apiClient.post<T>(url, data)),
+  put: <T>(url: string, data?: unknown) => call(() => apiClient.put<T>(url, data)),
+  delete: <T>(url: string) => call(() => apiClient.delete<T>(url)),
 };
 
 interface UseDocumentSharingOptions {

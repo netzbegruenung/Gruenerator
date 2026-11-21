@@ -27,8 +27,8 @@ import {
   type ToolMeta,
 } from './toolResults';
 
-import type { KeyValueEntry, ToolResultVM, ToolViewKind } from './toolViewModels';
 import type { SerializableCitation } from '../components/tool-ui/citation/schema';
+import type { KeyValueEntry, ToolResultVM, ToolViewKind } from './toolViewModels';
 
 export const UI_TOOL_NAMES = z.enum([
   'gruenerator_search',
@@ -79,6 +79,7 @@ export const UI_TOOL_NAMES = z.enum([
   'fill_pdf_form',
   'reisekosten_abrechnung',
   'cloud_files',
+  'atlassian',
   'text_uebersetzen',
   'recurring_tasks',
   'user_agents',
@@ -121,6 +122,21 @@ export const UI_TOOL_NAMES = z.enum([
   'website_werkzeug_laden',
   // Lader der Parlamentsgruppe (parlament_lesen, bundestag_reden, …).
   'parlament_werkzeuge_laden',
+  // `@antragsgruennrw` und der Lader seiner Gruppe.
+  'antragsgruen',
+  'antragsgruen_lesen',
+  'antragsgruen_auswerten',
+  'antragsgruen_werkzeuge_laden',
+  'antragsgruen_seite_anlegen',
+  'antragsgruen_antrag_stellen',
+  'antragsgruen_tagesordnung',
+  'antragsgruen_seite_lesen',
+  // nuudel-Umfragen und der Lader ihrer Gruppe.
+  'nuudel_werkzeuge_laden',
+  'nuudel_umfrage_anlegen',
+  'nuudel_umfrage_lesen',
+  'nuudel_umfrage_bearbeiten',
+  'nuudel_umfrage_loeschen',
 ]);
 export type UiToolName = z.infer<typeof UI_TOOL_NAMES>;
 
@@ -990,6 +1006,46 @@ function parseCloudFilesVM(args: unknown, result: unknown): ToolResultVM {
   return parseGenericFallback(args, result);
 }
 
+// atlassian: Listen (`issues`, `pages`, `projects`, `spaces`, `sites`) werden zu
+// Zeilen, ein gelesener Vorgang/eine Seite zu einer Notiz; Fehler stehen in `error`.
+function parseAtlassianVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+
+  const rows: KeyValueEntry[] = [];
+  for (const raw of getArray(result, 'issues') ?? []) {
+    rows.push({
+      label: getString(raw, 'key') ?? '—',
+      value: [getString(raw, 'summary'), getString(raw, 'status')].filter(Boolean).join(' · '),
+    });
+  }
+  for (const raw of getArray(result, 'pages') ?? []) {
+    rows.push({ label: getString(raw, 'title') ?? '—', value: getString(raw, 'excerpt') ?? '' });
+  }
+  for (const key of ['projects', 'spaces'] as const) {
+    for (const raw of getArray(result, key) ?? []) {
+      rows.push({ label: getString(raw, 'key') ?? '—', value: getString(raw, 'name') ?? '' });
+    }
+  }
+  for (const raw of getArray(result, 'sites') ?? []) {
+    rows.push({ label: getString(raw, 'name') ?? '—', value: getString(raw, 'url') ?? '' });
+  }
+  const note = getString(result, 'note');
+  if (rows.length > 0) {
+    if (note) rows.push({ label: 'Hinweis', value: note });
+    return { kind: 'key-value', entries: rows, citations: [], markdown: null, imageUrl: null };
+  }
+
+  const title = getString(result, 'summary') ?? getString(result, 'title');
+  if (title) {
+    const head = getString(result, 'key') ? `${getString(result, 'key')}: ${title}` : title;
+    return { kind: 'text-note', text: note ? `${head} · ${note}` : head };
+  }
+  const hinweis = getString(result, 'hinweis') ?? note;
+  if (hinweis) return { kind: 'text-note', text: hinweis };
+  return parseGenericFallback(args, result);
+}
+
 const DIP_SEARCH_URL = 'https://dip.bundestag.de/suche?term=';
 
 function isoToDe(iso: string): string {
@@ -1315,6 +1371,7 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
     text: getString(r, 'error') ?? getString(r, 'zusammenfassung') ?? '',
   })),
   cloud_files: entry('cloud_files', 'key-value', parseCloudFilesVM),
+  atlassian: entry('atlassian', 'key-value', parseAtlassianVM),
   text_uebersetzen: entry('text_uebersetzen', 'text-note', parseTranslationVM),
   recurring_tasks: entry('recurring_tasks', 'citations', parseRecurringTasksVM),
   user_agents: entry('user_agents', 'citations', parseUserAgentsVM),
@@ -1368,6 +1425,76 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   parlament_werkzeuge_laden: entry('parlament_werkzeuge_laden', 'text-note', () => ({
     kind: 'text-note',
     text: 'Parlamentswerkzeuge freigeschaltet',
+  })),
+  // Loop-Ergebnisse sind schlank ({ resultCount, sources }); die Zitate stehen unter der Antwort.
+  antragsgruen: entry('antragsgruen', 'citations', (_a, r) => ({
+    kind: 'citations',
+    citations: parseSearchCitations(r),
+  })),
+  antragsgruen_lesen: entry('antragsgruen_lesen', 'citations', (_a, r) => ({
+    kind: 'citations',
+    citations: parseSearchCitations(r),
+  })),
+  antragsgruen_auswerten: entry('antragsgruen_auswerten', 'citations', (_a, r) => ({
+    kind: 'citations',
+    citations: parseSearchCitations(r),
+  })),
+  // Nur Prüfung und Karte; angelegt wird erst nach der Bestätigung.
+  antragsgruen_seite_anlegen: entry('antragsgruen_seite_anlegen', 'text-note', (_a, r) => ({
+    kind: 'text-note',
+    text: getString(r, 'error') ?? 'Bestätigung angefordert',
+  })),
+  antragsgruen_tagesordnung: entry('antragsgruen_tagesordnung', 'text-note', (_a, r) => ({
+    kind: 'text-note',
+    text:
+      getString(r, 'error') ??
+      (getString(r, 'note') ? 'Bestätigung angefordert' : 'Tagesordnung gelesen'),
+  })),
+  antragsgruen_antrag_stellen: entry('antragsgruen_antrag_stellen', 'text-note', (_a, r) => ({
+    kind: 'text-note',
+    text: getString(r, 'error') ?? 'Bestätigung angefordert',
+  })),
+  antragsgruen_seite_lesen: entry('antragsgruen_seite_lesen', 'text-note', (_a, r) => ({
+    kind: 'text-note',
+    text:
+      getString(r, 'error') ??
+      (getString(r, 'titel') ? `Antrag „${getString(r, 'titel')}" gelesen` : 'Anträge gelesen'),
+  })),
+  antragsgruen_werkzeuge_laden: entry('antragsgruen_werkzeuge_laden', 'text-note', () => ({
+    kind: 'text-note',
+    text: 'Antragsgrün-Werkzeuge freigeschaltet',
+  })),
+  nuudel_werkzeuge_laden: entry('nuudel_werkzeuge_laden', 'text-note', () => ({
+    kind: 'text-note',
+    text: 'nuudel-Werkzeuge freigeschaltet',
+  })),
+  nuudel_umfrage_anlegen: entry('nuudel_umfrage_anlegen', 'text-note', (_a, r) => ({
+    kind: 'text-note',
+    text:
+      getString(r, 'error') ??
+      (getString(r, 'teilnahme_link')
+        ? `Umfrage „${getString(r, 'titel') ?? ''}" angelegt: ${getString(r, 'teilnahme_link')}`
+        : 'Umfrage angelegt'),
+  })),
+  nuudel_umfrage_lesen: entry('nuudel_umfrage_lesen', 'text-note', (_a, r) => ({
+    kind: 'text-note',
+    text:
+      getString(r, 'error') ??
+      (getString(r, 'titel')
+        ? `Ergebnis von „${getString(r, 'titel')}" gelesen`
+        : 'Umfrage gelesen'),
+  })),
+  nuudel_umfrage_bearbeiten: entry('nuudel_umfrage_bearbeiten', 'text-note', (_a, r) => ({
+    kind: 'text-note',
+    text:
+      getString(r, 'error') ??
+      (getString(r, 'titel') ? `Umfrage „${getString(r, 'titel')}" geändert` : 'Umfrage geändert'),
+  })),
+  nuudel_umfrage_loeschen: entry('nuudel_umfrage_loeschen', 'text-note', (_a, r) => ({
+    kind: 'text-note',
+    text:
+      getString(r, 'error') ??
+      (getString(r, 'titel') ? `Umfrage „${getString(r, 'titel')}" gelöscht` : 'Umfrage gelöscht'),
   })),
 };
 

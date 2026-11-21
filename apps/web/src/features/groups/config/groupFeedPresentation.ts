@@ -7,9 +7,11 @@ import {
   PiFileText,
   PiNotebook,
   PiImage,
+  PiPresentation,
   PiRobot,
   PiSparkle,
   PiSquaresFour,
+  PiTable,
   PiTextAa,
 } from 'react-icons/pi';
 
@@ -20,6 +22,8 @@ export const FEED_KIND_ICONS: Record<GroupFeedKind, IconType> = {
   'sharepic-template': PiImage,
   sharepic: PiImage,
   doc: PiFileText,
+  sheet: PiTable,
+  pres: PiPresentation,
   board: PiSquaresFour,
   generator: PiSparkle,
   agent: PiRobot,
@@ -39,6 +43,8 @@ export function feedItemHref(item: GroupFeedItem): string | null {
     case 'sharepic':
       return `/studio/canvas/${item.id}`;
     case 'doc':
+    case 'sheet':
+    case 'pres':
       return `/office/${item.id}`;
     case 'board':
       return `/boards/${item.id}`;

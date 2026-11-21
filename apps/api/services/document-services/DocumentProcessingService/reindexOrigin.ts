@@ -17,6 +17,8 @@ import fs from 'fs';
 
 import { resolveDocumentUploadFormat } from '@gruenerator/contracts';
 
+import { DocumentReadError } from './processingError.js';
+
 import type { UploadedFile } from './types.js';
 
 export interface WolkeOrigin {
@@ -97,7 +99,7 @@ export async function fetchOriginal(
   const links = await NextcloudShareManager.getShareLinks(ownerUserId);
   const link = links.find((l) => l.id === origin.shareLinkId);
   if (!link || !link.is_active) {
-    throw new Error('Die Wolke-Freigabe ist nicht mehr verfügbar.');
+    throw new DocumentReadError('Die Wolke-Freigabe ist nicht mehr verfügbar.');
   }
   const client = await NextcloudApiClient.create(link.share_link);
   const download = await client.downloadFile(origin.filePath);

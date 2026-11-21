@@ -79,10 +79,12 @@ export interface ThreadAttachment {
   summary: string | null;
   /** Ob für diesen Anhang die ORIGINALBYTES in `file_data` liegen. Nur dann kann
    *  ein späterer Turn die Datei selbst wieder anfassen (Tabellen-Reload,
-   *  `fill_pdf_form`) — geschrieben wird die Spalte nur für tabellarische
-   *  Anhänge und für PDFs, die `isFillablePdf` als Formular erkannt hat
-   *  (attachmentProcessingService). Ein PDF ohne Bytes ist damit ein PDF, von
-   *  dem beim Upload feststand, dass es kein ausfüllbares Formular ist. */
+   *  `fill_pdf_form`, ein Foto für `bild_ansehen`/`edit_image`) — geschrieben
+   *  wird die Spalte für tabellarische Anhänge, für Fotos bis 8 MB und für PDFs,
+   *  die `isFillablePdf` als Formular erkannt hat (attachmentProcessingService).
+   *  Ein PDF ohne Bytes ist damit ein PDF, von dem beim Upload feststand, dass
+   *  es kein ausfüllbares Formular ist; ein Foto ohne Bytes war zu groß oder
+   *  stammt von vor dem 20.11.2026. */
   hasFileData: boolean;
   createdAt: Date;
 }
@@ -414,24 +416,24 @@ export async function embedThreadAttachmentForRag(params: {
 /**
  * Load the raw bytes of a thread's tabular attachments (CSV/Excel/ODS) so the
  * frontend can rehydrate the in-browser pandas interpreter after a reload.
- * Ownership is enforced by user_id.
+ * Returns every member's files of the thread (team chats); the caller checks
+ * thread access.
  *
  * `file_data` is NOT tabular-only any more — fillable PDFs are stored in the
  * same column for fill_pdf_form. Without the mimeType filter below they would
  * be staged into the Pyodide FS and fed to pandas.
  */
 export async function getThreadTabularFiles(
-  threadId: string,
-  userId: string
+  threadId: string
 ): Promise<Array<{ name: string; mimeType: string; data: string }>> {
   const postgres = getPostgresInstance();
 
   const result = await postgres.query(
     `SELECT name, mime_type, file_data
      FROM chat_thread_attachments
-     WHERE thread_id = $1 AND user_id = $2 AND file_data IS NOT NULL
+     WHERE thread_id = $1 AND file_data IS NOT NULL
      ORDER BY created_at ASC`,
-    [threadId, userId]
+    [threadId]
   );
 
   return result
@@ -468,6 +470,34 @@ export async function getThreadPdfFiles(
     name: row.name as string,
     data: row.file_data as string,
   }));
+}
+
+/**
+ * The stored bytes of one photo from an earlier turn of this thread, for
+ * `bild_ansehen` / `edit_image`. Scoped by thread AND owner like
+ * `getThreadPdfFiles`: the id comes from this thread's own attachment list,
+ * but a lookup by id alone would read any thread's photo.
+ */
+export async function getThreadImageData(
+  threadId: string,
+  userId: string,
+  attachmentId: string
+): Promise<{ name: string; mimeType: string; data: string } | null> {
+  const postgres = getPostgresInstance();
+  const result = await postgres.query(
+    `SELECT name, mime_type, file_data
+     FROM chat_thread_attachments
+     WHERE id = $1 AND thread_id = $2 AND user_id = $3
+       AND is_image = true AND file_data IS NOT NULL`,
+    [attachmentId, threadId, userId]
+  );
+  const row = result[0];
+  if (!row) return null;
+  return {
+    name: row.name as string,
+    mimeType: row.mime_type as string,
+    data: row.file_data as string,
+  };
 }
 
 /** One embedded (RAG) attachment's Qdrant vector set: its document id and owner. */

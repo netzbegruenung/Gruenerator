@@ -81,6 +81,7 @@ import {
   withResearchedSources,
   type SourceRegistry,
 } from '../services/agenticLoop/sourceRegistry.js';
+import { DEFAULT_LOOP_BUDGET, TOOL_TIMEOUT_OVERRIDES_MS } from '../services/agenticLoop/types.js';
 import {
   explainableRefusalText,
   runExplainableGeneration,
@@ -99,7 +100,6 @@ import {
   runSharepicGeneration,
 } from '../services/intentExecutionService.js';
 import { loadLastGeneratedImage } from '../services/lastGeneratedImage.js';
-import { DEFAULT_LOOP_BUDGET, TOOL_TIMEOUT_OVERRIDES_MS } from '../services/agenticLoop/types.js';
 import { lastUserText } from '../services/messageHelpers.js';
 import { buildPdfEditBrief, loadLastPdfSpec } from '../services/pdfEditContext.js';
 import { berichtFuerKi } from '../services/sharepicBericht.js';
@@ -1381,7 +1381,7 @@ export function makeEditImageTool(ctx: {
   sse: SSEWriter;
   state: ChatGraphState;
   threadId: string | null;
-  /** Die Bilder dieses Turns (Anhänge, Wolke); `bild` adressiert sie per Nummer. */
+  /** Die Bilder dieses Turns (Anhänge, Wolke, frühere Fotos des Threads); `bild` adressiert sie per Nummer. */
   turnImages?: readonly TurnImage[];
   /** Ohne `bild` das zuletzt erzeugte Bild bearbeiten — nur dann sinnvoll. */
   lastImageDefault?: boolean;
@@ -1390,7 +1390,7 @@ export function makeEditImageTool(ctx: {
   const turnImages = ctx.turnImages ?? [];
   const lastImageDefault = ctx.lastImageDefault ?? true;
   return tool({
-    description: `Verändert ein Bild (KI-Bildbearbeitung, Bild-zu-Bild): ohne \`bild\` das Bild, das in diesem Gespräch zuletzt erzeugt wurde, mit \`bild\` ein Foto dieses Turns (angehängt oder aus der Wolke, Nummern wie im Systemprompt).
+    description: `Verändert ein Bild (KI-Bildbearbeitung, Bild-zu-Bild): ohne \`bild\` das Bild, das in diesem Gespräch zuletzt erzeugt wurde, mit \`bild\` ein Foto aus der Bildliste im Systemprompt (angehängt, aus der Wolke oder aus einer früheren Nachricht, Nummern wie dort).
 
 NUTZE WENN der*die Nutzer*in an DIESEM Bild etwas geändert haben möchte ("passe die Grafik an", "die Mühle an den Rand", "mach den Himmel dunkler", "noch einmal, aber mit Schnee"). Übergib die gewünschte Änderung als knappe deutsche Anweisung.
 Eigenes Foto + "erstelle ein Bild von mir, wie ich X mache" / "setz mich auf …": edit_image mit \`bild\` = Nummer des Fotos, \`anweisung\` = die Szene — nur so bleibt die Person erkennbar. Ein neues Motiv ohne Foto einer Person: generate_image, nicht dieses Werkzeug. Nicht für Fragen zum Bild.${lastImageDefault ? '' : '\nOhne `bild` gibt es in diesem Turn nichts zu bearbeiten: gib immer `bild` an.'}`,
@@ -1403,7 +1403,7 @@ Eigenes Foto + "erstelle ein Bild von mir, wie ich X mache" / "setz mich auf …
         .max(Math.max(turnImages.length, 1))
         .optional()
         .describe(
-          'Nummer eines Fotos dieses Turns als Vorlage; weglassen = zuletzt erzeugtes Bild'
+          'Nummer eines Fotos aus der Bildliste als Vorlage; weglassen = zuletzt erzeugtes Bild'
         ),
     }),
     execute: async ({ anweisung, bild }) => {

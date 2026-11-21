@@ -65,7 +65,13 @@
       "project": ["src/**/*.{ts,tsx}"]
     },
     "packages/sites-design": {
-      "entry": ["src/index.ts"],
+      "entry": [
+        "src/index.ts",
+        "src/server.ts",
+        "src/client/siteConsent.ts",
+        "scripts/*.tsx",
+        "src/**/*.vitest.{ts,tsx}"
+      ],
       "project": ["src/**/*.{ts,tsx}"]
     },
     "packages/eslint-config": {
@@ -77,8 +83,8 @@
       "project": ["src/**/*.{ts,tsx}"]
     }
   },
-  "ignoreDependencies": ["@semantic-release/*", "cross-env", "@gruenerator/*"],
-  "ignoreWorkspaces": ["apps/desktop", "apps/wordpress"],
+  "ignoreDependencies": ["cross-env", "@gruenerator/*"],
+  "ignoreWorkspaces": ["apps/desktop"],
   "rules": {
     "binaries": "off"
   }

@@ -36,6 +36,7 @@ import { createLogger } from '../../utils/logger.js';
 import { getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
 
 import { dryRunCapableSources, supportsDryRun } from './contentSyncDryRun.js';
+import { JOB_HEARTBEAT_INTERVAL_MS, orphanedJobView } from './contentSyncJobHeartbeat.js';
 
 import type { Application } from 'express';
 
@@ -248,22 +249,6 @@ async function loadSource(sourceId: ContentSyncSource): Promise<SourceConfig> {
       };
       break;
     }
-    case 'bundestag-dip': {
-      const { getBundestagDipScraperService } =
-        await import('../../services/scrapers/implementations/BundestagDipScraper/index.js');
-      const service = getBundestagDipScraperService();
-      config = {
-        name: 'Bundestag DIP (Reden + Drucksachen)',
-        // Inkrementell dauert Minuten. --force lädt alle Volltexte dreier
-        // Wahlperioden und schafft das in diesem Rahmen nicht — der Grundbestand
-        // kommt aus scripts/import-bundestag-wrapped.ts.
-        timeoutMs: 110 * 60 * 1000,
-        init: () => service.init(),
-        run: (opts) =>
-          service.scrapeAllSources({ forceUpdate: opts.forceUpdate, dryRun: opts.dryRun }),
-      };
-      break;
-    }
     case 'landtag-nrw': {
       const { getLandtagNrwScraper } =
         await import('../../services/scrapers/implementations/LandtagNrwScraper/index.js');
@@ -337,6 +322,34 @@ async function loadSource(sourceId: ContentSyncSource): Promise<SourceConfig> {
           return {
             stored: result.stored,
             updated: 0,
+            skipped: result.skipped,
+            errors: result.failed,
+            errorSamples: result.errors.slice(0, 20),
+          };
+        },
+      };
+      break;
+    }
+    case 'parteitage': {
+      const { getParteitageScraper } =
+        await import('../../services/scrapers/implementations/ParteitageScraper/index.js');
+      const service = getParteitageScraper();
+      config = {
+        name: 'Parteitage (Antragsgrün)',
+        // Die Erstbefüllung (rund 3.800 Dokumente für NRW) braucht mehr als
+        // einen Lauf: `stopAt` beendet ihn vor dem Timeout, der nächste macht
+        // bei den noch fehlenden Dokumenten weiter.
+        timeoutMs: 50 * 60 * 1000,
+        init: () => service.init(),
+        run: async (opts) => {
+          const result = await service.run({
+            force: opts.forceUpdate,
+            dryRun: opts.dryRun,
+            stopAt: Date.now() + 40 * 60 * 1000,
+          });
+          return {
+            stored: result.stored,
+            updated: result.updated,
             skipped: result.skipped,
             errors: result.failed,
             errorSamples: result.errors.slice(0, 20),
@@ -715,8 +728,22 @@ export const contentSyncContractRouter = s.router(contentSyncContract, {
         };
       }
 
+      // Await the last beat before the final write, or a beat still in
+      // flight could land after it and flip `completed` back to `running`.
+      let lastBeat: Promise<void> = Promise.resolve();
+      const heartbeat = setInterval(() => {
+        lastBeat = setCachedJson(
+          jobKey(jobId),
+          { jobId, sourceId, status: 'running', startedAt, heartbeatAt: new Date().toISOString() },
+          JOB_TTL_SECONDS
+        );
+      }, JOB_HEARTBEAT_INTERVAL_MS);
+      heartbeat.unref();
+
       void executeSyncRun(sourceId, lockKey, opts, landesverband, runUrl, fallbackEmail)
         .then(async (outcome) => {
+          clearInterval(heartbeat);
+          await lastBeat;
           const persisted = await persistJobStatus({
             jobId,
             sourceId,
@@ -729,6 +756,7 @@ export const contentSyncContractRouter = s.router(contentSyncContract, {
           }
         })
         .catch((error) => {
+          clearInterval(heartbeat);
           log.error(`Background sync job ${jobId} crashed: ${toError(error).message}`);
         });
 
@@ -743,7 +771,7 @@ export const contentSyncContractRouter = s.router(contentSyncContract, {
     if (!job) {
       return { status: 404 as const, body: { error: `Unknown or expired job: ${params.jobId}` } };
     }
-    return { status: 200 as const, body: job };
+    return { status: 200 as const, body: orphanedJobView(job, Date.now()) ?? job };
   },
 
   listSources: async () => {

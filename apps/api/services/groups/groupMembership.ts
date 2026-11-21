@@ -80,6 +80,8 @@ export interface ShareTargetGroup {
   id: string;
   name: string;
   role: string;
+  /** Team-Projekt (weder persönlich noch System): Docs gehen dort mit Schreibrecht hinein. */
+  team: boolean;
 }
 
 /**
@@ -90,15 +92,22 @@ export interface ShareTargetGroup {
 export async function listShareTargetGroups(userId: string): Promise<ShareTargetGroup[]> {
   const postgres = getPostgresInstance();
   const rows = (await postgres.query(
-    `SELECT g.id, g.name, gm.role, g.is_system
+    `SELECT g.id, g.name, gm.role, g.is_system, g.group_type
        FROM groups g
        INNER JOIN group_memberships gm ON gm.group_id = g.id
       WHERE gm.user_id = $1 AND gm.is_active = TRUE AND g.deleted_at IS NULL
       ORDER BY g.name ASC`,
     [userId]
-  )) as Array<ShareTargetGroup & { is_system: boolean | null }>;
+  )) as Array<
+    Omit<ShareTargetGroup, 'team'> & { is_system: boolean | null; group_type: string | null }
+  >;
   const canShareToSystem = rows.some((r) => r.is_system) && (await isInstanceAdmin(userId));
   return rows
     .filter((r) => !r.is_system || canShareToSystem)
-    .map((r) => ({ id: String(r.id), name: String(r.name), role: String(r.role ?? 'member') }));
+    .map((r) => ({
+      id: String(r.id),
+      name: String(r.name),
+      role: String(r.role ?? 'member'),
+      team: !r.is_system && (r.group_type ?? 'standard') !== 'personal',
+    }));
 }

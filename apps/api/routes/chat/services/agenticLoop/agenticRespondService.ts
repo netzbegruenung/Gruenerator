@@ -20,7 +20,11 @@ import { promptCacheKeyForThread } from '../../../../services/ai/promptCacheKey.
 import { buildGlossaryVocabularyNote } from '../../../../services/chat/productGlossary.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { type McpCatalog } from '../../agents/mcpCatalog.js';
-import { boundSystemNotebook, notebookForPrompt } from '../../agents/notebookSourceTools.js';
+import {
+  boundSystemNotebook,
+  boundUserNotebook,
+  notebookForPrompt,
+} from '../../agents/notebookSourceTools.js';
 import { renderRecipeCatalog } from '../../agents/recipeCatalog.js';
 import { imageDeliveryNote } from '../../agents/searchImageHarvest.js';
 import { offerNote } from '../artifactOffer.js';
@@ -44,7 +48,6 @@ import {
   turnProducedArtifact,
 } from './artifactNotes.js';
 import { createAskHumanGate, type AskHumanGate } from './askHumanGate.js';
-import { resolveTurnMaterial } from './attachedDocuments.js';
 import {
   assembleToolCatalog,
   buildToolReplay,
@@ -56,21 +59,25 @@ import {
 import { createClientToolGate, type ClientToolGate } from './clientToolGate.js';
 import { LOOP_CLIENT_TOOLS } from './clientToolRegistry.js';
 import { editedArtifactKinds, guardedArtifactKinds } from './editedArtifacts.js';
-import { decideFirstStep, isMcpCapabilityQuestion } from './forceFirstToolCall.js';
 import { createTurnClocks, resolveBudget } from './loopBudget.js';
 import { runAgenticLoop, TurnSuspendedError, type AnswerReplacement } from './loopEngine.js';
 import { createEnsureOwedTools, runOrderedArtifact } from './loopGuarantees.js';
 import { MAX_SOURCES } from './loopGuards.js';
 import { resolveLoopLanes } from './loopLanes.js';
 import { createAnswerEmitter } from './loopSse.js';
-import { materialDominatesTurn } from './materialDominance.js';
 import { buildToolObservationReplay, spliceToolReplay } from './mcpReplay.js';
 import { buildUncoveredTermNote } from './questionTermCoverage.js';
 import { type RecipeRegistry } from './recipeRegistry.js';
 import { createRerankDegradedHook } from './rerankWarning.js';
 import { isPureArtifactOrder, rewritesSuppliedText } from './routing.js';
 import { createSourceRegistry } from './sourceRegistry.js';
-import { buildConnectorNotes, buildRepairSystem, type SynthPromptContext } from './synthPrompt.js';
+import {
+  buildConnectorNotes,
+  buildPinnedToolNote,
+  buildRepairSystem,
+  isMcpCapabilityQuestion,
+  type SynthPromptContext,
+} from './synthPrompt.js';
 import { createAnswerValidator, finalizeAnswerText, pdfProblemNote } from './synthVerdicts.js';
 import { createToolActivity } from './toolActivity.js';
 import { createToolApprovalGate, type ToolApprovalGate } from './toolApprovalGate.js';
@@ -79,7 +86,7 @@ import { createToolCostLedger } from './toolCostLedger.js';
 import { toolResultBudget } from './toolResultBudgets.js';
 import { type ToolScope } from './toolScope.js';
 import { buildToolUsageBlock, NOTEBOOK_BARE_TOPIC_NOTE } from './toolUsageBlock.js';
-import { logTurnSummary, type ForceScopeSummary } from './turnSummary.js';
+import { logTurnSummary } from './turnSummary.js';
 import {
   type PendingAskRequest,
   type PendingClientToolRequest,
@@ -246,6 +253,12 @@ export async function streamAgenticResponse(
   let resolution: Awaited<ReturnType<typeof resolveModel>> | null = null;
   let mcpCatalog: McpCatalog | null = null;
   let toolReplayMessages: ModelMessage[] = [];
+  // Die Schritte DIESES Zugs vor der Pause (Freigabe-Fortsetzung). Sie liefen
+  // nach der letzten Nutzernachricht und stehen deshalb dahinter, nicht wie
+  // die Beobachtungen früherer Turns davor (`spliceToolReplay`). Davor gesetzt
+  // las das Modell live (19.11.2026) zuletzt wieder den Auftrag „Mach ein
+  // Doodle …" und plante nach „Ablehnen" das Anlegen von vorn.
+  let resumeReplayMessages: ModelMessage[] = [];
   let synthName = '';
   // Außerhalb des try, damit die Attribution nach dem Loop noch erreichbar ist
   // — auch wenn der Loop selbst abgebrochen wurde (das Rezept war dann
@@ -267,9 +280,6 @@ export async function streamAgenticResponse(
   // Wie das Freigabe-Gate: der Abbruchpfad und der Rückgabewert lesen es.
   let askGate: AskHumanGate | null = null;
   let clientToolGate: ClientToolGate | null = null;
-  // Außerhalb des try, aus demselben Grund wie `answerReplaced`: die
-  // Zusammenfassung nennt den Zuschnitt des erzwungenen ersten Schritts.
-  let forceScope: ForceScopeSummary | null = null;
 
   // Computed BEFORE the model is resolved: the same number decides the lane
   // (precise + reasoning on) and, further down, whether the writer gives up the
@@ -358,7 +368,6 @@ export async function streamAgenticResponse(
     // Nach der Rehydrierung, damit die Anhänge dieses Turns hinter der
     // mitgeführten Recherche numeriert werden und deren Zitatnummern stabil
     // bleiben.
-    const material = resolveTurnMaterial(finalState);
     const seeded = await seedTurnMaterial({
       state: finalState,
       sourceRegistry,
@@ -395,6 +404,9 @@ export async function streamAgenticResponse(
       },
       serverNameFor: (name) => toolLabels.get(name)?.serverName,
       ...(grantedOnce ? { grantedOnce } : {}),
+      ...(resumeApproval?.denied.length
+        ? { deniedOnce: new Set(resumeApproval.denied.map((d) => d.call.scopeKey)) }
+        : {}),
     });
     askGate = createAskHumanGate();
     clientToolGate = createClientToolGate(async (call) => {
@@ -449,9 +461,14 @@ export async function streamAgenticResponse(
         }
       }
       for (const { call, reason } of resumeApproval.denied) {
+        // Der Zusatz ist nötig: mit bloßem „Vom Nutzer abgelehnt." schrieb das
+        // Modell live (19.11.2026, nuudel) „Ich lege jetzt … an" weiter, samt
+        // neu erfundener Termine. Das Präfix bleibt, `respondNode` zitiert es.
+        const afterDenial =
+          ' Der Aufruf wurde NICHT ausgeführt, es ist nichts passiert. Behaupte nichts anderes und frag kurz, was anders sein soll.';
         const error = reason?.trim()
-          ? `Vom Nutzer abgelehnt: ${reason.trim()}`
-          : 'Vom Nutzer abgelehnt.';
+          ? `Vom Nutzer abgelehnt (Begründung: ${reason.trim()}).${afterDenial}`
+          : `Vom Nutzer abgelehnt.${afterDenial}`;
         steps.push({
           toolCallId: call.toolCallId,
           toolName: call.toolName,
@@ -483,19 +500,14 @@ export async function streamAgenticResponse(
           `[Freigabe] ${resumeApproval.heldClientTool.toolName} nicht wieder eingesetzt — ein anderer Browser-Aufruf hält schon`
         );
       }
-      toolReplayMessages = [
-        ...toolReplayMessages,
-        ...buildToolObservationReplay(steps, new Set(Object.keys(wrapped)), {
-          sameTurn: true,
-          resultBudgetFor: (name) => toolResultBudget(name, toolLabels),
-        }),
-      ];
+      resumeReplayMessages = buildToolObservationReplay(steps, new Set(Object.keys(wrapped)), {
+        sameTurn: true,
+        resultBudgetFor: (name) => toolResultBudget(name, toolLabels),
+      });
     }
 
     // WS-5: "was kann @sally" must be grounded in the server's REAL tools, not
-    // the model's imagination — and it also gates WS-4 forcing off (a capability
-    // answer is a description, not a tool call), which is why the orchestrator
-    // reads it once and hands it to both.
+    // the model's imagination.
     const lastUserText = extractTextContent(messages[messages.length - 1]?.content ?? '');
     const mcpCapabilityQuestion = isMcpCapabilityQuestion(lastUserText);
     const { mcpNote, systemNote, connectorCatalogNote } = buildConnectorNotes({
@@ -507,14 +519,8 @@ export async function streamAgenticResponse(
 
     // Was das Modell bekommt: Verlauf mit dem Paste in der letzten Nachricht
     // (#5431). Alles darüber liest den Nutzertext aus `messages` — dort ist der
-    // Paste kein Teil des Auftrags. `materialDominatesTurn` rechnet weiter
-    // gegen Prompt PLUS Material: der Kanal sagt nichts über den Turn.
+    // Paste kein Teil des Auftrags.
     const turnMessages = withTurnPaste(messages, turnPaste);
-    const materialHeavy = materialDominatesTurn(
-      lastUserText,
-      `${systemMessage}${turnPaste ?? ''}${turnContext ?? ''}`,
-      carriedMaterialChars
-    );
     // Rides on the state to the `done` event (persistStage), like usedRecipes:
     // the eval traces tell loop turns from single-pass turns by it.
     finalState.loopMode = 'unified';
@@ -535,9 +541,13 @@ export async function streamAgenticResponse(
     // that editing is off).
     const preLoopEditNotes = buildPreLoopEditNotes(finalState);
     // Das gewählte Notebook, sonst das, mit dem der Thread zuletzt gearbeitet
-    // hat, sonst das, an das der Agent gebunden ist.
+    // hat, sonst das, an das der Agent gebunden ist — System-Notebook vor
+    // eigenem, dieselbe Reihenfolge wie `notebook_quellen` ohne notebookId.
     const promptNotebook = notebookForPrompt(
-      finalState.notebookIds?.[0] ?? finalState.threadNotebookId ?? boundSystemNotebook(finalState),
+      finalState.notebookIds?.[0] ??
+        finalState.threadNotebookId ??
+        boundSystemNotebook(finalState) ??
+        boundUserNotebook(finalState),
       finalState.userLocale ?? null
     );
     // The product vocabulary — term names only, so the model recognises a
@@ -548,8 +558,9 @@ export async function streamAgenticResponse(
       'product_knowledge' in wrapped || 'gruenerator_docs_search' in wrapped
         ? buildGlossaryVocabularyNote()
         : '';
+    const pinnedNote = buildPinnedToolNote(finalState.mentionPinnedTool ?? null, wrapped);
     const toolSystem = withInstructionHierarchy(
-      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned, Object.keys(wrapped), sourceRegistry.carriedSize > 0, promptNotebook)}${(finalState.notebookIds?.length ?? 0) > 0 ? NOTEBOOK_BARE_TOPIC_NOTE : ''}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${preLoopEditNotes}${glossaryNote}${renderRecipeCatalog(recipeCatalog, { remaining: recipeRegistry.remaining, pinnedTitle: recipeRegistry.pinnedTitle })}`
+      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned, Object.keys(wrapped), sourceRegistry.carriedSize > 0, promptNotebook)}${(finalState.notebookIds?.length ?? 0) > 0 ? NOTEBOOK_BARE_TOPIC_NOTE : ''}${pinnedNote}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${preLoopEditNotes}${glossaryNote}${renderRecipeCatalog(recipeCatalog, { remaining: recipeRegistry.remaining, pinnedTitle: recipeRegistry.pinnedTitle })}`
     );
     const { abortSignal, toolBudgetDeadline } = createTurnClocks(
       budget,
@@ -596,28 +607,6 @@ export async function streamAgenticResponse(
       ? await runOrderedArtifact(guaranteeContext)
       : [];
 
-    const firstStep = await decideFirstStep({
-      state: finalState,
-      tools: wrapped,
-      messages,
-      lastUserText,
-      threadId,
-      researchBanned,
-      mcpCapabilityQuestion,
-      mcpCatalog,
-      toolHistory,
-      materialHeavy,
-      carriedMaterialChars,
-      material,
-      attachedSeedDelivered: seeded.delivered,
-      resumesSuspendedTurn: resumeApproval != null,
-      threadNotebook: promptNotebook != null,
-      steps,
-      onInfo: (m) => log.info(m),
-      onWarn: (m) => log.warn(m),
-    });
-    forceScope = firstStep.forceScope;
-
     const lanes = resolveLoopLanes({
       resolution,
       modelId,
@@ -653,24 +642,6 @@ export async function streamAgenticResponse(
       // mitschickt, entscheidet der Umfang (toolScope.ts). Getter, weil ein
       // Lader die Menge mitten im Lauf erweitern kann.
       activeTools: (steps) => assembled.toolScope.activeTools(steps),
-      forceFirstToolCall: firstStep.forceFirstToolCall,
-      firstToolName: firstStep.firstToolName,
-      firstStepTools: firstStep.firstStepTools,
-      // Turns "the web is now allowed" into "the web runs". Only when the tool
-      // is actually mounted — a restricted agent without web_search must not be
-      // forced into a tool it doesn't have.
-      forcedToolForStep: () => {
-        const toolName = guards.emptyResultFallback();
-        if (toolName && toolName in wrapped) {
-          log.info(
-            `[Agentic] internal search returned nothing — forcing ${toolName} instead of leaving it to the model`
-          );
-          return toolName;
-        }
-        const owed = firstStep.owedTool();
-        if (owed) log.info(`[Agentic] geschuldetes ${owed} wird jetzt erzwungen`);
-        return owed;
-      },
       buildRepairSystem: (sources) => buildRepairSystem(sources, synthContext),
       // The image note rides on the source block because that is the ONLY thing
       // the tool-less repair writer sees of the tool work — it gets no tool
@@ -695,7 +666,11 @@ export async function streamAgenticResponse(
           : ''),
       // The reconstructed tool-call/result history goes in front of the
       // previous answer, where those calls happened (`spliceToolReplay`).
-      messages: [...spliceToolReplay(turnMessages, toolReplayMessages), ...orderedArtifactReplay],
+      messages: [
+        ...spliceToolReplay(turnMessages, toolReplayMessages),
+        ...resumeReplayMessages,
+        ...orderedArtifactReplay,
+      ],
       // The repair writer runs WITHOUT tools — it gets the plain history. Feeding
       // it the replay made it imitate the tool-call pattern in prose instead of
       // answering (live: the entire answer was "Let's perform web_search.").
@@ -942,7 +917,6 @@ export async function streamAgenticResponse(
       deferred: toolScope.deferredToolNames().length,
       misses: toolScope.misses(steps.map((s) => s.toolName)),
     },
-    forceScope,
     onInfo: (m) => log.info(m),
   });
   costLedger.log();

@@ -3,6 +3,7 @@ import { useCallback, useMemo, type ReactNode } from 'react';
 
 import ErrorBoundary from '../../components/ErrorBoundary';
 import useAuth from '../../hooks/useAuth';
+import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 
 interface SitesProviderWebProps {
   children: ReactNode;
@@ -16,6 +17,8 @@ export function SitesProviderWeb({ children }: SitesProviderWebProps) {
     window.location.href = `/login?redirectTo=${encodeURIComponent(target)}`;
   }, []);
 
+  const collaboration = useCollaborationConfig();
+
   const logout = useCallback(() => webLogout(), [webLogout]);
 
   const reportError = useCallback((error: unknown, context?: Record<string, unknown>) => {
@@ -27,7 +30,14 @@ export function SitesProviderWeb({ children }: SitesProviderWebProps) {
   // that left `isLoading` stuck `true` and the page hung on its spinner.
   const auth = useMemo<SitesAuth>(
     () => ({
-      user: user ? { id: user.id, email: user.email, display_name: user.display_name } : null,
+      user: user
+        ? {
+            id: user.id,
+            email: user.email,
+            display_name: user.display_name,
+            locale: user.locale === 'de-AT' ? 'de-AT' : 'de-DE',
+          }
+        : null,
       isAuthenticated,
       isLoading: loading,
       error,
@@ -43,6 +53,7 @@ export function SitesProviderWeb({ children }: SitesProviderWebProps) {
         login={login}
         logout={logout}
         reportError={reportError}
+        collaboration={collaboration}
       >
         {children}
       </SitesProvider>

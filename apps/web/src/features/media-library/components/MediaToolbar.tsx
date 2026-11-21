@@ -1,4 +1,4 @@
-import { acceptForMediaType } from '@gruenerator/shared/media-library';
+import { SUPPORTED_AUDIO_TYPES, acceptForMediaType } from '@gruenerator/shared/media-library';
 import { Button } from '@gruenerator/ui';
 import { useRef, type JSX } from 'react';
 import { HiFilter, HiOutlineFilter, HiPlus } from 'react-icons/hi';
@@ -68,7 +68,7 @@ export function MediaToolbar({
       <input
         ref={fileRef}
         type="file"
-        accept={acceptForMediaType('all')}
+        accept={[acceptForMediaType('all'), ...SUPPORTED_AUDIO_TYPES].join(',')}
         multiple
         hidden
         aria-label="Dateien auswählen"

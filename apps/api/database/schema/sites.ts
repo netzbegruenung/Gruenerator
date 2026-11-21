@@ -1,6 +1,8 @@
+import { type ModerationState } from '@gruenerator/contracts';
 import { type InferSelectModel, sql } from 'drizzle-orm';
 import {
   boolean,
+  index,
   integer,
   jsonb,
   pgTable,
@@ -38,13 +40,33 @@ export const userSites = pgTable(
     visit_count: integer('visit_count').default(0),
     meta_description: text('meta_description'),
     meta_keywords: text('meta_keywords').array(),
+    published_snapshot: jsonb('published_snapshot').$type<Record<string, unknown>>(),
+    legal: jsonb('legal').$type<Record<string, unknown>>(),
+    moderation: text('moderation').$type<ModerationState>().notNull().default('ok'),
   },
   // Nur unter lebenden Zeilen: eine Website im Papierkorb blockiert ihre Subdomain nicht.
   (t) => [
     uniqueIndex('user_sites_subdomain_unique')
       .on(t.subdomain)
       .where(sql`deleted_at IS NULL`),
+    // Up to SITES_PER_ACCOUNT_MAX live sites per account; the limit lives in code.
+    index('idx_user_sites_user_live')
+      .on(t.user_id)
+      .where(sql`deleted_at IS NULL`),
   ]
 );
 
 export type UserSiteRow = InferSelectModel<typeof userSites>;
+
+type TimestampColumns = 'created_at' | 'updated_at' | 'deleted_at' | 'last_published';
+
+/**
+ * A `user_sites` row as raw SQL returns it. drizzle's node-postgres driver overrides pg's type
+ * parsers, so `db.execute(sql\`... RETURNING *\`)` yields timestamptz as strings; only the query
+ * builder and `PostgresService.query` map them to `Date`. Read raw rows through this type.
+ */
+export type UserSiteRawRow = Omit<UserSiteRow, TimestampColumns> & {
+  [K in TimestampColumns]: UserSiteRow[K] extends Date | null
+    ? string | Date | null
+    : string | Date;
+};

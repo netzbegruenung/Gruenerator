@@ -30,16 +30,36 @@ export const jiraIssueSchema = z.object({
     issuetype: z.object({ name: z.string() }),
     updated: z.string(),
     description: z.unknown().optional(),
+    assignee: z.object({ displayName: z.string() }).nullish(),
+    priority: z.object({ name: z.string() }).nullish(),
     attachment: z.array(jiraAttachmentSchema).optional(),
   }),
 });
 
 export type JiraIssue = z.infer<typeof jiraIssueSchema>;
 
-// ── Jira paginated search (/rest/api/3/search) ────────────────────────────────
+// ── Jira JQL search (POST /rest/api/3/search/jql, token-paginated) ───────────
+// https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-search/#api-rest-api-3-search-jql-post
 
 export const jiraSearchResponseSchema = z.object({
   issues: z.array(jiraIssueSchema),
+  nextPageToken: z.string().nullish(),
+});
+
+// ── Jira comments (GET /rest/api/3/issue/{key}/comment) ──────────────────────
+
+export const jiraCommentSchema = z.object({
+  id: z.string(),
+  author: z.object({ displayName: z.string() }).nullish(),
+  body: z.unknown().optional(),
+  created: z.string(),
+});
+
+export type JiraComment = z.infer<typeof jiraCommentSchema>;
+
+export const jiraCommentListResponseSchema = z.object({
+  comments: z.array(jiraCommentSchema),
+  total: z.number().optional(),
 });
 
 export type JiraSearchResponse = z.infer<typeof jiraSearchResponseSchema>;
@@ -71,6 +91,7 @@ export type ConfluencePage = z.infer<typeof confluencePageSchema>;
 export const confluencePageContentSchema = z.object({
   id: z.string(),
   title: z.string(),
+  _links: z.object({ webui: z.string().optional(), base: z.string().optional() }).optional(),
   body: z.object({
     view: z.object({ value: z.string() }).optional(),
     storage: z.object({ value: z.string() }).optional(),
@@ -105,6 +126,27 @@ export const confluenceSearchResponseSchema = z.object({
 });
 
 export type ConfluenceSearchResponse = z.infer<typeof confluenceSearchResponseSchema>;
+
+// ── Confluence CQL search (v1 GET /wiki/rest/api/search) ─────────────────────
+// https://developer.atlassian.com/cloud/confluence/rest/v1/api-group-search/
+
+export const confluenceCqlResultSchema = z.object({
+  title: z.string().optional(),
+  excerpt: z.string().optional(),
+  /** Relative web URL, e.g. `/spaces/ABC/pages/123/Title`. */
+  url: z.string().optional(),
+  lastModified: z.string().optional(),
+  content: z
+    .object({ id: z.string(), type: z.string().optional(), title: z.string().optional() })
+    .optional(),
+});
+
+export type ConfluenceCqlResult = z.infer<typeof confluenceCqlResultSchema>;
+
+export const confluenceCqlResponseSchema = z.object({
+  results: z.array(confluenceCqlResultSchema),
+  _links: z.object({ base: z.string().optional() }).optional(),
+});
 
 // ── Accessible resources (/oauth/token/accessible-resources) ─────────────────
 

@@ -209,9 +209,7 @@ function asPickerSource(type: Mentionable['type']): MentionPickerSource | null {
   // but is the only one needing no connected account. Before, it fell through
   // to the text path: the picker offered @link and selecting it inserted a bare
   // string that attached nothing.
-  return type === 'wolke' || type === 'connect' || type === 'canva' || type === 'webpage'
-    ? type
-    : null;
+  return type === 'wolke' || type === 'connect' || type === 'webpage' ? type : null;
 }
 
 /**
@@ -322,17 +320,6 @@ function useComposerInput({
     [pushText]
   );
 
-  /** Appends to the draft with a separating space (the doc browser's `@datei:`). */
-  const appendText = useCallback(
-    (value: string) => {
-      const current = textRef.current;
-      const separator = current.length > 0 && !current.endsWith(' ') ? ' ' : '';
-      const newText = `${current}${separator}${value}`;
-      pushText(newText, newText.length);
-    },
-    [pushText]
-  );
-
   // Dictation (mirrors web's DictateButton): final transcripts are appended to
   // the draft rather than replacing it.
   const onDictate = useCallback(() => {
@@ -371,7 +358,6 @@ function useComposerInput({
     onSelectionChange,
     onMentionSelect,
     insertMention,
-    appendText,
     isListening,
     onDictate,
     reset,
@@ -718,7 +704,6 @@ function ComposerBody({
             theme={theme}
             onClose={() => setPickerSource(null)}
             onAttach={(attachment) => addAttachment?.(attachment)}
-            onInsertText={input.appendText}
           />
         </>
       )}

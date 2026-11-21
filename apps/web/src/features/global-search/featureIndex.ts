@@ -14,8 +14,10 @@ import {
 import { foldUmlauts } from '@gruenerator/shared/utils';
 
 import { getDirectMenuItems, getFooterLinks } from '../../components/layout/Header/menuData';
+import { isAdminOnlyPath } from '../../config/adminToolsGate';
 import { CURRENT_INSTANCE } from '../../config/instance';
 import FAVOURITE_ITEMS from '../../config/sidebarFavouritesConfig';
+import { isSitesPath } from '../../config/sitesGate';
 
 import { getToolCatalog } from './toolCatalog';
 
@@ -50,6 +52,9 @@ export interface BuildFeatureIndexArgs {
   userAgents: Agent[];
   /** Vom Admin ausgeblendete System-Agenten. Weglassen = nichts ausgeblendet. */
   hiddenAgentIdentifiers?: readonly string[];
+  /** Tools in `adminToolsGate` are instance-admin only for now; omitted = hidden. */
+  canSeeAdminTools?: boolean;
+  canSeeSites?: boolean;
 }
 
 interface FeatureSource {
@@ -66,11 +71,15 @@ export function buildFeatureIndex({
   locale,
   userAgents,
   hiddenAgentIdentifiers = [],
+  canSeeAdminTools = false,
+  canSeeSites = false,
 }: BuildFeatureIndexArgs): FeatureHit[] {
   const hits: FeatureHit[] = [];
   const seen = new Set<string>();
 
   const push = (source: FeatureSource) => {
+    if (!canSeeAdminTools && isAdminOnlyPath(source.path)) return;
+    if (!canSeeSites && isSitesPath(source.path)) return;
     const key = `${source.id}:${source.path}`;
     if (seen.has(key)) return;
     seen.add(key);
@@ -90,7 +99,7 @@ export function buildFeatureIndex({
     push(tool);
   }
 
-  for (const item of Object.values(getDirectMenuItems({ isAustrian }))) {
+  for (const item of Object.values(getDirectMenuItems({ isAustrian, canSeeSites }))) {
     if (!item.path) continue;
     push({
       id: item.id,

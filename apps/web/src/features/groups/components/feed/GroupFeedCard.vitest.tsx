@@ -33,6 +33,7 @@ const item: GroupFeedItem = {
     commentCount: 1,
     reactions: [],
   },
+  projectWrite: true,
   post: null,
 };
 
@@ -45,7 +46,7 @@ const baseProps: GroupFeedCardProps = {
   currentUserName: 'Moritz Wächter',
   onUseTemplate: () => {},
   isCloning: false,
-  onRemove: null,
+  actions: null,
 };
 
 beforeAll(() => {

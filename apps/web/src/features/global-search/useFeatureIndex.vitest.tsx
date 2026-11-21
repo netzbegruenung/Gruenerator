@@ -1,5 +1,7 @@
-import { renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { useAuthStore } from '../../stores/authStore';
 
 import { useFeatureIndex } from './useFeatureIndex';
 
@@ -28,5 +30,25 @@ describe('useFeatureIndex', () => {
     authState.isAuthenticated = true;
     renderHook(() => useFeatureIndex());
     expect(useHiddenAgentIdentifiers).toHaveBeenCalledWith(true);
+  });
+});
+
+describe('useFeatureIndex sites gate', () => {
+  const setUser = (user: Record<string, unknown> | null) =>
+    useAuthStore.setState({ user: user as never });
+  const hasSites = (index: { path: string }[]) => index.some((h) => h.path === '/sites');
+
+  it('contains the Sites hit only for unlocked accounts and rebuilds when the flag flips', () => {
+    setUser({ id: 'u', sites_unlocked: false });
+    const { result, rerender } = renderHook(() => useFeatureIndex());
+    expect(hasSites(result.current)).toBe(false);
+
+    act(() => setUser({ id: 'u', sites_unlocked: true }));
+    rerender();
+    expect(hasSites(result.current)).toBe(true);
+
+    act(() => setUser({ id: 'u' }));
+    rerender();
+    expect(hasSites(result.current)).toBe(false);
   });
 });

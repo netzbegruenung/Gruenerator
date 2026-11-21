@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   EDITOR_MENU_MAX_ACTIONS,
   EDITOR_TITLE_MAX_LENGTH,
+  FILE_TRANSFER_CHUNK_MAX_BASE64_LENGTH,
+  FILE_TRANSFER_MAX_BYTES,
   HOST_CAPABILITIES_GLOBAL,
   HOST_CAPABILITY_SHARE,
   hostCapabilitiesScript,
@@ -623,5 +625,57 @@ describe('creator render messages', () => {
     [{ ...result, tweaks: [{ ...tweak, options: [{ value: 'x' }] }] }, 'malformed tweak'],
   ])('rejects a result with %# — %s', (input, _reason) => {
     expect(parseWebViewMessage(input)).toBeNull();
+  });
+});
+
+describe('file transfer messages', () => {
+  const begin = (over: Partial<Record<string, unknown>> = {}) => ({
+    type: 'FILE_TRANSFER_BEGIN',
+    transferId: 't1',
+    filename: 'video.mp4',
+    mime: 'video/mp4',
+    size: 1000,
+    ...over,
+  });
+
+  it('rebuilds a well-formed begin and drops extra fields', () => {
+    expect(parseWebViewMessage({ ...begin(), extra: 1 })).toEqual(begin());
+  });
+
+  it('rejects a begin with an unsafe name, no size, or over the cap', () => {
+    expect(parseWebViewMessage(begin({ filename: '../x.mp4' }))).toBeNull();
+    expect(parseWebViewMessage(begin({ size: 0 }))).toBeNull();
+    expect(parseWebViewMessage(begin({ size: 1.5 }))).toBeNull();
+    expect(parseWebViewMessage(begin({ size: FILE_TRANSFER_MAX_BYTES + 1 }))).toBeNull();
+    expect(parseWebViewMessage(begin({ transferId: 'x'.repeat(65) }))).toBeNull();
+  });
+
+  it('caps a chunk and wants an integer index', () => {
+    const chunk = { type: 'FILE_TRANSFER_CHUNK', transferId: 't1', index: 0, data: 'aGk=' };
+    expect(parseWebViewMessage(chunk)).toEqual(chunk);
+    expect(parseWebViewMessage({ ...chunk, index: -1 })).toBeNull();
+    expect(
+      parseWebViewMessage({ ...chunk, data: 'A'.repeat(FILE_TRANSFER_CHUNK_MAX_BASE64_LENGTH + 1) })
+    ).toBeNull();
+  });
+
+  it('accepts end and abort with an id only', () => {
+    expect(parseWebViewMessage({ type: 'FILE_TRANSFER_END', transferId: 't1' })).toEqual({
+      type: 'FILE_TRANSFER_END',
+      transferId: 't1',
+    });
+    expect(parseWebViewMessage({ type: 'FILE_TRANSFER_ABORT' })).toBeNull();
+  });
+
+  it('parses the host answers', () => {
+    expect(parseHostMessage({ type: 'FILE_TRANSFER_ACK', transferId: 't1', received: 3 })).toEqual({
+      type: 'FILE_TRANSFER_ACK',
+      transferId: 't1',
+      received: 3,
+    });
+    expect(parseHostMessage({ type: 'FILE_TRANSFER_ACK', transferId: 't1' })).toBeNull();
+    expect(
+      parseHostMessage({ type: 'FILE_TRANSFER_FAILED', transferId: 't1', reason: 'full' })
+    ).toEqual({ type: 'FILE_TRANSFER_FAILED', transferId: 't1', reason: 'full' });
   });
 });

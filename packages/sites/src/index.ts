@@ -1,9 +1,8 @@
 import './styles/sites-animations.css';
 
-export { HomePage } from './pages/HomePage';
-export { LoginPage } from './pages/LoginPage';
-export { DemoPage } from './pages/DemoPage';
+export { CreateSitePage } from './pages/CreateSitePage';
 export { EditPage } from './pages/EditPage';
+export { SitesOverviewPage } from './pages/SitesOverviewPage';
 
 export { SiteMediaPicker } from './components/media/SiteMediaPicker';
 

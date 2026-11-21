@@ -1,0 +1,214 @@
+/* Local system faces only: a heavy narrow stand-in while the brand display face loads or is missing. */
+@font-face {
+  font-family: 'GrSite Display Fallback';
+  src:
+    local('Arial Narrow Bold'), local('ArialNarrow-Bold'), local('Roboto Condensed Bold'),
+    local('Arial Bold'), local('Arial-BoldMT');
+  font-weight: 400;
+  font-style: normal;
+}
+
+@layer base {
+  html {
+    @media (prefers-reduced-motion: no-preference) {
+      scroll-behavior: smooth;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  body {
+    background-color: var(--site-palette-paper);
+    font-family: var(--site-font-text);
+    font-size: var(--site-text-body);
+    line-height: 1.6;
+    color: var(--site-color-ink);
+  }
+
+  [data-ground] {
+    background-color: var(--site-color-ground);
+    color: var(--site-color-ink);
+  }
+
+  [data-ground='photo'] {
+    background-color: transparent;
+  }
+
+  h1,
+  h2 {
+    font-family: var(--site-font-display);
+    font-weight: 400;
+    font-synthesis-weight: none;
+    line-height: 1;
+  }
+
+  :root[data-site-locale='de-AT'] :is(h1, h2) {
+    line-height: 0.95;
+  }
+
+  h3,
+  h4 {
+    font-family: var(--site-font-text);
+    font-weight: 700;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--site-color-focus);
+    outline-offset: 3px;
+  }
+
+  [data-rich-text] {
+    :is(p, ul, ol) {
+      margin-block-end: 1em;
+    }
+
+    > :first-child {
+      margin-block-start: 0;
+    }
+
+    > :last-child {
+      margin-block-end: 0;
+    }
+
+    :is(ul, ol) {
+      padding-inline-start: 1.5em;
+    }
+
+    ul {
+      list-style: disc;
+    }
+
+    ol {
+      list-style: decimal;
+    }
+
+    h3 {
+      font-size: var(--site-text-h3);
+      margin-block: 1.5em 0.5em;
+    }
+
+    h4 {
+      font-size: 1.125rem;
+      margin-block: 1.5em 0.5em;
+    }
+
+    strong {
+      font-weight: 700;
+    }
+
+    a {
+      color: var(--site-color-link);
+      text-decoration: underline;
+    }
+  }
+}
+
+/* Focal point of a cropped image. Classes, not style attributes: the public CSP forbids `style=`. */
+@layer base {
+  .site-focus-0-0 {
+    object-position: 0% 0%;
+  }
+
+  .site-focus-0-25 {
+    object-position: 0% 25%;
+  }
+
+  .site-focus-0-50 {
+    object-position: 0% 50%;
+  }
+
+  .site-focus-0-75 {
+    object-position: 0% 75%;
+  }
+
+  .site-focus-0-100 {
+    object-position: 0% 100%;
+  }
+
+  .site-focus-25-0 {
+    object-position: 25% 0%;
+  }
+
+  .site-focus-25-25 {
+    object-position: 25% 25%;
+  }
+
+  .site-focus-25-50 {
+    object-position: 25% 50%;
+  }
+
+  .site-focus-25-75 {
+    object-position: 25% 75%;
+  }
+
+  .site-focus-25-100 {
+    object-position: 25% 100%;
+  }
+
+  .site-focus-50-0 {
+    object-position: 50% 0%;
+  }
+
+  .site-focus-50-25 {
+    object-position: 50% 25%;
+  }
+
+  .site-focus-50-50 {
+    object-position: 50% 50%;
+  }
+
+  .site-focus-50-75 {
+    object-position: 50% 75%;
+  }
+
+  .site-focus-50-100 {
+    object-position: 50% 100%;
+  }
+
+  .site-focus-75-0 {
+    object-position: 75% 0%;
+  }
+
+  .site-focus-75-25 {
+    object-position: 75% 25%;
+  }
+
+  .site-focus-75-50 {
+    object-position: 75% 50%;
+  }
+
+  .site-focus-75-75 {
+    object-position: 75% 75%;
+  }
+
+  .site-focus-75-100 {
+    object-position: 75% 100%;
+  }
+
+  .site-focus-100-0 {
+    object-position: 100% 0%;
+  }
+
+  .site-focus-100-25 {
+    object-position: 100% 25%;
+  }
+
+  .site-focus-100-50 {
+    object-position: 100% 50%;
+  }
+
+  .site-focus-100-75 {
+    object-position: 100% 75%;
+  }
+
+  .site-focus-100-100 {
+    object-position: 100% 100%;
+  }
+}

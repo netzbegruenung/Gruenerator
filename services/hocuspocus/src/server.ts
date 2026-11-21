@@ -3,14 +3,30 @@ import { Server } from '@hocuspocus/server';
 import * as Y from 'yjs';
 
 import { countCanvasPages } from './canvasPageCount.js';
+import { closeRoomConnections } from './internalApi.js';
 import { createLogger } from './logger.js';
+import {
+  SITE_DOC_MAX_BYTES,
+  SITE_ROOM_PREFIX,
+  SITE_TOO_LARGE,
+  siteIdFromRoom,
+  siteIsLive,
+  siteRoomGate,
+} from './siteRooms.js';
 
 import type { HocuspocusConfig } from './types.js';
 
 const log = createLogger('HocuspocusServer');
 
+/** Close code sent to the connections of a site draft that outgrew the store cap. */
+const SITE_TOO_LARGE_CLOSE = { code: 4413, reason: SITE_TOO_LARGE };
+
 export function createHocuspocusServer(config: HocuspocusConfig): Server {
-  const { port, host, persistence, auth } = config;
+  const { port, host, persistence, auth, db } = config;
+  // Site rooms over the cap that were already logged; cleared once a store fits again.
+  const oversizedSiteRooms = new Set<string>();
+  // Site rooms whose site is gone that were already logged; cleared if it is live again.
+  const goneSiteRooms = new Set<string>();
 
   const server = new Server({
     port,
@@ -49,6 +65,16 @@ export function createHocuspocusServer(config: HocuspocusConfig): Server {
             `[Auth] Authentication failed for document ${documentName}: ${authResult.reason}`
           );
           throw new Error(authResult.reason || 'Authentication failed');
+        }
+
+        if (documentName.startsWith(SITE_ROOM_PREFIX)) {
+          const reason = await siteRoomGate(data.instance.documents.get(documentName) ?? null, () =>
+            persistence.hasStoredState(documentName)
+          );
+          if (reason) {
+            log.warn(`[Auth] Site room ${documentName} refused: ${reason}`);
+            throw new Error(reason);
+          }
         }
 
         log.info(`[Auth] User ${authResult.userId} authenticated for document ${documentName}`);
@@ -102,6 +128,9 @@ export function createHocuspocusServer(config: HocuspocusConfig): Server {
           log.warn(`[Load] No persisted state for ${documentName} — new document`);
         }
 
+        // A site draft is seeded by the API (/internal/site/:siteId/seed), never by a template.
+        if (documentName.startsWith(SITE_ROOM_PREFIX)) return;
+
         // Yjs-native safety check: only inject template when the fragment is truly empty.
         // BlockNote always maintains ≥1 block even when the user clears content,
         // so fragment.length === 0 means this document was never initialized.
@@ -129,6 +158,56 @@ export function createHocuspocusServer(config: HocuspocusConfig): Server {
       }
 
       const state = Y.encodeStateAsUpdate(document);
+
+      // Site rows are no collaborative_documents: no page count, updated_at or preview.
+      if (documentName.startsWith(SITE_ROOM_PREFIX)) {
+        // Access is only checked at connect: a site trashed or purged meanwhile must not
+        // get new Yjs rows from a connection that is still open. A non-uuid room has no
+        // site to look up and is left to the persistence key as before.
+        const siteId = siteIdFromRoom(documentName);
+        if (siteId) {
+          let live: boolean;
+          try {
+            live = await siteIsLive(db, siteId);
+          } catch (error) {
+            const err = error instanceof Error ? error : new Error(String(error));
+            log.error(`[Store] Site lookup failed for ${documentName}: ${err.message}`);
+            return;
+          }
+          if (!live) {
+            if (!goneSiteRooms.has(documentName)) {
+              goneSiteRooms.add(documentName);
+              log.warn(`[Store] site ${siteId} gone, dropping store for ${documentName}`);
+            }
+            closeRoomConnections(server.hocuspocus, [documentName], null);
+            return;
+          }
+          goneSiteRooms.delete(documentName);
+        }
+        if (state.length > SITE_DOC_MAX_BYTES) {
+          if (!oversizedSiteRooms.has(documentName)) {
+            oversizedSiteRooms.add(documentName);
+            log.error(
+              `[Store] Site draft ${documentName} is ${state.length} bytes, over the ${SITE_DOC_MAX_BYTES}-byte cap — not persisted, closing its connections`
+            );
+          }
+          // The edits past the cap cannot be stored; closing stops them from piling up in
+          // memory, and the gate in onAuthenticate refuses a reconnect while the doc is live.
+          for (const connection of document.getConnections()) {
+            connection.close(SITE_TOO_LARGE_CLOSE);
+          }
+          return;
+        }
+        oversizedSiteRooms.delete(documentName);
+        try {
+          await persistence.storeDocument(documentName, state);
+        } catch (error) {
+          const err = error instanceof Error ? error : new Error(String(error));
+          log.error(`[Store] FAILED to persist ${documentName}: ${err.message}`);
+        }
+        return;
+      }
+
       log.info(
         `[CanvasCollab][Store] onStoreDocument fired for ${documentName} (${state.length} bytes)`
       );

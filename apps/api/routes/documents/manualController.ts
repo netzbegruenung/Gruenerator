@@ -16,6 +16,7 @@ import fs from 'fs';
 import path from 'path';
 
 import {
+  addTextGroupBodySchema,
   DOCUMENT_MAX_UPLOAD_BYTES,
   DOCUMENT_UPLOAD_FORMAT_HINT,
   resolveDocumentUploadFormat,
@@ -26,9 +27,17 @@ import {
 import express, { type Router, type Response, type NextFunction, type Request } from 'express';
 import multer from 'multer';
 
+import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { kickIngestWorker } from '../../services/document-services/DocumentProcessingService/documentIngestWorker.js';
 import { getDocumentProcessingService } from '../../services/document-services/DocumentProcessingService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
+import { purgeDocument } from '../../services/document-services/PostgresDocumentService/metadataOperations.js';
+import {
+  CREATE_IN_GROUP_FORBIDDEN,
+  mayShareIntoGroup,
+  shareNewDocumentIntoGroup,
+} from '../../services/groups/createInGroup.js';
+import { GroupShareForbiddenError } from '../../services/groups/groupShareWriter.js';
 import {
   findDuplicateInNotebook,
   hashFile,
@@ -36,13 +45,13 @@ import {
 import { createLogger } from '../../utils/logger.js';
 import { requireNotebookEdit } from '../notebook/notebookAccess.js';
 
+import type { AuthenticatedRequest } from '../../middleware/types.js';
 import type {
   DocumentRequest,
   UploadManualRequestBody,
   AddTextRequestBody,
   CrawlUrlRequestBody,
 } from './types.js';
-import type { AuthenticatedRequest } from '../../middleware/types.js';
 
 const log = createLogger('documents:manual');
 const router: Router = express.Router();
@@ -188,6 +197,13 @@ router.post(
         return;
       }
 
+      const groupId = parsedBody.data.groupId ?? null;
+      if (groupId && !(await mayShareIntoGroup(groupId, userId))) {
+        removePendingUpload(file.path);
+        res.status(403).json({ success: false, message: CREATE_IN_GROUP_FORBIDDEN });
+        return;
+      }
+
       const title = parsedBody.data.title || file.originalname;
       const pendingPath = resolvePendingUpload(file.path);
       if (!pendingPath) throw new Error('Upload path outside the pending directory');
@@ -244,6 +260,18 @@ router.post(
         `[POST /upload-only] File saved to disk: ${file.path}, doc ID: ${documentMetadata.id}`
       );
 
+      // Teilen vor dem Einlesen: scheitert es, gehen Zeile und Datei, bevor der
+      // Ingest-Worker sie anfasst.
+      if (groupId) {
+        await shareNewDocumentIntoGroup(
+          { userId, groupId, documentId: documentMetadata.id },
+          async () => {
+            await postgresDocumentService.deleteDocument(documentMetadata.id, userId);
+            removePendingUpload(file.path);
+          }
+        );
+      }
+
       // Start indexing now rather than when the document is attached to a
       // notebook. Ingestion used to begin only on attach, so the upload wizard
       // polled a process that had not started: the status sat on 'uploaded',
@@ -265,9 +293,13 @@ router.post(
       };
       res.json(body);
     } catch (error) {
-      log.error('[POST /upload-only] Error:', error);
       // Clean up uploaded file on error
       if (req.file?.path) removePendingUpload(req.file.path);
+      if (error instanceof GroupShareForbiddenError) {
+        res.status(403).json({ success: false, message: CREATE_IN_GROUP_FORBIDDEN });
+        return;
+      }
+      log.error('[POST /upload-only] Error:', error);
       res.status(500).json({
         success: false,
         message: (error as Error).message || 'Failed to upload file',
@@ -371,6 +403,17 @@ router.post('/add-text', async (req: DocumentRequest, res: Response): Promise<vo
       return;
     }
 
+    const parsedGroup = addTextGroupBodySchema.safeParse(req.body);
+    if (!parsedGroup.success) {
+      res.status(400).json({ success: false, message: 'Ungültige Projekt-ID.' });
+      return;
+    }
+    const groupId = parsedGroup.data.groupId ?? null;
+    if (groupId && !(await mayShareIntoGroup(groupId, userId))) {
+      res.status(403).json({ success: false, message: CREATE_IN_GROUP_FORBIDDEN });
+      return;
+    }
+
     // Use document processing service
     const result = await documentProcessingService.processTextContent(
       userId,
@@ -379,12 +422,25 @@ router.post('/add-text', async (req: DocumentRequest, res: Response): Promise<vo
       'manual'
     );
 
+    // Text samt Vektoren steht schon; scheitert das Teilen, geht beides restlos
+    // (Papierkorb, dann sofort endgültig — die Person hat dieses Dokument nie gesehen).
+    if (groupId) {
+      await shareNewDocumentIntoGroup({ userId, groupId, documentId: result.id }, async () => {
+        await postgresDocumentService.trashDocuments([result.id], userId);
+        await purgeDocument(getPostgresInstance(), result.id, null);
+      });
+    }
+
     res.json({
       success: true,
       message: 'Text processed and vectorized successfully',
       data: result,
     });
   } catch (error) {
+    if (error instanceof GroupShareForbiddenError) {
+      res.status(403).json({ success: false, message: CREATE_IN_GROUP_FORBIDDEN });
+      return;
+    }
     log.error('[POST /add-text] Error:', error);
     res.status(500).json({
       success: false,

@@ -89,6 +89,18 @@
           "path": "/studio/videoeditor"
         },
         {
+          "id": "studio-ki-schnitt",
+          "title": "KI-Schnitt",
+          "description": "Rohvideos automatisch schneiden",
+          "path": "/studio/ki-schnitt"
+        },
+        {
+          "id": "parteitage",
+          "title": "Parteitage",
+          "description": "Reden als Reels",
+          "path": "/parteitage"
+        },
+        {
           "id": "studio-voice",
           "title": "Voice",
           "description": "Text vertonen",
@@ -153,6 +165,12 @@
           "title": "Projekte",
           "description": "Chats & Inhalte bündeln",
           "path": "/projekte"
+        },
+        {
+          "id": "sites",
+          "title": "Sites",
+          "description": "Website für deine Kandidatur",
+          "path": "/sites"
         }
       ]
     },
@@ -235,6 +253,11 @@
       "path": "/studio",
       "subtitle": "Bilder mit KI erstellen & bearbeiten"
     },
+    "tool-ki-schnitt": {
+      "title": "KI-Schnitt",
+      "path": "/studio/ki-schnitt",
+      "subtitle": "Aus Rohvideos einen fertigen Clip schneiden lassen"
+    },
     "tool-marktplatz": {
       "title": "Marktplatz",
       "path": "/marktplatz",
@@ -249,6 +272,11 @@
       "title": "Notebooks",
       "path": "/notebooks",
       "subtitle": "Wissensmanagement & Recherche"
+    },
+    "tool-parteitage": {
+      "title": "Parteitage",
+      "path": "/parteitage",
+      "subtitle": "Reden vom Parteitag untertiteln und schneiden"
     },
     "tool-profilbild": {
       "title": "Profilbild",
@@ -269,6 +297,11 @@
       "title": "Scanner",
       "path": "/scanner",
       "subtitle": "Fotos & Scans in Text umwandeln"
+    },
+    "tool-sites": {
+      "title": "Sites",
+      "path": "/sites",
+      "subtitle": "Eigene Website für Kandidat*innen erstellen"
     },
     "tool-sticker": {
       "title": "Sticker & Hintergründe",

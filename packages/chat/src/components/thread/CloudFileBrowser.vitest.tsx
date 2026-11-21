@@ -2,10 +2,12 @@
  * Was hier leise falsch werden könnte: `@connect` landet in der Wolke statt im
  * Laufwerk, „Ebene hoch" springt im Laufwerk zurück an die Wurzel, eine Datei,
  * die der Chat nicht lesen kann, lässt sich trotzdem wählen, oder eine Auswahl
- * aus zwei Ablagen kommt nur halb im Composer an.
+ * aus zwei Ablagen kommt nur halb im Composer an. Bei Google: der Browser fragt
+ * eine Ordnerliste ab, die unter `drive.file` leer bliebe, statt den Picker zu
+ * öffnen, oder die Picker-Auswahl kommt nicht im Composer an.
  */
 import { ApiError } from '@gruenerator/shared/api';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -22,11 +24,17 @@ type DriveFile = {
 const driveFolders: Record<string, DriveFile[]> = {};
 let driveError: unknown = null;
 const driveCalls: (string | null)[] = [];
+const searchCalls: (string | null)[] = [];
+const openGooglePicker = vi.fn();
 
 vi.mock('../../hooks/useMentionablesQuery', () => ({
   useUserShareLinksQuery: () => ({ data: [{ id: 'share-1', label: 'KV' }], isLoading: false }),
   useConnectProvidersQuery: () => ({
-    data: [{ provider: 'microsoft', label: 'Microsoft 365' }],
+    data: [
+      { provider: 'microsoft', label: 'Microsoft 365' },
+      { provider: 'google', label: 'Google Workspace' },
+      { provider: 'microsoft-mail', label: 'Outlook' },
+    ],
     isLoading: false,
   }),
   useWolkeBrowseQuery: (shareLinkId: string | null) => ({
@@ -36,8 +44,15 @@ vi.mock('../../hooks/useMentionablesQuery', () => ({
     isLoading: false,
     isError: false,
   }),
-  useConnectBrowseQuery: (provider: string | null, folderId: string | null, enabled: boolean) => {
-    if (enabled) driveCalls.push(folderId);
+  useOpenGooglePicker: () => openGooglePicker,
+  useConnectBrowseQuery: (
+    provider: string | null,
+    folderId: string | null,
+    enabled: boolean,
+    search: string | null = null
+  ) => {
+    if (enabled) driveCalls.push(`${provider}:${folderId}`);
+    if (enabled) searchCalls.push(search);
     return {
       data: enabled && !driveError ? driveFolders[folderId ?? 'root'] : undefined,
       isLoading: false,
@@ -50,7 +65,7 @@ vi.mock('../../hooks/useMentionablesQuery', () => ({
 const onSelect = vi.fn();
 const onDismiss = vi.fn();
 
-function renderBrowser(initialSource: 'wolke' | 'drive') {
+function renderBrowser(initialSource: 'wolke' | 'drive' | 'google' | 'microsoft-mail') {
   return render(
     <CloudFileBrowser
       visible
@@ -63,8 +78,10 @@ function renderBrowser(initialSource: 'wolke' | 'drive') {
 
 beforeEach(() => {
   onSelect.mockReset();
+  openGooglePicker.mockReset();
   driveError = null;
   driveCalls.length = 0;
+  searchCalls.length = 0;
   driveFolders.root = [
     { id: 'f1', name: 'Projekte', isDirectory: true },
     { id: 'x1', name: 'Haushalt.xlsx', isSupported: true, mimeType: 'application/x' },
@@ -75,6 +92,17 @@ beforeEach(() => {
 });
 
 describe('CloudFileBrowser', () => {
+  it('searches a mailbox at the provider instead of filtering the loaded list', async () => {
+    const user = userEvent.setup();
+    renderBrowser('microsoft-mail');
+
+    await user.type(await screen.findByLabelText('Mails durchsuchen'), 'Haushalt');
+
+    await waitFor(() => expect(searchCalls.at(-1)).toBe('Haushalt'));
+    // The provider answered for the query; the list is not filtered again locally.
+    expect(screen.getByText('Projekte')).toBeInTheDocument();
+  });
+
   it('opens @connect on the drive and walks back up one level at a time', async () => {
     const user = userEvent.setup();
     renderBrowser('drive');
@@ -84,7 +112,7 @@ describe('CloudFileBrowser', () => {
     await user.click(screen.getByText('← Projekte/Unterordner'));
 
     expect(screen.getByText('Unterordner')).toBeInTheDocument();
-    expect(driveCalls.at(-1)).toBe('f1');
+    expect(driveCalls.at(-1)).toBe('microsoft:f1');
   });
 
   it('greys out a format the chat cannot read', async () => {
@@ -121,5 +149,41 @@ describe('CloudFileBrowser', () => {
     renderBrowser('drive');
 
     expect(await screen.findByText(/Zugang zu OneDrive ist abgelaufen/)).toBeInTheDocument();
+  });
+
+  it('opens the Google Picker instead of a folder listing and adds what was picked', async () => {
+    openGooglePicker.mockResolvedValue([
+      { id: 'g1', name: 'Antrag', mimeType: 'application/vnd.google-apps.document' },
+    ]);
+    const user = userEvent.setup();
+    renderBrowser('google');
+
+    await user.click(await screen.findByText('In Google Drive auswählen…'));
+    expect(await screen.findByText('Antrag')).toBeInTheDocument();
+    expect(screen.getByText('1 ausgewählt')).toBeInTheDocument();
+    await user.click(screen.getByText('Hinzufügen'));
+
+    expect(driveCalls.some((c) => c?.startsWith('google:'))).toBe(false);
+    expect(onSelect).toHaveBeenCalledWith({
+      wolke: [],
+      connect: [
+        {
+          provider: 'google',
+          fileId: 'g1',
+          name: 'Antrag',
+          mimeType: 'application/vnd.google-apps.document',
+        },
+      ],
+    });
+  });
+
+  it('asks to reconnect when the picker gets no Google token', async () => {
+    openGooglePicker.mockRejectedValue(new ApiError(403, 'Zugang abgelaufen'));
+    const user = userEvent.setup();
+    renderBrowser('google');
+
+    await user.click(await screen.findByText('In Google Drive auswählen…'));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Google Drive ist abgelaufen/);
   });
 });

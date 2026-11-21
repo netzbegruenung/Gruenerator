@@ -5,11 +5,15 @@
  * Werkzeuge selbst verbundener Server (`mcp:`) stehen NICHT hier: sie haben
  * ihre Stufen-Auswahl in der jeweiligen Konnektor-Zeile (McpToolStages).
  */
+import { Button } from '@gruenerator/ui';
 import { memo } from 'react';
 import { FiShield, FiTrash2 } from 'react-icons/fi';
 
 import { useRevokeToolApproval, useToolApprovals } from '../hooks/useToolApprovals';
 import { approvalDisplayLabel } from '../lib/toolApprovalsApi';
+
+import { SettingsList, SettingsListRow } from '@/features/settings/components/SettingsListRow';
+import SettingsSection from '@/features/settings/components/SettingsSection';
 
 interface ToolApprovalsSectionProps {
   onSuccess: (message: string) => void;
@@ -37,45 +41,35 @@ const ToolApprovalsSection = memo(function ToolApprovalsSection({
   if (isLoading || !approvals || approvals.length === 0) return null;
 
   return (
-    <section>
-      <div className="flex items-center gap-md">
-        <div className="flex h-[52px] w-[52px] flex-none items-center justify-center rounded-[14px] border border-primary-100 bg-primary-50 text-primary dark:border-primary-800 dark:bg-primary-950/30 dark:text-primary-400">
-          <FiShield className="h-6 w-6" />
-        </div>
-        <h2 className="m-0 text-2xl font-semibold tracking-tight text-foreground-heading">
-          Immer erlaubte Werkzeuge
-        </h2>
-      </div>
-      <p className="mt-sm max-w-xl text-sm leading-relaxed text-grey-500">
-        Diese Werkzeuge laufen im Chat ohne Rückfrage. Entfernst du eines, fragt der Chat vor der
-        nächsten Ausführung wieder nach.
-      </p>
-
-      <ul className="mt-md list-none space-y-2 p-0">
+    <SettingsSection
+      title="Immer erlaubte Werkzeuge"
+      description="Diese Werkzeuge laufen im Chat ohne Rückfrage. Entfernst du eines, fragt der Chat vor der nächsten Ausführung wieder nach."
+    >
+      <SettingsList>
         {approvals.map((approval) => {
           const label = approvalDisplayLabel(approval);
           return (
-            <li
+            <SettingsListRow
               key={approval.scopeKey}
-              className="flex items-center gap-md rounded-xl border border-grey-200 px-md py-2.5 dark:border-grey-700"
-            >
-              <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground-heading">
-                {label}
-              </span>
-              <button
-                type="button"
-                onClick={() => handleRevoke(approval.scopeKey, label)}
-                disabled={revoke.isPending}
-                className="inline-flex cursor-pointer items-center gap-1.5 border-none bg-transparent text-xs font-medium text-grey-500 transition-colors hover:text-foreground disabled:opacity-50"
-              >
-                <FiTrash2 className="h-3.5 w-3.5" />
-                Entfernen
-              </button>
-            </li>
+              mark={<FiShield size={14} />}
+              name={label}
+              actions={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleRevoke(approval.scopeKey, label)}
+                  disabled={revoke.isPending}
+                >
+                  <FiTrash2 />
+                  Entfernen
+                </Button>
+              }
+            />
           );
         })}
-      </ul>
-    </section>
+      </SettingsList>
+    </SettingsSection>
   );
 });
 

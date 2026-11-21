@@ -72,6 +72,8 @@ export const createCanvasBodySchema = z.object({
   page_count: z.number().int().positive().optional(),
   // Free string by design (see NOTE above); the server checks `print-*` ids against its format registry.
   format: z.string().optional(),
+  /** Gleich ins Projekt legen (Freigabe mit Schreibrecht, in derselben Transaktion). */
+  groupId: z.string().uuid().optional(),
 });
 
 export type CreateCanvasBody = z.infer<typeof createCanvasBodySchema>;
@@ -163,10 +165,22 @@ export const canvasCloneResponseSchema = z.object({
   accessMethod: z.string().optional(),
 });
 
-/** Error body shared by all canvas endpoints: `{ error, details? }`. */
+/**
+ * Why the collab service refused a canvas write on purpose (retrying changes nothing):
+ * `CANVAS_DOCUMENT_NEWER` (409) — the document was saved by a newer editor than the server can
+ * write (or, for a read, read), `CANVAS_STATE_UNWRITABLE` (400) — a value the canvas cannot store.
+ */
+export const canvasWriteRefusalCodeSchema = z.enum([
+  'CANVAS_DOCUMENT_NEWER',
+  'CANVAS_STATE_UNWRITABLE',
+]);
+export type CanvasWriteRefusalCode = z.infer<typeof canvasWriteRefusalCodeSchema>;
+
+/** Error body shared by all canvas endpoints: `{ error, details?, code? }`. */
 export const canvasErrorResponseSchema = z.object({
   error: z.string(),
   details: z.string().optional(),
+  code: canvasWriteRefusalCodeSchema.optional(),
 });
 
 // ── Live state & chat-edit version history ─────────────────────────────────

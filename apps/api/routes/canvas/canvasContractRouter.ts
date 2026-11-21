@@ -40,6 +40,7 @@ import {
   applyCanvasStatePatch,
   applyDeckChanges,
   getCurrentCanvasState,
+  getCanvasSnapshotState,
   getCurrentDeckState,
   seedCanvasPages,
   type CanvasPageDef,
@@ -50,8 +51,16 @@ import {
   insertCanvasVersion,
   listCanvasVersions,
 } from '../../services/canvas/canvasVersionRepository.js';
+import {
+  CanvasDocumentNewerError,
+  CanvasDocumentNewerReadError,
+  CanvasStateUnwritableError,
+} from '../../services/canvas/canvasWriteErrors.js';
+import { CREATE_IN_GROUP_FORBIDDEN, createInGroup } from '../../services/groups/createInGroup.js';
+import { GroupShareForbiddenError } from '../../services/groups/groupShareWriter.js';
 import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
+import { toUserFacingMessage } from '../../utils/errors/userFacing.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
 import { ThreadId, UserId } from '../../utils/types/branded.js';
@@ -79,6 +88,43 @@ const isCanvasPageDefArray = (v: unknown): v is CanvasPageDef[] =>
       typeof (p as CanvasPageDef).configId === 'string' &&
       typeof (p as CanvasPageDef).state === 'object'
   );
+
+/**
+ * A write the collab service refused on purpose is not a server failure: the document is newer
+ * than the server can write (409) or the value cannot be stored (400). Null for anything else.
+ */
+function writeRefusalResponse(error: unknown) {
+  if (error instanceof CanvasDocumentNewerError) {
+    log.warn(`[canvas] write refused for ${error.canvasId}: document is newer`);
+    return {
+      status: 409 as const,
+      body: { error: toUserFacingMessage(error), code: 'CANVAS_DOCUMENT_NEWER' as const },
+    };
+  }
+  if (error instanceof CanvasStateUnwritableError) {
+    log.warn(`[canvas] write refused for ${error.canvasId}: value cannot be stored`);
+    return {
+      status: 400 as const,
+      body: { error: toUserFacingMessage(error), code: 'CANVAS_STATE_UNWRITABLE' as const },
+    };
+  }
+  return null;
+}
+
+/**
+ * A read the collab service refused because the document is newer than the server: 409 with the
+ * same code as the write refusal. Null for anything else.
+ */
+function readRefusalResponse(error: unknown) {
+  if (error instanceof CanvasDocumentNewerReadError) {
+    log.warn(`[canvas] read refused for ${error.canvasId}: document is newer`);
+    return {
+      status: 409 as const,
+      body: { error: toUserFacingMessage(error), code: 'CANVAS_DOCUMENT_NEWER' as const },
+    };
+  }
+  return null;
+}
 
 const s = initServer();
 
@@ -135,7 +181,13 @@ export const canvasContractRouter = s.router(canvasContract, {
         ...(b.page_count !== undefined ? { page_count: b.page_count } : {}),
         ...(b.format !== undefined ? { format: b.format } : {}),
       };
-      const canvas = await createCanvas(userId, input);
+      const canvas = b.groupId
+        ? await createInGroup({
+            userId,
+            groupId: b.groupId,
+            insert: (query) => createCanvas(userId, input, query),
+          })
+        : await createCanvas(userId, input);
       // Authoritative server-side page seed — a studio tab opening later must
       // not race its template defaults against another tab (deterministic
       // seed ids make even a double-seed converge, this removes the race
@@ -147,6 +199,9 @@ export const canvasContractRouter = s.router(canvasContract, {
       );
       return { status: 201 as const, body: canvas };
     } catch (error) {
+      if (error instanceof GroupShareForbiddenError) {
+        return { status: 403 as const, body: { error: CREATE_IN_GROUP_FORBIDDEN } };
+      }
       const err = error as Error;
       log.error('[canvas.create] Error:', err);
       return {
@@ -286,13 +341,18 @@ export const canvasContractRouter = s.router(canvasContract, {
   clone: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
-      const result = await cloneCanvas(args.params.id, userId);
+      // The live state comes from Hocuspocus (the editor's authority), not the `initial_state`
+      // mirror, as in the template freeze. `cloneCanvas` checks access first, so it takes a reader
+      // instead of the state: nothing is read from Hocuspocus for a canvas the caller may not see.
+      const result = await cloneCanvas(args.params.id, userId, getCanvasSnapshotState);
       if (result.kind === 'not_found') {
         return { status: 404 as const, body: { error: 'Canvas not found' } };
       }
       if (result.kind === 'forbidden') {
         return { status: 403 as const, body: { error: 'Access denied' } };
       }
+      // The copy gets a Yjs document of its own, seeded like a canvas created from a template.
+      await seedCanvasPages(result.newCanvasId, result.templateType, result.seededState);
       return {
         status: 201 as const,
         body:
@@ -301,6 +361,8 @@ export const canvasContractRouter = s.router(canvasContract, {
             : { newCanvasId: result.newCanvasId },
       };
     } catch (error) {
+      const refused = readRefusalResponse(error);
+      if (refused) return refused;
       const err = error as Error;
       log.error('[canvas.clone] Error:', err);
       return {
@@ -335,6 +397,8 @@ export const canvasContractRouter = s.router(canvasContract, {
         },
       };
     } catch (error) {
+      const refused = readRefusalResponse(error);
+      if (refused) return refused;
       const err = error as Error;
       log.error('[canvas.getState] Error:', err);
       return {
@@ -431,6 +495,8 @@ export const canvasContractRouter = s.router(canvasContract, {
       });
       return { status: 200 as const, body: { version: newVersion, state: snapshot.state } };
     } catch (error) {
+      const refused = writeRefusalResponse(error);
+      if (refused) return refused;
       const err = error as Error;
       log.error('[canvas.restoreVersion] Error:', err);
       return {
@@ -514,6 +580,8 @@ export const canvasContractRouter = s.router(canvasContract, {
       if (format !== undefined) await updateCanvas(args.params.id, userId, { format });
       return { status: 200 as const, body: { message: 'Canvas pages replaced successfully' } };
     } catch (error) {
+      const refused = writeRefusalResponse(error);
+      if (refused) return refused;
       const err = error as Error;
       log.error('[canvas.replacePages] Error:', err);
       return {

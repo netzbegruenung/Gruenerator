@@ -225,6 +225,22 @@ export function boundSystemNotebook(
 }
 
 /**
+ * Das erste eigene Notebook (Nutzer-UUID) unter den `defaultNotebookIds` des
+ * Agenten — oder `null`, auch wenn der Agent eigene Inhalte nicht lesen darf
+ * (`user_content` aus; dieselbe Regel wie `systemOnly` im Katalog).
+ *
+ * Getrennt von {@link boundSystemNotebook}: ein System-Notebook ist ein
+ * Sammlungsschlüssel für `gruenerator_search`, ein eigenes nicht. Der Zugriff
+ * wird beim Lesen geprüft, wie bei jeder ausdrücklichen notebookId.
+ */
+export function boundUserNotebook(
+  state: Pick<ChatGraphState, 'agentConfig' | 'enabledTools'>
+): string | null {
+  if (state.enabledTools?.['user_content'] === false) return null;
+  return state.agentConfig?.defaultNotebookIds?.find(isUserNotebookId) ?? null;
+}
+
+/**
  * Das Notebook, wie der Planer es im Prompt genannt bekommt (`buildToolUsageBlock`):
  * ein System-Notebook mit seinem Namen, ein eigenes nur mit der id — dessen Name
  * stünde erst nach einem Qdrant-Aufruf fest, und die id reicht dem Werkzeug.
@@ -614,6 +630,9 @@ export function makeNotebookSourcesTool(
     const bound = boundSystemNotebook(state);
     const boundSystem = bound ? resolveSystemCollection(bound, allowedSystemKeys) : null;
     if (boundSystem && !('error' in boundSystem)) return { kind: 'system', ...boundSystem };
+    const boundOwn = systemOnly ? null : boundUserNotebook(state);
+    const ownCollection = boundOwn ? await deps.helper.getNotebookCollection(boundOwn) : null;
+    if (ownCollection) return { kind: 'user', collection: ownCollection };
     return { error: NO_NOTEBOOK };
   }
 

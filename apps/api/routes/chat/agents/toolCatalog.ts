@@ -75,6 +75,19 @@ import { isReisekostenTurn } from '../services/reisekostenAvailability.js';
 import { withImageProxy } from '../services/searchImagePayload.js';
 import { turnImagesOf } from '../services/turnImages.js';
 
+import {
+  makeAntragsgruenAgendaTool,
+  makeAntragsgruenReadTool,
+  makeAntragsgruenMotionTool,
+  makeAntragsgruenSiteTool,
+  siteCreationConfigured,
+} from './antragsgruenSiteTools.js';
+import {
+  makeAntragsgruenAuswertenTool,
+  makeAntragsgruenLesenTool,
+  makeAntragsgruenTool,
+} from './antragsgruenTools.js';
+import { makeAtlassianTool } from './atlassianTools.js';
 import { makeWebsiteErkundenTool } from './browserAgentTool.js';
 import { makeCloudFilesTool } from './cloudFileTools.js';
 import { makeEditDocumentTextTool, makeReadDocumentTool } from './documentLoopTools.js';
@@ -103,6 +116,13 @@ import { makeMemoryTool } from './memoryTools.js';
 import { CRAWL_SNIPPET_CHARS, normalisiereUrl, readNamedPages } from './namedPages.js';
 import { boundSystemNotebook, makeNotebookSourcesTool } from './notebookSourceTools.js';
 import { makeNotebooksTool } from './notebookTools.js';
+import {
+  makeNuudelCreateTool,
+  makeNuudelDeleteTool,
+  makeNuudelEditTool,
+  makeNuudelReadTool,
+  nuudelConfigured,
+} from './nuudelTools.js';
 import { makeReadPdfFormTool, makeFillPdfFormTool } from './pdfFormTools.js';
 import {
   makeBoardsTasksTool,
@@ -122,11 +142,7 @@ import { agentAllowsWebSearch, createSearchTools } from './searchTools.js';
 import { makeCheckSharepicTool } from './sharepicCheckTool.js';
 import { makeEditSharepicTool, makeReadSharepicTool } from './sharepicLoopTools.js';
 import { hasThreadSheet, makeEditSheetTool, makeReadSheetTool } from './sheetLoopTools.js';
-import {
-  isTabelleAuswertenMountable,
-  makeDirektAntwortenTool,
-  makeTabelleAuswertenTool,
-} from './tabelleAuswertenTool.js';
+import { isTabelleAuswertenMountable, makeTabelleAuswertenTool } from './tabelleAuswertenTool.js';
 import { makeRecipesTool } from './textFormTools.js';
 import { threadHasArtifact } from './threadArtifactTarget.js';
 import { werkzeugFehler } from './toolFailure.js';
@@ -135,11 +151,11 @@ import { makeUserAgentsTool } from './userAgentTools.js';
 import { makeVertonenTool } from './voiceTools.js';
 import { makeSuggestVorlagenTool, vorlagenForTurn } from './vorlagenTools.js';
 
-import type { AgentConfig } from './types.js';
 import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { RecipeRegistry } from '../services/agenticLoop/recipeRegistry.js';
 import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import type { SSEWriter } from '../services/sseHelpers.js';
+import type { AgentConfig } from './types.js';
 import type { Request } from 'express';
 
 const log = createLogger('toolCatalog');
@@ -962,6 +978,14 @@ NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summar
       tools.nationalrat = makeNationalratTool({ state, sourceRegistry });
       tools.parlament_lesen = makeParlamentLesenTool({ state, sourceRegistry });
     }
+    // Antragsgrün (GRÜNE NRW): montiert wie die Parlamente, aber hinter der Gruppe
+    // `antragsgruen` (`toolScope.ts`) — sichtbar erst auf @antragsgruennrw, ein
+    // Stichwort oder eine frühere Nutzung im Thread.
+    if (isIntentAllowedForLocale('antragsgruen', state.userLocale)) {
+      tools.antragsgruen = makeAntragsgruenTool({ state, sourceRegistry });
+      tools.antragsgruen_lesen = makeAntragsgruenLesenTool({ state, sourceRegistry });
+      tools.antragsgruen_auswerten = makeAntragsgruenAuswertenTool({ state, sourceRegistry });
+    }
     if (isIntentAllowedForLocale('abgeordnetenwatch', state.userLocale)) {
       tools.abgeordnetenwatch = makeAbgeordnetenwatchTool({ state, sourceRegistry });
     }
@@ -1003,7 +1027,7 @@ NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summar
       tools.product_knowledge = tool({
         description: `Beantwortet Fragen über den Grünerator selbst: verfügbare Grüneratoren (Assistenten), Werkzeuge, eigene Begriffe (Modellstufen Klein/Mittel/Ultra/Panda, Explainable, Podcast, Öko-Modus, Marktplatz, Papierkorb, Konto, App …), MCP-Server/Anbindungen und durchsuchbare Wissenssammlungen.
 
-NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grünerators gefragt wird ("was kannst du", "was ist Panda", "welche MCP-Server kennst du"). Schritt-für-Schritt-Anleitungen zur Bedienung ("wie erstelle ich ein Sharepic", "wo finde ich …") liefert gruenerator_docs_search. NICHT für politische Inhalte oder Recherche — und NICHT für die persönlichen Wolke-/Nextcloud-Verbindungen oder -Dateien der Person: welche Wolke-Links verbunden sind, beantwortet 'cloud_files' (list_connections).`,
+NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grünerators gefragt wird ("was kannst du", "was ist Panda", "welche MCP-Server kennst du"). Schritt-für-Schritt-Anleitungen zur Bedienung ("wie erstelle ich ein Sharepic", "wo finde ich …") liefert gruenerator_docs_search. NICHT für politische Inhalte oder Recherche — und NICHT für die persönlichen Wolke-/Nextcloud-, OneDrive- oder Google-Drive-Verbindungen oder -Dateien der Person: welche Ablagen verbunden sind, beantwortet 'cloud_files' (list_connections).`,
         inputSchema: z.object({
           topic: z
             .string()
@@ -1026,7 +1050,7 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
           return {
             knowledge:
               cloudFilesMounted && wolkeInText
-                ? `${knowledge}\n\nHinweis: Welche Wolke-/Nextcloud-Freigaben die Person verbunden hat, steht hier nicht — das beantwortet das Werkzeug cloud_files (action "list_connections").`
+                ? `${knowledge}\n\nHinweis: Welche Wolke-/Nextcloud-Freigaben, OneDrive- oder Google-Drive-Konten die Person verbunden hat, steht hier nicht — das beantwortet das Werkzeug cloud_files (action "list_connections").`
                 : knowledge,
           };
         },
@@ -1183,6 +1207,22 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
     if (state.enabledTools?.['groups'] !== false) {
       tools.groups = makeGroupsTool(personalCtx);
     }
+    // Hinter der Gruppe `antragsgruen` (`toolScope.ts`); ohne Zugangsdaten des
+    // Grünerator-Kontos bei antragsgruen.de gibt es nichts anzulegen.
+    if (isIntentAllowedForLocale('antragsgruen', state.userLocale) && siteCreationConfigured()) {
+      tools.antragsgruen_seite_anlegen = makeAntragsgruenSiteTool(personalCtx);
+      tools.antragsgruen_antrag_stellen = makeAntragsgruenMotionTool(personalCtx);
+      tools.antragsgruen_tagesordnung = makeAntragsgruenAgendaTool(personalCtx);
+      tools.antragsgruen_seite_lesen = makeAntragsgruenReadTool(personalCtx);
+    }
+    // Hinter der Gruppe `nuudel` (`toolScope.ts`); Anlegen, Bearbeiten und
+    // Löschen fragen über das Freigabe-Gate (`INTERNAL_APPROVAL_REQUIRED_TOOLS`).
+    if (nuudelConfigured()) {
+      tools.nuudel_umfrage_anlegen = makeNuudelCreateTool(personalCtx);
+      tools.nuudel_umfrage_lesen = makeNuudelReadTool(personalCtx);
+      tools.nuudel_umfrage_bearbeiten = makeNuudelEditTool(personalCtx);
+      tools.nuudel_umfrage_loeschen = makeNuudelDeleteTool(personalCtx);
+    }
     if (state.enabledTools?.['media'] !== false) {
       tools.media = makeMediaTool(personalCtx);
     }
@@ -1217,8 +1257,8 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
     //
     // 1. Der Pin. Tier 3.4 des Klassifikators erkennt den Dauerauftrag
     //    („erinnere mich jeden Montag …") und setzt `mentionPinnedTool`; der
-    //    Pin zwingt den Turn in die Schleife und benennt den ersten Aufruf —
-    //    aber `pinnedFirstTool` prüft die Montage, ein Pin auf ein fehlendes
+    //    Pin zwingt den Turn in die Schleife und kündigt dem Modell das
+    //    Werkzeug an (`buildPinnedToolNote`) — ein Pin auf ein nicht montiertes
     //    Werkzeug wäre still wirkungslos.
     // 2. Derselbe Detektor noch einmal, für den Fall, dass der Turn auf einem
     //    anderen Weg in die Schleife kam (Erwähnung, Verbund).
@@ -1272,6 +1312,21 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
       tools.cloud_files = makeCloudFilesTool(personalCtx);
     }
 
+    // Jira/Confluence (read-only): mounted only for an account that has at
+    // least one of them connected — no word gating, an unconnected account
+    // pays nothing. The count is a 60 s cache filled in `buildStreamContext`.
+    const atlassianConnections = state.atlassianConnections ?? { jira: false, confluence: false };
+    if (
+      state.enabledTools?.['atlassian'] !== false &&
+      (atlassianConnections.jira || atlassianConnections.confluence)
+    ) {
+      tools.atlassian = makeAtlassianTool({
+        state,
+        sourceRegistry,
+        connections: atlassianConnections,
+      });
+    }
+
     // PDF form tools. `hasReachableForm` carries the `isFillablePdf` verdict
     // for BOTH halves — from the DB for earlier turns, via `pdfFormCandidates`
     // (attachmentProcessing, #2835) for this one. The scope note lives at the
@@ -1307,7 +1362,6 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
     // ohne angemeldete Person aus ist; dann lieber gar nicht montieren.
     if (loop.threadId && isTabelleAuswertenMountable({ ...state, agentConfig })) {
       tools.tabelle_auswerten = makeTabelleAuswertenTool();
-      tools.direkt_antworten = makeDirektAntwortenTool();
     }
     // Reisekostenabrechnung (Beta). Nur in Reisekosten-Turns: das Eingabeschema
     // ist gross und zählte sonst gegen das Katalogbudget jedes Recherche-Turns.
@@ -1361,7 +1415,8 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
       tools.generate_image = makeImageTool({ sse, state });
     }
     // Ein Bild verändern: das zuletzt erzeugte des Threads (ohne `bild`) oder
-    // ein Foto dieses Turns (mit `bild`, Wolke oder Anhang — die Vorlage für
+    // ein Foto der Bildliste (mit `bild`: Anhang, Wolke oder ein früher im
+    // Thread hochgeladenes Foto, `listTurnImageRefs` — die Vorlage für
     // „ein Bild von mir, wie ich …"). Ob ein Turn es meint, entscheidet der
     // Planer, nicht eine Bearbeitungs-Vokabel (live 05.11.2026: „passe die
     // grafik noch einmal an" ohne Werkzeug → erfundene Anpassung). Ein

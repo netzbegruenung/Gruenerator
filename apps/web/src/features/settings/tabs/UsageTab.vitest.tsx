@@ -148,14 +148,16 @@ describe('UsageTab', () => {
     expect(screen.queryByText(/gegenüber ChatGPT|Vergleich zu ChatGPT/)).not.toBeInTheDocument();
   });
 
-  it('lists models by function and names verdigado, not litellm', async () => {
+  it('shows what was done, not tokens, models or providers', async () => {
     serve(BASE);
     renderWithProviders(<UsageTab />);
 
-    await waitFor(() => expect(screen.getByText('Textmodelle')).toBeInTheDocument());
-    expect(screen.getByText('Spracherkennung')).toBeInTheDocument();
-    expect(screen.getByText('Websuche')).toBeInTheDocument();
-    expect(screen.getByText('verdigado')).toBeInTheDocument();
-    expect(screen.queryByText('litellm')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('KI-Anfragen')).toBeInTheDocument());
+    expect(screen.getByText('Web-Recherchen')).toBeInTheDocument();
+    expect(screen.queryByText('Tokens gesamt')).not.toBeInTheDocument();
+    expect(screen.queryByText('Tokens pro Tag')).not.toBeInTheDocument();
+    expect(screen.queryByText('gpt-oss-120b')).not.toBeInTheDocument();
+    expect(screen.queryByText('verdigado')).not.toBeInTheDocument();
+    expect(screen.queryByText('Textmodelle')).not.toBeInTheDocument();
   });
 });

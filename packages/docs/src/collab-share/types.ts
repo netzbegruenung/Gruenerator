@@ -18,6 +18,8 @@ export interface SharingCollaborator {
   avatar_robot_id?: number;
   permission_level: SharePermissionLevel;
   granted_at: string;
+  /** `auto:share_link` for people who joined through the share link. */
+  granted_by?: string | null;
 }
 
 export interface SharingShareSettings {
@@ -30,6 +32,8 @@ export interface SharingUserGroup {
   id: string;
   name: string;
   role: string;
+  /** Team-Projekt: Docs gehen dort standardmäßig mit „Bearbeiten“ hinein. */
+  team?: boolean;
 }
 
 export interface SharingGroupShare {

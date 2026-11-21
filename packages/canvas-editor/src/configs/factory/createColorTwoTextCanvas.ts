@@ -547,7 +547,14 @@ export function createColorTwoTextCanvas<
         ),
       }) as State,
 
-    createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) => {
+    createActions: (
+      getState,
+      setState,
+      saveToHistory,
+      debouncedSaveToHistory,
+      callbacks,
+      history
+    ) => {
       // Get font color for additional text actions
       // Same rule as calculateLayout: a text the user adds over a photo has to
       // be white, or it inherits the dark colour derived from the (invisible)
@@ -566,7 +573,9 @@ export function createColorTwoTextCanvas<
         canvas.width,
         canvas.height,
         getFontColor(),
-        brand
+        brand,
+        1,
+        history
       );
 
       // Callback keys for external sync

@@ -4,7 +4,7 @@
  * nur ihren Abschnitt kostet und nicht das Briefing.
  */
 import { LANDESVERBAENDE, landesverbandIdsForRoles } from '@gruenerator/shared/agents';
-import { type UserRole } from '@gruenerator/shared/roles';
+import { type UserRole, mdbOfficeContext } from '@gruenerator/shared/roles';
 
 import { getCollectionDefaultFilter } from '../../config/systemCollectionsConfig.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
@@ -81,7 +81,8 @@ export function roleContextLine(role: UserRole | undefined): string | null {
   const parts = [role.rolle];
   if (role.gliederung) parts.push(role.gliederung);
   if (role.bundesland) parts.push(role.bundesland);
-  if (role.abgeordnete) parts.push(`Büro von ${role.abgeordnete}`);
+  const office = mdbOfficeContext(role);
+  if (office) parts.push(office);
   return parts.join(', ');
 }
 
@@ -119,7 +120,7 @@ async function loadRecentWork(userId: string): Promise<RecentWorkItem[]> {
       `SELECT cd.id, cd.title, cd.document_subtype, cd.updated_at
        FROM collaborative_documents cd
        WHERE cd.created_by = $1 AND cd.is_deleted = false AND cd.deleted_at IS NULL
-         AND COALESCE(cd.document_subtype, '') <> 'boards'
+         AND COALESCE(cd.document_subtype, '') NOT IN ('boards', 'video')
          AND cd.title IS NOT NULL AND btrim(cd.title) <> ''
          AND cd.updated_at > now() - make_interval(days => $2)
        ORDER BY cd.updated_at DESC

@@ -2,6 +2,7 @@ import {
   GrueneratorChatProvider,
   TooltipProvider,
   preloadChatRuntime,
+  type ChatConfig,
   type SharepicVariant,
 } from '@gruenerator/chat';
 import { type RoleRef } from '@gruenerator/contracts';
@@ -12,17 +13,15 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import { handleUnauthorized } from '../components/utils/apiClient';
 import { CHUNK_PAGE_SIZE } from '../features/admin/hooks/useChunkInspector';
+import { QUERY_KEYS } from '../features/auth/hooks/useProfileData';
+import { profileApiService } from '../features/auth/services/profileApiService';
 import {
   ChatPdfLetterheadExportHost,
   requestPdfLetterheadExport,
 } from '../features/chat/ChatPdfLetterheadExport';
 import { ChatSourceReaderHost, requestChatSourceReader } from '../features/chat/ChatSourceReader';
-import { renderSharepicToImage } from '../features/image-studio/renderSharepicToImage';
-import { updateCanvasThumbnail } from '../features/image-studio/services/canvasThumbnailService';
-import { downloadSharepicZip } from '../features/image-studio/services/downloadSharepicZip';
 import { useModelPreferences } from '../features/models/hooks/useModelPreferences';
 import { useNotebookChatStore } from '../features/notebook/stores/notebookChatStore';
-import useNotebookStore from '../features/notebook/stores/notebookStore';
 import { resolveNotebookChatEntries } from '../features/notebook/utils/notebookChatResolver';
 import { useTrashUndoToast } from '../features/trash/trashUndoToast';
 import { useSetUserDefault } from '../features/user-defaults/userDefaultsQueries';
@@ -31,6 +30,7 @@ import { sessionDebug } from '../lib/sessionDebug';
 import { runPython } from '../services/pythonInterpreter';
 import { useAuthStore } from '../stores/authStore';
 import { getDesktopToken } from '../utils/desktopAuth';
+import { getDevBypassUserId } from '../utils/devBypassUser';
 import { isDesktopApp, resolveApiAssetUrl } from '../utils/platform';
 
 /**
@@ -50,6 +50,12 @@ const chatFetch = async (url: string, options?: RequestInit): Promise<Response> 
     const token = await getDesktopToken();
     if (token) headers.set('Authorization', `Bearer ${token}`);
     return fetch(resolveApiAssetUrl(url), { ...options, headers });
+  }
+  const devUser = getDevBypassUserId();
+  if (devUser) {
+    const headers = new Headers(options?.headers);
+    headers.set('x-dev-auth-user', devUser);
+    return fetch(url, { ...options, headers, credentials: 'include' });
   }
   return fetch(url, { ...options, credentials: 'include' });
 };
@@ -73,7 +79,6 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
   const isInstanceAdmin = useAuthStore((s) => s.user?.is_admin === true);
   const navigate = useNavigate();
   const location = useLocation();
-  const qaCollectionsLength = useNotebookStore((s) => s.qaCollections.length);
   const { enabledModelIds } = useModelPreferences({ enabled: !!userId });
 
   // Rollenwahl im Composer → Konto-Voreinstellung. Über einen Ref, weil
@@ -85,16 +90,14 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
     setUserDefaultRef.current = setUserDefault;
   }, [setUserDefault]);
 
-  // Notebook collections power @notebook mention metadata; fetch lazily when
-  // an authenticated user actually needs them. React Query caches the result.
-  useQuery({
-    queryKey: ['qa-collections', userId],
-    queryFn: async () => {
-      await useNotebookStore.getState().fetchQACollections();
-      return useNotebookStore.getState().qaCollections;
-    },
-    enabled: !!userId && qaCollectionsLength === 0,
-    staleTime: 5 * 60_000,
+  // Notebook collections name the notebook chats in the thread list. Same key and
+  // fetcher as the profile/notebook pages (and the /auth/init seed), so it joins
+  // their request instead of issuing a second one.
+  const { data: notebookCollections } = useQuery({
+    queryKey: QUERY_KEYS.notebookCollections(userId),
+    queryFn: profileApiService.getNotebookCollections,
+    enabled: !!userId,
+    staleTime: 15 * 60_000,
   });
 
   useEffect(() => {
@@ -114,18 +117,18 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
 
   // Refs for stable getExternalThreads callback — updated via Zustand .subscribe() to avoid re-renders
   const chatsRef = useRef(useNotebookChatStore.getState().chats);
-  const qaRef = useRef(useNotebookStore.getState().qaCollections);
+  const qaRef = useRef<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    qaRef.current = notebookCollections ?? [];
+  }, [notebookCollections]);
 
   useEffect(() => {
     const unsubChats = useNotebookChatStore.subscribe((s) => {
       chatsRef.current = s.chats;
     });
-    const unsubQa = useNotebookStore.subscribe((s) => {
-      qaRef.current = s.qaCollections;
-    });
     return () => {
       unsubChats();
-      unsubQa();
     };
   }, []);
 
@@ -213,11 +216,19 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
         : undefined,
       // Interner Test: Mistrals Voice-Agent geht über den globalen Endpunkt.
       voice: isInstanceAdmin ? mistralChatVoice : undefined,
-      renderSharepic: renderSharepicToImage,
+      // The render stack (canvas composer, ggraphic, screenshot, zip) is ~340 kB
+      // of minified JS. This provider sits at the app root, so a static import
+      // ships it on every first load; load it on the first sharepic instead.
+      renderSharepic: async (...args: Parameters<NonNullable<ChatConfig['renderSharepic']>>) =>
+        (await import('../features/image-studio/renderSharepicToImage')).renderSharepicToImage(
+          ...args
+        ),
       renderSharepicSheet: async (initialProps: Record<string, unknown>) =>
         (await import('../features/image-studio/freitext/creatorRender')).renderSharepicSheet(
           initialProps
         ),
+      reviewSharepic: async (input: Parameters<NonNullable<ChatConfig['reviewSharepic']>>[0]) =>
+        (await import('../features/image-studio/freitext/creatorRender')).reviewChatSharepic(input),
       runPython,
       onEditSharepic: (variant: SharepicVariant, opts?: { threadId: string | null }) => {
         // Already a real canvas document → open it directly.
@@ -292,7 +303,11 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
           ...(result.body.pages ? { pages: result.body.pages } : {}),
         };
       },
-      downloadSharepicZip,
+      downloadSharepicZip: async (images: string[], canvasType: string) =>
+        (await import('../features/image-studio/services/downloadSharepicZip')).downloadSharepicZip(
+          images,
+          canvasType
+        ),
       fetchSharepicVersions: async (canvasId: string) => {
         const result = await getContractsClient().canvas.listVersions({
           params: { id: canvasId },
@@ -307,8 +322,10 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
         if (result.status !== 200) return null;
         return result.body.state;
       },
-      updateSharepicThumbnail: (canvasId: string, imageDataUrl: string) =>
-        updateCanvasThumbnail(canvasId, imageDataUrl, 'chat-sharepic-thumbnail'),
+      updateSharepicThumbnail: async (canvasId: string, imageDataUrl: string) =>
+        (
+          await import('../features/image-studio/services/canvasThumbnailService')
+        ).updateCanvasThumbnail(canvasId, imageDataUrl, 'chat-sharepic-thumbnail'),
       restoreSharepicVersion: async (canvasId: string, version: number) => {
         const result = await getContractsClient().canvas.restoreVersion({
           params: { id: canvasId, version },

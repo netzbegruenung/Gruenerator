@@ -1,36 +1,85 @@
+import { posBetween } from '@ggraphic/core/ydoc';
 import { DOCUMENT_FRAGMENT_NAME, injectHtmlIntoFragment } from '@gruenerator/shared/yjs';
 import express from 'express';
 import * as Y from 'yjs';
 
 import { blockNoteXmlToHtml } from './blockNoteXmlToHtml.js';
+import {
+  CANVAS_DOCUMENT_NEWER_CODE,
+  CANVAS_STATE_UNWRITABLE_CODE,
+  CanvasDocumentNewerError,
+  CanvasStateUnwritableError,
+  YDOC_KEYS,
+  assertCanvasDocumentWritable,
+  assertStateWritable,
+  buildPageState,
+  readState,
+  stampCreatedDocument,
+  writePageState,
+  CANVAS_KEY_CLASSES,
+} from './canvasCodec.js';
+import { mergeStalePatch } from './canvasMerge.js';
 import { detectPreviewKind } from './contentPreviews.js';
 import { createLogger } from './logger.js';
+import { SITE_DOC_MAX_BYTES, applySiteSeed, isSiteId, siteRoomOf } from './siteRooms.js';
 
 import type { PostgresPersistence } from './persistence.js';
+import type { DbQueryFn } from './types.js';
 import type { Connection, Hocuspocus, Server } from '@hocuspocus/server';
 
 const log = createLogger('InternalApi');
 
-// Y.Doc keys for canvas documents. Duplicated from
-// packages/canvas-editor/src/collab/ydocKeys.ts on purpose — per CLAUDE.md the
-// Hocuspocus service has zero cross-package deps.
-const KEY_FORM_STATE = 'formState';
-const KEY_PAGES_BY_ID = 'pagesById';
-const KEY_META = 'meta';
-const KEY_PAGES = 'pages'; // legacy Y.Array container
-const KEY_STATE = 'state';
-const KEY_ID = 'id';
-const KEY_CONFIG_ID = 'configId';
-const KEY_POS = 'pos';
-const KEY_PAGES_SEEDED = 'pagesSeeded';
-// Authoritative-seed watermark; MUST match YDOC_KEYS.seeded in
-// packages/canvas-editor/src/collab/ydocKeys.ts.
-const KEY_SEEDED = '_seeded';
+// Y.Doc keys for canvas documents come from the codec package, so a rename there reaches this
+// service. Page state is read and written only through `./canvasCodec.js` (see its header).
+const KEY_FORM_STATE = YDOC_KEYS.formState;
+const KEY_PAGES_BY_ID = YDOC_KEYS.pagesById;
+const KEY_META = YDOC_KEYS.meta;
+const KEY_PAGES = YDOC_KEYS.pages; // legacy Y.Array container
+const KEY_STATE = YDOC_KEYS.state;
+const KEY_ID = YDOC_KEYS.id;
+const KEY_CONFIG_ID = YDOC_KEYS.configId;
+const KEY_POS = YDOC_KEYS.pos;
+const KEY_PAGES_SEEDED = YDOC_KEYS.pagesSeeded;
+// Authoritative-seed watermark of a server-side formState seed.
+const KEY_SEEDED = YDOC_KEYS.seeded;
+const KEY_CONFIG = YDOC_KEYS.config;
+
+/** HTTP status of a refused read or write of a canvas document newer than this build ("upgrade needed"). */
+export const CANVAS_DOCUMENT_NEWER_STATUS = 426;
+
+/** HTTP status of a refused write of a value the codec cannot store (nothing was written). */
+export const CANVAS_STATE_UNWRITABLE_STATUS = 400;
 
 const TRANSACT_ORIGIN = 'gruenerator-internal-canvas-api';
 
+const BASE64_RE = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+
+/** A seed's base64 fits the store cap plus room for the JSON around it. */
+const SITE_SEED_JSON_LIMIT = Math.ceil((SITE_DOC_MAX_BYTES * 4) / 3) + 64 * 1024;
+const SITE_SEED_PATH = /^\/site\/[^/]+\/seed$/;
+
+/**
+ * A seed update that decodes and carries state, with the size of the state it
+ * produces on an empty doc (the only doc it is applied to), or null.
+ */
+export function parseSiteSeedUpdate(v: unknown): { update: Uint8Array; stateBytes: number } | null {
+  if (typeof v !== 'string' || !v || !BASE64_RE.test(v)) return null;
+  const update = new Uint8Array(Buffer.from(v, 'base64'));
+  const probe = new Y.Doc();
+  try {
+    Y.applyUpdate(probe, update);
+    if (probe.store.clients.size === 0) return null;
+    return { update, stateBytes: Y.encodeStateAsUpdate(probe).length };
+  } catch {
+    return null;
+  } finally {
+    probe.destroy();
+  }
+}
+
 // Well-known board field IDs — duplicated from apps/api BoardService.FIELD_IDS
-// on purpose (this service has zero cross-package deps, per CLAUDE.md).
+// on purpose: unlike canvas state, which goes through @ggraphic/core/ydoc (canvasCodec.ts), the
+// board schema has no shared package this service depends on.
 export const BOARD_FIELD_IDS = {
   TITLE: 'field-title',
   STATUS: 'field-status',
@@ -99,8 +148,8 @@ export function appendRowsToBoardDoc(doc: Y.Doc, rows: NewBoardRow[], userId: st
 }
 
 // Chat edits queued on a sheet. MUST match SHEET_YDOC_KEYS.pendingOps in
-// packages/contracts/src/sheetsYdoc.ts — duplicated because this service has
-// zero cross-package deps. Only an open editor's Univer instance can execute
+// packages/contracts/src/sheetsYdoc.ts — duplicated because this service does
+// not import the sheets schema (it only imports the canvas codec). Only an open editor's Univer instance can execute
 // the ops, so the server parks them in the doc itself instead of streaming
 // them to a browser that may not have the sheet open.
 const KEY_SHEET_PENDING_OPS = 'sheetPendingOps';
@@ -144,6 +193,7 @@ export function claimSheetOps(doc: Y.Doc): PendingSheetOps[] {
 interface InternalApiDeps {
   server: Server;
   persistence: PostgresPersistence;
+  db: DbQueryFn;
 }
 
 // ---------------------------------------------------------------------------
@@ -261,49 +311,35 @@ export interface DeckChanges {
   /** Seed the page set — applied only when the doc has no pages yet. */
   seedPages?: PageDef[];
   /** Per-page state patches, addressed by page id (stable under reorders). */
-  pagePatches?: Array<{ pageId: string; patch: Record<string, unknown> }>;
+  pagePatches?: Array<{
+    pageId: string;
+    patch: Record<string, unknown>;
+    /**
+     * The page state the patch was computed from, per patched key (what the caller read before
+     * it worked). With it the patch is merged into the page as it is now (`canvasMerge.ts`);
+     * keys it lacks, and patches without it, are written as given.
+     */
+    base?: Record<string, unknown>;
+  }>;
   /** Structural changes, applied after patches. */
   pageOps?: Array<{ op: 'add'; index: number; page: PageDef } | { op: 'remove'; pageId: string }>;
   /** Restore: replace the whole page set. Applied last, wins over the rest. */
   replacePages?: PageDef[];
 }
 
-// Fractional order key — MUST mirror posBetween in
-// packages/canvas-editor/src/collab/pagesDoc.ts (ASCII-ordered alphabet,
-// generated keys never end in '0').
-const POS_ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
-
-function posBetween(a: string | null, b: string | null): string {
-  const lo = a ?? '';
-  const hi = b ?? '';
-  if (lo !== '' && hi !== '' && lo >= hi) {
-    throw new Error(`posBetween: '${lo}' >= '${hi}'`);
-  }
-  let result = '';
-  for (let i = 0; ; i++) {
-    const ca = i < lo.length ? POS_ALPHABET.indexOf(lo[i]) : 0;
-    const cb = i < hi.length ? POS_ALPHABET.indexOf(hi[i]) : POS_ALPHABET.length;
-    if (cb - ca > 1) {
-      return result + POS_ALPHABET[ca + Math.ceil((cb - ca) / 2)];
-    }
-    result += POS_ALPHABET[ca];
-  }
-}
-
-// Mirrors buildPage in packages/canvas-editor/src/collab/pagesDoc.ts:
-// the config map is otherwise created on demand at first mount.
-function buildPageYMap(def: PageDef, pos: string): Y.Map<unknown> {
+// Mirrors buildPage in @ggraphic/editor's collab/pagesDoc: the config map is otherwise created
+// on demand at first mount. The state map comes from the codec (structured only in a document
+// at version 4 or above).
+function buildPageYMap(doc: Y.Doc, def: PageDef, pos: string): Y.Map<unknown> {
   const page = new Y.Map<unknown>();
   page.set(KEY_ID, def.id);
   page.set(KEY_CONFIG_ID, def.configId);
   page.set(KEY_POS, pos);
-  const state = new Y.Map<unknown>();
-  for (const [k, v] of Object.entries(def.state)) state.set(k, v);
-  page.set(KEY_STATE, state);
+  page.set(KEY_STATE, buildPageState(doc, def.state, def.id));
   if (def.config && Object.keys(def.config).length > 0) {
     const config = new Y.Map<unknown>();
     for (const [k, v] of Object.entries(def.config)) config.set(k, v);
-    page.set('config', config);
+    page.set(KEY_CONFIG, config);
   }
   return page;
 }
@@ -312,12 +348,8 @@ function readPageDef(yMap: Y.Map<unknown>): PageDef | null {
   const id = yMap.get(KEY_ID);
   const configId = yMap.get(KEY_CONFIG_ID);
   if (typeof id !== 'string' || typeof configId !== 'string') return null;
-  const state: Record<string, unknown> = {};
   const yState = yMap.get(KEY_STATE);
-  if (yState instanceof Y.Map) {
-    for (const [k, v] of (yState as Y.Map<unknown>).entries()) state[k] = v;
-  }
-  return { id, configId, state };
+  return { id, configId, state: yState instanceof Y.Map ? readState(yState) : {} };
 }
 
 const getPagesMap = (doc: Y.Doc): Y.Map<Y.Map<unknown>> =>
@@ -355,11 +387,9 @@ export function readMergedState(doc: Y.Doc): {
   const pageYMaps = readPageYMaps(doc);
   const usesPagesById = getPagesMap(doc).size > 0;
 
-  const merged: Record<string, unknown> = {};
   const firstPageState = pageYMaps[0]?.get(KEY_STATE);
-  if (firstPageState instanceof Y.Map) {
-    for (const [k, v] of (firstPageState as Y.Map<unknown>).entries()) merged[k] = v;
-  }
+  const merged: Record<string, unknown> =
+    firstPageState instanceof Y.Map ? readState(firstPageState) : {};
   // Legacy docs: root formState wins (it was where the studio wrote template
   // edits). pagesById docs never write formState — page state is authoritative.
   if (!usesPagesById) {
@@ -388,37 +418,71 @@ export function readMergedState(doc: Y.Doc): {
  * docs keep being patched in place until a client migrates them.
  */
 export function applyDeckChangesToDoc(doc: Y.Doc, changes: DeckChanges): void {
+  // Refused before anything is written: a newer document stays byte-identical.
+  assertCanvasDocumentWritable(doc);
+  const pagesMap = getPagesMap(doc);
+  const legacyPages = doc.getArray<Y.Map<unknown>>(KEY_PAGES);
+  const meta = doc.getMap<unknown>(KEY_META);
+  const hasPages = () => pagesMap.size > 0 || legacyPages.length > 0;
+
+  const findPage = (pageId: string): Y.Map<unknown> | null => {
+    const fromMap = pagesMap.get(pageId);
+    if (fromMap) return fromMap;
+    for (let i = 0; i < legacyPages.length; i++) {
+      if (legacyPages.get(i).get(KEY_ID) === pageId) return legacyPages.get(i);
+    }
+    return null;
+  };
+
+  // The first pages written into a document that had none create it: stamp it here, in the
+  // same transaction and before any page value, so the codec sees the stamp. A document that
+  // already has pages keeps its stamp (or its lack of one) as it is.
+  const writesPages =
+    (changes.seedPages?.length ?? 0) > 0 ||
+    (changes.replacePages?.length ?? 0) > 0 ||
+    (changes.pageOps?.some((op) => op.op === 'add') ?? false);
+  const stamping = writesPages && !hasPages();
+
+  // Everything is checked before the transaction opens: Yjs cannot roll one back, so a value
+  // the codec refuses halfway would leave the pages before it written (and persisted).
+  if (changes.seedPages && !hasPages()) {
+    for (const def of changes.seedPages) assertStateWritable(doc, def.state, null, stamping);
+  }
+  // A patch that carries its base is merged into the page as it is now; nothing awaits between
+  // this read and the write below, so the merge is computed on the state it is written into.
+  const mergedPatches = new Map<number, Record<string, unknown>>();
+  (changes.pagePatches ?? []).forEach(({ pageId, patch, base }, index) => {
+    const yState = findPage(pageId)?.get(KEY_STATE);
+    const merged =
+      base && yState instanceof Y.Map
+        ? mergeStalePatch(readState(yState), patch, base, CANVAS_KEY_CLASSES)
+        : patch;
+    mergedPatches.set(index, merged);
+    assertStateWritable(doc, merged, yState instanceof Y.Map ? yState : null, stamping);
+  });
+  for (const op of changes.pageOps ?? []) {
+    if (op.op === 'add') assertStateWritable(doc, op.page.state, null, stamping);
+  }
+  for (const def of changes.replacePages ?? []) assertStateWritable(doc, def.state, null, stamping);
+
   doc.transact(() => {
-    const pagesMap = getPagesMap(doc);
-    const legacyPages = doc.getArray<Y.Map<unknown>>(KEY_PAGES);
-    const meta = doc.getMap<unknown>(KEY_META);
-    const hasPages = () => pagesMap.size > 0 || legacyPages.length > 0;
+    if (stamping) stampCreatedDocument(doc);
 
     if (changes.seedPages && changes.seedPages.length > 0 && !hasPages()) {
       let pos: string | null = null;
       for (const def of changes.seedPages) {
         pos = posBetween(pos, null);
-        pagesMap.set(def.id, buildPageYMap(def, pos));
+        pagesMap.set(def.id, buildPageYMap(doc, def, pos));
       }
       meta.set(KEY_PAGES_SEEDED, true);
     }
 
-    const findPage = (pageId: string): Y.Map<unknown> | null => {
-      const fromMap = pagesMap.get(pageId);
-      if (fromMap) return fromMap;
-      for (let i = 0; i < legacyPages.length; i++) {
-        if (legacyPages.get(i).get(KEY_ID) === pageId) return legacyPages.get(i);
-      }
-      return null;
-    };
-
     if (changes.pagePatches) {
-      for (const { pageId, patch } of changes.pagePatches) {
+      changes.pagePatches.forEach(({ pageId, patch }, index) => {
         const yState = findPage(pageId)?.get(KEY_STATE);
-        if (yState instanceof Y.Map) {
-          for (const [k, v] of Object.entries(patch)) (yState as Y.Map<unknown>).set(k, v);
-        }
-      }
+        if (yState instanceof Y.Map)
+          writePageState(doc, yState, mergedPatches.get(index) ?? patch, pageId);
+      });
     }
 
     if (changes.pageOps) {
@@ -426,7 +490,7 @@ export function applyDeckChangesToDoc(doc: Y.Doc, changes: DeckChanges): void {
         if (op.op === 'add') {
           if (legacyPages.length > 0 && pagesMap.size === 0) {
             const index = Math.max(0, Math.min(op.index, legacyPages.length));
-            legacyPages.insert(index, [buildPageYMap(op.page, posBetween(null, null))]);
+            legacyPages.insert(index, [buildPageYMap(doc, op.page, posBetween(null, null))]);
           } else {
             const yMaps = readPageYMaps(doc);
             const index = Math.max(0, Math.min(op.index, yMaps.length));
@@ -442,7 +506,7 @@ export function applyDeckChangesToDoc(doc: Y.Doc, changes: DeckChanges): void {
               const lastRaw = yMaps[yMaps.length - 1]?.get(KEY_POS);
               pos = posBetween(typeof lastRaw === 'string' ? lastRaw : null, null);
             }
-            pagesMap.set(op.page.id, buildPageYMap(op.page, pos));
+            pagesMap.set(op.page.id, buildPageYMap(doc, op.page, pos));
           }
         } else {
           pagesMap.delete(op.pageId);
@@ -459,7 +523,7 @@ export function applyDeckChangesToDoc(doc: Y.Doc, changes: DeckChanges): void {
       let pos: string | null = null;
       for (const def of changes.replacePages) {
         pos = posBetween(pos, null);
-        pagesMap.set(def.id, buildPageYMap(def, pos));
+        pagesMap.set(def.id, buildPageYMap(doc, def, pos));
       }
       meta.set(KEY_PAGES_SEEDED, true);
     }
@@ -501,10 +565,16 @@ function validateDeckChanges(body: Record<string, unknown>): string | null {
           typeof p === 'object' &&
           typeof (p as Record<string, unknown>).pageId === 'string' &&
           typeof (p as Record<string, unknown>).patch === 'object' &&
-          (p as Record<string, unknown>).patch !== null
+          (p as Record<string, unknown>).patch !== null &&
+          (() => {
+            const base = (p as Record<string, unknown>).base;
+            return (
+              base === undefined || (!!base && typeof base === 'object' && !Array.isArray(base))
+            );
+          })()
       )
     )
-      return 'pagePatches must be an array of {pageId, patch}';
+      return 'pagePatches must be an array of {pageId, patch, base?}';
   }
   if (body.pageOps !== undefined) {
     if (
@@ -525,11 +595,34 @@ function validateDeckChanges(body: Record<string, unknown>): string | null {
 export function applyPatchToDoc(
   doc: Y.Doc,
   patch: Record<string, unknown>,
-  seedState: Record<string, unknown> | null
+  seedState: Record<string, unknown> | null,
+  /** The state the patch was computed from, per patched key; see `DeckChanges.pagePatches`. */
+  base: Record<string, unknown> | null = null
 ): void {
+  assertCanvasDocumentWritable(doc);
+  // Nothing to write: do not stamp or seed a document for it.
+  if (Object.keys(patch).length === 0) return;
+
+  // Checked before the transaction (and before any root mirror write): see applyDeckChanges.
+  // With a base each page gets the patch merged into its own current state (see canvasMerge.ts).
+  const pageWrites = new Map<Y.Map<unknown>, Record<string, unknown>>();
+  for (const yMap of readPageYMaps(doc)) {
+    const pageState = yMap.get(KEY_STATE);
+    if (!(pageState instanceof Y.Map)) continue;
+    const merged = base
+      ? mergeStalePatch(readState(pageState), patch, base, CANVAS_KEY_CLASSES)
+      : patch;
+    pageWrites.set(pageState, merged);
+    assertStateWritable(doc, merged, pageState);
+  }
+
   doc.transact(() => {
     const formState = doc.getMap<unknown>(KEY_FORM_STATE);
     const pageYMaps = readPageYMaps(doc);
+
+    // A write into a doc without pages or formState creates it: stamp it in this transaction.
+    // A doc that has content keeps its stamp (or its lack of one) as it is.
+    if (formState.size === 0 && pageYMaps.length === 0) stampCreatedDocument(doc);
 
     // Never-opened doc: seed the FULL state into formState first. A later
     // studio open seeds page 0 from its own initialState and then folds
@@ -541,14 +634,37 @@ export function applyPatchToDoc(
       formState.set(KEY_SEEDED, true);
     }
 
-    for (const [k, v] of Object.entries(patch)) formState.set(k, v);
+    // The root formState is written only where something reads it: a document without pages
+    // (it is the state there) and a legacy `pages`-array document (readMergedState lets it win
+    // over page 1). A `pagesById` document never reads it, and the client's one-time fold
+    // (foldLegacyFormStateIntoFirstPage, before `formStateFolded` is set) would copy a stale or
+    // unmerged root value over page 1, so it stays untouched there (#5767).
+    if (getPagesMap(doc).size === 0) {
+      // Merged only where it is authoritative (no pages), and only for keys it holds.
+      const rootPatch =
+        base && pageYMaps.length === 0
+          ? mergeStalePatch(
+              Object.fromEntries(formState.entries()),
+              patch,
+              base,
+              CANVAS_KEY_CLASSES
+            )
+          : patch;
+      for (const [k, v] of Object.entries(rootPatch)) formState.set(k, v);
+    }
 
-    // Mirror into every page's state map (pagesById or legacy array) —
-    // page state is what a mounted studio page reads for template fields.
+    // Write into every page's state map (pagesById or legacy array) —
+    // page state is what a mounted studio page reads for template fields. Through the codec;
+    // the root formState above is the legacy mirror and stays plain JSON.
     for (const yMap of pageYMaps) {
       const pageState = yMap.get(KEY_STATE);
       if (pageState instanceof Y.Map) {
-        for (const [k, v] of Object.entries(patch)) (pageState as Y.Map<unknown>).set(k, v);
+        writePageState(
+          doc,
+          pageState,
+          pageWrites.get(pageState) ?? patch,
+          yMap.get(KEY_ID) as string | null
+        );
       }
     }
   }, TRANSACT_ORIGIN);
@@ -567,7 +683,9 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
   }
 
   const router = express.Router();
-  router.use(express.json({ limit: '1mb' }));
+  const json = express.json({ limit: '1mb' });
+  // A site seed may be larger; its route parses its own body, after the token check.
+  router.use((req, res, next) => (SITE_SEED_PATH.test(req.path) ? next() : json(req, res, next)));
   router.use((req, res, next) => {
     if (req.headers['x-internal-token'] !== token) {
       res.status(401).json({ error: 'invalid internal token' });
@@ -576,14 +694,33 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
     next();
   });
 
+  // A site's Yjs rows are keyed by its bare uuid: through these routes that id would
+  // load and write the site draft as a second live document, past the site gate.
+  router.use(['/doc/:documentId', '/canvas/:documentId'], async (req, res, next) => {
+    try {
+      const { documentId } = req.params;
+      if (typeof documentId === 'string' && (await isSiteId(deps.db, documentId))) {
+        res.status(400).json({ error: 'use site-<uuid>' });
+        return;
+      }
+      next();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: msg });
+    }
+  });
+
   router.get('/canvas/:documentId/state', async (req, res) => {
     const { documentId } = req.params;
     try {
       // Live doc first (includes unsaved in-flight edits); otherwise decode
       // the persisted Yjs state without opening a direct connection (a pure
       // read must not create + persist an empty doc).
+      // A document newer than this build is refused, as on write: `readState` omits the keys of
+      // a class it does not know, so the answer would pass as complete while it is not.
       const liveDoc = deps.server.hocuspocus.documents.get(documentId);
       if (liveDoc) {
+        assertCanvasDocumentWritable(liveDoc);
         res.json({ ...readMergedState(liveDoc), live: true });
         return;
       }
@@ -594,8 +731,19 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
       }
       const doc = new Y.Doc();
       Y.applyUpdate(doc, stored);
+      assertCanvasDocumentWritable(doc);
       res.json({ ...readMergedState(doc), live: false });
     } catch (error) {
+      if (error instanceof CanvasDocumentNewerError) {
+        log.warn(`GET state refused for ${documentId}: ${error.message}`);
+        res.status(CANVAS_DOCUMENT_NEWER_STATUS).json({
+          error: 'canvas document is newer than this service supports',
+          code: CANVAS_DOCUMENT_NEWER_CODE,
+          found: error.found,
+          known: error.known,
+        });
+        return;
+      }
       const msg = error instanceof Error ? error.message : String(error);
       log.error(`GET state failed for ${documentId}: ${msg}`);
       res.status(500).json({ error: msg });
@@ -607,6 +755,7 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
     const body = (req.body ?? {}) as Record<string, unknown> & {
       patch?: Record<string, unknown>;
       seedState?: Record<string, unknown>;
+      base?: Record<string, unknown>;
     } & DeckChanges;
 
     const isFlatPatch = body.patch !== undefined;
@@ -618,6 +767,13 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
     if (isFlatPatch) {
       if (!body.patch || typeof body.patch !== 'object' || Array.isArray(body.patch)) {
         res.status(400).json({ error: 'patch (object) is required' });
+        return;
+      }
+      if (
+        body.base !== undefined &&
+        (!body.base || typeof body.base !== 'object' || Array.isArray(body.base))
+      ) {
+        res.status(400).json({ error: 'base must be an object' });
         return;
       }
     } else if (isDeck) {
@@ -637,7 +793,7 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
         let result: ReturnType<typeof readMergedState> | null = null;
         await connection.transact((doc) => {
           if (isFlatPatch) {
-            applyPatchToDoc(doc, body.patch!, body.seedState ?? null);
+            applyPatchToDoc(doc, body.patch!, body.seedState ?? null, body.base ?? null);
           } else {
             applyDeckChangesToDoc(doc, body);
           }
@@ -653,6 +809,27 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
         await connection.disconnect();
       }
     } catch (error) {
+      if (error instanceof CanvasDocumentNewerError) {
+        // Not a 500: the caller must not retry, and must not patch a flat JSON mirror of the
+        // document instead (the next open reads the Y.Doc, so the edit would exist in one copy).
+        log.warn(`POST state refused for ${documentId}: ${error.message}`);
+        res.status(CANVAS_DOCUMENT_NEWER_STATUS).json({
+          error: 'canvas document is newer than this service supports',
+          code: CANVAS_DOCUMENT_NEWER_CODE,
+          found: error.found,
+          known: error.known,
+        });
+        return;
+      }
+      if (error instanceof CanvasStateUnwritableError) {
+        // The caller sent a value the codec cannot store; nothing was written.
+        log.warn(`POST state rejected for ${documentId}: ${error.message}`);
+        res.status(CANVAS_STATE_UNWRITABLE_STATUS).json({
+          error: 'canvas state contains a value that cannot be stored',
+          code: CANVAS_STATE_UNWRITABLE_CODE,
+        });
+        return;
+      }
       const msg = error instanceof Error ? error.message : String(error);
       log.error(`POST state failed for ${documentId}: ${msg}`);
       res.status(500).json({ error: msg });
@@ -732,8 +909,8 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
     }
   });
 
-  // Raw Yjs bridge for callers that own the schema logic this service may not
-  // import (zero cross-package deps): read the full state, change a local copy,
+  // Raw Yjs bridge for callers that own the schema logic this service does not
+  // import (anything but canvas state): read the full state, change a local copy,
   // send back only the diff. Yjs merges it with whatever happened in between.
   router.get('/doc/:documentId/yjs', async (req, res) => {
     const { documentId } = req.params;
@@ -928,6 +1105,51 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
     }
   });
 
+  // First state of a site draft. The check and the write run in one transaction on the
+  // live doc, so of two concurrent seeds exactly one lands; the second answers seeded:false.
+  router.post(
+    '/site/:siteId/seed',
+    express.json({ limit: SITE_SEED_JSON_LIMIT }),
+    async (req, res) => {
+      const room = siteRoomOf(req.params.siteId);
+      if (!room) {
+        res.status(400).json({ error: 'siteId must be a uuid' });
+        return;
+      }
+      const seed = parseSiteSeedUpdate((req.body as { update?: unknown } | null)?.update);
+      if (!seed) {
+        res.status(400).json({ error: 'update must be a base64 Yjs update that carries state' });
+        return;
+      }
+      if (seed.stateBytes > SITE_DOC_MAX_BYTES) {
+        res.status(413).json({
+          error: `seed state is ${seed.stateBytes} bytes, over the ${SITE_DOC_MAX_BYTES}-byte cap`,
+        });
+        return;
+      }
+      const { update } = seed;
+      try {
+        const connection = await deps.server.hocuspocus.openDirectConnection(room);
+        try {
+          let seeded = false;
+          await connection.transact((doc) => {
+            seeded = applySiteSeed(doc, update);
+          });
+          log.info(
+            `Site seed for ${room}: ${seeded ? `applied ${update.byteLength} bytes` : 'skipped, doc holds a current seed'}`
+          );
+          res.json({ seeded });
+        } finally {
+          await connection.disconnect();
+        }
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        log.error(`POST site seed failed for ${room}: ${msg}`);
+        res.status(500).json({ error: msg });
+      }
+    }
+  );
+
   // Called by the API after an access change (permission removed or changed,
   // share settings changed, document trashed, project left or trashed).
   router.post('/rooms/close', (req, res) => {
@@ -947,6 +1169,6 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
 
   app.use('/internal', router);
   log.info(
-    'Internal API registered at /internal/canvas/*, /internal/doc/*/html, /internal/doc/*/yjs, /internal/board/*/comment-bump, /internal/board/*/rows, /internal/sheet/*/ops and /internal/rooms/close'
+    'Internal API registered at /internal/canvas/*, /internal/doc/*/html, /internal/doc/*/yjs, /internal/board/*/comment-bump, /internal/board/*/rows, /internal/sheet/*/ops, /internal/site/*/seed and /internal/rooms/close'
   );
 }

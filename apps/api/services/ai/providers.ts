@@ -13,6 +13,7 @@ import { withUsageTracking } from '../usage/usageModelMiddleware.js';
 
 import { withFallbackChain } from './fallbackModel.js';
 import { withGemmaChannelFilter } from './gemmaChannelFilter.js';
+import { GEMMA_31B_ON_MELIOUS_ECO } from './gemmaHosts.js';
 import { intermediateLane } from './intermediateLanes.js';
 import { RETIRED_LITELLM_DEFAULT, retireLiteLLM } from './litellmRetired.js';
 import { isModelSlow } from './modelHealth.js';
@@ -179,27 +180,20 @@ export {
 } from './providerInstances.js';
 
 /**
- * Das Modell, mit dem der Monitor im Hintergrund schreibt.
+ * Das Modell, mit dem der Monitor im Hintergrund schreibt: Gemma 4 über Melious
+ * `:eco` — nicht zeitkritisch, also der sparsame Upstream —, ohne Denken (`meliousFetch` setzt `reasoning_effort:
+ * 'none'`) — fünf der neun Monitor-Aufrufe haben eine Ausgabedecke von
+ * 1.500–2.000 Tokens, ein denkendes Modell gäbe dort leeren Text zurück.
  *
- * Lief bis 19.08.2026 auf litellm/verdigado-pro. Das Problem war nicht die
- * Qualität, sondern der geteilte Engpass: Verdigado hat EINEN Inferenz-Slot,
- * und derselbe Host bediente den stündlichen Monitor-Lauf, die GPT-OSS-Lanes
- * und (bis zum selben Tag) den Ausweg der Chat-Gemma-Lane. Ein Hintergrundlauf
- * darf einem wartenden Menschen nicht den Ausweichhost wegnehmen — deshalb
- * zieht der Monitor auf GreenPT um, und die Chat-Lanes behalten Cortecs
- * und Melious für sich.
- *
- * `mistral-small-3.2-24b` und NICHT `gemma4`, obwohl beide auf GreenPT liegen:
- * GreenPTs Gemma denkt immer (~5.400 Zeichen, kein Flag schaltet es ab, siehe
- * `greenptThinkingFetch`), das Denken zählt gegen `maxOutputTokens`, und fünf
- * der neun Monitor-Aufrufe hier haben eine Decke von 1.500–2.000 — bei der
- * käme leerer Text zurück. Small denkt nicht und lief als Loop-Planer
- * (13.08.–29.09.2026) auf genau diesem Host produktiv.
+ * Lief bis 19.08.2026 auf litellm/verdigado-pro (ein Inferenz-Slot, den der
+ * Hintergrundlauf den Chat-Lanes wegnahm), danach bis 19.11.2026 auf
+ * `greenpt/mistral-small-3.2-24b`. GreenPT antwortete an dem Tag auf kurze
+ * Aufrufe im Median erst nach 8,4 s (intermediateLanes.ts) und riss bei
+ * `doc_generation` 3 von 3 Mal das 60-s-Budget (#5842); seitdem gibt es keine
+ * Text-Lane mehr, die fest auf GreenPT liegt.
  */
-const MONITOR_GREENPT_MODEL = 'mistral-small-3.2-24b-instruct-2506';
-
 export function getMonitorModel(): LanguageModel {
-  if (isProviderConfigured('greenpt')) return getModel('greenpt', MONITOR_GREENPT_MODEL);
+  if (isProviderConfigured('melious')) return getModel('melious', GEMMA_31B_ON_MELIOUS_ECO);
   return getModel('mistral');
 }
 

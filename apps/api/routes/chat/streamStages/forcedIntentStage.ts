@@ -107,6 +107,8 @@ const PIN_ROUTES: readonly PinRoute[] = [
   { intent: 'abgeordnetenwatch' },
   { intent: 'bundestag' },
   { intent: 'abgeordnetenhaus' },
+  // `@antragsgruennrw`: Token = Intent-Id, `pinsTool` heftet `antragsgruen` an.
+  { intent: 'antragsgruen' },
   { intent: 'hilfe' },
   /**
    * `@umfragen` — der erste Eintrag, dessen Intent stillgelegt ist.
@@ -350,9 +352,8 @@ export async function runForcedIntentStage({
   if (forcedTools?.includes('deepresearch')) {
     classifiedState.intent = 'research';
     // Diese Erwähnung war das letzte Wort — ein Werkzeug-Pin aus der Tabelle
-    // oben ist damit nicht mehr gemeint. (Vorher tat das die Prüfung
-    // `pinned !== intent` in `pinnedFirstTool`; seit der Pin ein Werkzeugname
-    // ist und nicht mehr der Intent, muss der Löschende sagen, dass er löscht.)
+    // oben ist damit nicht mehr gemeint. (Seit der Pin ein Werkzeugname ist
+    // und nicht mehr der Intent, muss der Löschende sagen, dass er löscht.)
     classifiedState.mentionPinnedTool = null;
     classifiedState.deepResearchRequested = true;
     classifiedState.explicitDeepRequest = true;

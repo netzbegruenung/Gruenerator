@@ -50,10 +50,8 @@ import { createLogger } from '../../utils/logger.js';
 
 import {
   CHUNK_PREVIEW_MAX_CHARS,
-  computeMergedFilters,
-  getCachedFilters,
+  getMergedFilters,
   highlightSnippet,
-  setCachedFilters,
   truncateSnippet,
 } from './researchController.js';
 
@@ -95,15 +93,7 @@ export const researchContractRouter = s.router(researchContract, {
         return { status: 400 as const, body: { error: 'No valid collection IDs provided.' } };
       }
 
-      const cacheKey = [...requestedIds].sort().join(',');
-      const cached = getCachedFilters(cacheKey);
-      if (cached) {
-        return { status: 200 as const, body: cached };
-      }
-
-      const response = await computeMergedFilters(requestedIds);
-      setCachedFilters(cacheKey, response);
-      return { status: 200 as const, body: response };
+      return { status: 200 as const, body: await getMergedFilters(requestedIds) };
     } catch (error) {
       log.error(
         `Research filters failed: ${error instanceof Error ? error.message : String(error)}`

@@ -59,6 +59,7 @@ export const USAGE_FEATURES = [
   'notebook',
   'voice',
   'briefing',
+  'video_ai',
   'other',
 ] as const;
 
@@ -100,7 +101,6 @@ const FEATURE_BY_PREFIX: ReadonlyArray<readonly [string, UsageFeature]> = (
 
     ['/api/sharepic', 'sharepic'],
     ['/api/canvas', 'sharepic'],
-    ['/api/canva', 'sharepic'],
     ['/api/flux', 'sharepic'],
     ['/api/imagine', 'sharepic'],
     ['/api/image-edit', 'sharepic'],
@@ -128,6 +128,7 @@ const FEATURE_BY_PREFIX: ReadonlyArray<readonly [string, UsageFeature]> = (
     // Grünerator Voice (text → audio file); longer than '/api/voice', so it wins.
     ['/api/voice/speech', 'voice'],
     ['/api/podcasts', 'voice'],
+    ['/api/video-ai', 'video_ai'],
     // The rest of /api/voice is the /transkription page (upload transcription,
     // protocol, to-do list). It has its own slug so the transparency page can
     // tell it apart from Reels; the upload line must outrank '/transcribe' above,
@@ -155,7 +156,6 @@ const FEATURE_BY_PREFIX: ReadonlyArray<readonly [string, UsageFeature]> = (
     ['/api/campaign_generate', 'texte'],
     ['/api/generate-content-title', 'texte'],
     ['/api/text-forms', 'texte'],
-    ['/api/vision', 'texte'],
     ['/api/scanner', 'texte'],
     ['/api/email', 'texte'],
     ['/api/reisekosten', 'texte'],

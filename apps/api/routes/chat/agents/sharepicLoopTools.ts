@@ -21,7 +21,7 @@ import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 import { ARTIFACT_CONFIRMATION_TEXTS } from '../services/artifactConfirmations.js';
 import { berichtFuerKi } from '../services/sharepicBericht.js';
-import { reviseCreatorSharepic } from '../services/sharepicCreatorVariant.js';
+import { reviewHint, reviseCreatorSharepic } from '../services/sharepicCreatorVariant.js';
 import { resolveLoopSharepicTarget } from '../services/sharepicLoopTarget.js';
 import { photosForTurn } from '../services/sharepicTurnPhotos.js';
 
@@ -66,24 +66,6 @@ function describeSpec(spec: SharepicSpec): string {
       );
     })
     .join('\n');
-}
-
-const QUOTED_SPAN = /[„"»“‚'']([^„"»“”«'‘]{2,120})[“"«”'‘]/gu;
-
-/**
- * Der Auftrag zitiert einen Text, der auf dem Sharepic steht („Ersetze
- * „zurück" durch …"). Dann meint er das Sharepic, auch ohne das Wort — live
- * 11.10.2026 griff der Ausweich-Planer bei genau diesem Satz zur Suche.
- */
-export function quotesSharepicText(order: string, spec: SharepicSpec): boolean {
-  const onCard = spec.slides
-    .flatMap((slide) => textsOf(slide))
-    .map((text) => stripInlineMarks(text).toLowerCase());
-  for (const [, quoted] of order.matchAll(QUOTED_SPAN)) {
-    const needle = quoted?.trim().toLowerCase();
-    if (needle && onCard.some((text) => text.includes(needle))) return true;
-  }
-  return false;
 }
 
 export function makeReadSharepicTool(ctx: LoopToolCtx): Tool {
@@ -181,7 +163,11 @@ Fotos des Turns gehen automatisch mit; was fehlt oder geändert wurde, steht im 
           state.editorEditUnchanged = ARTIFACT_CONFIRMATION_TEXTS.sharepicUnchanged;
           return { error: ARTIFACT_CONFIRMATION_TEXTS.sharepicUnchanged, unchanged: true };
         }
-        sse.send('sharepic_complete', { message: 'Sharepic überarbeitet', variants: [variant] });
+        sse.send('sharepic_complete', {
+          message: 'Sharepic überarbeitet',
+          variants: [variant],
+          ...reviewHint({ brief: anweisung, mode: 'edit' }),
+        });
         const summary = `Sharepic überarbeitet (${revised?.slides.length ?? 1} Folie(n)): ${anweisung.slice(0, 120)}`;
         state.chatSharepicEdits = [...(state.chatSharepicEdits ?? []), anweisung.slice(0, 120)];
         const bericht = berichtFuerKi(parseSharepicChatProps(variant.initialProps)?.bericht ?? []);

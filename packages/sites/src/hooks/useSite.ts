@@ -1,16 +1,20 @@
+import { removeDocCache } from '@gruenerator/collab';
 import {
-  richTextDocFromPlainText,
+  SITES_PER_ACCOUNT_MAX,
   type CreateSiteBody,
-  type RichTextDoc,
   type Site,
+  type SitePublishIssue,
   type UpdateSiteBody,
   type WebsiteContent,
 } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { createContext, createElement, useContext, type ReactNode } from 'react';
 
-import apiClient from '../lib/apiClient';
+import { type GeneratedSiteData } from '../generation/transform';
 import { SitesApiError } from '../utils/errorHandler';
+
+export type { GeneratedSiteData };
 
 export type SiteData = Site;
 
@@ -21,152 +25,193 @@ export type SiteData = Site;
  */
 export type AiGeneratedContent = WebsiteContent;
 
-export interface GeneratedSiteData {
-  site_title: string;
-  tagline: string;
-  contact_email: string;
-  sections: {
-    about: { title: string; content: RichTextDoc };
-    heroImage: { imageUrl: string; title: string; subtitle: string };
-    themes: Array<{ imageUrl: string; title: string; content: RichTextDoc }>;
-    actions: Array<{ imageUrl: string; text: string; link: string }>;
-    contact: { title: string; backgroundImageUrl: string };
-  };
-}
-
-function transformAiResponse(ai: AiGeneratedContent): GeneratedSiteData {
-  return {
-    site_title: ai.hero.heading,
-    tagline: ai.hero.text,
-    contact_email: ai.contact.email,
-    sections: {
-      about: {
-        title: ai.about.title || 'Wer ich bin',
-        content: richTextDocFromPlainText(ai.about.content),
-      },
-      heroImage: {
-        imageUrl: ai.hero_image.imageUrl || '',
-        title: ai.hero_image.title,
-        subtitle: ai.hero_image.subtitle,
-      },
-      themes: ai.themes.map((t) => ({
-        imageUrl: t.imageUrl || '',
-        title: t.title,
-        content: richTextDocFromPlainText(t.content),
-      })),
-      actions: ai.actions.map((a) => ({ imageUrl: a.imageUrl || '', text: a.text, link: a.link })),
-      contact: { title: ai.contact.title, backgroundImageUrl: ai.contact.backgroundImageUrl || '' },
-    },
-  };
-}
-
 function toApiError(res: { status: number; body: unknown }): SitesApiError {
   const message =
     (res.body as { error?: string } | null | undefined)?.error ?? `HTTP ${res.status}`;
   return new SitesApiError(res.status, message);
 }
 
-export function useSite() {
-  const queryClient = useQueryClient();
+export class SitePublishError extends SitesApiError {
+  readonly issues: SitePublishIssue[];
 
-  const {
-    data: site,
+  constructor(message: string, issues: SitePublishIssue[]) {
+    super(422, message);
+    this.name = 'SitePublishError';
+    this.issues = issues;
+  }
+}
+
+export function usePrepareSiteDraft() {
+  const mutation = useMutation({
+    mutationFn: async (siteId: string) => {
+      const res = await getContractsClient().sites.prepareSiteDraft({
+        params: { id: siteId },
+        body: {},
+      });
+      if (res.status !== 200) throw toApiError(res);
+      return res.body.seeded;
+    },
+  });
+  return mutation.mutateAsync;
+}
+
+/** Every Sites query lives under this prefix; mutations invalidate it as a whole. */
+export const SITES_QUERY_KEY = ['sites'] as const;
+const SITE_LIST_KEY = ['sites', 'list'] as const;
+export const siteHandleKey = (handle: string) => ['sites', 'handle', handle] as const;
+
+export type SiteByHandleData = { site: Site; public_origin: string | null };
+
+/** The account's sites for the overview, most recently edited first. */
+export function useSiteList() {
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: SITE_LIST_KEY,
+    queryFn: async () => {
+      const res = await getContractsClient().sites.listSites();
+      if (res.status !== 200) throw toApiError(res);
+      return res.body;
+    },
+  });
+  return {
+    sites: data ? data.sites : null,
+    publicOrigin: data ? data.public_origin : null,
+    limit: data ? data.limit : SITES_PER_ACCOUNT_MAX,
     isLoading,
     error,
     refetch,
-  } = useQuery<Site | null>({
-    queryKey: ['my-site'],
+  };
+}
+
+/** One own site by address (or id); `site` is null when there is none under that name. */
+export function useSiteByHandle(handle: string) {
+  const { data, isLoading, error, refetch } = useQuery<SiteByHandleData | null>({
+    queryKey: siteHandleKey(handle),
     queryFn: async () => {
-      const res = await getContractsClient().sites.getMySite();
+      const res = await getContractsClient().sites.getSiteByHandle({ params: { handle } });
+      if (res.status === 404) return null;
       if (res.status !== 200) throw toApiError(res);
-      return res.body.site;
+      return res.body;
     },
   });
+  return {
+    site: data === undefined ? undefined : (data?.site ?? null),
+    publicOrigin: data ? data.public_origin : null,
+    isLoading,
+    error,
+    refetch,
+  };
+}
+
+const CurrentSiteContext = createContext<SiteByHandleData | null>(null);
+
+/** The site the editor has open; `useSite()` below reads it. */
+export function CurrentSiteProvider({
+  value,
+  children,
+}: {
+  value: SiteByHandleData;
+  children: ReactNode;
+}) {
+  return createElement(CurrentSiteContext.Provider, { value }, children);
+}
+
+function useSiteMutations() {
+  const queryClient = useQueryClient();
+
+  /** Write a returned site into every open by-handle entry for it, and under its address. */
+  const storeSite = (site: Site) => {
+    queryClient.setQueriesData<SiteByHandleData | null>({ queryKey: ['sites', 'handle'] }, (old) =>
+      old && old.site.id === site.id ? { ...old, site } : old
+    );
+    const underHandle = queryClient.getQueryData<SiteByHandleData | null>(
+      siteHandleKey(site.subdomain)
+    );
+    if (!underHandle) {
+      const origin = queryClient.getQueryData<{ public_origin: string | null }>(SITE_LIST_KEY);
+      queryClient.setQueryData<SiteByHandleData>(siteHandleKey(site.subdomain), {
+        site,
+        public_origin: origin?.public_origin ?? null,
+      });
+    }
+    void queryClient.invalidateQueries({ queryKey: SITE_LIST_KEY });
+  };
 
   const createMutation = useMutation({
+    // Callers surface errors themselves; the app-wide mutation toast would show a second one.
+    meta: { silent: true },
     mutationFn: async (data: CreateSiteBody) => {
       const res = await getContractsClient().sites.createSite({ body: data });
       if (res.status !== 200) throw toApiError(res);
       return res.body.site;
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['my-site'] });
-    },
+    onSuccess: storeSite,
   });
 
   const updateMutation = useMutation({
+    // Callers surface errors themselves; the app-wide mutation toast would show a second one.
+    meta: { silent: true },
     mutationFn: async ({ id, data }: { id: string; data: UpdateSiteBody }) => {
       const res = await getContractsClient().sites.updateSite({ params: { id }, body: data });
       if (res.status !== 200) throw toApiError(res);
       return res.body.site;
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['my-site'] });
-    },
+    onSuccess: storeSite,
   });
 
   const publishMutation = useMutation({
+    // Callers surface errors themselves; the app-wide mutation toast would show a second one.
+    meta: { silent: true },
     mutationFn: async ({ id, publish }: { id: string; publish: boolean }) => {
       const res = await getContractsClient().sites.publishSite({
         params: { id },
         body: { publish },
       });
+      if (res.status === 422) throw new SitePublishError(res.body.error, res.body.issues);
       if (res.status !== 200) throw toApiError(res);
       return res.body.site;
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['my-site'] });
-    },
+    onSuccess: storeSite,
   });
 
-  const generateMutation = useMutation({
-    mutationFn: async (data: {
-      description: string;
-      email?: string;
-    }): Promise<{ transformed: GeneratedSiteData; raw: AiGeneratedContent }> => {
-      const res = await getContractsClient().texte.generateWebsiteContent({ body: data });
+  const deleteMutation = useMutation({
+    // Callers surface errors themselves; the app-wide mutation toast would show a second one.
+    meta: { silent: true },
+    mutationFn: async (id: string) => {
+      const res = await getContractsClient().sites.deleteSite({ params: { id }, body: {} });
       if (res.status !== 200) throw toApiError(res);
-      const raw = res.body.json;
-      return { transformed: transformAiResponse(raw), raw };
+      removeDocCache(`site-${id}`);
     },
-  });
-
-  const flyerMutation = useMutation({
-    mutationFn: async (data: {
-      file: File;
-      email?: string;
-    }): Promise<{ transformed: GeneratedSiteData; raw: AiGeneratedContent }> => {
-      const formData = new FormData();
-      formData.append('flyer', data.file);
-      if (data.email) formData.append('email', data.email);
-
-      const response = await apiClient.post<{ json: AiGeneratedContent }>(
-        '/sites/generate-from-flyer',
-        formData,
-        {
-          headers: { 'Content-Type': 'multipart/form-data' },
-          timeout: 120000,
-        }
-      );
-      const raw: AiGeneratedContent = response.data.json;
-      return { transformed: transformAiResponse(raw), raw };
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: SITES_QUERY_KEY });
     },
   });
 
   return {
-    site,
-    isLoading,
-    error,
-    refetch,
     createSite: createMutation.mutateAsync,
     updateSite: updateMutation.mutateAsync,
     togglePublish: publishMutation.mutateAsync,
-    generateSite: generateMutation.mutateAsync,
-    generateFromFlyer: flyerMutation.mutateAsync,
+    deleteSite: deleteMutation.mutateAsync,
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
     isPublishing: publishMutation.isPending,
-    isGenerating: generateMutation.isPending,
-    isGeneratingFromFlyer: flyerMutation.isPending,
+    isDeleting: deleteMutation.isPending,
+  };
+}
+
+/** Creating a site, outside the editor (no current site yet). */
+export function useCreateSite() {
+  const { createSite, isCreating } = useSiteMutations();
+  const { publicOrigin } = useSiteList();
+  return { createSite, isCreating, publicOrigin };
+}
+
+/** The open site plus its mutations; only inside `<CurrentSiteProvider>`. */
+export function useSite() {
+  const current = useContext(CurrentSiteContext);
+  if (!current) throw new Error('useSite must be used inside <CurrentSiteProvider>');
+  return {
+    site: current.site,
+    publicOrigin: current.public_origin,
+    ...useSiteMutations(),
   };
 }

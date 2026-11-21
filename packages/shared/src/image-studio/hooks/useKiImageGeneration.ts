@@ -177,7 +177,8 @@ export function useKiImageGeneration(
         return imageBase64;
       } catch (err: unknown) {
         const errorMessage = handleError(err);
-        throw new Error(errorMessage);
+        // The cause keeps the server's answer, e.g. its `type`, for callers that react to it.
+        throw new Error(errorMessage, { cause: err });
       } finally {
         setLoading(false);
       }

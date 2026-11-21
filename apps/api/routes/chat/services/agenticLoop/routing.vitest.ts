@@ -22,9 +22,7 @@ import {
   needsThreadGrounding,
   rewritesSuppliedText,
   reworksSuppliedText,
-  asksAboutSuppliedMaterial,
   looksLikeUnsourcedWritingOrder,
-  looksLikeImageOnlyAsk,
 } from './routing.js';
 
 describe('looksLikeToolableQuestion', () => {
@@ -533,27 +531,29 @@ describe('decideRunAgentic', () => {
   });
 
   // Until #3841 an image kept EVERY turn single-pass, because only that path put
-  // the pixels in front of a model. The loop now reads images through
-  // `bild_ansehen`, so an image only holds back what the picture alone answers.
+  // the pixels in front of a model. The loop reads images through `bild_ansehen`
+  // and edits them through `edit_image`; since 20.11.2026 no wording holds an
+  // image turn back (the `image_only_ask` switch is gone), only a pixel intent.
   describe('image attachments', () => {
     // What routingStage passes for an image turn: the classifier's image branch
     // says `produktion`, and the image counts as the turn's own material.
     const image = { intent: 'produktion', hasImageAttachments: true, hasOwnMaterial: true };
 
-    it('a question the picture answers stays single-pass', () => {
+    it('a question about the picture enters the loop', () => {
       for (const lastUserText of [
         'Was siehst du auf dem Bild?',
         'Passt das Logo so?',
         'Was steht auf dem Plakat?',
         'Wer ist das?',
       ]) {
-        expect(decide({ ...image, lastUserText }), lastUserText).toBe(false);
-        // Control: the same question without the image is a loop turn, so the
-        // image rule is what holds it back.
-        expect(decide({ ...image, hasImageAttachments: false, lastUserText }), lastUserText).toBe(
-          true
-        );
+        expect(decide({ ...image, lastUserText }), lastUserText).toBe(true);
       }
+    });
+
+    it('an order to make a picture from the photo enters the loop (live 20.11.2026)', () => {
+      const lastUserText =
+        'erstelle bitte aus diesem bild ein winterliches bild, das einige Menschen bei einem weihnachtlichen Glühweintrinken zeigt';
+      expect(decide({ ...image, lastUserText })).toBe(true);
     });
 
     it('a question that points past the picture enters the loop', () => {
@@ -568,20 +568,6 @@ describe('decideRunAgentic', () => {
 
     it('an image turn without a question enters the loop (flipped: no self-contained exemption)', () => {
       expect(decide({ ...image, lastUserText: 'Schreib einen Instagram-Post dazu' })).toBe(true);
-    });
-
-    it('an explicit loop reason beats the image-only reading', () => {
-      const lastUserText = 'Was steht auf dem Bild?';
-      expect(decide({ ...image, lastUserText })).toBe(false);
-      expect(decide({ ...image, lastUserText, isPdfFillRequest: true })).toBe(true);
-      expect(decide({ ...image, lastUserText, intent: 'agentic', mustLoop: true })).toBe(true);
-      // A mention of a loop-lane intent counts; the lane property alone does not.
-      const bundestag = { ...image, lastUserText, intent: 'bundestag', forcedLoop: true };
-      expect(decide({ ...bundestag, forcedTool: true })).toBe(true);
-      expect(decide(bundestag)).toBe(false);
-      expect(
-        decide({ ...image, lastUserText: 'Merk dir, was auf dem Bild steht', intent: 'direct' })
-      ).toBe(true);
     });
 
     it('the pixel intents stay single-pass whatever the ask', () => {
@@ -601,39 +587,6 @@ describe('decideRunAgentic', () => {
       expect(decide({ ...image, lastUserText, loopEnabled: false })).toBe(false);
       expect(decide({ ...image, lastUserText, secondaryIntent: 'save_as_doc' })).toBe(false);
     });
-  });
-});
-
-describe('looksLikeImageOnlyAsk', () => {
-  it('reads asks about the picture as image-only', () => {
-    for (const t of [
-      'Beschreib das Foto',
-      'Ist auf dem Screenshot ein Tippfehler?',
-      // Compounds and plurals — the most common phrasings (#3841 review).
-      'Was steht auf dem Wahlplakat?',
-      'Wer ist auf dem Gruppenfoto?',
-      'Was steht auf den Plakaten?',
-      'Was ist das hier?',
-      'Kannst du mir einen Alt-Text schreiben?',
-    ]) {
-      expect(looksLikeImageOnlyAsk(t), t).toBe(true);
-    }
-  });
-
-  it('does not read asks that reach past the picture as image-only', () => {
-    for (const t of [
-      'Stimmen die Zahlen auf dem Screenshot? Such die Quelle.',
-      'Was hat die Person auf dem Foto gestern gesagt?',
-      'Welche meiner Dokumente passen zu dem Plakat?',
-    ]) {
-      expect(looksLikeImageOnlyAsk(t), t).toBe(false);
-    }
-  });
-
-  it('needs a reference to the picture at all', () => {
-    // `Bildung` is not `Bild`: the noun forms are spelled out.
-    expect(looksLikeImageOnlyAsk('Was sagt die Partei zur Bildung')).toBe(false);
-    expect(looksLikeImageOnlyAsk('Mach meine Reisekostenabrechnung')).toBe(false);
   });
 });
 
@@ -1575,29 +1528,6 @@ describe('reworksSuppliedText — der Auftrag, nicht der eingefügte Stoff (#390
     ],
   ])('bleibt bei Schreib-, Recherche- oder ungetrenntem Auftrag aus: %s', (text) => {
     expect(reworksSuppliedText(text)).toBe(false);
-  });
-});
-
-describe('asksAboutSuppliedMaterial (#4789)', () => {
-  it.each([
-    'Welche vier Maßnahmen stehen im Antrag genau?',
-    'Wie hoch waren nochmal die Kosten laut Antrag?',
-    'Was steht im eingefügten Text zur Finanzierung?',
-    'Wer hat laut dem Schreiben unterschrieben?',
-    'Was fordert der Brief? Was steht darin zum Termin?',
-    'Welche Zahl nennt die Pressemitteilung? Steht das in der Pressemitteilung?',
-    'Gibt es in diesem Dokument eine Frist?',
-  ])('reads "%s" as a question about the supplied text', (text) => {
-    expect(asksAboutSuppliedMaterial(text)).toBe(true);
-  });
-
-  it.each([
-    'Wer ist aktuell Bundeskanzler in Österreich?',
-    'Was steht im Wahlprogramm zur Windkraft?',
-    'Was sagen die Grünen zum Heizungsgesetz?',
-    'Welche Anträge gab es im Bundestag zum Tempolimit?',
-  ])('does not read "%s" as one', (text) => {
-    expect(asksAboutSuppliedMaterial(text)).toBe(false);
   });
 });
 

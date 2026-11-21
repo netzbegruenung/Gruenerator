@@ -14,9 +14,11 @@
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
+import { computeTextMetrics } from '../../../agents/langgraph/ChatGraph/nodes/computeEngine.js';
 import { planAndCompute } from '../../../agents/langgraph/ChatGraph/nodes/computeNode.js';
 import { createLogger } from '../../../utils/logger.js';
 
+import type { ComputeResult } from '../../../agents/langgraph/ChatGraph/nodes/computeEngine.js';
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { SSEWriter } from '../services/sseHelpers.js';
 
@@ -46,7 +48,8 @@ export function makeRechnenTool(ctx: RechnenToolCtx): Tool {
     description: `Rechnet und zählt EXAKT per Programm: Prozent, Summen, Dreisatz, Zeichen-/Wörterzahl, Vorkommen von Wörtern oder Daten (auch je Gruppe, z. B. pro Monat), Einheiten, Tage zwischen Daten, Datum plus Zeitspanne, Nachrechnen von Zahlenangaben.
 
 NUTZE WENN eine Antwort eine ausgerechnete oder gezählte Zahl braucht — rechne und zähle NIE selbst, auch nicht „im Kopf“. Zahlen aus einer Recherche erst holen, dann hier rechnen.
-NICHT für angehängte Tabellen (eigenes Werkzeug), Zählen nach Bedeutung, Schätzungen oder Prognosen.`,
+NICHT für angehängte Tabellen (eigenes Werkzeug), Zählen nach Bedeutung, Schätzungen oder Prognosen.
+Für die Länge eines Textes — auch deines eigenen Entwurfs bei einer Längenvorgabe — gib ihn in \`text\` und setze \`textlaenge: true\`.`,
     inputSchema: z.object({
       auftrag: z
         .string()
@@ -68,8 +71,14 @@ NICHT für angehängte Tabellen (eigenes Werkzeug), Zählen nach Bedeutung, Sch�
         .describe(
           'Name eines Anhangs, z.B. "Eingefügter Text.txt" — wird selbst gelesen, nicht abschreiben.'
         ),
+      textlaenge: z
+        .boolean()
+        .optional()
+        .describe(
+          'true, wenn nur die Länge von `text` bzw. `anhang` gefragt ist (Zeichen, Wörter, Zeilen, Sätze).'
+        ),
     }),
-    execute: async ({ auftrag, text: typed, anhang }) => {
+    execute: async ({ auftrag, text: typed, anhang, textlaenge }) => {
       // A 16k paste copied into `text` cost ~70 s of argument generation on
       // Mistral Large 4 before the tool even ran (#5493); by name it costs nothing.
       let text = typed;
@@ -83,10 +92,28 @@ NICHT für angehängte Tabellen (eigenes Werkzeug), Zählen nach Bedeutung, Sch�
         }
         text = hit.text;
       }
+      const show = (result: ComputeResult, operation: string) => {
+        ctx.state.computedResult = result;
+        ctx.state.computedResultFresh = true;
+        ctx.sse.send('compute', { compute: result });
+        log.info(`[Rechnen] ${operation} → "${result.summary}"`);
+        return {
+          ok: true,
+          operation: result.operation,
+          ergebnis: result.entries.map((e) => `${e.label}: ${e.value}`),
+          zusammenfassung: result.summary,
+          note: 'Programmatisch berechnet und der*dem Nutzer*in als Karte angezeigt. Übernimm die Werte EXAKT und rechne nicht selbst nach. Bestätige oder verwirf keine Zahl, die hier nicht steht.',
+        };
+      };
+      // A length count needs no plan. Through the plan model it took 20–23 s for
+      // a 3,900-character text (measured 18.11.2026) — over the per-call budget,
+      // because the plan had to echo the whole text before anything was counted.
+      if (textlaenge && text) return show(computeTextMetrics(text), 'text_metrics');
+
       const request = text ? `Anfrage: "${auftrag}"\n\nText:\n${text}` : `Anfrage: "${auftrag}"`;
       let outcome;
       try {
-        outcome = await planAndCompute(request, text ?? auftrag);
+        outcome = await planAndCompute(request, text ?? auftrag, { wholeText: Boolean(text) });
       } catch (error) {
         log.warn(`[Rechnen] failed: ${error instanceof Error ? error.message : String(error)}`);
         return { error: 'Die Berechnung ist gerade nicht verfügbar. Nenne keine eigene Zahl.' };
@@ -101,17 +128,7 @@ NICHT für angehängte Tabellen (eigenes Werkzeug), Zählen nach Bedeutung, Sch�
         };
       }
 
-      ctx.state.computedResult = result;
-      ctx.state.computedResultFresh = true;
-      ctx.sse.send('compute', { compute: result });
-      log.info(`[Rechnen] ${outcome.operation} → "${result.summary}"`);
-      return {
-        ok: true,
-        operation: result.operation,
-        ergebnis: result.entries.map((e) => `${e.label}: ${e.value}`),
-        zusammenfassung: result.summary,
-        note: 'Programmatisch berechnet und der*dem Nutzer*in als Karte angezeigt. Übernimm die Werte EXAKT und rechne nicht selbst nach. Bestätige oder verwirf keine Zahl, die hier nicht steht.',
-      };
+      return show(result, outcome.operation ?? 'unbekannt');
     },
   });
 }

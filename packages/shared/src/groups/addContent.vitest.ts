@@ -20,7 +20,7 @@ describe('addItemsToGroup', () => {
       ],
       '  Für die Sitzung  '
     );
-    expect(result).toEqual({ added: 2, failed: 0, firstError: null });
+    expect(result).toEqual({ added: 2, failed: 0, firstError: null, failures: [] });
     expect(shareContent).toHaveBeenCalledWith({
       params: { groupId: 'g1' },
       body: {
@@ -30,6 +30,26 @@ describe('addItemsToGroup', () => {
         permissions: { read: true, write: false, collaborative: false },
       },
     });
+  });
+
+  it('teilt in Team-Projekten Docs und Boards mit Schreibrecht, alles andere weiter lesend', async () => {
+    shareContent.mockResolvedValue({ status: 200, body: { success: true } });
+    await addItemsToGroup(
+      'g1',
+      [
+        { contentType: 'collaborative_documents', id: 'd1', title: 'Antrag' },
+        { contentType: 'user_agents', id: 'a1', title: 'Presse' },
+      ],
+      null,
+      { writeDocuments: true }
+    );
+    const perms = shareContent.mock.calls.map(
+      ([arg]) => (arg as { body: { permissions: unknown } }).body.permissions
+    );
+    expect(perms).toEqual([
+      { read: true, write: true, collaborative: false },
+      { read: true, write: false, collaborative: false },
+    ]);
   });
 
   it('meldet Teilerfolge mit dem Satz des Servers', async () => {
@@ -51,6 +71,9 @@ describe('addItemsToGroup', () => {
       added: 1,
       failed: 1,
       firstError: 'Du kannst nur eigene Inhalte teilen.',
+      failures: [
+        { key: 'collaborative_documents:d1', message: 'Du kannst nur eigene Inhalte teilen.' },
+      ],
     });
     expect(shareContent.mock.calls[0]?.[0].body.note).toBeNull();
   });

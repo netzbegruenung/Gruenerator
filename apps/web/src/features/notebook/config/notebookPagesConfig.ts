@@ -1,5 +1,6 @@
 import { type IconType } from 'react-icons';
-import { HiDocumentText, HiInformationCircle, HiCollection } from 'react-icons/hi';
+
+import { HiDocumentText, HiInformationCircle, HiCollection } from '@/config/shellIcons.generated';
 
 const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
 
@@ -838,6 +839,39 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
       },
     ],
     externalUrl: 'https://www.bayern.landtag.de',
+    persistMessages: true,
+    useSystemUserId: true,
+    systemUserId: SYSTEM_USER_ID,
+  },
+
+  parteitage: {
+    id: 'parteitage',
+    slug: 'parteitage',
+    title: 'Frag die Parteitage',
+    authTitle: 'Frag die Parteitage',
+    collectionType: 'single',
+    collections: [{ id: 'parteitage-system', name: 'Parteitage' }],
+    startPageTitle: 'Was möchtest du über Anträge und Beschlüsse unserer Parteitage wissen?',
+    placeholder: 'Stell deine Frage zu Anträgen, Änderungsanträgen und Beschlüssen...',
+    headerIcon: HiDocumentText,
+    exampleQuestions: [
+      {
+        icon: '📋',
+        tag: 'Beschlüsse',
+        text: 'Was hat die LDK NRW zur Wärmewende beschlossen?',
+      },
+      {
+        icon: '✏️',
+        tag: 'Änderungsanträge',
+        text: 'Welche Änderungsanträge gibt es zum Wahlprogramm-Kapitel über Mobilität, und wie votiert die Antragskommission?',
+      },
+      {
+        icon: '🗳️',
+        tag: 'Anträge',
+        text: 'Welche Anträge hat die Grüne Jugend NRW 2026 eingebracht?',
+      },
+    ],
+    externalUrl: 'https://gruene-nrw.antragsgruen.de',
     persistMessages: true,
     useSystemUserId: true,
     systemUserId: SYSTEM_USER_ID,

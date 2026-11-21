@@ -9,10 +9,10 @@
  * Kanzleirunde.
  *
  * Die Formulierung zur Anbieterwahl („von Dir je Anfrage gewählt") war ebenfalls
- * falsch — sie trifft nur auf den Chat zu, sonst routet `selectProviderAndModel`
- * (`services/providers/providerSelector.ts`) nach Anfragetyp. Der zweite Ort mit
- * freier Modellwahl war der Playground; dessen Route ist stillgelegt
- * (`config/routes.ts`), deshalb nennt der Absatz ihn nicht.
+ * falsch — sie trifft nur auf den Chat zu, sonst routet die Lane-Tabelle
+ * (`AI_LANES` in `services/ai/lanes.ts`) nach Anfragetyp. Der zweite Ort mit
+ * freier Modellwahl war der Playground; er ist entfernt, deshalb nennt der
+ * Absatz ihn nicht.
  * Der Absatz steht jetzt in der Nachbesserung der Kanzlei
  * (Rückmeldung vom 11.08.2026), die die Zuordnung funktionsabhängig offenlegt,
  * wie Art. 13 DSGVO es für bestimmbare Empfänger verlangt. Einzige Abweichung
@@ -58,7 +58,7 @@ const Datenschutz = () => {
   return (
     <div className="page-container">
       <h1>Datenschutzerklärung</h1>
-      <p>Stand: 4. November 2026</p>
+      <p>Stand: 16. November 2026</p>
 
       <h2>Einleitung</h2>
       <p>
@@ -526,6 +526,47 @@ const Datenschutz = () => {
         Deine Suchanfragen über die selbst gehostete Metasuche (SearXNG) sowie über Linkup
         Technologies (Frankreich, EU) verarbeitet. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b und lit.
         f DSGVO.
+      </p>
+
+      <h3 id="antragsgruen">Antragsgrün-Seiten (experimentell)</h3>
+      <p>
+        Auf Deinen Wunsch und erst nach Deiner Bestätigung legt der GRÜNERATOR mit einem eigenen
+        Konto eine Antragsgrün-Seite auf antragsgruen.de an. Dabei werden an den Betreiber von
+        antragsgruen.de übermittelt: Titel und Organisation der Versammlung, Dein Name als Kontakt
+        im Impressum der Seite (öffentlich sichtbar, änderbar durch Dich) sowie Dein Name und die
+        E-Mail-Adresse Deines GRÜNERATOR-Kontos, mit der Du als Seiten-Admin eingetragen wirst;
+        Antragsgrün schickt Dir dorthin Deine Zugangsdaten. Reichst Du über den GRÜNERATOR einen
+        Antrag ein, werden dessen Titel, Text und Begründung, Dein Name, gegebenenfalls Deine
+        Organisation und Deine E-Mail-Adresse als Kontakt (nur für Admins der Seite sichtbar)
+        übermittelt. Verbindest Du eine Seite, die Du selbst angelegt hast, liest das
+        GRÜNERATOR-Konto dort die Personenverwaltung, um zu prüfen, dass es selbst und Du mit der
+        E-Mail-Adresse Deines GRÜNERATOR-Kontos Admins sind; die Liste der Personen wird dabei nicht
+        gespeichert. Für die Verarbeitung bei antragsgruen.de gilt dessen Datenschutzerklärung.
+      </p>
+      <p>
+        Der GRÜNERATOR speichert nur Titel und Adresse der Seite mit der Zuordnung zu Deinem Konto.
+        Unter „Einstellungen“ → „Antragsgrün“ kannst Du eine Seite jederzeit entfernen; mit dem
+        Löschen Deines Kontos entfällt die Zuordnung. Das GRÜNERATOR-Konto bleibt Admin auf der
+        Seite, bis Du es dort austrägst. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.
+      </p>
+
+      <h3 id="nuudel">nuudel-Umfragen (experimentell)</h3>
+      <p>
+        Auf Deinen Wunsch und erst nach Deiner Freigabe im Chat legt der GRÜNERATOR eine Umfrage auf
+        nuudel.digitalcourage.de an, einem Dienst von Digitalcourage e.V. (Bielefeld). Dabei werden
+        an Digitalcourage übermittelt: Titel, Beschreibung und Termine bzw. Optionen der Umfrage
+        (für alle mit dem Link sichtbar) sowie Dein Name als Ersteller*in und die E-Mail-Adresse
+        Deines GRÜNERATOR-Kontos; nuudel schickt Dir dorthin den Teilnahme- und den Admin-Link.
+        Liest der GRÜNERATOR auf Deinen Wunsch das Ergebnis, ruft er bei nuudel die Stimmen der
+        Teilnehmenden ab und verwendet sie nur für die Antwort im Chat. Für die Verarbeitung bei
+        nuudel gilt die Datenschutzerklärung von Digitalcourage.
+      </p>
+      <p>
+        Der GRÜNERATOR speichert Titel, Art und beide Links der Umfrage mit der Zuordnung zu Deinem
+        Konto. Unter „Einstellungen“ → „Umfragen“ kannst Du eine Umfrage jederzeit aus der Liste
+        entfernen; mit dem Löschen Deines Kontos wird die Zuordnung gelöscht. Die Umfrage selbst
+        bleibt bei nuudel, bis sie abläuft oder Du sie dort löschst. Rechtsgrundlage ist Art. 6 Abs.
+        1 lit. b DSGVO.
       </p>
 
       <h3>Fehler- und Anwendungsmonitoring (GlitchTip)</h3>

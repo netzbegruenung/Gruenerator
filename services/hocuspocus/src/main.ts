@@ -46,6 +46,7 @@ async function main(): Promise<void> {
     host: HOCUSPOCUS_HOST,
     persistence,
     auth,
+    db: dbQuery,
   });
   await server.listen();
   log.info(`Hocuspocus WebSocket server started on ${HOCUSPOCUS_HOST}:${HOCUSPOCUS_PORT}`);

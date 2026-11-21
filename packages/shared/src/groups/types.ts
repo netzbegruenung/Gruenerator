@@ -104,6 +104,7 @@ export interface VerifyTokenResult {
 
 export const GROUPS_QUERY_KEY = ['userGroups'] as const;
 export const groupDetailsKey = (id: string) => ['groupDetails', id] as const;
+export const groupInstructionsKey = (id: string) => ['groupInstructions', id] as const;
 export const groupMembersKey = (id: string) => ['groupMembers', id] as const;
 /** Web (`useGroupSharing`) und App (`useGroupContent`) teilen diesen Schlüssel. */
 export const groupContentKey = (id: string) => ['groupContent', id] as const;
@@ -122,6 +123,22 @@ export const canShareIntoGroup = (group: {
   is_system?: boolean | null;
   isAdmin?: boolean | null;
 }): boolean => !group.is_system || !!group.isAdmin;
+
+/**
+ * Wer eine Freigabe verwalten (Rolle ändern, entfernen) darf — dieselbe Regel wie auf dem
+ * Server (`updateContentPermissions`, `removeGroupContent`): Admin oder die Person, die geteilt hat.
+ */
+export const canManageShare = (
+  item: { sharedById: string | null },
+  isAdmin: boolean | null | undefined,
+  currentUserId: string | number | null | undefined
+): boolean =>
+  !!isAdmin ||
+  (currentUserId !== null &&
+    currentUserId !== undefined &&
+    currentUserId !== '' &&
+    item.sharedById !== null &&
+    item.sharedById === String(currentUserId));
 
 export const buildGroupInviteUrl = (joinToken: string): string =>
   `${PRODUCTION_WEB_ORIGIN}/join-group/${joinToken}`;

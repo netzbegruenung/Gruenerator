@@ -10,8 +10,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const aiObject = vi.hoisted(() => vi.fn());
 vi.mock('../ai/generate.js', () => ({ aiObject }));
 
+import { validateLayout } from '../flux/flux3Boxes.js';
+
 import { draftSharepic, oneFotoPerId, takeScene } from './draftAgent.js';
-import { calmBox, sceneLayout, type ScenePainter } from './sceneBackground.js';
+import { sceneLayout, subjectBox, type ScenePainter } from './sceneBackground.js';
 
 const needs = { land: 'de-DE', anlass: [], kapitel: [], fotos_suchen: [] };
 const MOTIV = 'Rooftop solar panels over a small German town at golden hour';
@@ -68,12 +70,25 @@ describe('takeScene', () => {
 });
 
 describe('sceneLayout', () => {
-  it('leaves the text side calm and puts the subject on the other side', () => {
+  it('puts the subject opposite the text side and asks for copy space there', () => {
     const layout = sceneLayout(MOTIV, 'unten');
-    expect(layout.rows.find((r) => r.id === 'ruhe')!.bbox).toEqual(calmBox('unten'));
-    expect(layout.rows.find((r) => r.id === 'motiv')!.bbox).toEqual([0, 0, 380, 1000]);
+    expect(layout.rows.map((r) => r.id)).toEqual(['motiv']);
+    expect(layout.rows[0]!.bbox).toEqual(subjectBox('unten'));
+    expect(subjectBox('unten')).toEqual([0, 0, 380, 1000]);
+    expect(layout.caption).toContain('copy space towards the bottom');
     expect(layout.caption).toContain('No text, letters, numbers');
   });
+
+  // A second box for the calm side painted as its own region, with a hard seam
+  // at the box edge (#5653).
+  it.each(['unten', 'oben', 'links', 'rechts'] as const)(
+    'paints one box only for %s, so FLUX has no region edge to cut along',
+    (side) => {
+      const layout = sceneLayout(MOTIV, side);
+      expect(layout.rows).toHaveLength(1);
+      expect(validateLayout(layout).ok).toBe(true);
+    }
+  );
 });
 
 describe('draftSharepic — painted scene', () => {

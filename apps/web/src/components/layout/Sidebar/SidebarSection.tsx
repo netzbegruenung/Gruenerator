@@ -1,9 +1,10 @@
-import { motion, AnimatePresence } from 'motion/react';
 import { memo, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 
 import Icon from '../../common/Icon';
 import { StatusBadge } from '../../common/StatusBadge';
+
+import { SidebarCollapse } from './SidebarCollapse';
 
 import type { MenuItemType } from '../Header/menuData';
 
@@ -106,29 +107,21 @@ const SidebarMenuItem = memo(
               aria-hidden="true"
             />
           </button>
-          <AnimatePresence>
-            {isSubmenuOpen && (
-              <motion.ul
-                className="list-none m-0 p-0 pl-md overflow-hidden"
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2, ease: 'easeInOut' }}
-              >
-                {item.items.map((subItem) => (
-                  <SidebarMenuItem
-                    key={subItem.id}
-                    item={subItem}
-                    onLinkClick={onLinkClick}
-                    isSubmenu={true}
-                    isDesktop={isDesktop}
-                    isActive={isActive}
-                    sidebarExpanded={sidebarExpanded}
-                  />
-                ))}
-              </motion.ul>
-            )}
-          </AnimatePresence>
+          <SidebarCollapse open={isSubmenuOpen}>
+            <ul className="list-none m-0 p-0 pl-md overflow-hidden min-h-0">
+              {item.items.map((subItem) => (
+                <SidebarMenuItem
+                  key={subItem.id}
+                  item={subItem}
+                  onLinkClick={onLinkClick}
+                  isSubmenu={true}
+                  isDesktop={isDesktop}
+                  isActive={isActive}
+                  sidebarExpanded={sidebarExpanded}
+                />
+              ))}
+            </ul>
+          </SidebarCollapse>
         </li>
       );
     }
@@ -241,7 +234,7 @@ const SidebarSection = memo(
           className="flex items-center justify-between w-full py-sm px-sm border-none bg-transparent cursor-pointer text-foreground font-[Raleway,PT_Sans,Arial,sans-serif] text-[0.7rem] font-bold text-left uppercase tracking-[0.08em] rounded-sm transition-colors whitespace-nowrap overflow-hidden hover:bg-hover-alt"
           onClick={onToggle}
           aria-expanded={isOpen}
-          // Only reference the list while it's mounted — AnimatePresence unmounts
+          // Only reference the list while it's mounted — SidebarCollapse unmounts
           // it when collapsed, so a static aria-controls would dangle (invalid
           // idref) in the closed state.
           aria-controls={isOpen ? `sidebar-section-${sectionKey}` : undefined}
@@ -264,27 +257,21 @@ const SidebarSection = memo(
             aria-hidden="true"
           />
         </button>
-        <AnimatePresence>
-          {isOpen && (
-            <motion.ul
-              id={`sidebar-section-${sectionKey}`}
-              className="list-none m-0 p-0 overflow-hidden"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.25, ease: 'easeInOut' }}
-            >
-              {items.map((item) => (
-                <SidebarMenuItem
-                  key={item.id}
-                  item={item}
-                  onLinkClick={onLinkClick}
-                  sidebarExpanded={sidebarExpanded}
-                />
-              ))}
-            </motion.ul>
-          )}
-        </AnimatePresence>
+        <SidebarCollapse open={isOpen}>
+          <ul
+            id={`sidebar-section-${sectionKey}`}
+            className="list-none m-0 p-0 overflow-hidden min-h-0"
+          >
+            {items.map((item) => (
+              <SidebarMenuItem
+                key={item.id}
+                item={item}
+                onLinkClick={onLinkClick}
+                sidebarExpanded={sidebarExpanded}
+              />
+            ))}
+          </ul>
+        </SidebarCollapse>
       </div>
     );
   }

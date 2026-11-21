@@ -81,6 +81,7 @@ import {
   type WebImageResult,
 } from '../types.js';
 
+import { agentNotebookDocIds, searchScopedDocuments } from './agentNotebookScope.js';
 import {
   COLLECTION_LABELS,
   CONTENT_TYPE_LABELS,
@@ -1717,13 +1718,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         const userNotebookDocIds = state.notebookDocumentIds ?? [];
         // The agent's bound user-notebook docs apply only when the user hasn't
         // explicitly scoped this turn (no @datei, no @notebook, no system notebook).
-        const hasExplicitScope =
-          explicitDocIds.length > 0 ||
-          userNotebookDocIds.length > 0 ||
-          (state.notebookCollectionIds?.length ?? 0) > 0;
-        const defaultNotebookDocIds = hasExplicitScope
-          ? []
-          : (state.defaultNotebookDocumentIds ?? []);
+        const defaultNotebookDocIds = agentNotebookDocIds(state);
         const scopeDocIds = [
           ...new Set([...explicitDocIds, ...userNotebookDocIds, ...defaultNotebookDocIds]),
         ];
@@ -1737,38 +1732,14 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
             }`
           );
           try {
-            const documentSearchService = (
-              await import('../../../../services/document-services/DocumentSearchService/index.js')
-            ).getQdrantDocumentService();
-            const response = await documentSearchService.search({
-              query: searchQuery || '',
-              userId: agentConfig.userId,
-              options: {
-                limit: 8,
-                mode: 'hybrid',
-                threshold: 0.2,
-              },
-              filters: {
+            results.push(
+              ...(await searchScopedDocuments({
+                query: searchQuery || '',
+                userId: agentConfig.userId,
                 documentIds: scopeDocIds,
-              },
-            });
-
-            for (const r of response.results || []) {
-              // A user notebook can hold a collaborator's document; the search
-              // does not filter by owner here, so the reader needs the notebook.
-              const notebookId = r.document_id
-                ? state.documentNotebookIds?.[r.document_id]
-                : undefined;
-              results.push({
-                source: `document:${r.document_id || 'unknown'}`,
-                title: r.title || 'Dokument',
-                content: r.relevant_content || '',
-                url: r.source_url || undefined,
-                relevance: r.similarity_score ?? 0.5,
-                ...(r.document_id ? { documentId: r.document_id } : {}),
-                ...(notebookId ? { collectionId: notebookId } : {}),
-              });
-            }
+                documentNotebookIds: state.documentNotebookIds,
+              }))
+            );
             searchedCollections.push(fromUserNotebook ? 'user-notebook' : 'user-documents');
           } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : String(err);
@@ -1921,8 +1892,8 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         // Track which collections were searched for observability
         searchedCollections = uniqueCollections;
 
-        // Empty internal search → go to the web, same rule the loop path got
-        // (loopGuards.emptyResultFallback). This path could not follow it:
+        // Empty internal search → go to the web, same rule the loop path once had
+        // (loopGuards.emptyResultFallback, since removed). This path could not follow it:
         // `search` is an exclusive, one-time intent choice, so a turn that
         // found nothing internally answered from the model's memory — ungrounded
         // and, to the reader, indistinguishable from a researched answer.

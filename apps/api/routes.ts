@@ -12,6 +12,7 @@ import { deprecatedRoute } from './middleware/deprecatedRoute.js';
 import { jsonBody } from './middleware/jsonBody.js';
 import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
 import { requireAiConsent } from './middleware/requireAiConsent.js';
+import { requireInstanceAdminMiddleware } from './middleware/requireInstanceAdminMiddleware.js';
 import { mountAdminReportsContractRouter } from './routes/admin/adminReportsContractRouter.js';
 import { mountAdminStatsContractRouter } from './routes/admin/adminStatsContractRouter.js';
 import { mountChunkInspectorContractRouter } from './routes/admin/chunkInspectorContractRouter.js';
@@ -88,6 +89,7 @@ import { mountMcpOAuthCallbackRouter } from './routes/mcp/mcpOAuthCallbackRouter
 import { mountMcpServersContractRouter } from './routes/mcp/mcpServersContractRouter.js';
 import { createMcpAppsRouter } from './routes/mcp-apps/mcpAppsRouter.js';
 import mcpServerRouter from './routes/mcp-server/index.js';
+import { mountMediaImportContractRouter } from './routes/media/mediaImportContractRouter.js';
 import { mountMemoryContractRouter } from './routes/memory/memoryContractRouter.js';
 import { mountMonitorContractRouter } from './routes/monitor/monitorContractRouter.js';
 import { mountNotebookCollectionsContractRouter } from './routes/notebook/notebookCollectionsContractRouter.js';
@@ -98,6 +100,14 @@ import { mountWolkePendingContractRouter } from './routes/notebook/wolkePendingC
 import notificationsRouter from './routes/notifications/index.js';
 import { mountNotificationsContractRouter } from './routes/notifications/notificationsContractRouter.js';
 import notificationStreamRouter from './routes/notifications/stream.js';
+import {
+  PARTEITAGE_IMPORT_PATH,
+  parteitageImportBodyParser,
+} from './routes/parteitage/importBodyParser.js';
+import { mountParteitageAdminContractRouter } from './routes/parteitage/parteitageAdminContractRouter.js';
+import { mountParteitageContractRouter } from './routes/parteitage/parteitageContractRouter.js';
+import { parteitageMediaRouter } from './routes/parteitage/parteitageMediaRouter.js';
+import { parteitageUnlockLimiter } from './routes/parteitage/unlockLimiter.js';
 import { mountPodcastsContractRouter } from './routes/podcasts/podcastsContractRouter.js';
 import presentationExportRouter from './routes/presentations/presentationExportController.js';
 import { mountPresentationsContractRouter } from './routes/presentations/presentationsContractRouter.js';
@@ -143,9 +153,11 @@ import { mountTreesContractRouter } from './routes/trees/treesContractRouter.js'
 import { mountUnsplashContractRouter } from './routes/unsplash/unsplashContractRouter.js';
 import { mountItemUsageContractRouter } from './routes/usage/itemUsageContractRouter.js';
 import { mountUserUsageContractRouter } from './routes/usage/userUsageContractRouter.js';
+import { mountAntragsgruenSitesContractRouter } from './routes/user/antragsgruenSitesContractRouter.js';
 import { recentValuesRouter } from './routes/user/index.js';
 import { mountLetterheadsContractRouter } from './routes/user/letterheadsContractRouter.js';
 import letterheadStationeryRouter from './routes/user/letterheadStationeryRouter.js';
+import { mountNuudelPollsContractRouter } from './routes/user/nuudelPollsContractRouter.js';
 import { mountRecentValuesContractRouter } from './routes/user/recentValuesContractRouter.js';
 import { mountUserWebsitesContractRouter } from './routes/user/userWebsitesContractRouter.js';
 import { mountUserAgentsContractRouter } from './routes/userAgents/userAgentsContractRouter.js';
@@ -157,6 +169,8 @@ import v1ChatCompletionsRouter, {
 } from './routes/v1/chatCompletionsRouter.js';
 import v1CollectionsRouter from './routes/v1/collectionsRouter.js';
 import v1NotebooksRouter from './routes/v1/notebooksRouter.js';
+import { mountVideoAiContractRouter } from './routes/videoAi/videoAiContractRouter.js';
+import { mountVideoProjectsContractRouter } from './routes/videoProjects/videoProjectsContractRouter.js';
 import agentSessionRouter from './routes/voice/agentSessionController.js';
 import { mountSpeechContractRouter } from './routes/voice/speechContractRouter.js';
 import ttsRouter from './routes/voice/ttsController.js';
@@ -167,6 +181,7 @@ import { mountRecentActivityContractRouter } from './routes/workplace/recentActi
 import recentActivityRouter from './routes/workplace/recentActivityController.js';
 import { parseAppBundle, recordAppBundleUse } from './services/appBundles/appBundleUsage.js';
 import * as tusServiceModule from './services/subtitler/tusService.js';
+import { requireSitesAccess } from './services/user/sitesEntitlement.js';
 import { decisionLogMiddleware } from './utils/decisionLog.js';
 import { toUserFacingMessage } from './utils/errors/index.js';
 import { createLogger } from './utils/logger.js';
@@ -240,6 +255,19 @@ const contentReportLimiter = isRateLimitDisabled
       legacyHeaders: false,
       keyGenerator: perUserOrIpKey,
       message: { error: 'Too many requests, please try again later.' },
+    });
+
+// Each import runs ffprobe and moves a file of up to 3 GB; a person finishes a
+// handful of uploads at a time, so 30 per 15 minutes (tus creation has its own limit).
+const mediaImportLimiter = isRateLimitDisabled
+  ? (_req: Request, _res: Response, next: NextFunction) => next()
+  : rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 30,
+      standardHeaders: true,
+      legacyHeaders: false,
+      keyGenerator: perUserOrIpKey,
+      message: { error: 'Zu viele Uploads. Bitte versuche es später erneut.' },
     });
 
 // Studio shop uploads are rare and every one may go public at once — cap
@@ -341,7 +369,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: nextcloudApiRouter } = await import('./routes/nextcloud/nextcloudApi.js');
   const { default: connectionsRouter } =
     await import('./routes/connections/connectionsController.js');
-  const { default: canvaApiRouter } = await import('./routes/canva/canvaApi.js');
   const { default: vorlagenApiRouter } = await import('./routes/vorlagen/vorlagenApi.js');
   const { urlController: crawlUrlRouter } = await import('./routes/crawl/index.js');
   const { default: chatServiceRouter } = await import('./routes/chat/index.js');
@@ -349,9 +376,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: gruenOMatRouter } = await import('./routes/gruenomat/gruenOMatController.js');
   const { default: mediaRouter } = await import('./routes/media/mediaController.js');
   const { default: thumbnailRouter } = await import('./routes/media/thumbnailRouter.js');
-  const { sitesController: sitesRouter, publicController: _publicSiteRouter } =
-    await import('./routes/sites/index.js');
-  const { default: flyerController } = await import('./routes/sites/flyerController.js');
   const { default: fluxImageEditingRoute } = await import('./routes/flux/imageEditing.js');
   const { mountImageEditContractRouter } = await import('./routes/flux/imageEditContractRouter.js');
   const { mountSharepicCreatorContractRouter } =
@@ -364,13 +388,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: docResolveRouter } = await import('./routes/docs/resolveController.js');
   const { default: ogDocsRouter } = await import('./routes/docs/ogController.js');
   const { default: usersRouter } = await import('./routes/users/userController.js');
-  // Playground stillgelegt (siehe apps/web/src/config/routes.ts) — die Route nahm
-  // freie provider/model-Wahl entgegen und wäre sonst ein Empfänger, den die
-  // Datenschutzerklärung nicht mehr nennt.
-  // const { default: playgroundRouter } = await import('./routes/texte/playground.js');
   const { default: emailRouter } = await import('./routes/email/emailController.js');
   const { default: videoRouter } = await import('./routes/video/index.js');
-  const { default: visionRouter } = await import('./routes/vision/visionController.js');
 
   // Auth routes — authLimiter applied inside authCore.ts to login/callback only
   // ts-rest contract router — sole owner of /api/auth/profile/* and
@@ -458,6 +477,10 @@ export async function setupRoutes(app: Application): Promise<void> {
 
   app.use('/api/auth/user-websites', requireAuth);
   mountUserWebsitesContractRouter(app);
+  app.use('/api/auth/antragsgruen-sites', requireAuth);
+  mountAntragsgruenSitesContractRouter(app);
+  app.use('/api/auth/nuudel-polls', requireAuth);
+  mountNuudelPollsContractRouter(app);
   // Letterheads (Absender for the PDF export). requireAuth at the prefix for
   // the same reason as its siblings: a contract router does not inherit the
   // later `app.use('/api/auth', ...)` middleware, and every route here reads or
@@ -544,6 +567,14 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Studio shop: user Sticker and Hintergründe.
   app.use('/api/studio-assets', requireAuth, authenticatedReadLimiter, studioAssetWriteLimiter);
   mountStudioAssetsContractRouter(app);
+  // Parteitage archive: media first (own Express route), then the contract routers.
+  // The unlock limiter skips everything but POST .../entsperren.
+  app.use('/api/parteitage', requireAuth, authenticatedReadLimiter, parteitageUnlockLimiter);
+  app.use(parteitageMediaRouter);
+  mountParteitageContractRouter(app);
+  app.use('/api/admin/parteitage', requireAuth);
+  app.post(PARTEITAGE_IMPORT_PATH, ...parteitageImportBodyParser);
+  mountParteitageAdminContractRouter(app);
   // Marktplatz: Agents, Rezepte, Vorlagen, Sticker und Hintergründe in einer Liste.
   // Likes and saves are PUT/DELETE, which the studio-asset write cap skips, so
   // they take the general write ceiling.
@@ -572,6 +603,20 @@ export async function setupRoutes(app: Application): Promise<void> {
     next()
   );
   mountPodcastsContractRouter(app);
+  // KI-Schnitt: queued here, analysed and cut by services/videoAi/videoAiWorker.ts.
+  // Instance admins only for now (test phase); the web hides it via adminToolsGate.
+  app.use('/api/video-ai', requireAuth, requireInstanceAdminMiddleware, authenticatedReadLimiter);
+  app.post('/api/video-ai/projects', aiGenerationLimiter, requireAiConsent, (_req, _res, next) =>
+    next()
+  );
+  // A correction round can call Gemma (free-text request), so the same gate as create.
+  app.post(
+    '/api/video-ai/projects/:id/revise',
+    aiGenerationLimiter,
+    requireAiConsent,
+    (_req, _res, next) => next()
+  );
+  mountVideoAiContractRouter(app);
   // ts-rest contract router for /api/item-usage (usage-based "favourites first"
   // ordering). requireAuth at the prefix — returns user-specific data.
   app.use('/api/item-usage', requireAuth, publicReadLimiter);
@@ -605,11 +650,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   // weil createExpressEndpoints direkt auf der App registriert und die
   // Middleware eines späteren `app.use`-Mounts nie sieht. Eng am Pfad statt am
   // Präfix `/api/texte`, damit die weiter unten gemounteten Geschwister
-  // (adjustment, universal, playground) requireAuth und den Limiter nicht
+  // (adjustment, universal) requireAuth und den Limiter nicht
   // doppelt bekommen — zwei Sitzungsauflösungen und doppelte Kontingentzählung
   // pro Anfrage.
   app.use('/api/texte/alttext', requireAuth, requireAiConsent, aiGenerationLimiter);
-  app.use('/api/texte/website', requireAuth, requireAiConsent, aiGenerationLimiter);
   mountTexteContractRouter(app);
   app.use('/api/texte/social', requireAuth, requireAiConsent, aiGenerationLimiter, socialRoute);
   // DeepL-Übersetzer (Seite + Admin-Glossar). Anmeldung und Art.-9-Einwilligung
@@ -621,7 +665,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/translation', requireAuth, requireAiConsent, standardMutationLimiter);
   mountTranslationContractRouter(app);
   app.use('/api/translation', translationUploadRouter);
-  app.use('/api/vision', aiGenerationLimiter, requireAuth, requireAiConsent, visionRouter);
   // ts-rest contract routers — mount before legacy routers.
   // Apply requireAuth on the path prefixes BEFORE the mount calls so
   // unauthenticated requests get a 401 instead of crashing the handlers
@@ -684,6 +727,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   // The vision check is a model call: consent + the generation limiter, like /api/sharepic-creator.
   app.use('/api/canvas/ai-check', requireAiConsent, aiGenerationLimiter);
   mountCanvasContractRouter(app);
+
+  // Video editor projects (collaborative documents, subtype 'video').
+  app.use('/api/video-projects', requireAuth, authenticatedReadLimiter);
+  mountVideoProjectsContractRouter(app);
 
   // ts-rest contract router — mount before legacy campaignCanvasRoute.
   // requireAuth läuft auf dem Prefix, weil createExpressEndpoints die Handler
@@ -780,7 +827,6 @@ export async function setupRoutes(app: Application): Promise<void> {
     requireAiConsent,
     universalRouter
   );
-  // app.use('/api/texte/playground', requireAuth, requireAiConsent, aiGenerationLimiter, playgroundRouter);
   app.use('/api/custom_prompt', aiGenerationLimiter, customPromptRoute);
   app.use('/api/auth/custom_prompt', aiGenerationLimiter, customPromptRoute);
   // ts-rest contract router for user-created agents — replaces the legacy
@@ -839,6 +885,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   // muss an seine bereits erzeugten Untertitel weiter herankommen.
   app.use('/api/subtitler', (req, res, next) => {
     // req.path ist hier relativ zum Mount.
+    // /process-parteitag nutzt gespeicherte Wortzeiten, kein KI-Modell: keine Einwilligung nötig.
+    if (req.path.startsWith('/process-parteitag')) return next();
     if (req.path.startsWith('/process') || req.path.startsWith('/generate-social')) {
       return requireAiConsent(req, res, next);
     }
@@ -973,6 +1021,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   // iframe drives its interactive window.openai bridge through here.
   app.use('/api/mcp-apps', requireAuth, authenticatedReadLimiter, createMcpAppsRouter());
   app.use('/api/notifications', requireAuth, publicReadLimiter, notificationsRouter);
+  // Finished resumable upload → Mediathek. Before mediaRouter so the prefix limiter
+  // (not the generic one) applies; any logged-in person, no admin gate.
+  app.use('/api/media/import-upload', requireAuth, mediaImportLimiter);
+  mountMediaImportContractRouter(app);
   app.use('/api/media', requireAuth, authenticatedReadLimiter, mediaRouter);
   app.use('/api/og/docs', publicReadLimiter, ogDocsRouter);
   app.use('/api/docs/resolve', optionalAuth, publicReadLimiter, docResolveRouter);
@@ -1161,9 +1213,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/connections', standardMutationLimiter, requireAuth);
   mountConnectionsContractRouter(app);
   app.use('/api/connections', connectionsRouter);
-  // Direct Canva Connect API (OAuth2 + PKCE). Auth is applied per-route inside
-  // the router — the OAuth callback answers with a popup page, never a 401.
-  app.use('/api/canva', standardMutationLimiter, canvaApiRouter);
   // Link-shared Vorlagen. optionalAuth, NOT requireAuth: a Vorlage shared with
   // share_mode='public' has to open without an account, and the handler
   // answers 401 itself when the link needs one. Mounted before the legacy
@@ -1172,17 +1221,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountSharedTemplateContractRouter(app);
   // Vorlagen semantic search (chat @vorlagen picker). requireAuth is per-route.
   app.use('/api/vorlagen', authenticatedReadLimiter, vorlagenApiRouter);
-  app.use('/api/sites/generate-from-flyer', aiGenerationLimiter, flyerController);
-  // ts-rest contract router — mount before the legacy sitesRouter so the
-  // typed CRUD routes match first; /public/:subdomain and /themes fall
-  // through to the legacy router. requireAuth is path-filtered because
-  // /api/sites/public/* must stay anonymous.
-  app.use('/api/sites', standardMutationLimiter, (req, res, next) => {
-    if (req.path.startsWith('/public/')) return next();
-    void requireAuth(req, res, next);
-  });
+  app.use('/api/sites', standardMutationLimiter, requireAuth, requireSitesAccess);
+  app.use('/api/sites/generate', aiGenerationLimiter, requireAiConsent);
   mountSitesContractRouter(app);
-  app.use('/api/sites', sitesRouter);
   app.use('/api/flux/green-edit', aiGenerationLimiter, fluxImageEditingRoute);
   // ts-rest contract router for image editing (multi-reference). requireAuth +
   // limiter run at the prefix because createExpressEndpoints registers

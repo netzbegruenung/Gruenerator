@@ -33,6 +33,7 @@ import {
   trashCollaborativeDocument,
   type QueryRunner,
 } from '../docs/CollaborativeDocumentService.js';
+import { type TxQuery } from '../groups/createInGroup.js';
 import { buildCanvasThumbnailUrl } from '../media/thumbnailUrl.js';
 import { type UploadSource } from '../sharedMediaService.js';
 
@@ -321,7 +322,9 @@ export interface CreateCanvasInput {
 
 export async function createCanvas(
   userId: string,
-  input: CreateCanvasInput
+  input: CreateCanvasInput,
+  /** Eine offene Transaktion (`createInGroup`); ohne sie der Pool. */
+  query: TxQuery = (text, params) => db.query(text, params)
 ): Promise<CanvasDocument> {
   const {
     title = 'Neuer Canvas',
@@ -332,7 +335,7 @@ export async function createCanvas(
     format = DEFAULT_CANVAS_FORMAT,
   } = input;
 
-  const docRows = (await db.query(
+  const docRows = (await query(
     `INSERT INTO collaborative_documents
        (title, content, created_by, last_edited_by, document_subtype, is_public)
      VALUES ($1, $2, $3, $3, $4, false)
@@ -353,7 +356,7 @@ export async function createCanvas(
   >;
   const doc = docRows[0];
 
-  const sidecarRows = (await db.query(
+  const sidecarRows = (await query(
     `INSERT INTO canvas_documents
        (document_id, template_type, base_template_id, page_count, initial_state, format)
      VALUES ($1, $2, $3, $4, $5, $6)
@@ -633,7 +636,14 @@ export async function markCanvasAsGalleryTemplate(id: string): Promise<void> {
 // ── Clone ─────────────────────────────────────────────────────────────────────
 
 type CloneResult =
-  | { kind: 'ok'; newCanvasId: string; accessMethod?: string }
+  | {
+      kind: 'ok';
+      newCanvasId: string;
+      accessMethod?: string;
+      templateType: string;
+      /** What the copy was built from (live state plus clone metadata), for seeding its Yjs doc. */
+      seededState: Record<string, unknown>;
+    }
   | { kind: 'not_found' }
   | { kind: 'forbidden' };
 
@@ -641,16 +651,26 @@ type CanvasCloneSourceRow = Pick<
   CollabRow,
   'id' | 'title' | 'created_by' | 'permissions' | 'is_public' | 'share_mode'
 > &
-  Pick<
-    SidecarRow,
-    'template_type' | 'base_template_id' | 'page_count' | 'initial_state' | 'format'
-  >;
+  Pick<SidecarRow, 'template_type' | 'base_template_id' | 'page_count' | 'format'>;
 
-export async function cloneCanvas(id: string, userId: string): Promise<CloneResult> {
+/** Reads a canvas's live state (`getCanvasSnapshotState`); injected so the repository stays DB-only. */
+type CanvasLiveStateReader = (
+  canvasId: string
+) => Promise<{ state: Record<string, unknown>; pageCount: number | null }>;
+
+/**
+ * Copies a canvas. The copy carries what the editor holds, read through `readLiveState` once
+ * access is confirmed; the `initial_state` mirror is only what that reader falls back to when no
+ * Yjs document exists. A refusal it throws (document newer than the server) reaches the caller.
+ */
+export async function cloneCanvas(
+  id: string,
+  userId: string,
+  readLiveState: CanvasLiveStateReader
+): Promise<CloneResult> {
   const sourceRows = (await db.query(
     `SELECT cd.id, cd.title, cd.created_by, cd.permissions, cd.is_public, cd.share_mode,
-            cdoc.template_type, cdoc.base_template_id, cdoc.page_count,
-            cdoc.initial_state, cdoc.format
+            cdoc.template_type, cdoc.base_template_id, cdoc.page_count, cdoc.format
      FROM collaborative_documents cd
      INNER JOIN canvas_documents cdoc ON cdoc.document_id = cd.id
      WHERE cd.id = $1 AND cd.document_subtype = $2 AND cd.is_deleted = false`,
@@ -663,11 +683,12 @@ export async function cloneCanvas(id: string, userId: string): Promise<CloneResu
   const access = await checkDocumentAccess(toAccessSubject(source), userId);
   if (!access.hasAccess) return { kind: 'forbidden' };
 
-  const sourceInitialState = source.initial_state ?? {};
+  const live = await readLiveState(id);
+  const sourceState = live.state;
   const seededState: Record<string, unknown> = {
-    ...sourceInitialState,
+    ...sourceState,
     metadata: {
-      ...((sourceInitialState.metadata as Record<string, unknown>) ?? {}),
+      ...((sourceState.metadata as Record<string, unknown>) ?? {}),
       cloned_from_template_id: source.id,
       cloned_at: new Date().toISOString(),
     },
@@ -691,7 +712,7 @@ export async function cloneCanvas(id: string, userId: string): Promise<CloneResu
         newDocumentId,
         source.template_type,
         source.base_template_id,
-        source.page_count,
+        live.pageCount ?? source.page_count,
         JSON.stringify(seededState),
         source.format,
       ]
@@ -700,5 +721,11 @@ export async function cloneCanvas(id: string, userId: string): Promise<CloneResu
     return newDocumentId;
   });
 
-  return { kind: 'ok', newCanvasId, accessMethod: access.accessMethod };
+  return {
+    kind: 'ok',
+    newCanvasId,
+    accessMethod: access.accessMethod,
+    templateType: source.template_type,
+    seededState,
+  };
 }

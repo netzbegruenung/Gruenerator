@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 
 import { createLogger } from './logger.js';
+import { SITE_ROOM_PREFIX, siteIdFromRoom } from './siteRooms.js';
 
 import type {
   DbQueryFn,
@@ -17,18 +18,23 @@ const SESSION_CHECK_TIMEOUT_MS = 5000;
 /** Same id as the API's dev-bypass user (`apps/api/middleware/authMiddleware.ts`). */
 const DEV_BYPASS_USER_ID = '00000000-0000-4000-a000-000000000001';
 
+/** Mirror of `DEV_BYPASS_EXTRA_USERS` in `apps/api/config/devAuthBypass.ts`. */
+const DEV_BYPASS_EXTRA_USERS = ['00000000-0000-4000-a000-0000000000b2'];
+
 /**
  * Local dev only, mirroring the API's `requireAuth`: the Vite dev proxy forwards
  * `/ws` here and attaches `x-dev-auth-bypass`, so the bypass user can open its
  * own private documents without a session cookie.
  */
-function devBypassUserId(headers: Headers): string | null {
+function devBypassUserId(headers: Headers, params?: URLSearchParams): string | null {
   if (process.env.NODE_ENV !== 'development' || process.env.ALLOW_DEV_AUTH_BYPASS !== 'true') {
     return null;
   }
   const expected = process.env.DEV_AUTH_BYPASS_TOKEN;
   if (!expected) return null;
-  return headers.get('x-dev-auth-bypass') === expected ? DEV_BYPASS_USER_ID : null;
+  if (headers.get('x-dev-auth-bypass') !== expected) return null;
+  const asUser = params?.get('dev_auth_user');
+  return asUser && DEV_BYPASS_EXTRA_USERS.includes(asUser) ? asUser : DEV_BYPASS_USER_ID;
 }
 
 /**
@@ -39,6 +45,8 @@ function devBypassUserId(headers: Headers): string | null {
 function isDocumentRoom(documentName: string): boolean {
   return !documentName.startsWith('chat-') && !documentName.startsWith('group-presence-');
 }
+
+const DOCUMENT_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export class AuthService {
   private readonly db: DbQueryFn;
@@ -55,7 +63,7 @@ export class AuthService {
     log.debug(`[Auth] Starting authentication for ${documentName}, hasToken: ${!!token}`);
 
     try {
-      const bypassUserId = devBypassUserId(requestHeaders);
+      const bypassUserId = devBypassUserId(requestHeaders, requestParameters);
       if (bypassUserId) return this.checkRoomAccess(documentName, bypassUserId);
 
       if (token) {
@@ -87,7 +95,7 @@ export class AuthService {
   ): Promise<AuthenticationResult> {
     // Guest access exists only for shared documents. Chat and presence rooms
     // would otherwise send their room name into a uuid comparison (#5395).
-    if (!isDocumentRoom(documentName)) {
+    if (!isDocumentRoom(documentName) || documentName.startsWith(SITE_ROOM_PREFIX)) {
       return { authenticated: false, reason: 'Guest access is limited to documents' };
     }
 
@@ -132,25 +140,30 @@ export class AuthService {
     }
   }
 
+  /**
+   * Über ALLE Projekte der Person, in denen der Inhalt liegt: lesbar, sobald eine
+   * lesbare Freigabe besteht, schreibbar, sobald eine davon Schreibrecht gibt. Vorher
+   * entschied `LIMIT 1` ohne Reihenfolge zufällig. Die REST-Seite rechnet in
+   * `loadGroupShare` (apps/api/routes/docs/documentAccess.ts) genauso.
+   */
   private async getGroupSharePermissions(
     userId: string,
     contentId: string
   ): Promise<{ read?: boolean; write?: boolean } | null> {
+    // bool_or über null Zeilen ist eine Zeile mit NULL = keine Freigabe.
     const rows = await this.db(
-      `SELECT gcs.permissions FROM group_content_shares gcs
+      `SELECT bool_or((gcs.permissions->>'write')::boolean IS TRUE) AS doc_write
+         FROM group_content_shares gcs
        INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
        INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
        WHERE gcs.content_type IN ('collaborative_documents', 'canvas_template')
          AND gcs.content_id = $2
-       LIMIT 1`,
+         AND COALESCE((gcs.permissions->>'read')::boolean, true) = true`,
       [userId, contentId]
     );
-    if (rows.length === 0) return null;
-    const raw = rows[0].permissions;
-    return (typeof raw === 'string' ? JSON.parse(raw) : raw) as {
-      read?: boolean;
-      write?: boolean;
-    } | null;
+    const write = (rows[0] as { doc_write: boolean | null } | undefined)?.doc_write;
+    if (write === null || write === undefined) return null;
+    return { read: true, write };
   }
 
   private async checkRoomAccess(
@@ -167,7 +180,50 @@ export class AuthService {
       return this.checkGroupPresenceAccess(groupId, userId);
     }
 
+    if (documentName.startsWith(SITE_ROOM_PREFIX)) {
+      return this.checkSiteAccess(documentName, userId);
+    }
+
     return this.checkDocumentPermissions(documentName, userId);
+  }
+
+  /** Owner only in this phase; shared editing (Phase 7) extends this one query. */
+  private async checkSiteAccess(room: string, userId: string): Promise<AuthenticationResult> {
+    const siteId = siteIdFromRoom(room);
+    if (!siteId) return { authenticated: false, reason: 'Site not found' };
+
+    const rows = await this.db(
+      `SELECT s.user_id, s.moderation FROM user_sites s
+       JOIN profiles p ON p.id = s.user_id
+       WHERE s.id = $1 AND s.deleted_at IS NULL AND (p.sites_unlocked = true OR p.is_admin = true) LIMIT 1`,
+      [siteId]
+    );
+    const site = rows[0] as { user_id: string; moderation: string | null } | undefined;
+    if (!site) {
+      log.warn(`[Auth-Site] Site ${siteId} not found, trashed or not unlocked`);
+      return { authenticated: false, reason: 'Site not found' };
+    }
+    if (site.user_id !== userId) {
+      log.warn(`[Auth-Site] FAILED: User ${userId} is not the owner of site ${siteId}`);
+      return { authenticated: false, reason: 'Access denied' };
+    }
+
+    const userResult = await this.db('SELECT display_name FROM profiles WHERE id = $1', [
+      userId,
+    ]).catch((err) => {
+      log.warn(`[Auth-Site] Display name lookup failed for ${userId}: ${err}`);
+      return [];
+    });
+    const readOnly = site.moderation === 'removed';
+    log.debug(
+      `[Auth-Site] Owner ${userId} authenticated for site ${siteId} (${readOnly ? 'read-only' : 'read-write'})`
+    );
+    return {
+      authenticated: true,
+      userId,
+      userName: (userResult[0]?.display_name as string) || 'Unknown User',
+      readOnly,
+    };
   }
 
   private async checkChatThreadAccess(
@@ -178,7 +234,7 @@ export class AuthService {
 
     const directAccess = await this.db(
       `SELECT user_id, permissions, is_public, doc_id FROM chat_threads
-       WHERE id = $1 LIMIT 1`,
+       WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
       [threadId]
     );
 
@@ -201,7 +257,31 @@ export class AuthService {
       return this.checkDocumentPermissions(thread.doc_id, userId);
     }
 
-    const isOwner = thread.user_id === userId;
+    // Mirrors ownsThreadSql (apps/api services/groups/projectThreadScope.ts):
+    // a team chat of a project the owner has left belongs to the project (#5678).
+    const isOwner =
+      thread.user_id === userId &&
+      (
+        await this.db(
+          `SELECT 1 FROM chat_threads t
+             JOIN groups g ON g.id = t.group_id AND g.deleted_at IS NULL
+              AND COALESCE(g.is_active, TRUE) = TRUE
+            WHERE t.id = $1 AND t.deleted_at IS NULL
+              AND EXISTS (
+                SELECT 1 FROM group_content_shares tcs
+                 WHERE tcs.content_type = 'chat_threads' AND tcs.content_id = t.id::text
+                   AND tcs.group_id = g.id
+                   AND COALESCE((tcs.permissions->>'read')::boolean, true) = true
+                   AND COALESCE((tcs.permissions->>'write')::boolean, true) = true
+              )
+              AND NOT EXISTS (
+                SELECT 1 FROM group_memberships gm
+                 WHERE gm.group_id = g.id AND gm.user_id = $2::uuid AND gm.is_active = TRUE
+              )
+            LIMIT 1`,
+          [threadId, userId]
+        )
+      ).length === 0;
     const hasDirectPermission = thread.permissions && userId in thread.permissions;
     const isPublic = thread.is_public;
 
@@ -218,26 +298,31 @@ export class AuthService {
       };
     }
 
+    // Mirrors threadAccessService: content_id is TEXT, a share missing its
+    // read key counts as readable, a write:false share is read-only.
+    // bool_or over zero rows is one row with NULL = no group share.
     const groupAccess = await this.db(
-      `SELECT 1 FROM group_content_shares gcs
+      `SELECT bool_or(COALESCE((gcs.permissions->>'write')::boolean, true)) AS can_write
+       FROM group_content_shares gcs
        INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id
        INNER JOIN groups lg ON lg.id = gm.group_id AND lg.deleted_at IS NULL
        WHERE gcs.content_type = 'chat_threads'
-       AND gcs.content_id = $1::uuid
+       AND gcs.content_id = $1::text
        AND gm.user_id = $2::uuid
        AND gm.is_active = TRUE
-       LIMIT 1`,
+       AND COALESCE((gcs.permissions->>'read')::boolean, true) = true`,
       [threadId, userId]
     );
 
-    if ((groupAccess as unknown[]).length > 0) {
+    const groupWrite = (groupAccess[0] as { can_write: boolean | null } | undefined)?.can_write;
+    if (groupWrite === true || groupWrite === false) {
       const userResult = await this.db('SELECT display_name FROM profiles WHERE id = $1', [userId]);
       log.debug(`[Auth-Chat] User ${userId} has group access to thread ${threadId}`);
       return {
         authenticated: true,
         userId,
         userName: (userResult[0]?.display_name as string) || 'Unknown User',
-        readOnly: true,
+        readOnly: !groupWrite,
       };
     }
 
@@ -282,6 +367,12 @@ export class AuthService {
     userId: string
   ): Promise<AuthenticationResult> {
     log.debug(`[Auth] Checking document permissions for: ${documentName}`);
+    // collaborative_documents.id is a uuid: Postgres would reject anything else
+    // and the client would retry forever, so deny before querying.
+    if (!DOCUMENT_ID_RE.test(documentName)) {
+      log.warn(`[Auth] FAILED: ${documentName} is not a document id (user ${userId})`);
+      return { authenticated: false, reason: 'Access denied' };
+    }
     // The display name is needed on every granted path, so fetch it alongside;
     // a failed lookup must not turn a definite denial into a retryable error.
     const [docResult, userResult] = await Promise.all([
@@ -300,14 +391,11 @@ export class AuthService {
     log.debug(`[Auth] Document query returned ${docResult.length} results`);
 
     if (docResult.length === 0) {
-      log.debug(`[Auth] Document ${documentName} not found, allowing user ${userId} to create it`);
-
-      return {
-        authenticated: true,
-        userId,
-        userName: (userResult[0]?.display_name as string) || 'Unknown User',
-        readOnly: false,
-      };
+      // Every editor inserts its row server-side before returning the id, so a
+      // room without one is never legitimate; granting it let any id be opened,
+      // including a site's bare uuid, which keys that site's Yjs rows (#5805).
+      log.warn(`[Auth] FAILED: no document row for room ${documentName} (user ${userId})`);
+      return { authenticated: false, reason: 'Access denied' };
     }
 
     const document = docResult[0];

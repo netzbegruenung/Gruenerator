@@ -21,13 +21,13 @@ import { documentToSlug } from '../../lib/documentMentionables';
 
 import { MentionFloatingPanel } from './MentionFloatingPanel';
 
-import type { CloudSourceHint } from './CloudFileBrowser';
 import type {
   CollabDocSelection,
   DocumentMention,
   NotebookCollectionItem,
   DocumentSearchResult,
 } from '../../lib/documentMentionables';
+import type { CloudSourceHint } from './CloudFileBrowser';
 
 type Level = 'root' | 'documents';
 
@@ -80,6 +80,9 @@ interface FileMentionPopoverProps {
 const DRIVE_ROWS = [
   { provider: 'microsoft', label: 'OneDrive' },
   { provider: 'google', label: 'Google Drive' },
+  { provider: 'microsoft-teams', label: 'Teams' },
+  { provider: 'google-mail', label: 'Gmail' },
+  { provider: 'microsoft-mail', label: 'Outlook' },
 ] as const;
 
 export function FileMentionPopover({

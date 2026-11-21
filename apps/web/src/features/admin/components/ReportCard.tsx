@@ -17,6 +17,7 @@ const KIND_LABELS: Record<ContentReportKind, string> = {
   user_agent: 'Agent',
   user_text_form: 'Rezept',
   user_template: 'Vorlage',
+  user_site: 'Website',
   entity_comment: 'Kommentar im Marktplatz',
   notebook: 'Notebook',
 };

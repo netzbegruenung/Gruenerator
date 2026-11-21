@@ -124,6 +124,90 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS show_skip_link BOOLEAN NOT NULL DE
 -- Art. 9 Abs. 2 lit. a DSGVO: NULL = nicht erteilt bzw. widerrufen.
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS ai_consent_at TIMESTAMPTZ;
 
+-- zz_20261117_parteitage.sql
+CREATE TABLE IF NOT EXISTS system_media (
+    id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    storage_key TEXT NOT NULL UNIQUE,
+    mime_type   TEXT NOT NULL,
+    size_bytes  BIGINT NOT NULL,
+    duration_s  NUMERIC NULL,
+    width       INTEGER NULL,
+    height      INTEGER NULL,
+    sha256      TEXT NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS conventions (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    key                  TEXT NOT NULL UNIQUE,
+    slug_suffix          TEXT NOT NULL UNIQUE,
+    slug_name            TEXT NOT NULL,
+    title                TEXT NOT NULL,
+    short_title          TEXT NOT NULL,
+    organizer            TEXT NOT NULL,
+    audience             TEXT NOT NULL DEFAULT 'all' CHECK (audience IN ('de-DE', 'de-AT', 'all')),
+    starts_on            DATE NOT NULL,
+    ends_on              DATE NOT NULL,
+    location             TEXT NOT NULL,
+    status               TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'hidden')),
+    access_password_hash TEXT NULL,
+    stats                JSONB NOT NULL DEFAULT '{}'::jsonb,
+    stats_version        INTEGER NOT NULL DEFAULT 1,
+    source_links         JSONB NOT NULL DEFAULT '[]'::jsonb,
+    report_media_id      UUID NULL REFERENCES system_media(id) ON DELETE SET NULL,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    published_at         TIMESTAMPTZ NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_conventions_status ON conventions (status);
+
+CREATE TABLE IF NOT EXISTS convention_speeches (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    convention_id   UUID NOT NULL REFERENCES conventions(id) ON DELETE CASCADE,
+    speech_key      TEXT NOT NULL,
+    slug_suffix     TEXT NOT NULL UNIQUE,
+    day             DATE NOT NULL,
+    day_label       TEXT NOT NULL,
+    list_place      INTEGER NOT NULL,
+    seat_type       TEXT NOT NULL CHECK (seat_type IN ('frauenplatz', 'offen')),
+    first_name      TEXT NOT NULL,
+    last_name       TEXT NOT NULL,
+    kv              TEXT NOT NULL,
+    area            TEXT NOT NULL CHECK (area IN ('kreisfreie_stadt', 'kreis', 'ohne')),
+    contested       BOOLEAN NOT NULL,
+    elected         BOOLEAN NULL,
+    result_percent  NUMERIC NULL,
+    delivered_by    TEXT NULL,
+    topic           TEXT NOT NULL,
+    duration_s      NUMERIC NOT NULL,
+    word_count      INTEGER NOT NULL,
+    transcript      TEXT NOT NULL,
+    words           JSONB NOT NULL DEFAULT '[]'::jsonb,
+    analysis        JSONB NOT NULL DEFAULT '{}'::jsonb,
+    reel_media_id   UUID NOT NULL REFERENCES system_media(id) ON DELETE RESTRICT,
+    poster_media_id UUID NOT NULL REFERENCES system_media(id) ON DELETE RESTRICT,
+    moderation      TEXT NOT NULL DEFAULT 'ok' CHECK (moderation IN ('ok', 'hidden')),
+    hidden_reason   TEXT NULL,
+    UNIQUE (convention_id, speech_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_convention_speeches_place
+    ON convention_speeches (convention_id, list_place);
+
+CREATE TABLE IF NOT EXISTS convention_access (
+    user_id       UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    convention_id UUID NOT NULL REFERENCES conventions(id) ON DELETE CASCADE,
+    granted_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, convention_id)
+);
+
+CREATE TABLE IF NOT EXISTS convention_deleted_speeches (
+    convention_id UUID NOT NULL REFERENCES conventions(id) ON DELETE CASCADE,
+    speech_key    TEXT NOT NULL,
+    deleted_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (convention_id, speech_key)
+);
+
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- SECTION 3: GROUPS & MEMBERSHIPS
@@ -793,6 +877,7 @@ CREATE INDEX IF NOT EXISTS idx_groups_join_token ON groups(join_token) WHERE joi
 CREATE INDEX IF NOT EXISTS idx_group_memberships_user_id ON group_memberships(user_id);
 CREATE INDEX IF NOT EXISTS idx_group_memberships_group_id ON group_memberships(group_id);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_group_content_shares_target ON group_content_shares(group_id, content_type, content_id);
+CREATE INDEX IF NOT EXISTS idx_group_content_shares_content ON group_content_shares(content_type, content_id);
 CREATE INDEX IF NOT EXISTS idx_group_content_shares_shared_by ON group_content_shares(shared_by_user_id);
 CREATE INDEX IF NOT EXISTS idx_group_content_shares_pinned ON group_content_shares(group_id, pinned_at) WHERE pinned_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_group_share_comments_share ON group_share_comments(share_id, created_at);
@@ -1082,6 +1167,18 @@ ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS mention_refs JSONB;
 ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS notebook_collection_id VARCHAR(255);
 ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS notebook_collection_ids JSONB;
 CREATE INDEX IF NOT EXISTS idx_chat_threads_type ON chat_threads(user_id, thread_type, updated_at DESC);
+
+-- Thread-pinned refs of team-chat members other than the owner (#5675)
+CREATE TABLE IF NOT EXISTS chat_thread_member_refs (
+    thread_id UUID NOT NULL REFERENCES chat_threads(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    cloud_file_refs JSONB,
+    notebook_source_refs JSONB,
+    mention_refs JSONB,
+    last_mcp_server_id TEXT,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (thread_id, user_id)
+);
 CREATE INDEX IF NOT EXISTS idx_chat_threads_notebook_collection ON chat_threads(notebook_collection_id) WHERE notebook_collection_id IS NOT NULL;
 
 -- Spaces: a thread's home Space (a group). See migration add_chat_threads_group_id.sql.
@@ -1160,7 +1257,7 @@ CREATE TABLE IF NOT EXISTS chat_thread_attachments (
     -- Extracted content
     extracted_text TEXT,          -- Full OCR text (for re-processing)
     summary TEXT,                 -- LLM summary (~200-400 tokens)
-    file_data TEXT,               -- Raw bytes (base64), tabular files only — rehydrates the pandas interpreter after reload
+    file_data TEXT,               -- Raw bytes (base64): tabular files (pandas reload), fillable PDFs (fill_pdf_form), photos ≤ 8 MB (bild_ansehen/edit_image on later turns)
     document_id UUID,             -- Qdrant doc id when a large prose doc was embedded — follow-up turns retrieve via RAG
     content_hash TEXT,            -- md5 of the trimmed extracted text (name+size for binaries) — one row per file per thread
 
@@ -1379,6 +1476,9 @@ ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
 ALTER TABLE subtitler_projects ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
+
+-- zz_20261117b_subtitler_source_system_media.sql (nach system_media und subtitler_projects)
+ALTER TABLE subtitler_projects ADD COLUMN IF NOT EXISTS source_system_media_id UUID NULL REFERENCES system_media(id) ON DELETE SET NULL;
 ALTER TABLE user_templates ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
 ALTER TABLE custom_prompts ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
 ALTER TABLE user_sites ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
@@ -1584,3 +1684,38 @@ CREATE TABLE IF NOT EXISTS monitor_lagebilder (
 );
 
 CREATE INDEX IF NOT EXISTS idx_monitor_lagebilder_locale_generated ON monitor_lagebilder(locale, generated_at DESC);
+
+CREATE TABLE IF NOT EXISTS antragsgruen_hosted_sites (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    subdomain TEXT NOT NULL UNIQUE,
+    title TEXT NOT NULL,
+    url TEXT NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'created' CHECK (kind IN ('created', 'connected')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_antragsgruen_hosted_sites_user ON antragsgruen_hosted_sites(user_id);
+
+CREATE TABLE IF NOT EXISTS nuudel_polls (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('date', 'classic')),
+    title TEXT NOT NULL,
+    poll_id TEXT NOT NULL UNIQUE,
+    admin_id TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_nuudel_polls_user ON nuudel_polls(user_id, created_at DESC);
+
+-- zz_20261119_user_sites_publishing.sql
+ALTER TABLE user_sites ADD COLUMN IF NOT EXISTS published_snapshot JSONB NULL;
+ALTER TABLE user_sites ADD COLUMN IF NOT EXISTS legal JSONB NULL;
+ALTER TABLE user_sites
+    ADD COLUMN IF NOT EXISTS moderation TEXT NOT NULL DEFAULT 'ok'
+        CHECK (moderation IN ('ok', 'hidden', 'removed'));
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS sites_unlocked BOOLEAN;
+
+CREATE INDEX IF NOT EXISTS idx_user_sites_user_live
+    ON user_sites (user_id) WHERE deleted_at IS NULL;

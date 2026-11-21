@@ -262,6 +262,103 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'globe',
     accent: 'external',
   },
+  // `@antragsgruennrw`: Parteitage der GRÜNEN NRW (Index + Live-Status).
+  antragsgruen: {
+    label: 'Antragsgrün NRW',
+    activeLabel: 'Durchsuche Antragsgrün',
+    iconKey: 'book',
+    accent: 'retrieval',
+    queryKeys: ['query', 'antrag', 'parteitag'],
+    summarize: (_args, result) => {
+      const n = getNumber(result, 'gesamt');
+      return n == null ? null : `${n} ${n === 1 ? 'Dokument' : 'Dokumente'}`;
+    },
+  },
+  antragsgruen_lesen: {
+    label: 'Anträge lesen',
+    activeLabel: 'Liest Anträge …',
+    iconKey: 'book',
+    accent: 'retrieval',
+    queryKeys: ['frage'],
+    summarize: (_args, result) => {
+      const n = getNumber(result, 'resultCount');
+      return n ? `${n} gelesen` : null;
+    },
+  },
+  antragsgruen_tagesordnung: {
+    label: 'Antragsgrün-Tagesordnung',
+    activeLabel: 'Sehe die Tagesordnung an …',
+    iconKey: 'book',
+    accent: 'personal',
+  },
+  antragsgruen_seite_lesen: {
+    label: 'Anträge der eigenen Seite',
+    activeLabel: 'Lese die Anträge deiner Seite …',
+    iconKey: 'book',
+    accent: 'personal',
+    queryKeys: ['antrag'],
+  },
+  antragsgruen_antrag_stellen: {
+    label: 'Antrag bei Antragsgrün',
+    activeLabel: 'Bereite den Antrag vor …',
+    iconKey: 'book',
+    accent: 'personal',
+  },
+  antragsgruen_seite_anlegen: {
+    label: 'Antragsgrün-Seite',
+    activeLabel: 'Prüfe die Adresse bei Antragsgrün …',
+    iconKey: 'book',
+    accent: 'personal',
+  },
+  antragsgruen_auswerten: {
+    label: 'Antragsgrün-Auswertung',
+    activeLabel: 'Zählt in Antragsgrün …',
+    iconKey: 'book',
+    accent: 'retrieval',
+    queryKeys: ['nach'],
+    summarize: (_args, result) => {
+      const n = getNumber(result, 'gesamt');
+      return n == null ? null : `über ${n} ${n === 1 ? 'Dokument' : 'Dokumente'}`;
+    },
+  },
+  nuudel_werkzeuge_laden: {
+    label: 'nuudel-Werkzeuge',
+    activeLabel: 'Öffne die nuudel-Werkzeuge',
+    iconKey: 'book',
+    accent: 'retrieval',
+    summarize: () => 'nuudel-Werkzeuge freigeschaltet',
+  },
+  nuudel_umfrage_anlegen: {
+    label: 'nuudel-Umfrage',
+    activeLabel: 'Lege die Umfrage bei nuudel an …',
+    iconKey: 'book',
+    accent: 'personal',
+  },
+  nuudel_umfrage_lesen: {
+    label: 'nuudel-Ergebnis',
+    activeLabel: 'Lese das Ergebnis bei nuudel …',
+    iconKey: 'book',
+    accent: 'personal',
+  },
+  nuudel_umfrage_bearbeiten: {
+    label: 'nuudel-Umfrage ändern',
+    activeLabel: 'Ändere die Umfrage bei nuudel …',
+    iconKey: 'book',
+    accent: 'personal',
+  },
+  nuudel_umfrage_loeschen: {
+    label: 'nuudel-Umfrage löschen',
+    activeLabel: 'Lösche die Umfrage bei nuudel …',
+    iconKey: 'book',
+    accent: 'personal',
+  },
+  antragsgruen_werkzeuge_laden: {
+    label: 'Antragsgrün-Werkzeuge',
+    activeLabel: 'Öffne die Antragsgrün-Werkzeuge',
+    iconKey: 'book',
+    accent: 'retrieval',
+    summarize: () => 'Antragsgrün-Werkzeuge freigeschaltet',
+  },
   // toolScope.ts: Lader der Parlamentsgruppe — nur Statuszeile, keine Karte.
   parlament_werkzeuge_laden: {
     label: 'Parlamentswerkzeuge',
@@ -477,6 +574,12 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     label: 'Wolke',
     activeLabel: 'Sehe in der Wolke nach',
     iconKey: 'cloud',
+    accent: 'personal',
+  },
+  atlassian: {
+    label: 'Jira & Confluence',
+    activeLabel: 'Sehe in Jira/Confluence nach',
+    iconKey: 'file',
     accent: 'personal',
   },
   text_uebersetzen: {

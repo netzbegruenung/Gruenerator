@@ -9,8 +9,24 @@
       "label": "Allgemein"
     },
     {
+      "value": "konto",
+      "label": "Konto"
+    },
+    {
       "value": "hintergrund",
       "label": "Hintergrund"
+    },
+    {
+      "value": "friends",
+      "label": "Friends"
+    },
+    {
+      "value": "benachrichtigungen",
+      "label": "Benachrichtigungen"
+    },
+    {
+      "value": "datenschutz",
+      "label": "Datenschutz"
     },
     {
       "value": "personalisierung",
@@ -21,12 +37,8 @@
       "label": "Erinnerungen"
     },
     {
-      "value": "friends",
-      "label": "Friends"
-    },
-    {
-      "value": "benachrichtigungen",
-      "label": "Benachrichtigungen"
+      "value": "tagesbriefing",
+      "label": "Tagesbriefing"
     },
     {
       "value": "briefe",
@@ -45,12 +57,12 @@
       "label": "Meine Websites"
     },
     {
-      "value": "datenschutz",
-      "label": "Datenschutz & Barrierefreiheit"
+      "value": "antragsgruen",
+      "label": "Antragsgrün"
     },
     {
-      "value": "baeume",
-      "label": "Bäume"
+      "value": "nuudel",
+      "label": "Umfragen"
     },
     {
       "value": "nutzung",
@@ -63,7 +75,7 @@
   ],
   "rows": {
     "allgemein.konto": {
-      "tab": "allgemein",
+      "tab": "konto",
       "title": "Konto",
       "description": "Name, Benutzername und E-Mail stammen aus deinem Grünen Login und werden dort geändert"
     },
@@ -94,8 +106,8 @@
     },
     "allgemein.feedbackButton": {
       "tab": "allgemein",
-      "title": "Feedback-Button",
-      "description": "Darstellung des schwebenden Feedback-Buttons: mit Text, nur als Icon oder ganz ausgeblendet — er lässt sich in jede Bildschirmecke ziehen"
+      "title": "Support-Button",
+      "description": "Darstellung des schwebenden Support-Buttons: mit Text, nur als Icon oder ganz ausgeblendet — er lässt sich in jede Bildschirmecke ziehen"
     },
     "datenschutz.reichweitenmessung": {
       "tab": "datenschutz",
@@ -108,12 +120,12 @@
       "description": "Ausdrückliche Einwilligung nach Art. 9 DSGVO, weil sich aus deinen Eingaben politische Meinungen ergeben können"
     },
     "barrierefreiheit.animationen": {
-      "tab": "datenschutz",
+      "tab": "allgemein",
       "title": "Animationen reduzieren",
       "description": "Schaltet dekorative Animationen und Übergänge ab — folgt sonst automatisch der Einstellung deines Betriebssystems"
     },
     "barrierefreiheit.transparenz": {
-      "tab": "datenschutz",
+      "tab": "allgemein",
       "title": "Transparenz reduzieren",
       "description": "Entfernt durchscheinende Flächen und Unschärfe-Effekte — folgt sonst automatisch der Einstellung deines Betriebssystems"
     },
@@ -128,7 +140,7 @@
       "description": "Holt den Bereich „Onboarding\" zurück und führt noch einmal durch Rolle, Friend und Hintergrund."
     },
     "allgemein.papierkorb": {
-      "tab": "allgemein",
+      "tab": "konto",
       "title": "Papierkorb",
       "description": "Gelöschte Inhalte 30 Tage lang wiederherstellen oder vorher endgültig löschen"
     },
@@ -142,8 +154,8 @@
       "title": "Gedächtnis",
       "description": "Der Grünerator merkt sich nur, was du ihm ausdrücklich sagst („merk dir …\") — und berücksichtigt es in jedem Chat. Aus: nichts wird gespeichert oder verwendet."
     },
-    "erinnerungen.tagesbriefing": {
-      "tab": "erinnerungen",
+    "tagesbriefing.schalter": {
+      "tab": "tagesbriefing",
       "title": "Tagesbriefing im Chat",
       "description": "Wenn du es einschaltest, schreibt dir der Grünerator beim ersten Besuch des Tages eine kurze Übersicht: deine offenen Aufgaben, was los ist, und eine Idee für heute."
     },
@@ -167,15 +179,15 @@
       "title": "Konnektoren",
       "description": "Verbundene Dienste, die im Chat als eigene Quelle ansprechbar sind"
     },
-    "baeume.stand": {
-      "tab": "baeume",
+    "nutzung.baeume": {
+      "tab": "nutzung",
       "title": "Bäume",
       "description": "Dein tägliches Kontingent für Bilder, Sprachausgabe, Übersetzungen und Tiefenrecherche"
     },
     "nutzung.uebersicht": {
       "tab": "nutzung",
       "title": "Nutzung",
-      "description": "Wie viele Anfragen, Tokens, Bilder und Recherchen auf dein Konto gehen"
+      "description": "Was du erstellt hast und wie viele Anfragen, Bilder und Recherchen auf dein Konto gehen"
     },
     "support.kontakt": {
       "tab": "support",
@@ -370,6 +382,12 @@
         "group": "groups"
       },
       {
+        "key": "group_chat_message",
+        "label": "Team-Chats",
+        "description": "Wenn jemand in einem Team-Chat schreibt, an dem du beteiligt bist",
+        "group": "groups"
+      },
+      {
         "key": "group_user_mentioned",
         "label": "Erwähnungen",
         "description": "Wenn dich jemand in einem Projekt mit @Name erwähnt",
@@ -445,6 +463,18 @@
         "key": "daily_briefing",
         "label": "Tagesbriefing",
         "description": "Deine Übersicht beim ersten Besuch des Tages",
+        "group": "system"
+      },
+      {
+        "key": "video_ai_ready",
+        "label": "KI-Schnitt fertig",
+        "description": "Wenn dein KI-Schnitt zur Vorschau bereitsteht",
+        "group": "system"
+      },
+      {
+        "key": "video_ai_failed",
+        "label": "KI-Schnitt fehlgeschlagen",
+        "description": "Wenn ein KI-Schnitt nicht erstellt werden konnte",
         "group": "system"
       },
       {

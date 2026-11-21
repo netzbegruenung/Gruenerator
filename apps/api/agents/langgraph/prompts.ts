@@ -128,6 +128,32 @@ const ANSWER_BY_QUESTION_TYPE = [
 ];
 
 /**
+ * Parteitagsmaterial (Antragsgrün, `ParteitageScraper`) steht im LV-Notebook
+ * neben Beschlüssen: eingereichte Anträge, Änderungsanträge und Beschlüsse mit
+ * demselben Titel. Live 16.11.2026 im NRW-Notebook: die Antwort auf „Was haben
+ * die Grünen NRW beschlossen?" gab einen Satz aus einem Änderungsantrag als
+ * Position des Landesverbands aus — obwohl die Quelle „Änderungsantrag V-02-005"
+ * hieß und der Satz im Beschluss nicht steht. Die Regel hängt am Titel der
+ * Quelle, nicht an Wörtern der Frage.
+ */
+const DOCUMENT_STATUS_RULES = [
+  '## ANTRAG, ÄNDERUNGSANTRAG, BESCHLUSS:',
+  '- Eine Quelle, deren Titel mit „Änderungsantrag" beginnt, ist ein Vorschlag einzelner Antragsteller*innen. Gib ihren Inhalt nie als Position oder Beschluss des Verbands wieder, sondern ausdrücklich als Vorschlag: wer ihn gestellt hat und was er ändern wollte. Ob er übernommen wurde, zeigt nur der Text des Beschlusses.',
+  '- Eine Quelle, deren Titel mit „Antrag" beginnt, ist die eingereichte Fassung. Beschlossen ist, was in der Quelle „Beschluss …" steht. Liegen beide vor, stütze jede Aussage darüber, was beschlossen wurde, auf den Beschluss.',
+  '- Ein „Verfahrensvorschlag der Antragskommission" ist eine Empfehlung, kein Abstimmungsergebnis.',
+  '',
+];
+
+/**
+ * Eine Lücke ist kein Ende des Gesprächs: ohne diese Regel antwortete der Chat-Modus
+ * auf „Wer ist Kassenwart und was kostet die Wärmeplanung?" nur mit „Die Quellen
+ * enthalten keine Informationen …" — obwohl der Abschlusstermin der Wärmeplanung
+ * in einer Quelle stand.
+ */
+const PARTIAL_ANSWER_RULE =
+  '- Fehlt etwas: Nenne trotzdem, was die Quellen zum selben Thema sagen (mit [n]), und sage in einem Satz, welche Art Unterlage die Lücke schließen würde (z.B. „Ein Kassenbericht würde das klären."). Erfinde dabei nichts.';
+
+/**
  * Grundsatz-specific draft prompt (NotebookLM-Style, German)
  * Builds comprehensive, well-structured dossier prompts
  */
@@ -144,6 +170,7 @@ function buildDraftPrompt(
     '',
     ...ANSWER_FORM_PRECEDENCE,
     ...ANSWER_BY_QUESTION_TYPE,
+    ...(isPolitical ? DOCUMENT_STATUS_RULES : []),
     '## ANTWORT-STRUKTUR:',
     '- Gilt für Überblicks- und Erklärfragen; die anderen Fragetypen haben ihre Form oben.',
     '',
@@ -185,6 +212,7 @@ function buildDraftPrompt(
     '- Beziehe JEDE Quelle ein, die zur gestellten Frage etwas beiträgt — aber keine, die nur das Thema streift.',
     '- Sätze OHNE Quellenangabe sind NUR für Einleitungen, Übergänge und Zusammenfassungen erlaubt.',
     '- Falls die Quellen zu einem Aspekt der Frage KEINE Informationen enthalten: Sage dies offen, statt Informationen zu ergänzen.',
+    PARTIAL_ANSWER_RULE,
     '- Erfinde KEINE Fakten, Zahlen oder Zusammenhänge, die nicht in den Quellen stehen.',
     '',
     '## ZITATIONS-PROTOKOLL:',
@@ -231,6 +259,7 @@ function buildConcisePrompt(collectionName: string, isPolitical: boolean): Promp
     `Sammlung: ${collectionName}.`,
     '',
     ...ANSWER_FORM_PRECEDENCE,
+    ...(isPolitical ? DOCUMENT_STATUS_RULES : []),
     '## ANTWORT-STRUKTUR:',
     '- Maximal 3-4 Absätze',
     '- Beantworte die Frage VOLLSTÄNDIG: keine Ein-Satz- oder Ein-Absatz-Antworten, wenn die Quellen mehr hergeben',
@@ -243,6 +272,7 @@ function buildConcisePrompt(collectionName: string, isPolitical: boolean): Promp
     '- JEDE Faktenaussage MUSS quellenbelegt sein [n]. Sätze ohne Quellenangabe NUR für Einleitungen und Übergänge.',
     '- Nutze möglichst viele relevante Quellen — nicht nur die offensichtlichsten.',
     '- Falls Quellen nicht ausreichen: Sage dies offen, statt Informationen zu ergänzen.',
+    PARTIAL_ANSWER_RULE,
     '',
     '## ZITATIONS-PROTOKOLL:',
     '- Verwende eckige Klammern: [1], [2], [3]. Keine [0].',

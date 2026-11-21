@@ -1,25 +1,20 @@
+import {
+  SITE_ACTION_TEXT_MAX,
+  SITE_ACTIONS_MAX,
+  SITE_URL_MAX,
+  type SiteDraft,
+} from '@gruenerator/contracts';
 import { cn } from '@gruenerator/shared/utils';
-import { useRef, useCallback } from 'react';
+import { Button, Input } from '@gruenerator/ui';
 
-import { useSectionFocus } from '../../../hooks/useSectionFocus';
+import { useDraft, useDraftActions } from '../../../draft/SiteDraftContext';
+import { useFieldRegistry } from '../../../hooks/useFieldRegistry';
 import { useEditorStore } from '../../../stores/editorStore';
+import { AddItemButton } from '../common/AddItemButton';
+import { Field, SectionHeading } from '../common/Field';
+import { FocalPointPicker } from '../common/FocalPointPicker';
 import { ImageUpload } from '../common/ImageUpload';
-
-import type { ActionsSectionType as ActionsSection, ActionTile } from '@gruenerator/sites-design';
-
-interface ActionsSectionEditorProps {
-  data: ActionsSection;
-  onChange: (data: ActionsSection) => void;
-}
-
-const MAX_ACTIONS = 4;
-const MAX_TEXT_LENGTH = 50;
-
-const DEFAULT_ACTION: ActionTile = {
-  imageUrl: '',
-  text: '',
-  link: '',
-};
+import { ItemControls } from '../common/ItemControls';
 
 const LINK_SUGGESTIONS = [
   { label: 'Spenden', link: '#spenden' },
@@ -28,197 +23,152 @@ const LINK_SUGGESTIONS = [
   { label: 'Kontakt', link: '#kontakt' },
 ];
 
-export function ActionsSectionEditor({ data, onChange }: ActionsSectionEditorProps) {
-  const { registerField, handleFieldFocus, handleFieldBlur } = useSectionFocus();
-  const { highlightedElement } = useEditorStore();
+interface ActionTileEditorProps {
+  blockId: string;
+  id: string;
+  index: number;
+  count: number;
+}
 
-  const textRefs = useRef<Map<number, HTMLInputElement>>(new Map());
-  const linkRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+function actionTile(d: SiteDraft, blockId: string, id: string) {
+  const block = d.blocks.find((entry) => entry.id === blockId);
+  return block?.type === 'actions' ? block.items.find((item) => item.id === id) : undefined;
+}
 
-  const setTextRef = useCallback(
-    (index: number, el: HTMLInputElement | null) => {
-      if (el) {
-        textRefs.current.set(index, el);
-        registerField('actions', 'text', el, index);
-      }
-    },
-    [registerField]
+function ActionTileEditor({ blockId, id, index, count }: ActionTileEditorProps) {
+  const { registerField, handleFieldFocus, handleFieldBlur } = useFieldRegistry();
+  const { updateItem, removeItem, moveItem } = useDraftActions();
+  const text = useDraft((d) => actionTile(d, blockId, id)?.text ?? '');
+  const link = useDraft((d) => actionTile(d, blockId, id)?.link ?? '');
+  const imageUrl = useDraft((d) => actionTile(d, blockId, id)?.imageUrl ?? '');
+  const imageFocus = useDraft((d) => actionTile(d, blockId, id)?.imageFocus ?? null);
+  const base = `blocks.${blockId}.items.${id}`;
+  const highlighted = useEditorStore(
+    (s) =>
+      s.highlightedElement?.panel === blockId && s.highlightedElement.path.startsWith(`${base}.`)
   );
+  const name = text || `Aktion ${index + 1}`;
 
-  const setLinkRef = useCallback(
-    (index: number, el: HTMLInputElement | null) => {
-      if (el) {
-        linkRefs.current.set(index, el);
-        registerField('actions', 'link', el, index);
-      }
-    },
-    [registerField]
+  return (
+    <div
+      className={cn(
+        'bg-background-pure border border-grey-200 dark:border-grey-700 rounded-lg p-md relative',
+        highlighted && 'border-primary-400 shadow-[0_0_0_2px_rgba(76,175,80,0.2)]'
+      )}
+    >
+      <div className="flex items-center justify-between mb-sm">
+        <span className="text-sm font-semibold text-primary-600 dark:text-primary-400">
+          Aktion {index + 1}
+        </span>
+        <ItemControls
+          kind="Aktion"
+          name={name}
+          canMoveUp={index > 0}
+          canMoveDown={index < count - 1}
+          canRemove={count > 1}
+          onMoveUp={() => moveItem(blockId, id, index - 1)}
+          onMoveDown={() => moveItem(blockId, id, index + 1)}
+          onRemove={() => removeItem(blockId, id)}
+        />
+      </div>
+
+      <Field
+        panel={blockId}
+        path={`${base}.text`}
+        htmlFor={`action-${id}-text`}
+        label="Button-Text"
+      >
+        <Input
+          ref={(el) => registerField(`${base}.text`, el)}
+          id={`action-${id}-text`}
+          value={text}
+          onChange={(e) => updateItem(blockId, id, { text: e.target.value })}
+          onFocus={() => handleFieldFocus(blockId, `${base}.text`)}
+          onBlur={handleFieldBlur}
+          placeholder="z.B. Unterstütze uns!"
+          maxLength={SITE_ACTION_TEXT_MAX}
+        />
+      </Field>
+
+      <Field panel={blockId} path={`${base}.link`} htmlFor={`action-${id}-link`} label="Link">
+        <Input
+          ref={(el) => registerField(`${base}.link`, el)}
+          id={`action-${id}-link`}
+          type="url"
+          value={link}
+          onChange={(e) => updateItem(blockId, id, { link: e.target.value })}
+          onFocus={() => handleFieldFocus(blockId, `${base}.link`)}
+          onBlur={handleFieldBlur}
+          placeholder="https://... oder #section"
+          maxLength={SITE_URL_MAX}
+        />
+        <div className="flex gap-1.5 mt-2 flex-wrap">
+          {LINK_SUGGESTIONS.map((suggestion) => (
+            <Button
+              key={suggestion.link}
+              type="button"
+              size="xs"
+              variant={link === suggestion.link ? 'secondary' : 'outline'}
+              aria-pressed={link === suggestion.link}
+              onClick={() => updateItem(blockId, id, { link: suggestion.link })}
+            >
+              {suggestion.label}
+            </Button>
+          ))}
+        </div>
+      </Field>
+
+      <Field
+        panel={blockId}
+        path={`${base}.imageUrl`}
+        labelId={`action-${id}-image-label`}
+        label="Hintergrundbild"
+      >
+        <ImageUpload
+          labelledBy={`action-${id}-image-label`}
+          value={imageUrl}
+          onChange={(url) => updateItem(blockId, id, { imageUrl: url })}
+          aspectRatio="16/9"
+          placeholder="Aktionsbild"
+        />
+        {imageUrl && (
+          <FocalPointPicker
+            src={imageUrl}
+            value={imageFocus}
+            onChange={(focus) => updateItem(blockId, id, { imageFocus: focus })}
+          />
+        )}
+      </Field>
+    </div>
   );
+}
 
-  const updateAction = (index: number, field: keyof ActionTile, value: string) => {
-    const current = data.actions[index];
-    if (!current) return;
-    const newActions = [...data.actions];
-    newActions[index] = { ...current, [field]: value };
-    onChange({ ...data, actions: newActions });
-  };
-
-  const addAction = () => {
-    if (data.actions.length >= MAX_ACTIONS) return;
-    onChange({
-      ...data,
-      actions: [...data.actions, { ...DEFAULT_ACTION, _key: crypto.randomUUID() }],
-    });
-  };
-
-  const removeAction = (index: number) => {
-    if (data.actions.length <= 1) return;
-    const newActions = data.actions.filter((_, i) => i !== index);
-    onChange({ ...data, actions: newActions });
-  };
-
-  const isItemHighlighted = (index: number) => {
-    return highlightedElement?.section === 'actions' && highlightedElement?.index === index;
-  };
-
-  const isFieldHighlighted = (index: number, field: string) => {
-    return isItemHighlighted(index) && highlightedElement?.field === field;
-  };
+export function ActionsSectionEditor({ blockId }: { blockId: string }) {
+  const { addItem } = useDraftActions();
+  const ids = useDraft((d) => {
+    const block = d.blocks.find((entry) => entry.id === blockId);
+    return block?.type === 'actions' ? block.items.map((item) => item.id) : [];
+  });
 
   return (
     <div>
-      <h3 className="flex items-center gap-2 m-0 mb-md text-lg font-semibold text-foreground">
-        Aktionen
-      </h3>
+      <SectionHeading>Aktionen</SectionHeading>
 
       <p className="text-xs text-grey-500 dark:text-grey-400 mt-1 mb-md">
         Call-to-Action Kacheln, die Besucher zum Handeln auffordern.
       </p>
 
-      <div className="flex flex-col gap-md">
-        {data.actions.map((action, index) => (
-          <div
-            key={action._key ?? action.text}
-            className={cn(
-              'bg-background-pure border border-grey-200 dark:border-grey-700 rounded-lg p-md relative',
-              isItemHighlighted(index) &&
-                'border-primary-400 shadow-[0_0_0_2px_rgba(76,175,80,0.2)]'
-            )}
-          >
-            <div className="flex items-center justify-between mb-sm">
-              <span className="text-sm font-semibold text-primary-600 dark:text-primary-400">
-                Aktion {index + 1}
-              </span>
-              <div className="flex gap-1">
-                {data.actions.length > 1 && (
-                  <button
-                    type="button"
-                    className="flex items-center justify-center w-8 h-8 border-none bg-transparent rounded-md cursor-pointer text-grey-500 dark:text-grey-400 transition-colors hover:bg-red-50 dark:hover:bg-red-950 hover:text-red-600"
-                    onClick={() => removeAction(index)}
-                    aria-label="Aktion entfernen"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div
-              className={cn(
-                'mb-md',
-                isFieldHighlighted(index, 'text') && 'animate-[field-highlight_1s_ease]'
-              )}
-            >
-              <label
-                htmlFor={`action-${index}-text`}
-                className="block text-sm font-medium text-foreground mb-1.5"
-              >
-                Button-Text
-              </label>
-              <input
-                ref={(el) => setTextRef(index, el)}
-                id={`action-${index}-text`}
-                type="text"
-                value={action.text}
-                onChange={(e) => updateAction(index, 'text', e.target.value)}
-                onFocus={() => handleFieldFocus('actions', 'text', index)}
-                onBlur={handleFieldBlur}
-                placeholder="z.B. Unterstütze uns!"
-                maxLength={MAX_TEXT_LENGTH}
-                className="w-full py-2.5 px-3 text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
-              />
-            </div>
-
-            <div
-              className={cn(
-                'mb-md',
-                isFieldHighlighted(index, 'link') && 'animate-[field-highlight_1s_ease]'
-              )}
-            >
-              <label
-                htmlFor={`action-${index}-link`}
-                className="block text-sm font-medium text-foreground mb-1.5"
-              >
-                Link
-              </label>
-              <input
-                ref={(el) => setLinkRef(index, el)}
-                id={`action-${index}-link`}
-                type="url"
-                value={action.link}
-                onChange={(e) => updateAction(index, 'link', e.target.value)}
-                onFocus={() => handleFieldFocus('actions', 'link', index)}
-                onBlur={handleFieldBlur}
-                placeholder="https://... oder #section"
-                className="w-full py-2.5 px-3 text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
-              />
-              <div className="flex gap-1.5 mt-2 flex-wrap">
-                {LINK_SUGGESTIONS.map(({ label, link }) => (
-                  <button
-                    key={link}
-                    type="button"
-                    onClick={() => updateAction(index, 'link', link)}
-                    className={cn(
-                      'py-1 px-2.5 text-xs border border-grey-300 dark:border-grey-700 rounded cursor-pointer',
-                      action.link === link
-                        ? 'bg-primary-50 dark:bg-primary-950'
-                        : 'bg-background-pure'
-                    )}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="mb-md">
-              <label
-                htmlFor={`action-${index}-image`}
-                className="block text-sm font-medium text-foreground mb-1.5"
-              >
-                Hintergrundbild
-              </label>
-              <ImageUpload
-                id={`action-${index}-image`}
-                value={action.imageUrl}
-                onChange={(url) => updateAction(index, 'imageUrl', url)}
-                aspectRatio="16/9"
-                placeholder="Aktionsbild"
-              />
-            </div>
-          </div>
+      <div className="flex flex-col gap-md mb-md">
+        {ids.map((id, index) => (
+          <ActionTileEditor key={id} blockId={blockId} id={id} index={index} count={ids.length} />
         ))}
       </div>
 
-      {data.actions.length < MAX_ACTIONS && (
-        <button
-          type="button"
-          className="flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed border-grey-300 dark:border-grey-700 bg-transparent rounded-lg cursor-pointer text-sm font-medium text-grey-600 dark:text-grey-400 transition-colors hover:border-primary-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950"
-          onClick={addAction}
-        >
-          + Aktion hinzufügen
-        </button>
-      )}
+      <AddItemButton
+        label="Aktion"
+        disabled={ids.length >= SITE_ACTIONS_MAX}
+        onAdd={() => addItem(blockId)}
+      />
     </div>
   );
 }

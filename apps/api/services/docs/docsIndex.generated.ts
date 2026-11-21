@@ -185,6 +185,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Was du im Grünerator löschst, ist nicht sofort weg: Es liegt zunächst 30 Tage im Papierkorb. Bis dahin kannst du es wiederherstellen; danach wird es endgültig gelöscht."
   },
   {
+    "url": "/docs/features/parteitage",
+    "title": "Parteitage",
+    "category": "Features",
+    "lead": "Unter Parteitage (/parteitage) liegen die Reden eines Parteitags, geschnitten als Reels im 9:16-Format. Jeder Parteitag hat eine eigene Seite mit allen Reden, der Statistik und der Karte."
+  },
+  {
     "url": "/docs/features/podcasts",
     "title": "Podcasts",
     "category": "Features",
@@ -201,6 +207,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "title": "Sharepics: alle Varianten auf einen Blick",
     "category": "Features",
     "lead": "Der Sharepic-Creator macht aus einem kurzen Auftrag ein Einzelbild oder ein Karussell im passenden Grünen-Design. Welches Design verwendet wird, richtet sich nach deinem Land im Grünerator."
+  },
+  {
+    "url": "/docs/features/sites",
+    "title": "Sites",
+    "category": "Features",
+    "lead": "Mit Sites baust du dir eine eigene Website für deine Kandidatur, dein Mandat oder dein Amt. Pro Konto gibt es eine Website. Du beschreibst kurz, worum es geht, die KI schlägt eine fertige Seite vor,…"
   },
   {
     "url": "/docs/features/tabellen",
@@ -507,7 +519,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Einstellungen, die du selbst setzen kannst",
     "anchor": "#einstellungen-die-du-selbst-setzen-kannst",
     "category": "Basics",
-    "text": "Unter Einstellungen → Datenschutz & Barrierefreiheit, im unteren Abschnitt Barrierefreiheit: Einstellung | Wirkung | ------------------------------------ | ------------------------------------------- | Animationen reduzieren | Bewegung und Übergänge werden abgeschaltet. | Transparenz und Unschärfe reduzieren | Durchscheinende Flächen werden deckend. | Hellen und dunklen Modus stellst du unter Einstellungen → Allgemein ein; der Grünerator folgt sonst der Einstellung deines Systems."
+    "text": "Unter Einstellungen → Allgemein, im Abschnitt Bedienungshilfen: Einstellung | Wirkung | ------------------------------------ | ------------------------------------------- | Animationen reduzieren | Bewegung und Übergänge werden abgeschaltet. | Transparenz und Unschärfe reduzieren | Durchscheinende Flächen werden deckend. | Hellen und dunklen Modus stellst du unter Einstellungen → Allgemein ein; der Grünerator folgt sonst der Einstellung deines Systems."
   },
   {
     "url": "/docs/basics/barrierefreiheit",
@@ -611,7 +623,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Unsere europäischen Partner",
     "anchor": "#unsere-europäischen-partner",
     "category": "Basics",
-    "text": "Von August bis Oktober 2026 der Hauptweg für Gemma 4, seit dem 28.10.2026 der Ausweichweg, wenn Melious nicht antwortet; außerdem Ausweichweg für Mistral Small. Cortecs bekommt bei jeder Anfrage die Weisung, nur in der EU ansässige Anbieter mit Zero Data Retention einzusetzen; welcher Anbieter tatsächlich gerechnet hat, steht in jeder Antwort und wird protokolliert GreenPT (Utrecht, Niederlande; Verarbeitung in Paris, Frankreich) — Anfragen einordnen und Werkzeug-Planung mit Mistral Small (Ausweichwege über Cortecs, Mistral und Melious; die Reihenfolge hängt von der Aufgabe ab), erzeugte Dateien (PDFs, Präsentationen, Tabellen, Dokumente) mit Gemma 4, das Sortieren von Suchergebnissen (Reranking) sowie die Transkription im Öko-Modus (Standard, solange keine Sprecherinnen erkannt werden sollen), 100 % erneuerbare Energie Melious (Saarbrücken, Deutschland; Gemma 4 läuft teils auf Melious-Knoten in Finnland, teils bei Infercom in Deutschland, für die Modellstufe Klein bei Berget in Schweden, DeepSeek auf Melious-Knoten in Finnland) — seit dem 28.10.2026 der Hauptweg für Gemma 4 (gemma-4-31b:balanced), das Modell, das die meisten Chat-Antworten und fertigen Texte schreibt, lange"
+    "text": "Von August bis Oktober 2026 der Hauptweg für Gemma 4, seit dem 28.10.2026 der Ausweichweg, wenn Melious nicht antwortet; außerdem Ausweichweg für Mistral Small. Cortecs bekommt bei jeder Anfrage die Weisung, nur in der EU ansässige Anbieter mit Zero Data Retention einzusetzen; welcher Anbieter tatsächlich gerechnet hat, steht in jeder Antwort und wird protokolliert GreenPT (Utrecht, Niederlande; Verarbeitung in Paris, Frankreich) — erzeugte Dateien (PDFs, Präsentationen, Tabellen, Dokumente) mit Gemma 4, das Sortieren von Suchergebnissen (Reranking) sowie die Transkription im Öko-Modus (Standard, solange keine Sprecherinnen erkannt werden sollen), 100 % erneuerbare Energie Melious (Saarbrücken, Deutschland; Gemma 4 läuft teils auf Melious-Knoten in Finnland, teils bei Infercom in Deutschland, für die Modellstufe Klein bei Berget in Schweden, DeepSeek auf Melious-Knoten in Finnland) — seit dem 28.10.2026 der Hauptweg für Gemma 4 (gemma-4-31b:balanced), das Modell, das die meisten Chat-Antworten und fertigen Texte schreibt, lange Dokumente zusammenfasst, Notebook-Antworten gibt, Dokumente im Chat bearbeitet und Bilder liest, seit dem 07.11.2026 auch in der Modellstufe Klein;"
   },
   {
     "url": "/docs/basics/gruenerator-pro-eu",
@@ -619,7 +631,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Unsere europäischen Partner",
     "anchor": "#unsere-europäischen-partner",
     "category": "Basics",
-    "text": "Dokumente zusammenfasst, Notebook-Antworten gibt, Dokumente im Chat bearbeitet und Bilder liest, seit dem 07.11.2026 auch in der Modellstufe Klein; außerdem die freischaltpflichtige Modellstufe Panda (DeepSeek v4.1 Flash), Bilderzeugung mit FLUX 2 Klein, unter anderem für „KI-Bild erstellen“ im Sharepic-Editor, sowie Gemma 4 für die experimentellen Boxen im Bild-Editor (Bildelemente erkennen, Layout planen) DeepL (Köln) — maschinelle Übersetzung von Texten und Dokumenten im Übersetzer und im Chat-Werkzeug textuebersetzen; Dokumente werden nach dem Abruf bei DeepL gelöscht verdigado eG (Deutschland / Finnland) — Infrastruktur und Datenbank. Die selbst gehostete Modell-Instanz bediente bis zum 29.08.2026 auch Sprachmodell-Anfragen; sie tut es nicht mehr (siehe Nachhaltigkeit) Linkup (Paris) — Websuche mit Quellenangaben im Chat und in der Recherche SearXNG (selbstgehostet, Deutschland) — Suche Hetzner (Deutschland) — Hosting, an deutschen Standorten mit 100 % Strom aus erneuerbaren Energien (EMAS-registriert) Wer europäische Werte vertritt, sollte europäische Werkzeuge nutzen. Der Grünerator zeigt, dass das ohne Qualitätsverlust möglich ist."
+    "text": "außerdem die freischaltpflichtige Modellstufe Panda (DeepSeek v4.1 Flash), Bilderzeugung mit FLUX 2 Klein, unter anderem für „KI-Bild erstellen“ im Sharepic-Editor, sowie Gemma 4 für die experimentellen Boxen im Bild-Editor (Bildelemente erkennen, Layout planen); seit dem 19.11.2026 außerdem Anfragen einordnen und Werkzeug-Planung mit Gemma 4 (Ausweichwege: Mistral Small über Cortecs, dann direkt bei Mistral) DeepL (Köln) — maschinelle Übersetzung von Texten und Dokumenten im Übersetzer und im Chat-Werkzeug textuebersetzen; Dokumente werden nach dem Abruf bei DeepL gelöscht verdigado eG (Deutschland / Finnland) — Infrastruktur und Datenbank. Die selbst gehostete Modell-Instanz bediente bis zum 29.08.2026 auch Sprachmodell-Anfragen; sie tut es nicht mehr (siehe Nachhaltigkeit) Linkup (Paris) — Websuche mit Quellenangaben im Chat und in der Recherche SearXNG (selbstgehostet, Deutschland) — Suche Hetzner (Deutschland) — Hosting, an deutschen Standorten mit 100 % Strom aus erneuerbaren Energien (EMAS-registriert) Wer europäische Werte vertritt, sollte europäische Werkzeuge nutzen. Der Grünerator zeigt, dass das ohne Qualitätsverlust möglich ist."
   },
   {
     "url": "/docs/basics/gruenerator-pro-eu",
@@ -875,7 +887,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Das Fundament",
     "anchor": "#das-fundament",
     "category": "Basics",
-    "text": "Unter all diesen Funktionen liegt ein Fundament aus bewährten Open-Source-Bausteinen: React ist die Grundlage der gesamten Benutzeroberfläche – im Web wie in der App. Die von Meta entwickelte Bibliothek setzt aus einzelnen Komponenten zusammen, was du auf dem Bildschirm siehst, und aktualisiert Inhalte automatisch, sobald sich etwas ändert. GitHub · NPM Tauri verwandelt den Grünerator in eine echte Desktop-App für Windows und Mac. Anders als ältere Lösungen ist Tauri in der Programmiersprache Rust geschrieben und nutzt den im Betriebssystem vorhandenen Browser – dadurch werden die Programme deutlich kleiner und sparsamer. Es kümmert sich außerdem um Dinge wie automatische Updates und Benachrichtigungen. GitHub · NPM Expo & React Native sind die Grundlage der mobilen App für iPhone und Android. React Native erlaubt es, die App einmal zu schreiben und auf beiden Systemen als echte App laufen zu lassen; Expo liefert dazu die Werkzeuge und den Zugriff auf Funktionen wie Kamera, Mikrofon und Mitteilungen. Expo: GitHub · NPM React Native: GitHub · NPM Express ist der Server, der im Hintergrund alle Anfragen entgegennimmt."
+    "text": "Unter all diesen Funktionen liegt ein Fundament aus bewährten Open-Source-Bausteinen: React ist die Grundlage der gesamten Benutzeroberfläche – im Web wie in der App. Die von Meta entwickelte Bibliothek setzt aus einzelnen Komponenten zusammen, was du auf dem Bildschirm siehst, und aktualisiert Inhalte automatisch, sobald sich etwas ändert. GitHub · NPM Tauri verwandelt den Grünerator in eine echte Desktop-App für Windows, Mac und Linux. Anders als ältere Lösungen ist Tauri in der Programmiersprache Rust geschrieben und nutzt den im Betriebssystem vorhandenen Browser – dadurch werden die Programme deutlich kleiner und sparsamer. Es kümmert sich außerdem um Dinge wie automatische Updates und Benachrichtigungen. GitHub · NPM Expo & React Native sind die Grundlage der mobilen App für iPhone und Android. React Native erlaubt es, die App einmal zu schreiben und auf beiden Systemen als echte App laufen zu lassen; Expo liefert dazu die Werkzeuge und den Zugriff auf Funktionen wie Kamera, Mikrofon und Mitteilungen. Expo: GitHub · NPM React Native: GitHub · NPM Express ist der Server, der im Hintergrund alle Anfragen entgegennimmt."
   },
   {
     "url": "/docs/basics/open-source",
@@ -1147,7 +1159,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Drei Bereiche, dann die Einzelwerkzeuge",
     "anchor": "#drei-bereiche-dann-die-einzelwerkzeuge",
     "category": "Basics",
-    "text": "Der Arbeiten-Tab gliedert sich in drei große Bereiche — Office für Text und Zahlen, Studio für Bilder und Videos, Wissen für Recherche. Jeder öffnet eine eigene Seite mit den zugehörigen Werkzeugen. Daneben liegen die Werkzeuge zum Organisieren und ein Menü mit dem Rest. Insgesamt sind es 28 Werkzeuge: Die drei Bereiche. Office: Der Sammelpunkt für alles, woran man schreibt und plant: Dokumente, Boards, Tabellen und Präsentationen. Alle vier liegen im selben System, teilen sich Ordner und Freigaben und lassen sich gemeinsam bearbeiten. Studio: Alles Visuelle: KI-Bilder, Sharepics aus Vorlagen und untertitelte Reels. Nimm den Bereich, wenn am Ende ein Bild oder ein Video herauskommen soll — für Text und Zahlen ist Office richtig. Wissen: Recherche und Notebooks: eigene Quellensammlungen anlegen, durchsuchen und im Chat als Grundlage verwenden. Von hier aus geht es zum Briefing mit der Lage des Tages und zu den Umfragen. Office — Dokumente, Boards, Tabellen, Folien. Vorlagen: Startet ein neues Dokument aus einer fertigen Vorlage statt aus einem leeren Blatt — etwa ein Antrag oder eine Pressemitteilung mit passender Gliederung."
+    "text": "Der Arbeiten-Tab gliedert sich in drei große Bereiche — Office für Text und Zahlen, Studio für Bilder und Videos, Wissen für Recherche. Jeder öffnet eine eigene Seite mit den zugehörigen Werkzeugen. Daneben liegen die Werkzeuge zum Organisieren und ein Menü mit dem Rest. Insgesamt sind es 31 Werkzeuge: Die drei Bereiche. Office: Der Sammelpunkt für alles, woran man schreibt und plant: Dokumente, Boards, Tabellen und Präsentationen. Alle vier liegen im selben System, teilen sich Ordner und Freigaben und lassen sich gemeinsam bearbeiten. Studio: Alles Visuelle: KI-Bilder, Sharepics aus Vorlagen und untertitelte Reels. Nimm den Bereich, wenn am Ende ein Bild oder ein Video herauskommen soll — für Text und Zahlen ist Office richtig. Wissen: Recherche und Notebooks: eigene Quellensammlungen anlegen, durchsuchen und im Chat als Grundlage verwenden. Von hier aus geht es zum Briefing mit der Lage des Tages und zu den Umfragen. Office — Dokumente, Boards, Tabellen, Folien. Vorlagen: Startet ein neues Dokument aus einer fertigen Vorlage statt aus einem leeren Blatt — etwa ein Antrag oder eine Pressemitteilung mit passender Gliederung."
   },
   {
     "url": "/docs/basics/tools",
@@ -1163,7 +1175,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Drei Bereiche, dann die Einzelwerkzeuge",
     "anchor": "#drei-bereiche-dann-die-einzelwerkzeuge",
     "category": "Basics",
-    "text": "Voice: Grünerator Voice verwandelt Text in gesprochene Sprache — als Sprechertext für ein Reel, Ansage für den Anrufbeantworter, Vorlesefassung eines Textes oder Audiodeskription. Die Datei landet in der Mediathek. Studio — Weitere Tools. Profilbild: Macht aus einem Foto ein Profilbild: Person freistellen und den Hintergrund per Klick wechseln — als Farbe, Verlauf, Vorlage oder eigenes Bild. Im Editor setzt du Sticker und verschiebst Person und Sticker direkt im Bild. Sticker & Hintergründe: Sticker und Hintergründe für dein Profilbild: unter „Entdecken“ öffnet sich der Marktplatz mit dem, was andere geteilt haben: liken, merken oder melden. Eigene Sticker bleiben privat, bis du sie mit Bestätigung der Bildrechte öffentlich machst. Bild erweitern: Erweitert ein Bild per KI auf ein anderes Format, zum Beispiel von Quer- auf Hochformat. Eine Vorschau zeigt vorab, welche Flächen die KI ergänzt. Hintergrund entfernen: Entfernt den Hintergrund eines Bildes und liefert die Person oder das Motiv als PNG mit transparentem Hintergrund."
+    "text": "KI-Schnitt: Du lädst Rohvideos hoch, dazu auf Wunsch Bilder, Logo und Musik, und die KI schneidet daraus einen ersten Entwurf. Den verbesserst du in Korrekturrunden oder übergibst ihn in den Video Editor. Nimm ihn, wenn du noch keinen fertigen Clip hast, sondern nur Material. Parteitage: Die Reden eines Parteitags als fertige 9:16-Reels: je Rede in den Video Editor laden oder die ganze Rede nur untertiteln lassen. Vorerst nur für Instanz-Admins sichtbar, die einzelnen Parteitage sind zunächst passwortgeschützt. Voice: Grünerator Voice verwandelt Text in gesprochene Sprache — als Sprechertext für ein Reel, Ansage für den Anrufbeantworter, Vorlesefassung eines Textes oder Audiodeskription. Die Datei landet in der Mediathek. Studio — Weitere Tools. Profilbild: Macht aus einem Foto ein Profilbild: Person freistellen und den Hintergrund per Klick wechseln — als Farbe, Verlauf, Vorlage oder eigenes Bild. Im Editor setzt du Sticker und verschiebst Person und Sticker direkt im Bild. Sticker & Hintergründe: Sticker und Hintergründe für dein Profilbild: unter „Entdecken“ öffnet sich der Marktplatz mit dem, was andere geteilt haben: liken, merken oder melden."
   },
   {
     "url": "/docs/basics/tools",
@@ -1171,7 +1183,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Drei Bereiche, dann die Einzelwerkzeuge",
     "anchor": "#drei-bereiche-dann-die-einzelwerkzeuge",
     "category": "Basics",
-    "text": "Mediathek: Alle deine Bilder, Sharepics, KI-Bilder, Videos und Audios an einem Ort: hochladen (auch per Drag & Drop), nach Art filtern, durchsuchen, Titel und Alt-Text pflegen, herunterladen, teilen oder in den Papierkorb legen — ohne Obergrenze. Bildgenerator: Nur für Österreich: ein Link zum Sharepic-Bildgenerator der Grünen Österreich auf bildgenerator.gruene.at. Er läuft außerhalb des Grünerators — was du dort erstellst, landet nicht in deiner Mediathek. Organisieren. Marktplatz: Offizielle, Landesverbands- und öffentliche Agents, Rezepte, Vorlagen, Sticker und Hintergründe: stöbern, ausprobieren, zu deinen Grüneratoren holen und Eigenes teilen. Projekte: Projekte bündeln Chats, Dokumente und Mitglieder zu einem Arbeitszusammenhang — etwa für eine Kampagne oder einen Ortsverband. Weitere Werkzeuge. Übersetzer: Übersetzt Texte und ganze Dokumente (DOCX, PPTX, PDF …) mit DeepL — das gepflegte Grünen-Glossar wird automatisch angewendet. Apps & MCP: Verbindet den Grünerator mit ChatGPT, Claude oder Le Chat, sodass du dort auf grüne Programme und Beschlüsse zugreifen kannst. Transkription: Verschriftlicht Audioaufnahmen — für Interviews, Sitzungen und Sprachnotizen."
+    "text": "Eigene Sticker bleiben privat, bis du sie mit Bestätigung der Bildrechte öffentlich machst. Bild erweitern: Erweitert ein Bild per KI auf ein anderes Format, zum Beispiel von Quer- auf Hochformat. Eine Vorschau zeigt vorab, welche Flächen die KI ergänzt. Hintergrund entfernen: Entfernt den Hintergrund eines Bildes und liefert die Person oder das Motiv als PNG mit transparentem Hintergrund. Mediathek: Alle deine Bilder, Sharepics, KI-Bilder, Videos und Audios an einem Ort: hochladen (auch per Drag & Drop), nach Art filtern, durchsuchen, Titel und Alt-Text pflegen, herunterladen, teilen oder in den Papierkorb legen — ohne Obergrenze. Bildgenerator: Nur für Österreich: ein Link zum Sharepic-Bildgenerator der Grünen Österreich auf bildgenerator.gruene.at. Er läuft außerhalb des Grünerators — was du dort erstellst, landet nicht in deiner Mediathek. Organisieren. Marktplatz: Offizielle, Landesverbands- und öffentliche Agents, Rezepte, Vorlagen, Sticker und Hintergründe: stöbern, ausprobieren, zu deinen Grüneratoren holen und Eigenes teilen. Projekte: Projekte bündeln Chats, Dokumente und Mitglieder zu einem Arbeitszusammenhang — etwa für eine Kampagne oder einen Ortsverband."
   },
   {
     "url": "/docs/basics/tools",
@@ -1179,7 +1191,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Drei Bereiche, dann die Einzelwerkzeuge",
     "anchor": "#drei-bereiche-dann-die-einzelwerkzeuge",
     "category": "Basics",
-    "text": "Scanner: Wandelt Fotos und Scans in bearbeitbaren Text um — praktisch für abfotografierte Anträge oder Handzettel. Zeichenzähler: Zählt Zeichen und Wörter, mit den Grenzwerten der gängigen Social-Media-Plattformen. Newsletter: Der Grünerator-Newsletter mit neuen Funktionen und Beispielen. Führt auf ein externes Anmeldeformular. Transparenz: Zeigt, was der Grünerator insgesamt an KI verbraucht — Tokens, Energie und CO₂, mit den Konstanten, mit denen gerechnet wurde. In der Expertinnenübersicht lässt sich nach Bereich (etwa Chat oder Monitor) und nach Eingabe- und Ausgabe-Tokens aufschlüsseln."
+    "text": "Sites: Eine eigene Website für deine Kandidatur, dein Mandat oder dein Amt: die KI schlägt aus einer kurzen Beschreibung eine fertige Seite vor, im Editor passt du sie an. Pro Konto gibt es eine Website. In der Testphase nur nach Freischaltung. Weitere Werkzeuge. Übersetzer: Übersetzt Texte und ganze Dokumente (DOCX, PPTX, PDF …) mit DeepL — das gepflegte Grünen-Glossar wird automatisch angewendet. Apps & MCP: Verbindet den Grünerator mit ChatGPT, Claude oder Le Chat, sodass du dort auf grüne Programme und Beschlüsse zugreifen kannst. Transkription: Verschriftlicht Audioaufnahmen — für Interviews, Sitzungen und Sprachnotizen. Scanner: Wandelt Fotos und Scans in bearbeitbaren Text um — praktisch für abfotografierte Anträge oder Handzettel. Zeichenzähler: Zählt Zeichen und Wörter, mit den Grenzwerten der gängigen Social-Media-Plattformen. Newsletter: Der Grünerator-Newsletter mit neuen Funktionen und Beispielen. Führt auf ein externes Anmeldeformular. Transparenz: Zeigt, was der Grünerator insgesamt an KI verbraucht — Tokens, Energie und CO₂, mit den Konstanten, mit denen gerechnet wurde."
+  },
+  {
+    "url": "/docs/basics/tools",
+    "pageTitle": "Alle Werkzeuge",
+    "heading": "Drei Bereiche, dann die Einzelwerkzeuge",
+    "anchor": "#drei-bereiche-dann-die-einzelwerkzeuge",
+    "category": "Basics",
+    "text": "In der Expertinnenübersicht lässt sich nach Bereich (etwa Chat oder Monitor) und nach Eingabe- und Ausgabe-Tokens aufschlüsseln."
   },
   {
     "url": "/docs/basics/tools",
@@ -1435,7 +1455,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Rezepte auswählen",
     "anchor": "#rezepte-auswählen",
     "category": "Chat",
-    "text": "Mecklenburg-Vorpommern @beschluss-nrw Beschlussantrag NRW @beschluss-saarland Beschlussantrag Saarland @beschluss-sachsen-anhalt Beschlussantrag Sachsen-Anhalt @beschluss-thueringen Beschlussantrag Thüringen @wahlprogramm-bayern Wahlprogramm Bayern @wahlprogramm-berlin Wahlprogramm Berlin @wahlprogramm-brandenburg Wahlprogramm Brandenburg @wahlprogramm-sachsen-anhalt Wahlprogramm Sachsen-Anhalt @wahlprogramm-thueringen Wahlprogramm Thüringen @reisekosten-nrw Reisekosten NRW (Beta) @reisekosten-nrw-vorbereiten Reise vorbereiten NRW (Beta) Neben den mitgelieferten Rezepten oben zeigt die @-Liste auch deine eigenen Rezepte, mit deinen Projekten geteilte und öffentliche Rezepte anderer aus dem Marktplatz. Sie stehen in eigenen Abschnitten: „aus deinen Projekten\" und „von anderen\" (in der App: „Rezepte aus deinen Projekten\", „Rezepte von anderen\"). Auf der Detailseite eines Rezepts aus dem Marktplatz öffnet Im Chat verwenden den Chat direkt mit diesem Rezept aktiviert. Du kannst ein Rezept mit Quellen und Werkzeugen kombinieren. Zum Beispiel: @presse @grundsatz Klimaschutz in Kommunen schreibt eine Pressemitteilung auf Basis des Grundsatzprogramms."
+    "text": "Mecklenburg-Vorpommern @beschluss-nrw Beschlussantrag NRW @beschluss-saarland Beschlussantrag Saarland @beschluss-sachsen-anhalt Beschlussantrag Sachsen-Anhalt @beschluss-thueringen Beschlussantrag Thüringen @wahlprogramm-bayern Wahlprogramm Bayern @wahlprogramm-berlin Wahlprogramm Berlin @wahlprogramm-brandenburg Wahlprogramm Brandenburg @wahlprogramm-sachsen-anhalt Wahlprogramm Sachsen-Anhalt @wahlprogramm-thueringen Wahlprogramm Thüringen @reisekosten-nrw Reisekosten NRW (Beta) @reisekosten-nrw-vorbereiten Reise vorbereiten NRW (Beta) @antragsgruen-seite Antragsgrün-Seite anlegen (Experimentell) @nuudel Terminumfrage mit nuudel (Experimentell) Neben den mitgelieferten Rezepten oben zeigt die @-Liste auch deine eigenen Rezepte, mit deinen Projekten geteilte und öffentliche Rezepte anderer aus dem Marktplatz. Sie stehen in eigenen Abschnitten: „aus deinen Projekten\" und „von anderen\" (in der App: „Rezepte aus deinen Projekten\", „Rezepte von anderen\"). Auf der Detailseite eines Rezepts aus dem Marktplatz öffnet Im Chat verwenden den Chat direkt mit diesem Rezept aktiviert. Du kannst ein Rezept mit Quellen und Werkzeugen kombinieren."
+  },
+  {
+    "url": "/docs/chat/ki-chat",
+    "pageTitle": "KI-Chat",
+    "heading": "Rezepte auswählen",
+    "anchor": "#rezepte-auswählen",
+    "category": "Chat",
+    "text": "Zum Beispiel: @presse @grundsatz Klimaschutz in Kommunen schreibt eine Pressemitteilung auf Basis des Grundsatzprogramms."
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -1451,7 +1479,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Werkzeuge nutzen",
     "anchor": "#werkzeuge-nutzen",
     "category": "Chat",
-    "text": "Werkzeuge erweitern die Fähigkeiten des Chats über die reine Textgenerierung hinaus. Du kannst sie per @-Mention im Eingabefeld aktivieren — von der Recherche über Bildgenerierung bis zum Erstellen von Dokumenten, Tabellen und Präsentationen. @abgeordnetenhaus Abgeordnetenhaus Berlin @abgeordnetenwatch Abgeordnetenwatch @board-erstellen Board erstellen @bundestag Bundestag @canva Canva @diagramm Diagramm @verlauf Chatverlauf @rechnen Rechnen @connect Verbundene Accounts @wiederkehrend Wiederkehrende Aufgabe @deepresearch Tiefenrecherche @docs Dokument einfügen @dokument-erstellen Dokument erstellen @beispiele Beispiele @explainable-erstellen Explainable erstellen @doku Hilfe & Anleitungen @bildgenerieren Bildgenerierung @stadtbegruenen Stadt begrünen @bildbearbeiten Bild bearbeiten @pdf-erstellen PDF erstellen @praesentation-erstellen Präsentation erstellen @pressemitteilungen Pressemitteilungen @recherche Recherche @dokumente Dokumente @sharepic Sharepic @tabelle-erstellen Tabelle erstellen @zusammenfassung Zusammenfassung @umfragen Umfragen @vorlage Sharepic-Vorlage @link Link @wolke Wolke Was du mit jeder dieser Fähigkeiten konkret fragen kannst, zeigt dir die Seite Was kann"
+    "text": "Werkzeuge erweitern die Fähigkeiten des Chats über die reine Textgenerierung hinaus. Du kannst sie per @-Mention im Eingabefeld aktivieren — von der Recherche über Bildgenerierung bis zum Erstellen von Dokumenten, Tabellen und Präsentationen. @abgeordnetenhaus Abgeordnetenhaus Berlin @abgeordnetenwatch Abgeordnetenwatch @antragsgruennrw Antragsgrün NRW @board-erstellen Board erstellen @bundestag Bundestag @diagramm Diagramm @verlauf Chatverlauf @rechnen Rechnen @connect Verbundene Accounts @wiederkehrend Wiederkehrende Aufgabe @deepresearch Tiefenrecherche @docs Dokument einfügen @dokument-erstellen Dokument erstellen @beispiele Beispiele @explainable-erstellen Explainable erstellen @doku Hilfe & Anleitungen @bildgenerieren Bildgenerierung @stadtbegruenen Stadt begrünen @bildbearbeiten Bild bearbeiten @pdf-erstellen PDF erstellen @praesentation-erstellen Präsentation erstellen @pressemitteilungen Pressemitteilungen @recherche Recherche @dokumente Dokumente @sharepic Sharepic @tabelle-erstellen Tabelle erstellen @zusammenfassung Zusammenfassung @umfragen Umfragen @vorlage Sharepic-Vorlage @link Link @wolke Wolke Was du mit jeder dieser Fähigkeiten konkret fragen kannst, zeigt dir"
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -1459,7 +1487,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Werkzeuge nutzen",
     "anchor": "#werkzeuge-nutzen",
     "category": "Chat",
-    "text": "ich fragen? mit Musterfragen zu jeder Funktion. Im „+\"-Menü links im Eingabefeld stehen die Werkzeuge, mit denen du etwas erzeugst — Bild, Sharepic, Diagramm, Zusammenfassung, Dokument, Tabelle, Präsentation, Board — unter Erstellen. Ein Klick setzt die passende @-Erwähnung in deine Nachricht, und sie gilt jeweils für diese eine Nachricht. Werkzeuge, die etwas nachschlagen (@bundestag, @umfragen, @doku, @verlauf …), stehen bewusst nicht im Menü: sie sind Quellen, keine Handlungen. Du erreichst sie, indem du @ tippst — die Liste filtert mit. Zwei Schalter im Menü bleiben dagegen dauerhaft gesetzt, bis du sie wieder umlegst: Websuche und Dokumentensuche. Beide sind ab Werk an. Tiefenrecherche direkt darunter ist kein Schalter, sondern gilt nur für die nächste Nachricht."
+    "text": "die Seite Was kann ich fragen? mit Musterfragen zu jeder Funktion. Im „+\"-Menü links im Eingabefeld stehen die Werkzeuge, mit denen du etwas erzeugst — Bild, Sharepic, Diagramm, Zusammenfassung, Dokument, Tabelle, Präsentation, Board — unter Erstellen. Ein Klick setzt die passende @-Erwähnung in deine Nachricht, und sie gilt jeweils für diese eine Nachricht. Werkzeuge, die etwas nachschlagen (@bundestag, @umfragen, @doku, @verlauf …), stehen bewusst nicht im Menü: sie sind Quellen, keine Handlungen. Du erreichst sie, indem du @ tippst — die Liste filtert mit. Zwei Schalter im Menü bleiben dagegen dauerhaft gesetzt, bis du sie wieder umlegst: Websuche und Dokumentensuche. Beide sind ab Werk an. Tiefenrecherche direkt darunter ist kein Schalter, sondern gilt nur für die nächste Nachricht."
   },
   {
     "url": "/docs/chat/ki-modelle",
@@ -1523,7 +1551,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Was du fragen kannst",
     "anchor": "#was-du-fragen-kannst",
     "category": "Chat",
-    "text": "Anfordern musst du nichts davon — es genügt, die Frage zu stellen. Die Kennzeichnungen an den Karten bedeuten: @kürzel — für diese Fähigkeit gibt es zusätzlich eine Erwähnung, mit der du sie im Eingabefeld vorwählen kannst. Nur ein Teil der Fähigkeiten hat so ein Kürzel, und das ist Absicht: Erwähnungen gibt es dort, wo die Vorauswahl wirklich etwas ändert — bei Quellen, die man gezielt ansteuert, und bei Formaten, die man bewusst wählt. Vieles erkennt der Grünerator auch ohne Erwähnung zuverlässig an der Formulierung allein. @wetter gibt es zusätzlich als Kürzel, sobald der Wetterdienst als Zusatzquelle verbunden ist — genau wie bei Bahn, tagesschau, trivago und Gesetze (siehe unten). experimentell — noch jung. Funktioniert, kann sich aber in Bedienung und Ergebnis noch ändern und ist nicht überall verfügbar. Verlass dich für etwas Wichtiges nicht blind darauf. Werkzeug: … — diese Fähigkeit lässt sich in eigenen Agents gezielt an- und abschalten. Zusatzquelle: … — dahinter steckt ein externer Dienst (Bahn, Wetterdienst, tagesschau, trivago, Gesetze), der pro Umgebung angebunden wird."
+    "text": "Anfordern musst du nichts davon — es genügt, die Frage zu stellen. Die Kennzeichnungen an den Karten bedeuten: @kürzel — für diese Fähigkeit gibt es zusätzlich eine Erwähnung, mit der du sie im Eingabefeld vorwählen kannst. Nur ein Teil der Fähigkeiten hat so ein Kürzel, und das ist Absicht: Erwähnungen gibt es dort, wo die Vorauswahl wirklich etwas ändert — bei Quellen, die man gezielt ansteuert, und bei Formaten, die man bewusst wählt. Vieles erkennt der Grünerator auch ohne Erwähnung zuverlässig an der Formulierung allein. @wetter gibt es zusätzlich als Kürzel, sobald der Wetterdienst als Zusatzquelle verbunden ist — genau wie bei Bahn, tagesschau, trivago, Gesetze und Rateo (siehe unten). experimentell — noch jung. Funktioniert, kann sich aber in Bedienung und Ergebnis noch ändern und ist nicht überall verfügbar. Verlass dich für etwas Wichtiges nicht blind darauf. Werkzeug: … — diese Fähigkeit lässt sich in eigenen Agents gezielt an- und abschalten. Zusatzquelle: … — dahinter steckt ein externer Dienst (Bahn, Wetterdienst, tagesschau, trivago, Gesetze, Rateo für die Berliner Bezirksverordnetenversammlungen), der pro Umgebung angebunden wird."
   },
   {
     "url": "/docs/chat/was-kann-ich-fragen",
@@ -1547,7 +1575,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Was du fragen kannst",
     "anchor": "#was-du-fragen-kannst",
     "category": "Chat",
-    "text": "Bundestag: Welche Drucksachen gibt es zum Gebäudeenergiegesetz? Was hat unsere Fraktion in der letzten Debatte zum Klimaschutz gesagt? Abgeordnetenhaus Berlin: Wie viele Anträge haben die Grünen im Abgeordnetenhaus 2026 gestellt? Was hat der Senat auf Anfragen zur Elsenbrücke geantwortet? Welche Gesetzentwürfe hat der Senat seit September eingebracht? Abgeordnetenwatch: Wie hat die Union beim Lieferkettengesetz abgestimmt? Welche Nebentätigkeiten hat diese Abgeordnete gemeldet? Umfragen: Wie stehen wir aktuell in der Sonntagsfrage? Was sagen die Umfragen zur Landtagswahl in Sachsen-Anhalt? Bild erzeugen: Erstelle ein Bild von einem Lastenrad vor einem Rathaus. Generiere ein Hintergrundbild mit Windrädern im Sonnenaufgang. Bild bearbeiten — Hänge ein Bild an und beschreibe die Änderung. Für den Sonderfall „mehr Grün in die Stadt\" gibt es zusätzlich @stadtbegruenen.: Mach den Hintergrund auf diesem Bild heller. Entferne das Auto links im Bild. Sharepic — Aus einer Kernaussage wird eine fertige Grafik im grünen Design. Nur in der Web-Version.: Mach ein Sharepic mit der Aussage „Wärmepumpe statt Gasheizung\". Erstelle ein Sharepic zum Ausbau der Kinderbetreuung."
+    "text": "Bundestag: Welche Drucksachen gibt es zum Gebäudeenergiegesetz? Was hat unsere Fraktion in der letzten Debatte zum Klimaschutz gesagt? Abgeordnetenhaus Berlin: Wie viele Anträge haben die Grünen im Abgeordnetenhaus 2026 gestellt? Was hat der Senat auf Anfragen zur Elsenbrücke geantwortet? Welche Gesetzentwürfe hat der Senat seit September eingebracht? Abgeordnetenwatch: Wie hat die Union beim Lieferkettengesetz abgestimmt? Welche Nebentätigkeiten hat diese Abgeordnete gemeldet? Antragsgrün NRW: Welche Anträge zur Verkehrswende gab es auf dem letzten Landesparteitag in NRW? Was hat der NRW-Parteitag zum Kohleausstieg beschlossen? Umfragen: Wie stehen wir aktuell in der Sonntagsfrage? Was sagen die Umfragen zur Landtagswahl in Sachsen-Anhalt? Bild erzeugen: Erstelle ein Bild von einem Lastenrad vor einem Rathaus. Generiere ein Hintergrundbild mit Windrädern im Sonnenaufgang. Bild bearbeiten — Hänge ein Bild an und beschreibe die Änderung. Für den Sonderfall „mehr Grün in die Stadt\" gibt es zusätzlich @stadtbegruenen.: Mach den Hintergrund auf diesem Bild heller. Entferne das Auto links im Bild. Sharepic — Aus einer Kernaussage wird eine fertige Grafik im grünen Design."
   },
   {
     "url": "/docs/chat/was-kann-ich-fragen",
@@ -1555,7 +1583,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Was du fragen kannst",
     "anchor": "#was-du-fragen-kannst",
     "category": "Chat",
-    "text": "Tabelle: Erstelle eine Tabelle mit unseren Wahlkampfterminen und Verantwortlichen. Leg eine Kalkulation für das Budget des Sommerfests an. Präsentation: Mach mir eine Präsentation über unser Mobilitätskonzept, zehn Folien. Erstelle Folien für den Rechenschaftsbericht der Fraktion. Als Dokument speichern: Speichere das als Dokument. Schreib daraus ein Dokument, das ich weiterbearbeiten kann. PDF erstellen — Fertige, barrierefreie PDFs zum Herunterladen — als Dokument, Brief mit Briefkopf oder ausfüllbares Formular.: Mach aus diesem Text ein PDF zum Ausdrucken. Schreib einen Brief an die Bürgermeisterin als PDF mit Briefkopf. Erstelle ein ausfüllbares Anmeldeformular für unser Sommerfest als PDF. Explainable — Ein Thema einfach erklärt, mit Erklärbildern. Startet über die Erwähnung @explainable-erstellen.: @explainable-erstellen Wie funktioniert eine Wärmepumpe? @explainable-erstellen Erklär das Klimageld so, dass es jeder versteht. Diagramm — Zahlen werden als Balken-, Linien- oder Kreisdiagramm dargestellt.: Stell die Umfragewerte der letzten sechs Monate als Diagramm dar. Mach ein Balkendiagramm aus diesen Mitgliederzahlen."
+    "text": "Nur in der Web-Version.: Mach ein Sharepic mit der Aussage „Wärmepumpe statt Gasheizung\". Erstelle ein Sharepic zum Ausbau der Kinderbetreuung. Tabelle: Erstelle eine Tabelle mit unseren Wahlkampfterminen und Verantwortlichen. Leg eine Kalkulation für das Budget des Sommerfests an. Präsentation: Mach mir eine Präsentation über unser Mobilitätskonzept, zehn Folien. Erstelle Folien für den Rechenschaftsbericht der Fraktion. Als Dokument speichern: Speichere das als Dokument. Schreib daraus ein Dokument, das ich weiterbearbeiten kann. PDF erstellen — Fertige, barrierefreie PDFs zum Herunterladen — als Dokument, Brief mit Briefkopf oder ausfüllbares Formular.: Mach aus diesem Text ein PDF zum Ausdrucken. Schreib einen Brief an die Bürgermeisterin als PDF mit Briefkopf. Erstelle ein ausfüllbares Anmeldeformular für unser Sommerfest als PDF. Explainable — Ein Thema einfach erklärt, mit Erklärbildern. Startet über die Erwähnung @explainable-erstellen.: @explainable-erstellen Wie funktioniert eine Wärmepumpe? @explainable-erstellen Erklär das Klimageld so, dass es jeder versteht."
   },
   {
     "url": "/docs/chat/was-kann-ich-fragen",
@@ -1563,7 +1591,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Was du fragen kannst",
     "anchor": "#was-du-fragen-kannst",
     "category": "Chat",
-    "text": "Interaktive Darstellung — Kleine anzeigbare Ergebnisse wie Grafiken, Zeitstrahle oder Übersichten direkt im Chat.: Bau mir einen Zeitstrahl der Beschlüsse zur Wärmewende. Zeig die Struktur unseres Kreisverbands als Schaubild. Wiederkehrende Aufgabe: Schick mir jeden Montag eine Zusammenfassung der Nachrichten zur Klimapolitik. Erinnere mich monatlich daran, die Umfragewerte zu prüfen. Zusammenfassen: Fass dieses PDF in zehn Stichpunkten zusammen. Worum ging es in unserem Gespräch bisher? Rechnen und auszählen — Rechnungen, Umrechnungen, Datums- und Zählaufgaben werden tatsächlich gerechnet statt geschätzt.: Wie viele Tage sind es noch bis zur Kommunalwahl? Rechne aus, was 12.000 Euro auf 18 Monate pro Monat bedeuten. Ein erwähntes Dokument ändern — Erwähne das Dokument mit @ und sag, was geändert werden soll.: @Antrag Radwege kürze den Text auf eine Seite. Ergänze in @Pressemitteilung ein Zitat der Fraktionsvorsitzenden. Eine erstellte Tabelle ändern — Direkt nach dem Erstellen weiterschreiben — der Grünerator merkt sich die zuletzt erstellte Tabelle.: Mach die erste Zeile fett. Ergänze eine Summenzeile am Ende der Tabelle."
+    "text": "Diagramm — Zahlen werden als Balken-, Linien- oder Kreisdiagramm dargestellt.: Stell die Umfragewerte der letzten sechs Monate als Diagramm dar. Mach ein Balkendiagramm aus diesen Mitgliederzahlen. Interaktive Darstellung — Kleine anzeigbare Ergebnisse wie Grafiken, Zeitstrahle oder Übersichten direkt im Chat.: Bau mir einen Zeitstrahl der Beschlüsse zur Wärmewende. Zeig die Struktur unseres Kreisverbands als Schaubild. Wiederkehrende Aufgabe: Schick mir jeden Montag eine Zusammenfassung der Nachrichten zur Klimapolitik. Erinnere mich monatlich daran, die Umfragewerte zu prüfen. Zusammenfassen: Fass dieses PDF in zehn Stichpunkten zusammen. Worum ging es in unserem Gespräch bisher? Rechnen und auszählen — Rechnungen, Umrechnungen, Datums- und Zählaufgaben werden tatsächlich gerechnet statt geschätzt.: Wie viele Tage sind es noch bis zur Kommunalwahl? Rechne aus, was 12.000 Euro auf 18 Monate pro Monat bedeuten. Ein erwähntes Dokument ändern — Erwähne das Dokument mit @ und sag, was geändert werden soll.: @Antrag Radwege kürze den Text auf eine Seite. Ergänze in @Pressemitteilung ein Zitat der Fraktionsvorsitzenden."
   },
   {
     "url": "/docs/chat/was-kann-ich-fragen",
@@ -1571,7 +1599,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Was du fragen kannst",
     "anchor": "#was-du-fragen-kannst",
     "category": "Chat",
-    "text": "Das offene Dokument ändern — Im Editor mit geöffneter Chat-Seitenleiste bezieht sich jede Anweisung auf das Dokument vor dir.: Formuliere den zweiten Absatz sachlicher. Füg am Ende eine Zusammenfassung in drei Punkten an. Ein erwähntes Board ändern — Aufgabenkarten auf einem Board anlegen, verschieben oder umbenennen.: Leg in @Wahlkampf-Board Karten für alle Infostand-Termine an. Verschieb die erledigten Aufgaben in @Projektboard nach „Fertig\". Das offene Board ändern — Wie oben, nur ohne Erwähnung — es gilt das Board, das gerade offen ist.: Erstell aus dieser Liste Aufgabenkarten. Ordne die Karten nach Fälligkeit. Dokument teilen — Ein Dokument mit einer Gruppe teilen, in der du Mitglied bist.: Teil das Dokument mit meiner Kreisverbands-Gruppe. Gib @Wahlprogramm-Entwurf für die Vorstandsgruppe frei."
+    "text": "Eine erstellte Tabelle ändern — Direkt nach dem Erstellen weiterschreiben — der Grünerator merkt sich die zuletzt erstellte Tabelle.: Mach die erste Zeile fett. Ergänze eine Summenzeile am Ende der Tabelle. Das offene Dokument ändern — Im Editor mit geöffneter Chat-Seitenleiste bezieht sich jede Anweisung auf das Dokument vor dir.: Formuliere den zweiten Absatz sachlicher. Füg am Ende eine Zusammenfassung in drei Punkten an. Ein erwähntes Board ändern — Aufgabenkarten auf einem Board anlegen, verschieben oder umbenennen.: Leg in @Wahlkampf-Board Karten für alle Infostand-Termine an. Verschieb die erledigten Aufgaben in @Projektboard nach „Fertig\". Das offene Board ändern — Wie oben, nur ohne Erwähnung — es gilt das Board, das gerade offen ist.: Erstell aus dieser Liste Aufgabenkarten. Ordne die Karten nach Fälligkeit. Dokument teilen — Ein Dokument mit einer Gruppe teilen, in der du Mitglied bist.: Teil das Dokument mit meiner Kreisverbands-Gruppe. Gib @Wahlprogramm-Entwurf für die Vorstandsgruppe frei."
   },
   {
     "url": "/docs/chat/was-kann-ich-fragen",
@@ -1579,7 +1607,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wenn etwas nicht geht",
     "anchor": "#wenn-etwas-nicht-geht",
     "category": "Chat",
-    "text": "Manches ist nur in der Web-Version möglich. Excel-/CSV-Vorlagen über den Chat ausfüllen geht nur in der Web-Version unter gruenerator.eu; gespeicherte Tabellen öffnet die App aber im eingebetteten Editor. Sharepics entstehen dagegen auch in der App — du siehst sie direkt im Gespräch, kannst sie teilen und speichern; zum Feinschliff öffnet sich der Editor eingebettet, ohne dass du die App verlässt. Einige Quellen decken nur Deutschland ab. Bundestag, Abgeordnetenwatch, Bahn, tagesschau und Gesetze (deutsches Bundesrecht) beziehen sich auf deutsche Daten. Bei österreichischen Fragen weicht der Grünerator auf die Websuche aus. Nicht jede Zusatzquelle ist überall angebunden. Bahn, Wetterdienst, tagesschau, trivago und Gesetze werden pro Umgebung eingerichtet. Fehlt eine, greift der Grünerator auf die Websuche zurück und sagt dazu, worauf die Antwort beruht — erfundene Abfahrtszeiten gibt es nicht. Erfindet der Grünerator nichts? Bei Recherchen und Datenquellen nennt er die Belege. Prüfe Zahlen und Zitate trotzdem, bevor sie nach außen gehen — mehr dazu unter Risiken und Gefahren von LLMs. Du nutzt den Grünerator in ChatGPT, Claude oder Le Chat?"
+    "text": "Manches ist nur in der Web-Version möglich. Excel-/CSV-Vorlagen über den Chat ausfüllen geht nur in der Web-Version unter gruenerator.eu; gespeicherte Tabellen öffnet die App aber im eingebetteten Editor. Sharepics entstehen dagegen auch in der App — du siehst sie direkt im Gespräch, kannst sie teilen und speichern; zum Feinschliff öffnet sich der Editor eingebettet, ohne dass du die App verlässt. Einige Quellen decken nur Deutschland ab. Bundestag, Abgeordnetenwatch, Bahn, tagesschau, Gesetze (deutsches Bundesrecht) und Rateo (Berliner Bezirke) beziehen sich auf deutsche Daten. Bei österreichischen Fragen weicht der Grünerator auf die Websuche aus. Nicht jede Zusatzquelle ist überall angebunden. Bahn, Wetterdienst, tagesschau, trivago, Gesetze und Rateo werden pro Umgebung eingerichtet. Fehlt eine, greift der Grünerator auf die Websuche zurück und sagt dazu, worauf die Antwort beruht — erfundene Abfahrtszeiten gibt es nicht. Erfindet der Grünerator nichts? Bei Recherchen und Datenquellen nennt er die Belege. Prüfe Zahlen und Zitate trotzdem, bevor sie nach außen gehen — mehr dazu unter Risiken und Gefahren von LLMs. Du nutzt den Grünerator in ChatGPT, Claude oder Le Chat?"
   },
   {
     "url": "/docs/chat/was-kann-ich-fragen",
@@ -2206,6 +2234,46 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "text": "Leere Chats ohne eine einzige Nachricht werden sofort gelöscht — es gibt nichts wiederherzustellen. Der Chat an einem Dokument wird beim Löschen sofort geleert. Geschützt ist hier das Dokument selbst: Löschst du das Dokument, landet es im Papierkorb."
   },
   {
+    "url": "/docs/features/parteitage",
+    "pageTitle": "Parteitage",
+    "heading": "Parteitage",
+    "anchor": "",
+    "category": "Features",
+    "text": "Unter Parteitage (/parteitage) liegen die Reden eines Parteitags, geschnitten als Reels im 9:16-Format. Jeder Parteitag hat eine eigene Seite mit allen Reden, der Statistik und der Karte."
+  },
+  {
+    "url": "/docs/features/parteitage",
+    "pageTitle": "Parteitage",
+    "heading": "Eine Rede weiterverwenden",
+    "anchor": "#eine-rede-weiterverwenden",
+    "category": "Features",
+    "text": "Bei jeder Rede stehen zwei Wege offen: In Editor laden öffnet die Rede im Video Editor. Dort schneidest du, setzt Untertitel und gestaltest das Reel. Nur untertiteln untertitelt die ganze Rede auf dem Server. Du bekommst ein fertiges Video, das du mit Herunterladen speicherst. Ist die Originaldatei nicht mehr vorhanden, steht „Quelle nicht mehr verfügbar“ am Projekt im Simple Reel, das du aus der Rede erstellt hast."
+  },
+  {
+    "url": "/docs/features/parteitage",
+    "pageTitle": "Parteitage",
+    "heading": "Kartenquelle",
+    "anchor": "#kartenquelle",
+    "category": "Features",
+    "text": "Die Karte beruht auf den Verwaltungsgrenzen VG250: © GeoBasis-DE / BKG (2026), dl-de/by-2.0."
+  },
+  {
+    "url": "/docs/features/parteitage",
+    "pageTitle": "Parteitage",
+    "heading": "Statistik",
+    "anchor": "#statistik",
+    "category": "Features",
+    "text": "Die Statistik des Parteitags zeigt drei Dinge: Kreisfreie Städte und Kreise: Woher kamen die Redebeiträge, dargestellt auf einer Karte. Wahlergebnisse: Ergebnisse der Wahlgänge des Parteitags. Themen: Worüber gesprochen wurde. Bei Vergleichen prüft der Grünerator, ob ein Unterschied zufällig sein kann. Weil viele Vergleiche gleichzeitig laufen, wird die Falschentdeckungsrate nach Benjamini-Hochberg korrigiert. Das Ergebnis trägt eine von zwei Kennzeichnungen: Hinweis: Auffälligkeit, die ein Blick wert ist, aber nach der Korrektur nicht sicher genug ist. belastbar: Der Unterschied besteht auch nach der Korrektur. Eine Auswertung nach Geschlecht gibt es nicht. Bei Wahlplätzen unterscheidet der Grünerator nur zwischen Frauenplatz und offenem Platz."
+  },
+  {
+    "url": "/docs/features/parteitage",
+    "pageTitle": "Parteitage",
+    "heading": "Zugang",
+    "anchor": "#zugang",
+    "category": "Features",
+    "text": "Vorerst sind Parteitage nur für Instanz-Admins sichtbar; für alle anderen Personen existiert die Seite noch nicht. Zunächst sind Parteitage passwortgeschützt. Das Passwort bekommst du von den Verantwortlichen, es steht nicht im Grünerator. Auf der Seite des Parteitags gibst du es unter Entsperren ein. Parteitage ohne Passwort sind für alle eingeloggten Personen des passenden Landes (Deutschland oder Österreich) offen."
+  },
+  {
     "url": "/docs/features/podcasts",
     "pageTitle": "Podcasts",
     "heading": "Podcasts",
@@ -2356,6 +2424,86 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#selbst-ausprobieren",
     "category": "Features",
     "text": "Im Einsteiger*innen-Guide „Wie erstelle ich ein Sharepic?“ findest du den vollständigen Ablauf für Web und App, Beispiel-Eingaben und die Checkliste vor dem Veröffentlichen."
+  },
+  {
+    "url": "/docs/features/sites",
+    "pageTitle": "Sites",
+    "heading": "Sites",
+    "anchor": "",
+    "category": "Features",
+    "text": "Mit Sites baust du dir eine eigene Website für deine Kandidatur, dein Mandat oder dein Amt. Pro Konto gibt es eine Website. Du beschreibst kurz, worum es geht, die KI schlägt eine fertige Seite vor, und du passt sie im Editor an."
+  },
+  {
+    "url": "/docs/features/sites",
+    "pageTitle": "Sites",
+    "heading": "Adresse",
+    "anchor": "#adresse",
+    "category": "Features",
+    "text": "Deine Website erscheint unter grsites.de/ . Den Namen wählst du beim Erstellen; in den Einstellungen kannst du ihn bis zum ersten Veröffentlichen noch ändern, danach nicht mehr. In der Testphase lautet die Adresse beta.grsites.de/ ."
+  },
+  {
+    "url": "/docs/features/sites",
+    "pageTitle": "Sites",
+    "heading": "Bearbeiten",
+    "anchor": "#bearbeiten",
+    "category": "Features",
+    "text": "Der Editor zeigt links deine Einstellungen und rechts eine Live-Vorschau. Ein Klick auf einen Teil der Vorschau öffnet direkt das passende Feld. Du kannst unter anderem: eine Farbvariante wählen, Abschnitte aus- und einblenden, bei Bildern den Bildausschnitt über einen Fokuspunkt festlegen, die Angaben für das Impressum eintragen. Deine Änderungen sind zunächst nur ein Entwurf. Die veröffentlichte Website ändert sich erst, wenn du Änderungen veröffentlichen wählst. Der Editor zeigt dir, ob die Website „Nicht veröffentlicht“, „Website veröffentlicht“ oder „Änderungen nicht veröffentlicht“ ist."
+  },
+  {
+    "url": "/docs/features/sites",
+    "pageTitle": "Sites",
+    "heading": "Deutschland und Österreich",
+    "anchor": "#deutschland-und-österreich",
+    "category": "Features",
+    "text": "Sites gilt für beide Länder. Das Impressum richtet sich nach dem Land deines Kontos, und die Texte sind entsprechend formuliert: Wer sich mit einem österreichischen Konto anmeldet, bekommt das österreichische Impressum, sonst das deutsche. Auch der Fuß der Website nennt die Partei passend zum Land, und der Link zur Mitgliedschaft führt zur jeweiligen Seite von Die Grünen in Deutschland bzw. Österreich. Prüfe in beiden Fällen, ob alles zu deiner Situation passt."
+  },
+  {
+    "url": "/docs/features/sites",
+    "pageTitle": "Sites",
+    "heading": "Impressum und Datenschutz",
+    "anchor": "#impressum-und-datenschutz",
+    "category": "Features",
+    "text": "Für Impressum und Datenschutzerklärung legt Sites Vorlagen an. Die Pflichtangaben trägst du selbst ein, denn du bist für dein Impressum verantwortlich. Die Vorlagen sind keine Rechtsberatung; prüfe sie vor dem Veröffentlichen sorgfältig. Fehlen Angaben, weist dich der Editor darauf hin."
+  },
+  {
+    "url": "/docs/features/sites",
+    "pageTitle": "Sites",
+    "heading": "Melden",
+    "anchor": "#melden",
+    "category": "Features",
+    "text": "Wer auf einer Website einen Verstoß sieht, kann ihn melden. In der Testphase geschieht das über einen Melde-Link per E-Mail."
+  },
+  {
+    "url": "/docs/features/sites",
+    "pageTitle": "Sites",
+    "heading": "Testphase",
+    "anchor": "#testphase",
+    "category": "Features",
+    "text": "Solange Sites in der Testphase ist, sind alle Websites mit noindex markiert: Suchmaschinen sollen sie nicht in ihre Ergebnisse aufnehmen."
+  },
+  {
+    "url": "/docs/features/sites",
+    "pageTitle": "Sites",
+    "heading": "Veröffentlichen, zurückziehen, löschen",
+    "anchor": "#veröffentlichen-zurückziehen-löschen",
+    "category": "Features",
+    "text": "Veröffentlichen: Beim ersten Mal geht die Website damit online; später übernimmst du mit Änderungen veröffentlichen neue Änderungen. Veröffentlichung zurückziehen: Die Website ist nicht mehr öffentlich erreichbar, dein Entwurf bleibt erhalten. Löschen: Die Website ist sofort offline und liegt 30 Tage im Papierkorb. Stellst du sie wieder her, kommt sie als unveröffentlichter Entwurf zurück."
+  },
+  {
+    "url": "/docs/features/sites",
+    "pageTitle": "Sites",
+    "heading": "Website erstellen",
+    "anchor": "#website-erstellen",
+    "category": "Features",
+    "text": "Beim ersten Öffnen von Sites wählst du, wie du startest: Aus einer kurzen Beschreibung: Du schreibst, wer du bist und wofür du antrittst; die KI erstellt daraus die Website. Aus einem Flyer: Du lädst deinen Flyer als PDF hoch (höchstens 20 MB und 100 Seiten); die KI liest ihn aus und übernimmt Inhalte und Themen. Beides setzt die Einwilligung zur KI-Nutzung voraus, weil dein Text oder Flyer an einen KI-Anbieter geht. Prüfe den Entwurf anschließend, KI-Texte können Fehler enthalten."
+  },
+  {
+    "url": "/docs/features/sites",
+    "pageTitle": "Sites",
+    "heading": "Wer Sites nutzen kann",
+    "anchor": "#wer-sites-nutzen-kann",
+    "category": "Features",
+    "text": "Sites ist in der Testphase nur für Konten verfügbar, die eine Instanz-Admin freigeschaltet hat, sowie für Instanz-Admins selbst. Ohne Freischaltung siehst du Sites nirgends im Grünerator. Wenn du es ausprobieren möchtest, melde dich beim Support."
   },
   {
     "url": "/docs/features/tabellen",
@@ -3259,7 +3407,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wenn die Installation nicht klappt",
     "anchor": "#wenn-die-installation-nicht-klappt",
     "category": "Guides",
-    "text": "„Installieren“ fehlt: Prüfe, ob du im Play Store mit einem Google-Account angemeldet bist und ob die Seite dein Gerät als kompatibel anzeigt. Das falsche Gerät wird ausgewählt: Öffne die Store-Seite direkt auf dem gewünschten Android-Gerät oder wähle es am Computer unter Auf weiteren Geräten installieren aus. Die App startet nicht oder verhält sich unerwartet: Installiere zuerst das neueste Update. Bleibt der Fehler bestehen, nutze den Feedback-Button im Grünerator und nenne Gerätetyp, Android-Version und die Schritte bis zum Fehler. Weitere Hinweise zur Installation enthält Google Play-Hilfe: Apps und digitale Inhalte herunterladen."
+    "text": "„Installieren“ fehlt: Prüfe, ob du im Play Store mit einem Google-Account angemeldet bist und ob die Seite dein Gerät als kompatibel anzeigt. Das falsche Gerät wird ausgewählt: Öffne die Store-Seite direkt auf dem gewünschten Android-Gerät oder wähle es am Computer unter Auf weiteren Geräten installieren aus. Die App startet nicht oder verhält sich unerwartet: Installiere zuerst das neueste Update. Bleibt der Fehler bestehen, nutze den Support-Button im Grünerator und nenne Gerätetyp, Android-Version und die Schritte bis zum Fehler. Weitere Hinweise zur Installation enthält Google Play-Hilfe: Apps und digitale Inhalte herunterladen."
   },
   {
     "url": "/docs/guides/experimentell/iphone-ipad-app-installieren",
@@ -4555,7 +4703,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Onboarding. Die einmalige Einrichtung: drei Schritte, die den Grünerator auf dich einstellen — deine Rolle, dein Friend und der Hintergrund deiner Startseite. Der Bereich steht ganz oben, solange er offen ist, und verschwindet danach aus der Liste. Jeder Schritt lässt sich überspringen, einzeln oder alle auf einmal — übersprungen heißt: es bleibt beim Standard, nichts wird später nachgefragt. Die drei Schritte zeigen dieselben Bereiche, die es auch einzeln gibt („Personalisierung\", „Friends\", „Hintergrund\"). Was du hier einstellst, ist sofort gespeichert und dort später änderbar. Zurückholen kannst du die Einrichtung jederzeit über Allgemein → Einrichtung erneut starten. Allgemein. Aussehen und Grundverhalten der Oberfläche — und ganz oben, wer du bist. Änderungen greifen sofort und gelten auf allen Geräten, an denen du angemeldet bist."
+    "text": "Onboarding. Die einmalige Einrichtung: drei Schritte, die den Grünerator auf dich einstellen — deine Rolle, dein Friend und der Hintergrund deiner Startseite. Der Bereich steht ganz oben, solange er offen ist, und verschwindet danach aus der Liste. Jeder Schritt lässt sich überspringen, einzeln oder alle auf einmal — übersprungen heißt: es bleibt beim Standard, nichts wird später nachgefragt. Die drei Schritte zeigen dieselben Bereiche, die es auch einzeln gibt („Personalisierung\", „Friends\", „Hintergrund\"). Was du hier einstellst, ist sofort gespeichert und dort später änderbar. Zurückholen kannst du die Einrichtung jederzeit über Allgemein → Einrichtung erneut starten. Allgemein. Aussehen und Grundverhalten der Oberfläche. Änderungen greifen sofort und gelten auf allen Geräten, an denen du angemeldet bist."
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4563,7 +4711,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Konto: Name, Benutzername und E-Mail stammen aus deinem Grünen Login und werden dort geändert Aussehen: Farbschema der Oberfläche Sprache & Region: Wortwahl und Inhalte für Deutschland oder Österreich Startseite: Welcher Bereich sich auf der Startseite zuerst zeigt Stimme: Mit welcher Stimme dir der Grünerator Texte vorliest Feedback-Button: Darstellung des schwebenden Feedback-Buttons: mit Text, nur als Icon oder ganz ausgeblendet — er lässt sich in jede Bildschirmecke ziehen Einführungs-Touren zurücksetzen: Zeigt die Touren durch Workplace, Dokumente, Tabellen, Präsentationen und das Sharepic-Studio beim nächsten Öffnen wieder an. Einrichtung erneut starten: Holt den Bereich „Onboarding\" zurück und führt noch einmal durch Rolle, Friend und Hintergrund. Papierkorb: Gelöschte Inhalte 30 Tage lang wiederherstellen oder vorher endgültig löschen Aussehen: Hell, Dunkel, System Sprache & Region: Deutsch (Deutschland), Deutsch (Österreich) Startseite: Chat, Arbeiten Die Zeile Konto zeigt Anzeigename, Benutzername und E-Mail. Die drei kommen aus deinem Grünen Login und lassen sich nur dort ändern, wo du dich anmeldest."
+    "text": "Aussehen: Farbschema der Oberfläche Sprache & Region: Wortwahl und Inhalte für Deutschland oder Österreich Startseite: Welcher Bereich sich auf der Startseite zuerst zeigt Stimme: Mit welcher Stimme dir der Grünerator Texte vorliest Support-Button: Darstellung des schwebenden Support-Buttons: mit Text, nur als Icon oder ganz ausgeblendet — er lässt sich in jede Bildschirmecke ziehen Animationen reduzieren: Schaltet dekorative Animationen und Übergänge ab — folgt sonst automatisch der Einstellung deines Betriebssystems Transparenz reduzieren: Entfernt durchscheinende Flächen und Unschärfe-Effekte — folgt sonst automatisch der Einstellung deines Betriebssystems Einführungs-Touren zurücksetzen: Zeigt die Touren durch Workplace, Dokumente, Tabellen, Präsentationen und das Sharepic-Studio beim nächsten Öffnen wieder an. Einrichtung erneut starten: Holt den Bereich „Onboarding\" zurück und führt noch einmal durch Rolle, Friend und Hintergrund. Aussehen: Hell, Dunkel, System Sprache & Region: Deutsch (Deutschland), Deutsch (Österreich) Startseite: Chat, Arbeiten Dein Profilbild ist ein Grünerator Friend — ausgewählt wird er im Bereich „Friends\"."
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4571,7 +4719,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Dein Profilbild ist ein Grünerator Friend — ausgewählt wird er im Bereich „Friends\". Die Sprachwahl entscheidet nicht nur über Wortwahl, sondern auch über Inhalte: Mit „Deutsch (Österreich)\" bekommst du österreichische Quellen und Begriffe statt deutscher. Die Zeile Papierkorb öffnet die Seite mit allem, was du gelöscht hast. Dort bleibt es 30 Tage, lässt sich wiederherstellen oder vorher endgültig löschen. Erreichbar ist sie auch über das Kontomenü in der Seitenleiste und über „Zuletzt\" im Workplace. Ganz unten kannst du dein Konto endgültig löschen. Das entfernt deine Inhalte und lässt sich nicht rückgängig machen. Hintergrund. Der farbige Schimmer auf deiner Startseite — der Fläche, auf der du nach dem Anmelden stehst. Jede Kachel zeigt den Verlauf, den sie einstellt; ein Klick übernimmt ihn sofort. Startseiten-Hintergrund: Färbt den Schimmer hinter dem Chat-Start und den Senden-Button darauf Die Auswahl ist zweigeteilt: Bunt verteilt mehrere Farben über die Fläche, Einfarbig legt einen Ton darüber. Innerhalb von „Bunt\" unterscheiden sich Nebel, Klarer Kern und Dunst von unten nicht in der Farbe — sie nutzen dieselben vier Töne hinter unterschiedlich viel weißem Schleier."
+    "text": "Die Sprachwahl entscheidet nicht nur über Wortwahl, sondern auch über Inhalte: Mit „Deutsch (Österreich)\" bekommst du österreichische Quellen und Begriffe statt deutscher. Animationen reduzieren und Transparenz reduzieren (Gruppe „Bedienungshilfen\") schalten dekorative Bewegung bzw. durchscheinende Flächen und Unschärfe ab — hilfreich bei Reizempfindlichkeit oder auf schwächerer Hardware. Sie folgen zunächst den Vorgaben deines Betriebssystems, gelten auf allen Geräten, an denen du angemeldet bist, und greifen sofort. Der Link /settings/barrierefreiheit führt weiterhin hierher — bis zum 28.08.2026 war das ein eigener Bereich, danach die untere Hälfte von „Datenschutz\". Konto. Wer du bist und was am Konto hängt. Hier steht nichts, was du einstellen müsstest — es ist der Ort für den Papierkorb und fürs endgültige Löschen. Konto: Name, Benutzername und E-Mail stammen aus deinem Grünen Login und werden dort geändert Papierkorb: Gelöschte Inhalte 30 Tage lang wiederherstellen oder vorher endgültig löschen Die Gruppe Grüner Login zeigt Anzeigename, Benutzername und E-Mail. Die drei kommen aus deinem Grünen Login und lassen sich nur dort ändern, wo du dich anmeldest."
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4579,7 +4727,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Der Senden-Button unter dem Composer übernimmt die Farbe des gewählten Hintergrunds — die Kachel zeigt ihn als Punkt mit an. Neutral schaltet den Verlauf ganz ab; dann steht dort die normale Seitenfläche. Im Dunkelmodus bleiben dieselben Presets, nur gedämpft — die Kacheln zeigen die Fassung, die zu deinem Farbschema gehört. Personalisierung. Dauerhafte Hinweise, die der Grünerator bei jeder Antwort mitdenkt — ohne dass du sie jedes Mal neu schreiben musst. Rollen: Deine Ämter und Ebenen — der Grünerator richtet Ansprache und Inhalte danach aus. Anlegen und Ändern am Rechner. Anweisungen: ein freies Textfeld für Vorlieben wie „Duze die Leserinnen und schreibe knapp.\" Deine Rollen: Ebene (Bund, Land, Kommune), Bundesland und Funktion. Daraus weiß der Grünerator, aus welcher Perspektive du schreibst, und schlägt passende Quellen und Formulierungen vor. Erinnerungen. Was sich der Grünerator aus euren Gesprächen dauerhaft gemerkt hat. Du siehst jeden Eintrag, kannst suchen, einzelne löschen oder eigene hinzufügen. Gedächtnis: Der Grünerator merkt sich nur, was du ihm ausdrücklich sagst („merk dir …\") — und berücksichtigt es in jedem Chat. Aus: nichts wird gespeichert oder verwendet."
+    "text": "Die Zeile Papierkorb öffnet die Seite mit allem, was du gelöscht hast. Dort bleibt es 30 Tage, lässt sich wiederherstellen oder vorher endgültig löschen. Erreichbar ist sie auch über das Kontomenü in der Seitenleiste und über „Zuletzt\" im Workplace. Ganz unten kannst du dein Konto endgültig löschen. Das entfernt deine Inhalte und lässt sich nicht rückgängig machen. Hintergrund. Der farbige Schimmer auf deiner Startseite — der Fläche, auf der du nach dem Anmelden stehst. Jede Kachel zeigt den Verlauf, den sie einstellt; ein Klick übernimmt ihn sofort. Startseiten-Hintergrund: Färbt den Schimmer hinter dem Chat-Start und den Senden-Button darauf Die Auswahl ist zweigeteilt: Bunt verteilt mehrere Farben über die Fläche, Einfarbig legt einen Ton darüber. Innerhalb von „Bunt\" unterscheiden sich Nebel, Klarer Kern und Dunst von unten nicht in der Farbe — sie nutzen dieselben vier Töne hinter unterschiedlich viel weißem Schleier. Der Senden-Button unter dem Composer übernimmt die Farbe des gewählten Hintergrunds — die Kachel zeigt ihn als Punkt mit an. Neutral schaltet den Verlauf ganz ab; dann steht dort die normale Seitenfläche."
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4587,7 +4735,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Tagesbriefing im Chat: Wenn du es einschaltest, schreibt dir der Grünerator beim ersten Besuch des Tages eine kurze Übersicht: deine offenen Aufgaben, was los ist, und eine Idee für heute. Erinnerungen entstehen im Gespräch von selbst — dieser Bereich ist die Kontrolle darüber, nicht die einzige Quelle. Alles auf einmal löschen ist möglich und wird vorher abgefragt. Friends. Dein Profilbild: eine Galerie gezeichneter Grünerator-Figuren, aus der du deinen „Friend\" wählst. Er erscheint überall dort, wo du auftauchst — in Chats, Projekten und Kommentaren. Dein Friend: Das Profilbild, das dich in Chats, Projekten und Kommentaren vertritt Solange die Einrichtung läuft, stehen drei zur Wahl — Feuri, Robosam und Schildi. Die übrige Truppe kommt dazu, sobald du sie abgeschlossen hast. Ein Klick auf eine Figur übernimmt sie sofort; ein Foto-Upload ist nicht vorgesehen. Wolki ist zunächst gesperrt und wird freigeschaltet, sobald du deine Grüne Wolke verbunden hast. Benachrichtigungen. Worüber und wie du informiert wirst. Am einfachsten wählst du eine der drei Stufen; wer es genauer mag, schaltet jede Meldungsart einzeln pro Kanal."
+    "text": "Im Dunkelmodus bleiben dieselben Presets, nur gedämpft — die Kacheln zeigen die Fassung, die zu deinem Farbschema gehört. Friends. Dein Profilbild: eine Galerie gezeichneter Grünerator-Figuren, aus der du deinen „Friend\" wählst. Er erscheint überall dort, wo du auftauchst — in Chats, Projekten und Kommentaren. Dein Friend: Das Profilbild, das dich in Chats, Projekten und Kommentaren vertritt Solange die Einrichtung läuft, stehen drei zur Wahl — Feuri, Robosam und Schildi. Die übrige Truppe kommt dazu, sobald du sie abgeschlossen hast. Ein Klick auf eine Figur übernimmt sie sofort; ein Foto-Upload ist nicht vorgesehen. Wolki ist zunächst gesperrt und wird freigeschaltet, sobald du deine Grüne Wolke verbunden hast. Benachrichtigungen. Worüber und wie du informiert wirst. Am einfachsten wählst du eine der drei Stufen; wer es genauer mag, schaltet jede Meldungsart einzeln pro Kanal. Wie viel wir melden: Wenig meldet nur Kritisches und Persönliches, Mittel die wichtigen Ereignisse, Viele alles. E-Mail-Zustellung testen: Sendet dir sofort eine Test-E-Mail an deine Profil-Adresse, um die Zustellung zu prüfen."
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4595,7 +4743,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Wie viel wir melden: Wenig meldet nur Kritisches und Persönliches, Mittel die wichtigen Ereignisse, Viele alles. E-Mail-Zustellung testen: Sendet dir sofort eine Test-E-Mail an deine Profil-Adresse, um die Zustellung zu prüfen. Wenig: Nur kritische & persönliche Benachrichtigungen Mittel: Empfohlen – wichtige Ereignisse Viele: Alle Benachrichtigungen Dokument geteilt: Wenn ein Dokument mit dir geteilt wird Berechtigung geändert: Wenn deine Berechtigung an einem Dokument geändert wird Zugriff entzogen: Wenn dein Zugriff auf ein Dokument entzogen wird Aufgaben-Updates: Updates zu deinen Board-Aufgaben Neue Kommentare: Neue Kommentare auf Karten Antworten: Antworten auf deine Kommentare Erwähnungen: Wenn du in einem Kommentar erwähnt wirst Zuweisungen: Wenn dir eine Karte zugewiesen wird Statusänderungen: Wenn sich der Status einer beobachteten Karte ändert Neue Anhänge: Wenn eine Datei an eine beobachtete Karte angehängt wird Fälligkeits-Erinnerung: Erinnerung, wenn eine Karte demnächst fällig ist Beobachtete Karten: Aktivität auf Karten, die du beobachtest Lauf erledigt: Wenn eine wiederkehrende Aufgabe oder ein Board-Zeitplan fertig ist Lauf fehlgeschlagen: Wenn ein geplanter Lauf"
+    "text": "Wenig: Nur kritische & persönliche Benachrichtigungen Mittel: Empfohlen – wichtige Ereignisse Viele: Alle Benachrichtigungen Dokument geteilt: Wenn ein Dokument mit dir geteilt wird Berechtigung geändert: Wenn deine Berechtigung an einem Dokument geändert wird Zugriff entzogen: Wenn dein Zugriff auf ein Dokument entzogen wird Aufgaben-Updates: Updates zu deinen Board-Aufgaben Neue Kommentare: Neue Kommentare auf Karten Antworten: Antworten auf deine Kommentare Erwähnungen: Wenn du in einem Kommentar erwähnt wirst Zuweisungen: Wenn dir eine Karte zugewiesen wird Statusänderungen: Wenn sich der Status einer beobachteten Karte ändert Neue Anhänge: Wenn eine Datei an eine beobachtete Karte angehängt wird Fälligkeits-Erinnerung: Erinnerung, wenn eine Karte demnächst fällig ist Beobachtete Karten: Aktivität auf Karten, die du beobachtest Lauf erledigt: Wenn eine wiederkehrende Aufgabe oder ein Board-Zeitplan fertig ist Lauf fehlgeschlagen: Wenn ein geplanter Lauf nicht ausgeführt werden konnte Lauf wartet auf Freigabe: Wenn ein geplanter Lauf auf deine Freigabe wartet Mitglied tritt bei: Wenn ein Mitglied einer deiner Gruppen beitritt Mitglied tritt aus: Wenn ein Mitglied eine deiner"
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4603,7 +4751,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "nicht ausgeführt werden konnte Lauf wartet auf Freigabe: Wenn ein geplanter Lauf auf deine Freigabe wartet Mitglied tritt bei: Wenn ein Mitglied einer deiner Gruppen beitritt Mitglied tritt aus: Wenn ein Mitglied eine deiner Gruppen verlässt Rollenänderung: Wenn sich eine Rolle in der Gruppe ändert Geteilte Inhalte: Wenn Inhalte in einer deiner Gruppen geteilt werden Kommentare in Gruppen: Wenn jemand deinen geteilten Inhalt oder einen Beitrag kommentiert, den du kommentiert hast Neue Beiträge: Wenn jemand in einem deiner Projekte einen Beitrag schreibt Erwähnungen: Wenn dich jemand in einem Projekt mit @Name erwähnt @alle: Wenn jemand in einem deiner Projekte alle mit @alle anspricht Gruppe aufgelöst: Wenn eine deiner Gruppen aufgelöst wird Beitrittsanfragen: Wenn jemand deiner öffentlichen Gruppe beitreten möchte Beitritt angenommen: Wenn deine Beitrittsanfrage angenommen wird Beitritt abgelehnt: Wenn deine Beitrittsanfrage abgelehnt wird Transfer-Download: Wenn jemand deine geteilte Datei herunterlädt Notebook-Likes: Wenn jemand dein öffentliches Notebook mag Vorlagen-Likes: Wenn jemand deine veröffentlichte Vorlage mag Vorlage freigegeben: Wenn deine eingereichte Vorlage"
+    "text": "Gruppen verlässt Rollenänderung: Wenn sich eine Rolle in der Gruppe ändert Geteilte Inhalte: Wenn Inhalte in einer deiner Gruppen geteilt werden Kommentare in Gruppen: Wenn jemand deinen geteilten Inhalt oder einen Beitrag kommentiert, den du kommentiert hast Neue Beiträge: Wenn jemand in einem deiner Projekte einen Beitrag schreibt Team-Chats: Wenn jemand in einem Team-Chat schreibt, an dem du beteiligt bist Erwähnungen: Wenn dich jemand in einem Projekt mit @Name erwähnt @alle: Wenn jemand in einem deiner Projekte alle mit @alle anspricht Gruppe aufgelöst: Wenn eine deiner Gruppen aufgelöst wird Beitrittsanfragen: Wenn jemand deiner öffentlichen Gruppe beitreten möchte Beitritt angenommen: Wenn deine Beitrittsanfrage angenommen wird Beitritt abgelehnt: Wenn deine Beitrittsanfrage abgelehnt wird Transfer-Download: Wenn jemand deine geteilte Datei herunterlädt Notebook-Likes: Wenn jemand dein öffentliches Notebook mag Vorlagen-Likes: Wenn jemand deine veröffentlichte Vorlage mag Vorlage freigegeben: Wenn deine eingereichte Vorlage freigegeben wird Vorlage abgelehnt: Wenn deine eingereichte Vorlage abgelehnt wird Neue Wolke-Dateien: Neue Dateien in den Wolke-Ordnern deiner"
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4611,7 +4759,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "freigegeben wird Vorlage abgelehnt: Wenn deine eingereichte Vorlage abgelehnt wird Neue Wolke-Dateien: Neue Dateien in den Wolke-Ordnern deiner Notebooks Tagesbriefing: Deine Übersicht beim ersten Besuch des Tages Neue Avatare: Wenn neue Profil-Avatare verfügbar sind Briefe. Absenderangaben für den PDF-Export von Briefen. Du kannst mehrere Briefköpfe anlegen — etwa einen für den Kreisverband und einen für die Fraktion — und beim Export auswählen, welcher oben links erscheint. Genau ein Briefkopf ist der Standard; der Export schlägt ihn vor. Löschst du den Standard, rückt automatisch ein anderer nach. Konnektoren. Externe Dienste, die der Chat mitbenutzen darf. Ist einer verbunden, kannst du ihn im Gespräch ansprechen — wie das im Detail geht, steht unter Konnektoren. Konnektoren: Verbundene Dienste, die im Chat als eigene Quelle ansprechbar sind Wolke. Die Verbindung zur Grünen Wolke (Nextcloud). Ist sie eingerichtet, kannst du Dateien von dort direkt im Chat und in den Notebooks nutzen und Ergebnisse dorthin zurückspeichern. Meine Websites."
+    "text": "Notebooks Tagesbriefing: Deine Übersicht beim ersten Besuch des Tages KI-Schnitt fertig: Wenn dein KI-Schnitt zur Vorschau bereitsteht KI-Schnitt fehlgeschlagen: Wenn ein KI-Schnitt nicht erstellt werden konnte Neue Avatare: Wenn neue Profil-Avatare verfügbar sind Datenschutz. Die beiden Einwilligungen, die der Grünerator von dir einholt: Beide gelten mit Wirkung für die Zukunft und lassen sich jederzeit zurücknehmen — was bereits verarbeitet wurde, bleibt davon unberührt. Reichweitenmessung: Anonyme Statistik mit Umami (eigene Server, EU). Nur nach Einwilligung — jederzeit widerrufbar Einwilligung in die KI-Verarbeitung: Ausdrückliche Einwilligung nach Art. 9 DSGVO, weil sich aus deinen Eingaben politische Meinungen ergeben können Reichweitenmessung steuert die anonyme Statistik mit Umami, die wir auf eigenen Servern in der EU betreiben. Ohne deine Zustimmung wird das Skript gar nicht erst geladen; der Schalter gilt für den Browser, in dem du ihn umlegst. Einwilligung in die KI-Verarbeitung ist die ausdrückliche Einwilligung nach Art. 9 DSGVO: Weil über den Grünerator politische Inhalte entstehen, können sich aus deinen Eingaben politische Meinungen ergeben."
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4619,7 +4767,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Eigene Websites verbinden, damit ihre Beiträge in Notebooks zur Verfügung stehen — etwa die Seite deines Kreisverbands als Quelle für Recherche und Textentwürfe. Funktioniert mit WordPress-Websites, deren REST-Schnittstelle öffentlich erreichbar ist. Die Kategorien der Website werden einmal abgefragt und stehen danach überall zur Auswahl. Datenschutz & Barrierefreiheit. Ein Bereich mit zwei Gruppen. Oben die beiden Einwilligungen, die der Grünerator von dir einholt: Beide gelten mit Wirkung für die Zukunft und lassen sich jederzeit zurücknehmen — was bereits verarbeitet wurde, bleibt davon unberührt. Unten die Einstellungen, die die Oberfläche zugänglicher machen: Sie folgen zunächst den Vorgaben deines Betriebssystems und lassen sich hier gezielt übersteuern. Reichweitenmessung: Anonyme Statistik mit Umami (eigene Server, EU). Nur nach Einwilligung — jederzeit widerrufbar Einwilligung in die KI-Verarbeitung: Ausdrückliche Einwilligung nach Art."
+    "text": "Nimmst du sie zurück, fragen wir beim nächsten Aufruf der KI-Funktionen erneut. Personalisierung. Dauerhafte Hinweise, die der Grünerator bei jeder Antwort mitdenkt — ohne dass du sie jedes Mal neu schreiben musst. Rollen: Deine Ämter und Ebenen — der Grünerator richtet Ansprache und Inhalte danach aus. Anlegen und Ändern am Rechner. Anweisungen: ein freies Textfeld für Vorlieben wie „Duze die Leserinnen und schreibe knapp.\" Deine Rollen: Ebene (Bund, Land, Kommune), Bundesland und Funktion. Daraus weiß der Grünerator, aus welcher Perspektive du schreibst, und schlägt passende Quellen und Formulierungen vor. Erinnerungen. Was sich der Grünerator aus euren Gesprächen dauerhaft gemerkt hat. Du siehst jeden Eintrag, kannst suchen, einzelne löschen oder eigene hinzufügen. Gedächtnis: Der Grünerator merkt sich nur, was du ihm ausdrücklich sagst („merk dir …\") — und berücksichtigt es in jedem Chat. Aus: nichts wird gespeichert oder verwendet. Erinnerungen entstehen im Gespräch von selbst — dieser Bereich ist die Kontrolle darüber, nicht die einzige Quelle. Alles auf einmal löschen ist möglich und wird vorher abgefragt. Tagesbriefing."
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4627,7 +4775,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "9 DSGVO, weil sich aus deinen Eingaben politische Meinungen ergeben können Animationen reduzieren: Schaltet dekorative Animationen und Übergänge ab — folgt sonst automatisch der Einstellung deines Betriebssystems Transparenz reduzieren: Entfernt durchscheinende Flächen und Unschärfe-Effekte — folgt sonst automatisch der Einstellung deines Betriebssystems Reichweitenmessung steuert die anonyme Statistik mit Umami, die wir auf eigenen Servern in der EU betreiben. Ohne deine Zustimmung wird das Skript gar nicht erst geladen; der Schalter gilt für den Browser, in dem du ihn umlegst. Einwilligung in die KI-Verarbeitung ist die ausdrückliche Einwilligung nach Art. 9 DSGVO: Weil über den Grünerator politische Inhalte entstehen, können sich aus deinen Eingaben politische Meinungen ergeben. Nimmst du sie zurück, fragen wir beim nächsten Aufruf der KI-Funktionen erneut. Animationen reduzieren und Transparenz reduzieren schalten dekorative Bewegung bzw. durchscheinende Flächen und Unschärfe ab — hilfreich bei Reizempfindlichkeit oder auf schwächerer Hardware. Sie gelten auf allen Geräten, an denen du angemeldet bist, und greifen sofort."
+    "text": "Ob dir der Grünerator beim ersten Besuch des Tages zuerst schreibt. Das Tagesbriefing ist aus, bis du es einschaltest, und braucht deine Einwilligung in die KI-Verarbeitung. Tagesbriefing im Chat: Wenn du es einschaltest, schreibt dir der Grünerator beim ersten Besuch des Tages eine kurze Übersicht: deine offenen Aufgaben, was los ist, und eine Idee für heute. Es erscheint als neuer Chat in der Seitenleiste: deine offenen Aufgaben aus den Boards, Schlagzeilen aus Partei und Welt mit Quelle, ein Rückblick auf deine Arbeit und zwei bis vier Ideen für heute. Ein Briefing, auf das du nicht geantwortet hast, wird am nächsten Tag durch das neue ersetzt. Briefe. Absenderangaben für den PDF-Export von Briefen. Du kannst mehrere Briefköpfe anlegen — etwa einen für den Kreisverband und einen für die Fraktion — und beim Export auswählen, welcher oben links erscheint. Genau ein Briefkopf ist der Standard; der Export schlägt ihn vor. Löschst du den Standard, rückt automatisch ein anderer nach. Konnektoren. Externe Dienste, die der Chat mitbenutzen darf. Ist einer verbunden, kannst du ihn im Gespräch ansprechen — wie das im Detail geht, steht unter Konnektoren."
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4635,7 +4783,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Der Link /settings/barrierefreiheit führt weiterhin hierher — bis zum 28.08.2026 war das ein eigener Bereich. Bäume. Dein tägliches Guthaben für alles, was spürbar Rechenleistung braucht: KI-Bilder, Grünerator Voice, den Übersetzer und die Tiefenrecherche. Ein Baum ist die gemeinsame Einheit dahinter — jedes dieser Werkzeuge zeigt an, wie viele dir noch bleiben. Bäume: Dein tägliches Kontingent für Bilder, Sprachausgabe, Übersetzungen und Tiefenrecherche Jedes Konto hat 10 Bäume am Tag; sie werden um Mitternacht (UTC) zurückgesetzt, angezeigt in deiner Ortszeit. Wer den Grünerator-Newsletter abonniert hat, bekommt 5 Bäume mehr — 15 statt 10. Das zählt nur, wenn die abonnierte Adresse dieselbe ist wie die deines Grünerator-Kontos. Ein Baum entspricht einem KI-Bild mit dem Standardmodell (0,5 beim kleinen, 2 beim großen), 3 Minuten Sprachausgabe, 20.000 Zeichen Übersetzung (2,5 für ein ganzes Dokument) oder einer Tiefenrecherche. Auf manchen Instanzen (etwa bgst) ist das Kontingent unbegrenzt. Nutzung. Was dein Konto verbraucht hat — echte Zahlen statt einer abstrakten Quote: KI-Anfragen und Tokens pro Tag, dazu erzeugte Bilder, Transkriptionen und Web-Recherchen."
+    "text": "Konnektoren: Verbundene Dienste, die im Chat als eigene Quelle ansprechbar sind Microsoft 365 (experimentell) verbindet dein OneDrive; danach wählst du Dateien im Chat über die Erwähnung aus. Google Workspace (experimentell) verbindet dein Google Drive. Im Chat öffnet sich dafür die Dateiauswahl von Google; der Grünerator liest nur die Dateien, die du dort auswählst. Immer erlaubte Werkzeuge listet, was du im Chat mit „Immer erlauben\" freigegeben hast — diese Werkzeuge laufen ohne Rückfrage. Entfernst du eines, fragt der Chat vor der nächsten Ausführung wieder nach. Die Liste erscheint erst, wenn es eine solche Freigabe gibt. Wolke. Die Verbindung zur Grünen Wolke (Nextcloud). Über einen Freigabe-Link liest der Grünerator die Dateien eines Ordners — im Chat per Erwähnung, in Notebooks und im Docs-Editor. Er liest nur, er schreibt nichts zurück. Ein Assistent führt durch die Einrichtung. Meine Websites. Eigene Websites verbinden, damit ihre Beiträge in Notebooks zur Verfügung stehen — etwa die Seite deines Kreisverbands als Quelle für Recherche und Textentwürfe. Funktioniert mit WordPress-Websites, deren REST-Schnittstelle öffentlich erreichbar ist."
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4643,7 +4791,23 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Nutzung: Wie viele Anfragen, Tokens, Bilder und Recherchen auf dein Konto gehen Der Zeitraum ist umschaltbar (7, 30 oder 90 Tage); Tabellen schlüsseln den Verbrauch nach Bereich und nach Modell auf. Hier gibt es nichts einzustellen — der Bereich zeigt nur an. Automatische Hintergrundprozesse zählen nicht mit. Support. Kontaktwege, wenn etwas klemmt oder dir etwas fehlt: der Chat-Kanal der Community und eine E-Mail-Adresse. Hier gibt es nichts einzustellen. Support: Wo du Hilfe bekommst und Rückmeldung loswirst"
+    "text": "Die Kategorien der Website werden einmal abgefragt und stehen danach überall zur Auswahl. Antragsgrün. Die Antragsgrün-Seiten, die der Grünerator für dich auf antragsgruen.de angelegt hat (experimentell). Solange er dort Admin ist, kann er im Chat Anträge einreichen und die Tagesordnung pflegen — jeweils erst, wenn du bestätigst. Der Bereich erscheint nur, wo der Grünerator Antragsgrün-Seiten anlegen kann oder du schon eine hast. Antragsgrün lässt den Grünerator sich nicht selbst austragen. Zugriff entziehen zeigt, welches Konto du in der Personenverwaltung deiner Seite entfernst, und prüft danach, ob der Zugriff weg ist. Aus der Liste entfernen löscht nur unseren Eintrag: Der Grünerator speichert danach nichts mehr über die Seite, die Seite selbst bleibt bestehen. Umfragen. Die Umfragen und Terminfindungen, die der Grünerator für dich auf nuudel.digitalcourage.de angelegt hat (experimentell). Im Chat kann er ihr Ergebnis lesen, zum Beispiel welcher Termin am besten passt, und sie nach deiner Freigabe ändern oder löschen. Öffnen führt zur Umfrage, wie die Teilnehmenden sie sehen; Verwalten zur Admin-Seite bei nuudel, auf der du die Umfrage bearbeitest, exportierst oder löschst."
+  },
+  {
+    "url": "/docs/sonstiges/einstellungen",
+    "pageTitle": "Einstellungen",
+    "heading": "Die Bereiche im Einzelnen",
+    "anchor": "#die-bereiche-im-einzelnen",
+    "category": "Sonstiges",
+    "text": "Aus der Liste entfernen löscht nur unseren Eintrag: Der Grünerator vergisst den Admin-Link, die Umfrage bleibt bei nuudel bestehen, bis sie abläuft. Nutzung. Dein Stand heute und was du mit dem Grünerator gemacht hast: oben die Bäume, darunter deine Werke über die gesamte Zeit und der KI-Verbrauch der letzten 7, 30 oder 90 Tage — Anfragen, Bilder, Transkriptionen, Web-Recherchen und Sprachausgabe. Bäume: Dein tägliches Kontingent für Bilder, Sprachausgabe, Übersetzungen und Tiefenrecherche Nutzung: Was du erstellt hast und wie viele Anfragen, Bilder und Recherchen auf dein Konto gehen Bäume sind dein tägliches Guthaben für alles, was spürbar Rechenleistung braucht: KI-Bilder, Grünerator Voice, den Übersetzer und die Tiefenrecherche. Jedes Konto hat 10 Bäume am Tag; sie werden um Mitternacht (UTC) zurückgesetzt, angezeigt in deiner Ortszeit. Wer den Grünerator-Newsletter abonniert hat, bekommt 5 Bäume mehr — 15 statt 10. Das zählt nur, wenn die abonnierte Adresse dieselbe ist wie die deines Grünerator-Kontos."
+  },
+  {
+    "url": "/docs/sonstiges/einstellungen",
+    "pageTitle": "Einstellungen",
+    "heading": "Die Bereiche im Einzelnen",
+    "anchor": "#die-bereiche-im-einzelnen",
+    "category": "Sonstiges",
+    "text": "Ein Baum entspricht einem KI-Bild mit dem Standardmodell (0,5 beim kleinen, 2 beim großen), 3 Minuten Sprachausgabe, 20.000 Zeichen Übersetzung (2,5 für ein ganzes Dokument) oder einer Tiefenrecherche. Auf manchen Instanzen (etwa bgst) ist das Kontingent unbegrenzt. Der Vergleich mit ChatGPT zeigt, wie viel CO₂ und Strom dieselbe Textarbeit dort gekostet hätte; „So rechnen wir\" klappt die Herleitung auf. Welche Modelle und Anbieter dahinter arbeiten, steht auf der Transparenz-Seite, nicht hier. Hier gibt es nichts einzustellen — der Bereich zeigt nur an. Automatische Hintergrundprozesse zählen nicht mit. Der Link /settings/baeume führt weiterhin hierher. Support. Kontaktwege, wenn etwas klemmt oder dir etwas fehlt: der Chat-Kanal der Community und eine E-Mail-Adresse. Hier gibt es nichts einzustellen. Support: Wo du Hilfe bekommst und Rückmeldung loswirst"
   },
   {
     "url": "/docs/sonstiges/einstellungen",

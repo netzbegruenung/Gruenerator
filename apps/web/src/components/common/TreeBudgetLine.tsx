@@ -43,7 +43,7 @@ export interface TreeBudgetChipProps {
  * Below this many Bäume left the chip shows up; above it, it stays away. At 10
  * Bäume a day and ~0,01 for a short text the remaining count is almost always
  * beside the point, and a number nobody needs still takes the eye every time.
- * The full balance is in Einstellungen → Bäume either way.
+ * The full balance is in Einstellungen → Nutzung either way.
  */
 export const TREE_CHIP_THRESHOLD = 5;
 

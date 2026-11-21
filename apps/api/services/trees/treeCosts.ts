@@ -49,3 +49,6 @@ const treeFormat = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 });
 export function formatTrees(units: number): string {
   return treeFormat.format(unitsToTrees(units));
 }
+
+/** One correction round with Gemma: a tenth of a Baum. Direct changes are free. */
+export const TREE_COST_VIDEO_AI_REVISION = 10;

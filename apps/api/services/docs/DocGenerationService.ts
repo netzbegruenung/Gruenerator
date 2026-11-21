@@ -11,7 +11,7 @@ const log = createLogger('DocGeneration');
 // content is not BlockNote HTML (boards/sheets/presentations seed their own
 // Y.Doc layouts).
 const DOC_SUBTYPES = COLLAB_SUBTYPES.filter(
-  (s) => s !== 'boards' && s !== 'sheets' && s !== 'presentations'
+  (s) => s !== 'boards' && s !== 'sheets' && s !== 'presentations' && s !== 'video'
 );
 
 export const DOCUMENT_GENERATION_PROMPT = `Du bist ein Dokument-Assistent für die Grünen. Erstelle ein vollständiges Dokument basierend auf der Beschreibung.

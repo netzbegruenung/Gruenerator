@@ -4,6 +4,6 @@
  * damit `config/systemCollectionsConfig.ts` den Typ ziehen kann, ohne die
  * Adapter (und deren Importe aus der Config) mitzuladen.
  */
-export const REMOTE_SOURCE_IDS = ['bundestag-wrapped'] as const;
+export const REMOTE_SOURCE_IDS = ['bundestag-wrapped', 'bundesrat-wrapped'] as const;
 
 export type RemoteSourceId = (typeof REMOTE_SOURCE_IDS)[number];

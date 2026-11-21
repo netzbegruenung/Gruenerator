@@ -99,8 +99,13 @@ const GroupDetailSection = memo(
     const { addLink, updateLink, deleteLink, isAddingLink, isUpdatingLink } =
       useGroupLinks(groupId);
 
-    const { groupContent, isLoadingGroupContent, unshareContent, refetchGroupContent } =
-      useGroupSharing(groupId, { isActive: true });
+    const {
+      groupContent,
+      isLoadingGroupContent,
+      unshareContent,
+      setShareWrite,
+      refetchGroupContent,
+    } = useGroupSharing(groupId, { isActive: true });
 
     // Web keeps the raw bucket envelope in the query (`useGroupSharing`); the
     // feed and „Alle" read the flattened, pin-aware list derived from it.
@@ -311,10 +316,29 @@ const GroupDetailSection = memo(
           feedItems={feedItems}
           isLoadingSharedContent={isLoadingGroupContent}
           onUnshareContent={(contentId, contentType) => {
-            if (window.confirm('Inhalt aus der Gruppe entfernen?')) {
-              unshareContent.mutate({ contentId, contentType });
-            }
+            if (!window.confirm('Aus dem Projekt entfernen?')) return;
+            unshareContent.mutate(
+              { contentId, contentType },
+              {
+                onSuccess: () => onSuccessMessage('Aus dem Projekt entfernt.'),
+                onError: (error) => onErrorMessage(error.message),
+              }
+            );
           }}
+          onSetShareWrite={(contentId, write) =>
+            setShareWrite.mutate(
+              { contentId, write },
+              {
+                onSuccess: () =>
+                  onSuccessMessage(
+                    write
+                      ? 'Mitglieder können jetzt bearbeiten.'
+                      : 'Mitglieder können jetzt nur lesen.'
+                  ),
+                onError: (error) => onErrorMessage(error.message),
+              }
+            )
+          }
           refetchSharedContent={refetchGroupContent}
           onUploadAvatar={(file) => uploadAvatar(file)}
           onDeleteAvatar={() => deleteAvatar()}

@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+import { MockLanguageModelV4 } from 'ai/test';
+
 import { runAgenticLoop, type LoopDeps, type LoopEngineParams } from './loopEngine.js';
 
 /**
@@ -296,6 +298,127 @@ describe('tool phase stall guard (unified)', () => {
 
     expect(out.text).toBe('Ich erstelle das PDF. Fertig.');
   });
+
+  /** Text, dann `gapMs` Stille ohne laufenden Aufruf (Mistral schreibt ein
+   *  Werkzeugargument), dann der Rest. */
+  const silentArgumentStream = (gapMs: number) => () =>
+    ({
+      stream: (async function* () {
+        yield { type: 'text-delta', text: 'Entwurf. ' };
+        await sleep(gapMs);
+        yield { type: 'text-delta', text: 'Fertig.' };
+        yield { type: 'finish', finishReason: 'stop' };
+      })(),
+    }) as unknown as ReturnType<LoopDeps['streamText']>;
+
+  it('lässt Mistral ein stumm geschriebenes Werkzeugargument zu Ende schreiben', async () => {
+    const mistral = {
+      id: 'synth',
+      provider: 'mistral.chat',
+    } as unknown as LoopEngineParams['model'];
+    const { deps } = depsFor({ synth: silentArgumentStream(60_000) });
+
+    const running = runAgenticLoop(
+      unified({ model: mistral, toolActivity: { inFlight: () => 0 } }),
+      deps
+    );
+    await vi.advanceTimersByTimeAsync(61_000);
+    const out = await running;
+
+    expect(out.text).toBe('Entwurf. Fertig.');
+  });
+
+  it('lässt Panda ein stumm geschriebenes Werkzeugargument zu Ende schreiben', async () => {
+    const panda = {
+      id: 'synth',
+      provider: 'melious.chat',
+      modelId: 'deepseek-v4.1-flash',
+    } as unknown as LoopEngineParams['model'];
+    const { deps } = depsFor({ synth: silentArgumentStream(60_000) });
+
+    const running = runAgenticLoop(
+      unified({ model: panda, toolActivity: { inFlight: () => 0 } }),
+      deps
+    );
+    await vi.advanceTimersByTimeAsync(61_000);
+    const out = await running;
+
+    expect(out.text).toBe('Entwurf. Fertig.');
+  });
+
+  it('reisst andere Anbieter weiter nach 45 s Stille ab', async () => {
+    const melious = {
+      id: 'synth',
+      provider: 'melious.chat',
+    } as unknown as LoopEngineParams['model'];
+    const { deps } = depsFor({ synth: silentArgumentStream(60_000) });
+
+    const running = runAgenticLoop(
+      unified({ model: melious, toolActivity: { inFlight: () => 0 } }),
+      deps
+    ).catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(61_000);
+    const err = await running;
+
+    expect((err as Error).name).toBe('TimeoutError');
+  });
+
+  /** Kein Wort vor dem Aufruf: das SDK liefert bis zum fertigen Argument
+   *  keinen einzigen Teil (gemessen 19.11.2026). */
+  const silentFromTheStart = (gapMs: number) => () =>
+    ({
+      stream: (async function* () {
+        await sleep(gapMs);
+        yield { type: 'text-delta', text: 'Fertig.' };
+        yield { type: 'finish', finishReason: 'stop' };
+      })(),
+    }) as unknown as ReturnType<LoopDeps['streamText']>;
+
+  it('Panda bekommt keine 8-s-Erstantwort-Frist, auch mit Ausweich dahinter', async () => {
+    const panda = {
+      id: 'synth',
+      provider: 'melious.chat',
+      modelId: 'deepseek-v4.1-flash',
+    } as unknown as LoopEngineParams['model'];
+    const { deps, seen } = depsFor({
+      synth: silentFromTheStart(30_000),
+      fallback: () => streamOf([{ type: 'text-delta', text: 'ZU_FRUEH' }]),
+    });
+    const onLaneUnhealthy = vi.fn();
+
+    const running = runAgenticLoop(
+      unified({
+        model: panda,
+        fallbackModels: [fallbackModel],
+        toolActivity: { inFlight: () => 0 },
+        onLaneUnhealthy,
+      }),
+      deps
+    );
+    await vi.advanceTimersByTimeAsync(31_000);
+    const out = await running;
+
+    expect(out.text).toBe('Fertig.');
+    expect(seen).toEqual(['synth']);
+    expect(onLaneUnhealthy).not.toHaveBeenCalled();
+  });
+
+  it('andere Lanes mit Ausweich wechseln weiter nach 8 s ohne Antwort', async () => {
+    const { deps, seen } = depsFor({
+      synth: silentFromTheStart(30_000),
+      fallback: () => streamOf([{ type: 'text-delta', text: 'VOM_AUSWEICH' }]),
+    });
+
+    const running = runAgenticLoop(
+      unified({ fallbackModels: [fallbackModel], toolActivity: { inFlight: () => 0 } }),
+      deps
+    );
+    await vi.advanceTimersByTimeAsync(31_000);
+    const out = await running;
+
+    expect(out.text).toBe('VOM_AUSWEICH');
+    expect(seen).toEqual(['synth', 'fallback']);
+  });
 });
 
 /**
@@ -353,5 +476,192 @@ describe('synth empty guard', () => {
     expect(out.text).toBe('ANTWORT');
     expect(onRepairWriterUnhealthy).not.toHaveBeenCalled();
     expect(seen).toEqual(['synth', 'repair']);
+  });
+});
+
+/**
+ * The SDK reports an abort as a stream part and then closes the stream
+ * normally (ai v7). The loop read that as a finished answer: a half text
+ * without the truncation note (#5365), an empty one as „keine passende
+ * Antwort" (#5422). It must reach the caller as an abort.
+ */
+describe('abort part', () => {
+  const unified = (over: Partial<LoopEngineParams> = {}): LoopEngineParams => {
+    const { repairModel: _repair, ...rest } = params(over);
+    return rest;
+  };
+
+  it('throws an AbortError when the hard cap cuts a half answer', async () => {
+    const { deps } = depsFor({
+      synth: () =>
+        streamOf([
+          { type: 'text-delta', text: 'Frage 3: Wir wollen die Konzentration' },
+          { type: 'abort' },
+        ]),
+    });
+    const onText = vi.fn();
+
+    const err = await runAgenticLoop(unified({ onText }), deps).catch((e: unknown) => e);
+
+    expect((err as Error).name).toBe('AbortError');
+    expect(onText.mock.calls.flat().join('')).toBe('Frage 3: Wir wollen die Konzentration');
+  });
+
+  it('throws an AbortError when nothing was written yet', async () => {
+    const { deps } = depsFor({ synth: () => streamOf([{ type: 'abort' }]) });
+
+    const err = await runAgenticLoop(unified(), deps).catch((e: unknown) => e);
+
+    expect((err as Error).name).toBe('AbortError');
+  });
+
+  it('does not move to the next lane after an abort', async () => {
+    const { deps, seen } = depsFor({
+      synth: () => streamOf([{ type: 'abort' }]),
+      fallback: () => streamOf([{ type: 'text-delta', text: 'ZU_SPAET' }]),
+    });
+
+    await runAgenticLoop(unified({ fallbackModels: [fallbackModel] }), deps).catch(() => null);
+
+    expect(seen).toEqual(['synth']);
+  });
+});
+
+/**
+ * Reasoning counts as liveness, but not forever (#5422): Large 4 thought for
+ * five minutes without a word and ran into the hard cap, and because the
+ * reasoning counted as output the next lane was never tried.
+ */
+describe('reasoning run budget', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  const unified = (over: Partial<LoopEngineParams> = {}): LoopEngineParams => {
+    const { repairModel: _repair, ...rest } = params(over);
+    return rest;
+  };
+
+  /** Without tools mounted the unified window is 35 s (see above). */
+  const CEILING_MS = 35_000;
+
+  /** Thinks one delta per second for `ms`, then answers (or never stops). */
+  const thinkingFor = (ms: number) => () =>
+    ({
+      stream: (async function* () {
+        for (let t = 0; t < ms; t += 1_000) {
+          await sleep(1_000);
+          yield { type: 'reasoning-delta', text: '… ' };
+        }
+        yield { type: 'text-delta', text: 'NACH_LANGEM_DENKEN' };
+        yield { type: 'finish', finishReason: 'stop' };
+      })(),
+    }) as unknown as ReturnType<LoopDeps['streamText']>;
+
+  it('hands an endlessly thinking lane to the next one', async () => {
+    const { deps, seen } = depsFor({
+      synth: thinkingFor(Number.POSITIVE_INFINITY),
+      fallback: () => streamOf([{ type: 'text-delta', text: 'ANTWORT_VOM_AUSWEICH' }]),
+    });
+    const onLaneUnhealthy = vi.fn();
+
+    const running = runAgenticLoop(
+      unified({ fallbackModels: [fallbackModel], onLaneUnhealthy }),
+      deps
+    );
+    await vi.advanceTimersByTimeAsync(120_000 + CEILING_MS + 2_000);
+    const out = await running;
+
+    expect(out.text).toBe('ANTWORT_VOM_AUSWEICH');
+    expect(seen).toEqual(['synth', 'fallback']);
+    expect(onLaneUnhealthy).toHaveBeenCalledWith(0, 'stall');
+  });
+
+  it('reports a timeout when the last lane only thinks', async () => {
+    const { deps } = depsFor({ synth: thinkingFor(Number.POSITIVE_INFINITY) });
+
+    const running = runAgenticLoop(unified(), deps).catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(120_000 + CEILING_MS + 2_000);
+    const err = await running;
+
+    expect((err as Error).name).toBe('TimeoutError');
+  });
+
+  it('lets a long but finite thought finish within budget plus window', async () => {
+    const { deps, seen } = depsFor({
+      synth: thinkingFor(140_000),
+      fallback: () => streamOf([{ type: 'text-delta', text: 'ZU_FRUEH' }]),
+    });
+
+    const running = runAgenticLoop(unified({ fallbackModels: [fallbackModel] }), deps);
+    await vi.advanceTimersByTimeAsync(142_000);
+    const out = await running;
+
+    expect(out.text).toBe('NACH_LANGEM_DENKEN');
+    expect(seen).toEqual(['synth']);
+  });
+
+  it('starts the budget over after a tool call', async () => {
+    const { deps } = depsFor({
+      synth: () =>
+        ({
+          stream: (async function* () {
+            for (let t = 0; t < 100_000; t += 1_000) {
+              await sleep(1_000);
+              yield { type: 'reasoning-delta', text: '… ' };
+            }
+            yield { type: 'tool-call', toolName: 'web_search' };
+            yield { type: 'tool-result', toolName: 'web_search' };
+            for (let t = 0; t < 100_000; t += 1_000) {
+              await sleep(1_000);
+              yield { type: 'reasoning-delta', text: '… ' };
+            }
+            yield { type: 'text-delta', text: 'ZWEI_SCHRITTE' };
+            yield { type: 'finish', finishReason: 'stop' };
+          })(),
+        }) as unknown as ReturnType<LoopDeps['streamText']>,
+    });
+
+    const running = runAgenticLoop(unified(), deps);
+    await vi.advanceTimersByTimeAsync(202_000);
+    const out = await running;
+
+    expect(out.text).toBe('ZWEI_SCHRITTE');
+  });
+});
+
+/**
+ * Against the real `streamText`, so the tests above do not rest on a guess
+ * about the SDK: an aborted turn arrives as an `abort` part on a stream that
+ * then closes normally.
+ */
+describe('abort part — real SDK stream', () => {
+  it('turns the hard cap into an AbortError and keeps the half text', async () => {
+    const controller = new AbortController();
+    const realModel = new MockLanguageModelV4({
+      doStream: async () => ({
+        stream: new ReadableStream({
+          start(c) {
+            c.enqueue({ type: 'stream-start', warnings: [] });
+            c.enqueue({ type: 'text-start', id: 't' });
+            c.enqueue({ type: 'text-delta', id: 't', delta: 'Halber Satz' });
+            // Then the provider hangs — no finish, no close.
+          },
+        }),
+      }),
+    });
+    const onText = vi.fn((d: string) => {
+      if (d.includes('Halber')) setTimeout(() => controller.abort(), 0);
+    });
+    const { repairModel: _repair, ...unified } = params({
+      model: realModel,
+      messages: [{ role: 'user', content: 'Frage' }],
+      onText,
+      abortSignal: controller.signal,
+    });
+
+    const err = await runAgenticLoop(unified).catch((e: unknown) => e);
+
+    expect((err as Error).name).toBe('AbortError');
+    expect(onText.mock.calls.flat().join('')).toBe('Halber Satz');
   });
 });

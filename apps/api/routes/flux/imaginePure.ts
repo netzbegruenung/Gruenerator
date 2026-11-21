@@ -27,6 +27,9 @@ import { createLogger } from '../../utils/logger.js';
 import { applyKiLabel } from '../sharepic/sharepic_canvas/imagine_label_canvas.js';
 
 const log = createLogger('imaginePure');
+
+export const EDIT_PHOTO_MISSING =
+  'Dafür brauche ich dein Foto. Häng es an und schreib dazu, was ich daran ändern soll.';
 const router = express.Router();
 
 // ============================================================================
@@ -189,6 +192,17 @@ router.post(
       // (realistic unless asked otherwise) and the format. Explicit values always win.
       const needsSetup = !rawVariant || !(width && height);
       const setup = needsSetup ? await inferImageSetup(prompt.trim()) : null;
+      // „Bearbeite ein Bild von mir" without a photo describes nothing to paint: FLUX would make
+      // an unrelated image from the sentence and book it. Ask for the photo before any booking.
+      if (setup?.request === 'edit_photo') {
+        log.debug('[ImaginePure] Edit request without a photo, asking for the photo');
+        return res.status(422).json({
+          success: false,
+          error: EDIT_PHOTO_MISSING,
+          type: 'needs_image',
+          retryable: false,
+        });
+      }
       const selectedVariant: PureImageVariant = rawVariant ?? setup?.style ?? 'realistic-pure';
       const inferredSize = setup ? getImageFormat(setup.format) : null;
 

@@ -7,9 +7,11 @@ import { validateBody, type TypedRequest } from '../../middleware/validateBody.j
 const router = Router();
 const db = getPostgresInstance();
 
+const MIN_QUERY_LENGTH = 2;
+
 /**
  * @route   GET /api/users/search
- * @desc    Search for users by name or email
+ * @desc    Search for users by name (substring) or exact email
  * @access  Private
  */
 router.get('/search', async (req: Request, res: Response) => {
@@ -25,15 +27,23 @@ router.get('/search', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Query parameter "q" is required' });
     }
 
-    // Search users by display name or email
-    const searchPattern = `%${q}%`;
+    const term = q.trim();
+    if (term.length < MIN_QUERY_LENGTH) {
+      return res.json([]);
+    }
+
+    // Names match by substring; email only by exact (case-insensitive) address,
+    // and the address is only returned for such an exact match.
+    const escaped = term.replace(/[\\%_]/g, '\\$&');
     const users = await db.query(
-      `SELECT id, email, display_name, avatar_url
+      `SELECT id,
+              CASE WHEN LOWER(email) = LOWER($2) THEN email ELSE NULL END AS email,
+              display_name, avatar_url
        FROM profiles
-       WHERE (LOWER(display_name) LIKE LOWER($1) OR LOWER(email) LIKE LOWER($1))
-         AND id != $2
+       WHERE (LOWER(display_name) LIKE LOWER($1) OR LOWER(email) = LOWER($2))
+         AND id != $3
        LIMIT 10`,
-      [searchPattern, userId]
+      [`%${escaped}%`, term, userId]
     );
 
     return res.json(users);

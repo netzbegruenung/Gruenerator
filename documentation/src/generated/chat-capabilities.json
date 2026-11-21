@@ -3,6 +3,7 @@
     "abgeordnetenhaus",
     "abgeordnetenwatch",
     "agentic",
+    "antragsgruen",
     "artifact",
     "bundestag",
     "chart",
@@ -51,6 +52,12 @@
       "mention": "@abgeordnetenwatch",
       "audience": "de-DE"
     },
+    "antragsgruen": {
+      "title": "Antragsgrün NRW",
+      "description": "Anträge, Änderungsanträge und Beschlüsse der Parteitage der GRÜNEN NRW",
+      "mention": "@antragsgruennrw",
+      "audience": "de-DE"
+    },
     "board-erstellen": {
       "title": "Board erstellen",
       "description": "Erstellt ein Board aus dem Chatverlauf",
@@ -61,11 +68,6 @@
       "description": "Drucksachen, Beschlüsse und Debatten finden und belegt auswerten",
       "mention": "@bundestag",
       "audience": "de-DE"
-    },
-    "canva-trigger": {
-      "title": "Canva",
-      "description": "Eigene Canva-Designs einfügen",
-      "mention": "@canva"
     },
     "chart": {
       "title": "Diagramm",
@@ -199,9 +201,13 @@
     }
   },
   "userTools": {
+    "atlassian": {
+      "label": "Jira & Confluence",
+      "description": "Sucht und liest Jira-Issues und Confluence-Seiten aus den verbundenen Atlassian-Konten — ausschließlich lesend."
+    },
     "cloud_files": {
-      "label": "Wolke",
-      "description": "Durchsucht die verbundenen Wolke-Ordner, listet Dateien auf und liest sie — ausschließlich lesend."
+      "label": "Dateiablagen",
+      "description": "Durchsucht die verbundenen Ablagen (Wolke, OneDrive, Google Drive), listet Dateien auf und liest sie — ausschließlich lesend."
     },
     "examples": {
       "label": "Social-Media-Beispiele",
@@ -802,6 +808,21 @@
       "avatar": "🧳",
       "category": "dokumente",
       "audience": "de-DE"
+    },
+    {
+      "command": "@antragsgruen-seite",
+      "title": "Antragsgrün-Seite anlegen (Experimentell)",
+      "description": "Legt für eine Versammlung eine eigene Antragsgrün-Seite auf antragsgruen.de an und trägt dich als Seiten-Admin ein. Nutzen, wenn für einen Parteitag, eine KMV oder MV ein Antragstool gebraucht wird (experimentell).",
+      "avatar": "🗳️",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@nuudel",
+      "title": "Terminumfrage mit nuudel (Experimentell)",
+      "description": "Terminumfrage (wie Doodle) oder Abstimmung auf nuudel.digitalcourage.de anlegen, auswerten, ändern und löschen. Nutzen, wenn eine Gruppe einen gemeinsamen Termin finden oder zwischen Vorschlägen wählen soll.",
+      "avatar": "📅",
+      "category": "sonstiges"
     }
   ],
   "skillCategoryLabels": {

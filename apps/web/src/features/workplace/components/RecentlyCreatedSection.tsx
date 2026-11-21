@@ -524,7 +524,8 @@ const RecentlyCreatedSection = memo(({ headerAction }: { headerAction?: React.Re
   const visibleCount = columns * (expanded ? EXPANDED_ROWS : COLLAPSED_ROWS);
   const [shareDoc, setShareDoc] = useState<{ id: string; title: string } | null>(null);
 
-  const { deleteBoard } = useBoardsTyped({ enabled: true });
+  // Only the delete mutation is used here; the board list is not read, so it must not be fetched.
+  const { deleteBoard } = useBoardsTyped({ enabled: false });
 
   const handleDelete = useCallback(
     (item: RecentItem) => {

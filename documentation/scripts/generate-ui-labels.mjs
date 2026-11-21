@@ -31,7 +31,7 @@ const REPO_ROOT = path.resolve(HERE, '../..'); // documentation/scripts → repo
 // it, because the docs CI installs only `@gruenerator/documentation...`.
 const requireFromDocs = createRequire(path.join(REPO_ROOT, 'documentation/package.json'));
 const editorFile = (subpath) =>
-  path.relative(REPO_ROOT, requireFromDocs.resolve(`@ggraphic/editor/${subpath}`));
+  path.relative(REPO_ROOT, requireFromDocs.resolve(`@ggraphic/editor/internal/${subpath}`));
 const OUT_FILE = path.join(REPO_ROOT, 'documentation/src/generated/ui-labels.json');
 
 // group → source file (relative to repo root). The group namespaces ids so the
@@ -45,6 +45,7 @@ const SOURCES = [
   { group: 'canvas', file: 'packages/canvas-editor/src/configs/freeform_full.config.tsx' },
   { group: 'canvas', file: 'packages/canvas-editor/src/configs/commonSections.ts' },
   { group: 'canvas', file: 'packages/canvas-editor/src/components/CanvasEditor/vorlagenTab.ts' },
+  { group: 'canvas', file: 'packages/canvas-editor/src/components/CanvasEditor/designTab.ts' },
 ];
 
 function stringProp(obj, name) {
@@ -145,9 +146,10 @@ function generate() {
   // button fails here instead of leaving a label for nothing. The icon is not
   // checked: it is the editor's choice and changes with it.
   const downloads = [];
-  // The dist is compiled JSX: `_jsx(IconButton, { label: t.shell.downloadTab, … })`.
+  // The dist is compiled JSX: `_jsx(ShareTile, { label: t.shell.downloadTab, … })`
+  // (an `IconButton` before @ggraphic/editor 0.1.0-alpha.14).
   walk(parse(editorFile('components/TopBar/ShareDropdown')), (node) => {
-    if (!ts.isCallExpression(node) || node.arguments[0]?.getText() !== 'IconButton') return;
+    if (!ts.isCallExpression(node) || node.arguments[0]?.getText() !== 'ShareTile') return;
     const props = node.arguments[1];
     if (!props || !ts.isObjectLiteralExpression(props)) return;
     const label = props.properties.find(
@@ -162,7 +164,7 @@ function generate() {
   });
   if (downloads.length !== 1) {
     throw new Error(
-      'Expected one Download IconButton labelled t.shell.downloadTab in ShareDropdown'
+      'Expected one Download ShareTile labelled t.shell.downloadTab in ShareDropdown'
     );
   }
   const downloadTitle = shell && stringProp(shell, 'downloadTab');

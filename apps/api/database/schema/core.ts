@@ -77,6 +77,7 @@ export const profiles = pgTable(
     proactive_briefing_enabled: boolean('proactive_briefing_enabled').notNull().default(false),
     /** „Panda" lane unlock; null = instance default. See services/user/pandaEntitlement.ts. */
     panda_enabled: boolean('panda_enabled'),
+    sites_unlocked: boolean('sites_unlocked'),
     feedback_button: text('feedback_button').notNull().default('text'),
     reduce_motion: boolean('reduce_motion').notNull().default(false),
     reduce_transparency: boolean('reduce_transparency').notNull().default(false),

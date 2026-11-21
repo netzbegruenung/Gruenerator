@@ -52,6 +52,7 @@ export {
   explainablesContract,
   publicExplainablesContract,
   podcastsContract,
+  videoAiContract,
   sharesContract,
   sharesReadContract,
   userProfileContract,
@@ -60,6 +61,8 @@ export {
   wolkePendingContract,
   notebookWordpressContract,
   userWebsitesContract,
+  antragsgruenSitesContract,
+  nuudelPollsContract,
   letterheadsContract,
   notebookSharingContract,
   docsContract,
@@ -91,6 +94,9 @@ export {
   sharedTemplateContract,
   templateInteractionsContract,
   studioAssetsContract,
+  mediaImportContract,
+  parteitageContract,
+  parteitageAdminContract,
   marketplaceContract,
   userAgentsContract,
   userAgentsSharingContract,
@@ -110,6 +116,7 @@ export {
   recurringTasksContract,
   briefingContract,
   canvasContract,
+  videoProjectsContract,
   groupsContract,
   contentSyncContract,
   monitorContract,
@@ -125,7 +132,10 @@ export * from './schemas/threads.js';
 export * from './schemas/chatThreadSharing.js';
 export * from './schemas/explainables.js';
 export * from './schemas/podcasts.js';
+export * from './schemas/videoAi.js';
 export * from './schemas/studioAssets.js';
+export * from './schemas/mediaImport.js';
+export * from './schemas/parteitage.js';
 export * from './schemas/marketplace.js';
 export * from './schemas/textForm.js';
 export * from './schemas/exports.js';
@@ -178,6 +188,8 @@ export * from './schemas/notebookCollections.js';
 export * from './schemas/wolkePending.js';
 export * from './schemas/notebookWordpress.js';
 export * from './schemas/userWebsite.js';
+export * from './schemas/antragsgruenSites.js';
+export * from './schemas/nuudelPolls.js';
 export * from './schemas/letterhead.js';
 export * from './schemas/notebookSharing.js';
 export * from './schemas/docs.js';
@@ -220,6 +232,7 @@ export * from './schemas/recurringTasks.js';
 export * from './schemas/briefing.js';
 export * from './schemas/canvasAi.js';
 export * from './schemas/canvas.js';
+export * from './schemas/videoProjects.js';
 export * from './schemas/canvasTemplateDescriptors.js';
 export * from './schemas/canvasTemplateFields.js';
 export * from './schemas/sliderDeck.js';
@@ -228,7 +241,9 @@ export * from './schemas/agent.js';
 export * from './schemas/groups.js';
 export * from './schemas/contentSync.js';
 export * from './schemas/monitor.js';
+export * from './schemas/siteDraft.js';
 export * from './schemas/sites.js';
+export * from './schemas/siteGeneration.js';
 export * from './schemas/texte.js';
 export * from './schemas/richtext.js';
 export * from './schemas/reisekosten.js';
@@ -240,6 +255,7 @@ export * from './sheetsYdoc.js';
 // Presentations (reveal.js) collab schema + pure formatting helpers —
 // reveal-free, shared by the editor package and the API.
 export * from './presentationsYdoc.js';
+export * from './canvasHostKeys.js';
 export * from './presentationBrand.js';
 
 export * from './schemas/scanner.js';

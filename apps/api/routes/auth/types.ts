@@ -132,11 +132,6 @@ export const groupJoinSchema = z.object({
 });
 export type GroupJoinBody = z.infer<typeof groupJoinSchema>;
 
-export const groupInstructionsUpdateSchema = z.object({
-  instructions: z.string(),
-});
-export type GroupInstructionsUpdateBody = z.infer<typeof groupInstructionsUpdateSchema>;
-
 const VALID_CONTENT_TYPES = [
   'documents',
   'custom_generators',

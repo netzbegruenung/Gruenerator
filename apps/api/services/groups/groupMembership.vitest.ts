@@ -74,12 +74,24 @@ describe('listShareTargetGroups', () => {
 
   it('hides the system group from non-admins', async () => {
     query.mockResolvedValue(rows);
-    expect(await listShareTargetGroups('u')).toEqual([{ id: 'g1', name: 'Klima', role: 'admin' }]);
+    expect(await listShareTargetGroups('u')).toEqual([
+      { id: 'g1', name: 'Klima', role: 'admin', team: true },
+    ]);
   });
 
   it('offers the system group to instance admins', async () => {
     query.mockResolvedValue(rows);
     isInstanceAdmin.mockResolvedValue(true);
     expect((await listShareTargetGroups('u')).map((g) => g.id)).toEqual(['sys', 'g1']);
+  });
+
+  it('marks team projects, not personal ones or the system project', async () => {
+    query.mockResolvedValue([
+      ...rows,
+      { id: 'me', name: 'Meins', role: 'admin', is_system: false, group_type: 'personal' },
+    ]);
+    isInstanceAdmin.mockResolvedValue(true);
+    const team = Object.fromEntries((await listShareTargetGroups('u')).map((g) => [g.id, g.team]));
+    expect(team).toEqual({ sys: false, g1: true, me: false });
   });
 });

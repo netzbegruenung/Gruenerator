@@ -98,7 +98,7 @@ Unter all diesen Funktionen liegt ein Fundament aus bewährten Open-Source-Baust
 
 [GitHub](https://github.com/facebook/react) · [NPM](https://www.npmjs.com/package/react)
 
-**Tauri** verwandelt den Grünerator in eine echte Desktop-App für Windows und Mac. Anders als ältere Lösungen ist Tauri in der Programmiersprache Rust geschrieben und nutzt den im Betriebssystem vorhandenen Browser – dadurch werden die Programme deutlich kleiner und sparsamer. Es kümmert sich außerdem um Dinge wie automatische Updates und Benachrichtigungen.
+**Tauri** verwandelt den Grünerator in eine echte Desktop-App für Windows, Mac und Linux. Anders als ältere Lösungen ist Tauri in der Programmiersprache Rust geschrieben und nutzt den im Betriebssystem vorhandenen Browser – dadurch werden die Programme deutlich kleiner und sparsamer. Es kümmert sich außerdem um Dinge wie automatische Updates und Benachrichtigungen.
 
 [GitHub](https://github.com/tauri-apps/tauri) · [NPM](https://www.npmjs.com/package/@tauri-apps/api)
 

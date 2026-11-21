@@ -349,10 +349,9 @@ function proseGoesToLoop(intent: string): boolean {
 }
 
 /**
- * Das Gegenstück zu `loopDemotedFromRetrieval`: ein Prosa-Verdikt, das nur in
- * den Loop gerutscht ist, behält sein Verdikt für die Modellwahl (Lane und
- * Denkstufe der Prosa-Zeile in `AUTO_POLICY`). Routing, Werkzeuge und
- * `forceFirstToolCall` sehen weiter `agentic`.
+ * Ein Prosa-Verdikt, das nur in den Loop gerutscht ist, behält sein Verdikt
+ * für die Modellwahl (Lane und Denkstufe der Prosa-Zeile in `AUTO_POLICY`).
+ * Routing und Werkzeuge sehen weiter `agentic`.
  */
 function proseOrigin(intent: SearchIntent): Partial<ChatGraphState> {
   return proseGoesToLoop(intent) ? { loopDemotedFromProse: intent } : {};
@@ -1116,11 +1115,39 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // Artefaktarten, nur an der frühesten Stufe, wo sie am meisten kostet: was
     // Tier 1 beansprucht, sieht keine spätere Prüfung mehr.
     const editVerb = userContent.length > 0 && hasImageEditVerb(userContent);
+    // Liegt im Thread ein früher hochgeladenes Foto (mit Bytes), hat ein
+    // Bearbeitungsauftrag ohne Anhang mehr als ein mögliches Ziel: das zuletzt
+    // erzeugte Bild und die Fotos. Der Einzeldurchlauf kennt nur das erzeugte —
+    // „mach aus meinem ursprünglichen Foto eine Sommer-Variante" bearbeitete das
+    // Winterbild, und ohne erzeugtes Bild kam „Bitte hänge ein Bild an" (#5879).
+    // Der Loop listet beide (`listTurnImageRefs`), und `edit_image` wählt per
+    // `bild`. Entschieden wird am Zustand, nicht am Wortlaut.
+    const threadHasStoredPhoto = (state.threadAttachments ?? []).some(
+      (a) => a.isImage && a.hasFileData
+    );
+    const editInLoop = (from: 'verb' | 'follow_up'): Partial<ChatGraphState> => {
+      log.info(`[Classifier] Image edit with a stored thread photo → loop (${from})`);
+      recordDecision('classifier.tier', 'tier2_image_edit_thread_photo_loop', {
+        inputs: { from },
+      });
+      return {
+        intent: 'agentic',
+        searchSources: [],
+        searchQuery: null,
+        detectedFilters: null,
+        reasoning:
+          'Bildbearbeitung mit gespeichertem Thread-Foto → Loop (edit_image wählt das Bild)',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    };
     if (
       editVerb &&
       (hasImageAttachments || mentionsImageNoun(userContent)) &&
       !forbidsPersistentAction(userContent, ARTIFACT_NOUN_BY_KIND.image)
     ) {
+      if (!hasImageAttachments && threadHasStoredPhoto) return editInLoop('verb');
       log.info(
         `[Classifier] Image edit detected (attached=${hasImageAttachments}, noun=${mentionsImageNoun(userContent)}), forcing image_edit intent`
       );
@@ -1747,7 +1774,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       const scopedServerId = matchMcpServerByName(userContent, servers);
       if (scopedServerId) {
         // `agentic` + Scope statt des stillgelegten `mcp` (#4043): Schleife,
-        // Montage und erzwungener erster Aufruf hängen am Scope.
+        // Montage und Werkzeug-Hinweis hängen am Scope.
         log.info('[Classifier] MCP prose routing → agentic + scope', { scope: scopedServerId });
         return {
           intent: 'agentic',
@@ -1957,6 +1984,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
           isImageEditInstruction(userContent)) &&
         !forbidsPersistentAction(userContent, ARTIFACT_NOUN_BY_KIND.image)
       ) {
+        if (threadHasStoredPhoto) return editInLoop('follow_up');
         log.info('[Classifier] Follow-up image edit via lastToolContext → image_edit');
         return {
           intent: 'image_edit',
@@ -2029,7 +2057,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       // turn: without this the vague follow-up went to the LLM which picked
       // `direct` — the connector was never called (observed live). Re-scope to the
       // last connector via tc.ref so the explicit-scope mount runs (retry-on-
-      // missing + note + forced first call). Fires on an MCP-action verb, an
+      // missing + note). Fires on an MCP-action verb, an
       // anaphoric marker, OR a short IMPERATIVE continuation (a "do it" message
       // that is NOT a new knowledge question, a first-person comment, or
       // chitchat). Never hijacks a request to create one of our own artifacts.
@@ -2356,8 +2384,8 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     }
 
     // Ein Dauerauftrag geht in die Schleife, nicht auf einen Intent: der Pin
-    // auf `recurring_tasks` zwingt den Turn hinein (`turnPlan`) und benennt den
-    // ersten Werkzeugaufruf (`pinnedFirstTool`), so wie `@umfragen` es über die
+    // auf `recurring_tasks` zwingt den Turn hinein (`turnPlan`) und kündigt das
+    // Werkzeug an (`buildPinnedToolNote`), so wie `@umfragen` es über die
     // Erwähnung tut — nur dass hier der Detektor pinnt. Der Loop-Planer füllt
     // Takt und Zustellung selbst, und das Anlegen ist eine Karte; bis 09/2026
     // schrieb der Intent `create_recurring_task` ohne Bestätigung in die DB.
@@ -2469,13 +2497,6 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       });
       const demoted: Partial<ChatGraphState> = {
         intent: 'agentic',
-        // The heuristic named a retrieval intent outright (web/search/examples/
-        // bundestag/…), as opposed to the `direct` + toolable-question case.
-        // Recorded because demotion otherwise DISCARDS that verdict: the turn
-        // goes to a planner that may call no tool at all, and "wer ist aktuell
-        // Bundeskanzler in Österreich" (heuristic web@0.80) came back with
-        // steps=0 and the honesty note itself as the user-facing answer.
-        loopDemotedFromRetrieval: DEMOTABLE_HEURISTIC_INTENTS.has(heuristic.intent),
         ...proseOrigin(heuristic.intent),
         searchSources: detectSearchSources(userContent, heuristic.intent),
         searchQuery: (heuristic.searchQuery ?? userContent).slice(0, 500),

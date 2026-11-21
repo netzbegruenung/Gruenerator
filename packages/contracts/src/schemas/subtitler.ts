@@ -338,6 +338,31 @@ export const autoProcessRequestSchema = z.object({
 
 export type AutoProcessRequest = z.infer<typeof autoProcessRequestSchema>;
 
+/** POST /process-parteitag — subtitle a stored parteitag speech from its word timings. */
+export const parteitagProcessRequestSchema = z.object({
+  speechId: z.string().min(1),
+  maxResolution: z.number().nullable().optional(),
+});
+
+export const parteitagProcessStartResponseSchema = z.object({
+  uploadId: z.string(),
+});
+
+export const parteitagProcessErrorCodeSchema = z.enum([
+  'ai_consent_required',
+  'NOT_FOUND',
+  'LOCKED',
+  'SOURCE_GONE',
+  'STORAGE_REMOTE',
+  'INTERNAL',
+]);
+
+export const parteitagProcessErrorResponseSchema = z.object({
+  error: z.string(),
+  code: parteitagProcessErrorCodeSchema,
+  message: z.string().optional(),
+});
+
 export const autoProcessStartResponseSchema = z.object({
   status: z.literal('processing'),
 });

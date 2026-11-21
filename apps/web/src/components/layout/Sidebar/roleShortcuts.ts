@@ -1,21 +1,31 @@
+import { resolveSkillIcon } from '@gruenerator/chat';
 import { type UserRole } from '@gruenerator/chat/stores';
 import {
   SKILLS,
   getAgentSlug,
   getLandesverbandHubsByIds,
+  getSystemAgent,
+  isSkillOfferedIn,
   landesverbandIdsForRoles,
   type LvHub,
 } from '@gruenerator/shared/agents';
 import { type InstanceId } from '@gruenerator/shared/instances';
 import { marketplaceHref } from '@gruenerator/shared/marketplace';
 import { NOTEBOOK_ICONS } from '@gruenerator/shared/notebook-icons';
+import { isNotebookOfferedIn, type NotebookId } from '@gruenerator/shared/notebooks';
 import { grueneJugendRoleLocale } from '@gruenerator/shared/roles';
 import { type IconType } from 'react-icons';
-import { GiHedgehog } from 'react-icons/gi';
-import { PiBooks, PiImage, PiInstagramLogo } from 'react-icons/pi';
 
 import { getAgentIcon } from './sidebarAgentConfig';
 
+import {
+  GiHedgehog,
+  PiBank,
+  PiBooks,
+  PiBuildings,
+  PiImage,
+  PiInstagramLogo,
+} from '@/config/shellIcons.generated';
 import { landesverbandHubCards } from '@/features/chat/landesverbandHubCards';
 import { getNotebookById } from '@/features/notebook/config/notebooksConfig';
 
@@ -130,9 +140,125 @@ export function grueneJugendShortcut(
   };
 }
 
+/** Notebook-Links, soweit die Instanz das Notebook anbietet (bgst blendet z. B. `parlamente` aus). */
+function notebookLinks(ids: readonly NotebookId[], instance: InstanceId): RoleShortcutLink[] {
+  return ids.flatMap((id) => {
+    const notebook = getNotebookById(id);
+    if (!notebook?.path || !isNotebookOfferedIn(id, instance)) return [];
+    return [
+      {
+        key: id,
+        label: notebook.title,
+        Icon: NOTEBOOK_ICONS[id],
+        path: notebook.path,
+        title: notebook.title,
+      },
+    ];
+  });
+}
+
+const BGST_ROLLE = 'Mitarbeiter*in Bundesgeschäftsstelle';
+/** Die Rezepte, die nur die Bundesgeschäftsstelle bekommt (`instances: ['bgst', 'local']`). */
+const BGST_RECIPES = [
+  'beschlusslage',
+  'rechtsstand',
+  'sprechzettel',
+  'leitantrag',
+  'presse-beschluss',
+] as const;
+
 /**
- * Alle Seitenleisten-Einträge der Person: je Landesverband einer, dazu einer für
- * die Grüne Jugend. Rollen mit `showInSidebar: false` zählen nicht mit.
+ * Für die Bundesgeschäftsstelle: ihre fünf Rezepte und die Notebooks
+ * Bundesverband und Wahlprüfsteine. Ohne angebotenes Rezept (jede Instanz außer
+ * bgst und local) gibt es keinen Eintrag — die Rolle allein trägt ihn nicht.
+ */
+export function bundesgeschaeftsstelleShortcut(
+  roles: readonly UserRole[],
+  instance: InstanceId
+): RoleShortcut | null {
+  const role = roles.find((r) => r.ebene === 'bund' && r.rolle === BGST_ROLLE);
+  if (!role) return null;
+
+  // Aus `SKILLS`, nicht aus `agentsList`: die Rezepte gehören dem Universal-
+  // Agenten, und der ist `hiddenFromInventory`.
+  const recipes = BGST_RECIPES.flatMap((mention) => {
+    const recipe = SKILLS.find((skill) => skill.mention === mention);
+    return recipe && isSkillOfferedIn(recipe, instance) ? [recipe] : [];
+  });
+  if (recipes.length === 0) return null;
+
+  return {
+    key: 'bundesgeschaeftsstelle',
+    name: 'Bundesgeschäftsstelle',
+    Icon: PiBuildings,
+    role,
+    starters: {
+      heading: 'Neuer Chat mit Rezept',
+      links: recipes.map((recipe) => ({
+        key: recipe.mention,
+        label: recipe.title,
+        // `SkillIcon` ist schmaler getippt, als die Werte sind: `SKILL_ICONS`
+        // hält die Phosphor-Komponenten aus `@gruenerator/shared/icons`, die
+        // `IconBaseProps` nehmen.
+        Icon: resolveSkillIcon(recipe.iconKey) as IconType,
+        path: `/chat?rezept=${recipe.mention}`,
+        title: recipe.title,
+      })),
+    },
+    links: notebookLinks(['gruene-notebook', 'wahlpruefsteine-notebook'], instance),
+  };
+}
+
+const MDB_BUERO_ROLLE = 'Mitarbeiter*in MdB-Büro';
+const MDB_BUERO_AGENTS = [
+  'gruenerator-bundestag',
+  'gruenerator-abgeordnetenwatch',
+  'gruenerator-rede-schreiber',
+  'gruenerator-buergerservice',
+] as const;
+
+/**
+ * Für ein MdB-Büro: Bundestag-Recherche, Abgeordnetenwatch, Rede und
+ * Bürger*innenanfragen, dazu die Notebooks Bundestagsfraktion und DIP. Benannt
+ * nach der*dem Abgeordneten, sobald die Rolle sie*ihn kennt.
+ */
+export function mdbBueroShortcut(
+  roles: readonly UserRole[],
+  instance: InstanceId
+): RoleShortcut | null {
+  const role = roles.find((r) => r.ebene === 'bund' && r.rolle === MDB_BUERO_ROLLE);
+  if (!role) return null;
+
+  const abgeordnete = role.abgeordnete?.trim();
+  return {
+    key: 'mdb-buero',
+    name: abgeordnete ? `Büro ${abgeordnete}` : 'MdB-Büro',
+    Icon: PiBank,
+    role,
+    starters: {
+      heading: 'Neuer Chat mit Agent',
+      links: MDB_BUERO_AGENTS.flatMap((agentId) => {
+        const agent = getSystemAgent(agentId);
+        if (!agent) return [];
+        return [
+          {
+            key: agentId,
+            label: agent.title,
+            Icon: getAgentIcon(agentId),
+            path: `/agents/${getAgentSlug(agentId)}`,
+            title: agent.title,
+          },
+        ];
+      }),
+    },
+    links: notebookLinks(['bundestagsfraktion-notebook', 'bundestag-dip-notebook'], instance),
+  };
+}
+
+/**
+ * Alle Seitenleisten-Einträge der Person: je Landesverband einer, dazu je einer
+ * für Bundesgeschäftsstelle, MdB-Büro und Grüne Jugend. Rollen mit
+ * `showInSidebar: false` zählen nicht mit.
  */
 export function buildRoleShortcuts(
   roles: readonly UserRole[],
@@ -144,8 +270,12 @@ export function buildRoleShortcuts(
   const shortcuts = getLandesverbandHubsByIds(lvIds, instance).map((hub) =>
     landesverbandShortcut(hub, visible, userLocale)
   );
-  const gj = grueneJugendShortcut(visible, userLocale);
-  return gj ? [...shortcuts, gj] : shortcuts;
+  const extra = [
+    bundesgeschaeftsstelleShortcut(visible, instance),
+    mdbBueroShortcut(visible, instance),
+    grueneJugendShortcut(visible, userLocale),
+  ].filter((shortcut): shortcut is RoleShortcut => shortcut !== null);
+  return [...shortcuts, ...extra];
 }
 
 /** Bekommt diese Rolle einen Eintrag in der Seitenleiste? Dann bietet die Rollenkarte den Schalter an. */

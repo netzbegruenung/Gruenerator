@@ -4,6 +4,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import * as Y from 'yjs';
 
 import { detectPreviewKind } from './contentPreviews.js';
+import { SITE_DOC_MAX_BYTES } from './siteRooms.js';
 import {
   BOARD_FIELD_IDS,
   appendRowsToBoardDoc,
@@ -192,6 +193,15 @@ describe('pagesById container', () => {
     applyDeckChangesToDoc(doc, { seedPages: deckPages() });
     doc.getMap<unknown>('formState').set('headline', 'Legacy-Müll');
     expect(readMergedState(doc).state.headline).toBe('Cover');
+  });
+
+  it('a flat patch on a pagesById doc leaves the root formState alone (#5767)', () => {
+    const doc = new Y.Doc();
+    applyDeckChangesToDoc(doc, { seedPages: deckPages() });
+    applyPatchToDoc(doc, { headline: 'Neu' }, null);
+
+    expect(doc.getMap<unknown>('formState').size).toBe(0);
+    for (const p of readMergedState(doc).pages) expect(p.state.headline).toBe('Neu');
   });
 
   it('legacy-array docs keep being patched in place', () => {
@@ -454,6 +464,7 @@ describe('closing rooms after an access change', () => {
       vi.stubEnv('HOCUSPOCUS_INTERNAL_TOKEN', 'secret');
       const app = express();
       registerInternalApi(app, {
+        db: async () => [],
         server: { hocuspocus: { documents } } as unknown as Parameters<
           typeof registerInternalApi
         >[1]['server'],
@@ -507,5 +518,181 @@ describe('closing rooms after an access change', () => {
       const res = await post(url, { rooms: 'doc-1' }, 'secret');
       expect(res.status).toBe(400);
     });
+  });
+});
+
+describe('POST /internal/site/:siteId/seed', () => {
+  const SITE_ID = '3f2b8c1e-4d5a-4b6c-9e7f-0a1b2c3d4e5f';
+  let close: (() => Promise<void>) | null = null;
+
+  afterEach(async () => {
+    await close?.();
+    close = null;
+    vi.unstubAllEnvs();
+  });
+
+  async function start(docs: Map<string, Y.Doc>, opened: string[]): Promise<string> {
+    vi.stubEnv('HOCUSPOCUS_INTERNAL_TOKEN', 'secret');
+    const app = express();
+    const hocuspocus = {
+      documents: new Map(),
+      openDirectConnection: async (room: string) => {
+        opened.push(room);
+        const doc = docs.get(room) ?? new Y.Doc();
+        docs.set(room, doc);
+        return {
+          transact: async (fn: (d: Y.Doc) => void) => {
+            doc.transact(() => fn(doc));
+          },
+          disconnect: async () => {},
+        };
+      },
+    };
+    registerInternalApi(app, {
+      db: async () => [],
+      server: { hocuspocus } as unknown as Parameters<typeof registerInternalApi>[1]['server'],
+      persistence: {} as Parameters<typeof registerInternalApi>[1]['persistence'],
+    });
+    const server = app.listen(0, '127.0.0.1');
+    await new Promise<void>((resolve) => server.once('listening', resolve));
+    close = () => new Promise<void>((resolve) => server.close(() => resolve()));
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('no port');
+    return `http://127.0.0.1:${address.port}/internal/site`;
+  }
+
+  const post = (url: string, body: unknown) =>
+    fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-internal-token': 'secret' },
+      body: JSON.stringify(body),
+    });
+
+  const seedOf = (title: string) => {
+    const doc = new Y.Doc();
+    doc.getMap('siteMeta').set('title', title);
+    // The block order is the seed mark (siteRooms `hasCurrentSeed`).
+    doc.getArray('siteBlockOrder').push([`hero-${title}`]);
+    return Buffer.from(Y.encodeStateAsUpdate(doc)).toString('base64');
+  };
+
+  it('seed route applies once', async () => {
+    const docs = new Map<string, Y.Doc>();
+    const opened: string[] = [];
+    const base = await start(docs, opened);
+
+    const first = await post(`${base}/${SITE_ID}/seed`, { update: seedOf('Erste') });
+    const second = await post(`${base}/${SITE_ID}/seed`, { update: seedOf('Zweite') });
+
+    expect(first.status).toBe(200);
+    expect(await first.json()).toEqual({ seeded: true });
+    expect(second.status).toBe(200);
+    expect(await second.json()).toEqual({ seeded: false });
+    expect(opened).toEqual([`site-${SITE_ID}`, `site-${SITE_ID}`]);
+    expect(docs.get(`site-${SITE_ID}`)?.getMap('siteMeta').get('title')).toBe('Erste');
+  });
+
+  it('seeds the lower-case room for an upper-case id', async () => {
+    const opened: string[] = [];
+    const base = await start(new Map(), opened);
+    const res = await post(`${base}/${SITE_ID.toUpperCase()}/seed`, { update: seedOf('Erste') });
+    expect(await res.json()).toEqual({ seeded: true });
+    expect(opened).toEqual([`site-${SITE_ID}`]);
+  });
+
+  it('answers 413 for a seed over the store cap and seeds nothing', async () => {
+    const docs = new Map<string, Y.Doc>();
+    const opened: string[] = [];
+    const base = await start(docs, opened);
+    const big = new Y.Doc();
+    big.getMap('siteMeta').set('blob', 'x'.repeat(SITE_DOC_MAX_BYTES));
+    const update = Buffer.from(Y.encodeStateAsUpdate(big)).toString('base64');
+
+    const res = await post(`${base}/${SITE_ID}/seed`, { update });
+
+    expect(res.status).toBe(413);
+    expect((await res.json()) as { error: string }).toMatchObject({
+      error: expect.stringMatching(/over the \d+-byte cap/),
+    });
+    expect(opened).toEqual([]);
+    expect(docs.size).toBe(0);
+  });
+
+  it.each([
+    ['a non-uuid id', 'not-a-uuid', { update: 'AAA=' }],
+    ['a missing update', SITE_ID, {}],
+    ['a non-string update', SITE_ID, { update: 7 }],
+    ['an update that is not base64', SITE_ID, { update: '***' }],
+    [
+      'an update without state',
+      SITE_ID,
+      { update: Buffer.from(Y.encodeStateAsUpdate(new Y.Doc())).toString('base64') },
+    ],
+  ])('answers 400 for %s', async (_label, id, body) => {
+    const opened: string[] = [];
+    const base = await start(new Map(), opened);
+    const res = await post(`${base}/${id}/seed`, body);
+    expect(res.status).toBe(400);
+    expect(opened).toEqual([]);
+  });
+});
+
+describe('internal document routes and bare site ids', () => {
+  const SITE_ID = '3f2b8c1e-4d5a-4b6c-9e7f-0a1b2c3d4e5f';
+  const OTHER_ID = '9a8b7c6d-1111-4222-8333-444455556666';
+  let close: (() => Promise<void>) | null = null;
+
+  afterEach(async () => {
+    await close?.();
+    close = null;
+    vi.unstubAllEnvs();
+  });
+
+  async function start(): Promise<string> {
+    vi.stubEnv('HOCUSPOCUS_INTERNAL_TOKEN', 'secret');
+    const app = express();
+    registerInternalApi(app, {
+      db: async (_sql: string, params?: unknown[]) =>
+        params?.[0] === SITE_ID ? [{ '?column?': 1 }] : [],
+      server: {
+        hocuspocus: { documents: new Map(), openDirectConnection: async () => ({}) },
+      } as unknown as Parameters<typeof registerInternalApi>[1]['server'],
+      persistence: {
+        loadDocument: async () => null,
+      } as unknown as Parameters<typeof registerInternalApi>[1]['persistence'],
+    });
+    const server = app.listen(0, '127.0.0.1');
+    await new Promise<void>((resolve) => server.once('listening', resolve));
+    close = () => new Promise<void>((resolve) => server.close(() => resolve()));
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('no port');
+    return `http://127.0.0.1:${address.port}/internal`;
+  }
+
+  const call = (url: string, method: 'GET' | 'POST') =>
+    fetch(url, {
+      method,
+      headers: { 'content-type': 'application/json', 'x-internal-token': 'secret' },
+      ...(method === 'POST' ? { body: '{}' } : {}),
+    });
+
+  it.each([
+    ['GET', 'doc', 'yjs'],
+    ['POST', 'doc', 'yjs'],
+    ['GET', 'doc', 'html'],
+    ['POST', 'doc', 'html'],
+    ['GET', 'canvas', 'state'],
+    ['POST', 'canvas', 'state'],
+  ] as const)('refuses a bare site id on %s /%s/:id/%s', async (method, kind, leaf) => {
+    const base = await start();
+    const res = await call(`${base}/${kind}/${SITE_ID}/${leaf}`, method);
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'use site-<uuid>' });
+  });
+
+  it('lets site-<uuid> and a normal document id through', async () => {
+    const base = await start();
+    expect((await call(`${base}/doc/site-${SITE_ID}/yjs`, 'GET')).status).toBe(404);
+    expect((await call(`${base}/doc/${OTHER_ID}/yjs`, 'GET')).status).toBe(404);
   });
 });

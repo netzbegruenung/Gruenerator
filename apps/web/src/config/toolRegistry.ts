@@ -18,10 +18,11 @@
  *     typecheck/tests point at every mirror literal still carrying old values.
  */
 import { type InstanceChannel } from '@gruenerator/shared/instances';
-import { RiSpyLine } from 'react-icons/ri';
 
 import { getIcon, type ActionIconName, type IconType, type NavigationIconName } from './icons';
 import { NEWSLETTER_SIGNUP_URL } from './newsletter';
+
+import { PiGlobe, RiSpyLine } from '@/config/shellIcons.generated';
 
 /** Icon reference resolved through config/icons.ts; `component` is the escape
  * hatch for icons without a registry entry (Agentura's RiSpyLine). */
@@ -207,6 +208,19 @@ const TOOLS = [
     },
     favourite: true,
     theme: true,
+  },
+  {
+    id: 'sites',
+    // PLACEHOLDER-NAME: final product name pending (CLAUDE.md Sprachregelungen)
+    title: 'Sites',
+    path: '/sites',
+    icon: { component: PiGlobe },
+    tile: { group: 'organisieren', description: 'Website für deine Kandidatur', badge: 'Neu' },
+    search: {
+      id: 'tool-sites',
+      subtitle: 'Eigene Website für Kandidat*innen erstellen',
+      keywords: ['sites', 'website', 'webseite', 'homepage', 'kandidatur', 'kandidat', 'seite'],
+    },
   },
   {
     id: 'suche',
@@ -405,6 +419,32 @@ const TOOLS = [
       ],
     },
     theme: true,
+  },
+  {
+    id: 'studio-ki-schnitt',
+    title: 'KI-Schnitt',
+    path: '/studio/ki-schnitt',
+    icon: { navigation: 'kiSchnitt' },
+    tile: { group: 'studio', description: 'Rohvideos automatisch schneiden' },
+    search: {
+      id: 'tool-ki-schnitt',
+      title: 'KI-Schnitt',
+      subtitle: 'Aus Rohvideos einen fertigen Clip schneiden lassen',
+      keywords: ['ki-schnitt', 'ki schnitt', 'schnitt', 'schneiden', 'rohvideo', 'reel', 'video'],
+    },
+  },
+  {
+    id: 'parteitage',
+    title: 'Parteitage',
+    path: '/parteitage',
+    icon: { navigation: 'reel' },
+    tile: { group: 'studio', description: 'Reden als Reels' },
+    search: {
+      id: 'tool-parteitage',
+      title: 'Parteitage',
+      subtitle: 'Reden vom Parteitag untertiteln und schneiden',
+      keywords: ['parteitag', 'ldk', 'bdk', 'rede', 'reel'],
+    },
   },
   {
     id: 'studio-voice',
@@ -675,6 +715,8 @@ const MENU_ORDER = [
 const SEARCH_ORDER = [
   'tool-reel',
   'tool-videoeditor',
+  'tool-ki-schnitt',
+  'tool-parteitage',
   'tool-studio',
   'tool-imagine',
   'tool-profilbild',
@@ -695,6 +737,7 @@ const SEARCH_ORDER = [
   'tool-agentura',
   'tool-marktplatz',
   'tool-projekte',
+  'tool-sites',
 ] as const satisfies readonly ToolSearchId[];
 
 export function resolveToolIcon(ref: ToolIconRef): IconType {

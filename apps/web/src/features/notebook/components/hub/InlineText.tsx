@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useId, useRef, useState, type ReactNode } from 'react';
 
 import { cn } from '../../../../utils/cn';
 
@@ -35,6 +35,7 @@ export function InlineText({
   inputClassName,
 }: InlineTextProps) {
   const [editing, setEditing] = useState(startEditing);
+  const hintId = useId();
   const cancelled = useRef(false);
 
   const finish = (raw: string) => {
@@ -75,16 +76,24 @@ export function InlineText({
     return multiline ? <textarea rows={2} {...shared} /> : <input {...shared} />;
   }
 
+  // Der Hinweis ist Beschreibung, nicht Name: als Text im Knopf landete er auch im
+  // Namen der umgebenden Überschrift („Pressespiegel, Namen bearbeiten" als h1).
+  // Ein `hidden`-Element zählt für keinen Namen mit, nur für die Referenz.
   return (
-    <button
-      type="button"
-      onClick={() => setEditing(true)}
-      disabled={disabled}
-      title={label}
-      className="group inline-flex max-w-full items-center gap-xs rounded-lg px-sm py-[2px] text-left transition-colors hover:bg-background-alt disabled:cursor-default disabled:hover:bg-transparent"
-    >
-      {children}
-      <span className="sr-only">{`, ${label}`}</span>
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        disabled={disabled}
+        title={label}
+        aria-describedby={hintId}
+        className="group inline-flex max-w-full items-center gap-xs rounded-lg px-sm py-[2px] text-left transition-colors hover:bg-background-alt disabled:cursor-default disabled:hover:bg-transparent"
+      >
+        {children}
+      </button>
+      <span id={hintId} hidden>
+        {label}
+      </span>
+    </>
   );
 }

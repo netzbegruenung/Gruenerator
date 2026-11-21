@@ -15,14 +15,6 @@ import {
 } from '@gruenerator/ui';
 import { useQuery } from '@tanstack/react-query';
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
-import {
-  LuArrowLeft,
-  LuChevronDown,
-  LuChevronUp,
-  LuExternalLink,
-  LuMessageCircle,
-  LuSparkles,
-} from 'react-icons/lu';
 import { useNavigate } from 'react-router-dom';
 
 import { NOTEBOOK_PASSAGE, NOTEBOOK_PASSAGE_ACTIVE } from '../notebookTheme';
@@ -35,6 +27,14 @@ import type {
   ResearchDocumentResponse,
 } from '@gruenerator/contracts';
 
+import {
+  LuArrowLeft,
+  LuChevronDown,
+  LuChevronUp,
+  LuExternalLink,
+  LuMessageCircle,
+  LuSparkles,
+} from '@/config/shellIcons.generated';
 import { cn } from '@/utils/cn';
 
 export type ReaderTarget = ResearchDocumentParams & {

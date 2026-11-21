@@ -12,11 +12,17 @@
  * - Gelistet wird nur mit `public_ownership` UND share_mode 'authenticated'.
  *   Beides darf im selben Patch kommen — die Karte schickt Stufe und Listung
  *   zusammen, wo das Modal zwei Requests macht.
+ * - „Privat" heisst: in keinem Projekt. Wie bei Agents und Rezepten (#5634)
+ *   löscht der Schritt auf 'private' alle `group_content_shares`-Zeilen —
+ *   sonst listet das Projekt das Notebook weiter, seine Mitglieder bekommen
+ *   „Kein Zugriff", und die nächste Freigabe in irgendein Projekt hebt
+ *   share_mode auf 'groups' und belebt alle alten Freigaben still wieder (#5851).
  *
  * `planNotebookVisibility` ist rein und liefert das, was das Werkzeug VOR der
  * Karte prüfen kann; `applyNotebookVisibility` schreibt.
  */
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
+import { removeAllGroupShares } from '../groups/groupShareWriter.js';
 
 import type {
   NotebookCollection,
@@ -104,7 +110,11 @@ export async function applyNotebookVisibility(
   collectionId: string,
   userId: string,
   patch: NotebookVisibilityPatch,
-  helper: VisibilityHelper = (helperSingleton ??= new NotebookQdrantHelper())
+  helper: VisibilityHelper = (helperSingleton ??= new NotebookQdrantHelper()),
+  dropShares: (target: {
+    contentType: 'notebook_collections';
+    contentId: string;
+  }) => Promise<unknown> = removeAllGroupShares
 ): Promise<ApplyVisibilityResult> {
   const collection = await helper.getNotebookCollection(collectionId);
   if (!collection) return { ok: false, status: 404, error: 'Notebook nicht gefunden' };
@@ -115,5 +125,8 @@ export async function applyNotebookVisibility(
   if (!plan.ok) return { ok: false, status: plan.status, error: plan.error };
   if (Object.keys(plan.updates).length === 0) return { ok: true };
   await helper.updateNotebookCollection(collectionId, plan.updates);
+  if (plan.updates.share_mode === 'private') {
+    await dropShares({ contentType: 'notebook_collections', contentId: collectionId });
+  }
   return { ok: true };
 }

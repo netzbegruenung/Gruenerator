@@ -1,5 +1,5 @@
 /**
- * The Grünerator's part of the editor shell: the „Vorlagen" tab and, around
+ * The Grünerator's part of the editor shell: the „Vorlagen" and „Design" tabs and, around
  * the editor, its blocks and the idle warm-ups of the Elemente and Tools tabs;
  * the page picker with the slider variants and the CD slide layouts; the
  * host callbacks each template declares; a deck's country (fonts); and the country whose logos the Elemente tab offers. The shell (`./index.tsx`) imports this file for its side
@@ -15,6 +15,7 @@ import { useCallback } from 'react';
 
 import { CREATOR_CONFIGS } from '../../collab/sharepicSource';
 import { HOST_CALLBACK_KEYS } from '../../hostCallbackKeys';
+import { DesignSection } from '../../sidebar/sections/DesignSection';
 import { usePreloadElements, usePreloadTools } from '../../sidebar/sections/preloadElements';
 import { VorlagenSection } from '../../sidebar/sections/VorlagenSection';
 import {
@@ -27,6 +28,7 @@ import { PagePickerSeiten } from '../PagePickerSeiten';
 import { TemplatePickerFlyout } from '../TemplatePickerFlyout';
 
 import { BlockInsertProvider } from './blockInsert';
+import { designDeckOf, designTab, designTabIndex } from './designTab';
 import { AI_PAGE, usePageSuggestions } from './pageSuggestions';
 import { formatHasVorlagen, vorlagenTab, vorlagenTabIndex } from './vorlagenTab';
 
@@ -194,6 +196,14 @@ registerEditorShell({
         services.vorlagen !== undefined && formatHasVorlagen(formatId),
       takesPageDrops: true,
       Section: GrueneratorVorlagenSection,
+    },
+    {
+      tab: designTab,
+      insertAt: designTabIndex,
+      // Only a deck from the creator has looks to switch between.
+      isAvailable: ({ services, pages }) =>
+        services.design !== undefined && designDeckOf(pages, null) !== null,
+      Section: DesignSection,
     },
   ],
   Provider: GrueneratorEditorProvider,

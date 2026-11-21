@@ -215,6 +215,11 @@ export const TURN_ABORTABLE_TOOLS: ReadonlySet<string> = new Set(['website_erkun
 
 export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   research: 30_000,
+  // Ein Planer-Aufruf auf Mistral Large 4 vor der Rechnung. Live 18.11.2026 kam
+  // das Ergebnis mehrfach 5–11 s NACH der 20-s-Frist an und wurde
+  // verworfen. Die Längenzählung braucht den Planer nicht mehr (`textlaenge`);
+  // die Frist gilt den Plänen, die lang werden dürfen (Angaben nachrechnen).
+  rechnen: 45_000,
   // Ein echter Browser-Lauf: der Dienst deckelt ihn bei 170 s und schickt dann
   // ein Teilergebnis; 10 s Luft für Bilder speichern und den Rückweg.
   website_erkunden: 180_000,
@@ -271,6 +276,26 @@ export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   // Aufruf hat seine eigene Frist (`landtagTool.ts`, dieser Wert minus Rand) und bricht
   // alles ab, was hängt — die Schleife wartet also höchstens so lange.
   landtag: 45_000,
+  // Index plus ein Live-Abruf je Parteitag (Frist 6 s, `services/antragsgruen/live.ts`).
+  antragsgruen: 30_000,
+  antragsgruen_lesen: 30_000,
+  antragsgruen_auswerten: 30_000,
+  // Nur die Adressprüfung bei antragsgruen.de (Frist 20 s, `hosting/formClient.ts`).
+  antragsgruen_seite_anlegen: 25_000,
+  // Nur die Liste der eigenen Seiten; eingereicht wird erst nach der Bestätigung.
+  antragsgruen_antrag_stellen: 10_000,
+  // Lesen meldet sich bei Antragsgrün an (Login, Admin-Prüfung, Tagesordnung).
+  antragsgruen_tagesordnung: 30_000,
+  // Login, Admin-Prüfung, Antragsliste; beim Lesen eines Antrags dazu Token, JSON und Seite.
+  antragsgruen_seite_lesen: 30_000,
+  // Drei Formularschritte bei nuudel (je Frist 20 s, `webForms/formClient.ts`).
+  nuudel_umfrage_anlegen: 70_000,
+  // Ein CSV-Abruf.
+  nuudel_umfrage_lesen: 25_000,
+  // Admin-Seite, CSV (Stimmen), je Änderung ein Aufruf, Admin-Seite zur Probe.
+  nuudel_umfrage_bearbeiten: 90_000,
+  // Admin-Seite, Rückfrage, Bestätigung, Probe.
+  nuudel_umfrage_loeschen: 70_000,
 };
 
 /**
@@ -304,14 +329,6 @@ export function editToolNameFor(
  * MCP/connector tools already skip this heuristic via `serverNameFor`
  * (`wrapTools.ts`); these are its internal-tool equivalent.
  */
-/**
- * Werkzeuge, die nur eine ENTSCHEIDUNG des Planers tragen und nichts tun:
- * keine Karte, kein gespeicherter Schritt, keine Wächter. `direkt_antworten`
- * ist die Gegenwahl zu `tabelle_auswerten` auf dem erzwungenen ersten Schritt
- * eines Tabellen-Turns (`tabular_decision`, #5042).
- */
-export const UNRECORDED_TOOLS: ReadonlySet<string> = new Set(['direkt_antworten']);
-
 export const NEAR_DUPLICATE_EXEMPT_TOOLS: ReadonlySet<string> = new Set([
   'create_board',
   // Zwei Absätze desselben Flyers teilen sich fast jedes Token — jeder Aufruf
@@ -346,4 +363,22 @@ export const NEAR_DUPLICATE_EXEMPT_TOOLS: ReadonlySet<string> = new Set([
   // Wie `bundestag`: die Verfeinerung (Fraktion, Art, Zeitraum) teilt die Wörter der ersten Suche.
   'landtag',
   'nationalrat',
+  // Filterverfeinerung (Parteitag, Antrag, Antragsteller*in) teilt die Wörter der ersten Suche.
+  'antragsgruen',
+  'antragsgruen_lesen',
+  'antragsgruen_auswerten',
+  // Lesen und dann Setzen der Tagesordnung tragen fast dieselben Argumente
+  // ({seite} gegen {seite, punkte}); als Duplikat blockiert, kündigte das Modell
+  // die Änderung nur an (dev bypass 16.11.2026).
+  'antragsgruen_tagesordnung',
+  // Erst die Liste, dann ein Antrag: dieselbe Seite, ein Argument mehr.
+  'antragsgruen_seite_lesen',
+  'antragsgruen_antrag_stellen',
+  'antragsgruen_seite_anlegen',
+  // Ein korrigierter Termin oder eine zweite Umfrage teilt fast alle Argumente.
+  'nuudel_umfrage_anlegen',
+  // Erst die jüngste, dann eine andere über ihren Titel: ein Argument Unterschied.
+  'nuudel_umfrage_lesen',
+  // Erst ohne, dann nach dem Ja der Person mit `stimmen_verwerfen`.
+  'nuudel_umfrage_bearbeiten',
 ]);

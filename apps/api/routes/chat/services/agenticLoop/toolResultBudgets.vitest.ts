@@ -240,6 +240,8 @@ describe('Wächter: jede Kappe über 6000 steht in der Tabelle oder begründet d
     EXPAND_ATTACHMENT_SNIPPET_CHARS: 'Registry-Snippet → `sources` (ausgenommenes Feld)',
     RAW_RESULT_MAX_CHARS: 'Rohpuffer vor dem Formen; geformt wird auf MODEL_RESULT_MAX_CHARS',
     MAX_IMAGE_CHARS: 'Bilddaten-URL im sharepic_check, kein Text fürs Modell',
+    MAX_MOTION_CHARS:
+      'Obergrenze der Eingabe (Antragstext + Begründung) für antragsgruen_antrag_stellen',
   };
 
   /**
@@ -252,6 +254,8 @@ describe('Wächter: jede Kappe über 6000 steht in der Tabelle oder begründet d
     'routes/chat/agents/personalDataTools.ts:ARTIFACT_READ_CHARS':
       OWN_CAP_TOOLS.read_artifact as number,
     'routes/chat/agents/managedMcpCatalog.ts:MODEL_RESULT_MAX_CHARS': CONNECTOR_CAPS.managed,
+    'routes/chat/agents/antragsgruenSiteTools.ts:ANTRAGSGRUEN_READ_CHARS':
+      OWN_CAP_TOOLS.antragsgruen_seite_lesen as number,
     'services/mcp/UserMCPClient.ts:MAX_TOOL_RESULT_CHARS': CONNECTOR_CAPS.mcp,
   };
 

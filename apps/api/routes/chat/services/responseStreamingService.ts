@@ -10,7 +10,6 @@
 import { streamText, type ModelMessage, type LanguageModel } from 'ai';
 
 import { GemmaChannelLoopError } from '../../../services/ai/gemmaChannelFilter.js';
-import { retireLiteLLM } from '../../../services/ai/litellmRetired.js';
 import { isReasoningCapable } from '../../../services/ai/modelDiscovery.js';
 import { recordSlowVerdict } from '../../../services/ai/modelHealth.js';
 import { clampToModelOutputLimit } from '../../../services/ai/modelOutputLimits.js';
@@ -211,6 +210,21 @@ interface ModelResolution {
 const EXPLICIT_SELECTION_REASONING: ReasoningSetting = 'high';
 
 /**
+ * Explicit selections whose reasoning is graded by the auto policy (intent +
+ * complexity) instead of the blanket `high` above.
+ *
+ * Ultra is Mistral Large 4, and at `high` it drafts the whole answer inside its
+ * reasoning before writing it. Measured 18.11.2026 on a guest article with a
+ * length target: 17,000–37,000 characters of reasoning for a 4,000-character
+ * answer and turns of 131–290 s; in 4 of 8 runs the turn budget ran out first,
+ * the answer was a one-line announcement and the article never arrived.
+ * Without `high`: 1,300–2,200 characters of reasoning, 97–159 s, the article in
+ * 3 of 3 runs. On this lane `off` and `low` are the model's lowest step, not
+ * silence (`MISTRAL_LOWEST_REASONING`).
+ */
+const POLICY_GRADED_SELECTIONS: ReadonlySet<string> = new Set(['gruenerator-ultra']);
+
+/**
  * Mistral's dial is BINARY: `@ai-sdk/mistral` validates reasoningEffort against
  * `'high' | 'none'` and throws a ZodError on 'low'/'medium' (verified live
  * against the API). Our 4-step scale therefore collapses here — anything below
@@ -249,14 +263,16 @@ export function thinksOnThisLane(
 /**
  * Resolve which AI model to use.
  *
- * Order: explicit user selection → auto policy (intent + complexity) → agent
- * default. The vision override runs last and beats all of them.
+ * Order: explicit user selection → auto policy (intent + complexity). The
+ * vision override runs last and beats both. Every answer is a pair from the
+ * model registry: an agent's stored `provider`/`model` is not read here — for
+ * a user-created agent those are free text from the create request.
  *
  * Stays async for its callers although nothing waits any more: the Redis slot
  * that once made it necessary is gone with the Verdigado host.
  */
 export async function resolveModel(
-  agentConfig: { provider: string; model: string; defaultModel?: string | undefined },
+  _agentConfig: { provider: string; model: string; defaultModel?: string | undefined },
   modelId: string | undefined,
   requestId: string,
   options?: {
@@ -277,8 +293,9 @@ export async function resolveModel(
     surface?: 'notebook';
   }
 ): Promise<ModelResolution> {
-  let modelProvider: string = agentConfig.provider;
-  let modelName = agentConfig.model;
+  // Last resort only: both branches below replace it with a registry pair.
+  let modelProvider: string = VISION_MODEL.provider;
+  let modelName = VISION_MODEL.model;
   let sibling: ModelResolution['sibling'];
   let resolvedId: string | undefined;
   let unknownModelId: string | undefined;
@@ -287,24 +304,10 @@ export async function resolveModel(
   let contextWindow: number | undefined;
 
   const isAuto = !modelId || modelId === 'mistral' || modelId === 'auto';
-
-  if (!isAuto) {
-    const tuple = await resolveModelTuple(modelId, requestId);
-    if (tuple) {
-      modelProvider = tuple.provider;
-      modelName = tuple.model;
-      resolvedId = modelId;
-      contextWindow = tuple.contextWindow;
-      if (tuple.sibling) sibling = tuple.sibling;
-      log.info(`[ChatGraph] Using user-selected model: ${modelId} → ${modelProvider}/${modelName}`);
-    } else {
-      log.warn(`[ChatGraph] Unknown model ID "${modelId}", using agent default`);
-      unknownModelId = modelId;
-    }
-  } else {
-    // Auto: the classifier has already run, so the intent is known here. This
-    // is the whole point of resolving auto on the server instead of the client.
-    const selection = resolveAutoSelection({
+  // What the auto policy would decide for this turn — the lane on `auto`, the
+  // reasoning strength also for `POLICY_GRADED_SELECTIONS`.
+  const policySelection = () =>
+    resolveAutoSelection({
       ...(options?.intent != null && { intent: options.intent }),
       ...(options?.demotedFromProse != null && { demotedFromProse: options.demotedFromProse }),
       ...(options?.complexity != null && { complexity: options.complexity }),
@@ -313,6 +316,29 @@ export async function resolveModel(
       ...(options?.agentId != null && { agentId: options.agentId }),
       ...(options?.surface != null && { surface: options.surface }),
     });
+
+  const requested = isAuto ? null : await resolveModelTuple(modelId, requestId);
+  if (!isAuto && !requested) {
+    log.warn(`[ChatGraph] Unknown model ID "${modelId}", using the auto policy`);
+    unknownModelId = modelId;
+  }
+
+  if (requested) {
+    modelProvider = requested.provider;
+    modelName = requested.model;
+    resolvedId = modelId;
+    contextWindow = requested.contextWindow;
+    if (requested.sibling) sibling = requested.sibling;
+    if (modelId && POLICY_GRADED_SELECTIONS.has(modelId)) {
+      reasoningEffort = policySelection().reasoning;
+    }
+    log.info(
+      `[ChatGraph] Using user-selected model: ${modelId} → ${modelProvider}/${modelName} reasoning=${reasoningEffort}`
+    );
+  } else {
+    // Auto: the classifier has already run, so the intent is known here. This
+    // is the whole point of resolving auto on the server instead of the client.
+    const selection = policySelection();
     reasoningEffort = selection.reasoning;
     const tuple = await resolveModelTuple(selection.modelId, requestId);
     if (tuple) {
@@ -330,21 +356,11 @@ export async function resolveModel(
       );
     } else {
       // The policy names a lane that is not in AVAILABLE_MODELS — a code bug,
-      // not user input. Fall back to the agent default rather than failing.
+      // not user input. Answer on the server default rather than failing.
       log.error(
-        `[ChatGraph] auto policy returned unknown lane "${selection.modelId}" — using agent default`
+        `[ChatGraph] auto policy returned unknown lane "${selection.modelId}" — using the server default`
       );
     }
-  }
-
-  // F0: gespeicherte Agenten-Konfigurationen nennen weiter `provider: 'regolo'`
-  // (Regolo ist seit 30.09.2026 abgeschaltet). Hier umbiegen, BEVOR Vision-Weiche,
-  // Denk-Strom-Wahl und Kontextfenster den Namen ansehen — `getModel` biegt ihn
-  // zwar auch um, aber erst danach.
-  if (modelProvider === 'regolo') {
-    const live = retireLiteLLM(modelProvider, modelName);
-    modelProvider = live.provider;
-    modelName = live.model ?? modelName;
   }
 
   // For image_edit, the chat model narrates from pre-grounded BILDVERGLEICH
@@ -1287,7 +1303,11 @@ export async function streamForResolution(params: {
   // Jede Uhr unten misst Arbeit des Modells — und das Einlesen eines langen
   // Prompts ist Arbeit, die schweigt. Ohne den Zuschlag riss die Frist bei Ultra
   // ab ~100k Tokens, siehe prefillAllowance.ts.
-  const prefillMs = prefillAllowanceMs(resolution.provider, promptChars(null, messages));
+  const prefillMs = prefillAllowanceMs(
+    resolution.provider,
+    promptChars(null, messages),
+    resolution.modelName
+  );
   const firstTokenDeadlineMs =
     getFirstTokenDeadlineMs(resolution.provider, resolution.modelName, thinking) + prefillMs;
 

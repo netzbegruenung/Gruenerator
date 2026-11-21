@@ -20,6 +20,10 @@
  *
  * SQL the scan cannot see (assembled from table-name strings) is listed in
  * `FRAGMENTED_SQL` instead.
+ *
+ * Only tables in `TRASHABLE_TABLES` are scanned. The Parteitage tables and `system_media` are
+ * deliberately absent (hard delete by an admin, no owner, no `deleted_at`); the reason is in
+ * the header of `database/trash.ts`.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -72,9 +76,14 @@ const ALLOWLIST: readonly AllowEntry[] = [
     'chat_threads',
     PERMANENT_BACKFILL,
   ],
-  ['services/hocuspocus/src/auth.ts', 'chat_threads', HOCUSPOCUS],
   ['services/hocuspocus/src/auth.ts', 'collaborative_documents', HOCUSPOCUS],
   ['services/hocuspocus/src/persistence.ts', 'collaborative_documents', HOCUSPOCUS],
+  [
+    'services/hocuspocus/src/siteRooms.ts',
+    'user_sites',
+    'bare-room guard: a trashed site keeps its Yjs rows closed to the no-row fallback',
+    'SELECT 1 FROM user_sites WHERE id = $1 LIMIT 1',
+  ],
   [
     'apps/api/services/docs/CollaborativeDocumentService.ts',
     'chat_threads',
@@ -166,6 +175,18 @@ const ALLOWLIST: readonly AllowEntry[] = [
   ],
   [
     'apps/api/services/contentReports/moderationTargets.ts',
+    'user_sites',
+    'moderation: a site the owner trashed is still removed or restored by the admin',
+    'where(eq(userSites.id, id))',
+  ],
+  [
+    'apps/api/services/contentReports/moderationTargets.ts',
+    'user_sites',
+    'moderation: the report queue shows a site the owner trashed, with its deletedAt',
+    'where(inArray(userSites.id, ids))',
+  ],
+  [
+    'apps/api/services/contentReports/moderationTargets.ts',
     'user_text_forms',
     'moderation: a recipe the owner trashed is still removed or restored by the admin',
     'where(eq(userTextForms.id, id))',
@@ -250,12 +271,6 @@ const ALLOWLIST: readonly AllowEntry[] = [
     `${NOT_SQL} (a test fixture matching SQL text)`,
   ],
   ['apps/api/services/migrations/backfillGroupSlugSuffixes.ts', 'groups', PERMANENT_BACKFILL],
-  [
-    'apps/api/routes/docs/docsContractRouter.ts',
-    'groups',
-    `${NOT_SQL} (an error message)`,
-    'unshare from groups',
-  ],
   ['apps/api/services/cleanup/uploadsCleanupService.ts', 'shared_media', PERMANENT_CLEANUP],
   ['apps/api/services/cleanup/uploadsCleanupService.ts', 'subtitler_projects', PERMANENT_CLEANUP],
   [

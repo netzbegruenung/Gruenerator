@@ -9,6 +9,7 @@ import {
   visibleNotebookMentionables,
   filterMentionables,
   getAllMentionables,
+  setMentionInstance,
   setMentionLocale,
   userAgentToMentionable,
   textformToMentionable,
@@ -80,6 +81,12 @@ const BEFORE: Row[] = [
     identifier: 'abgeordnetenhaus',
     mention: 'abgeordnetenhaus',
     title: 'Abgeordnetenhaus Berlin',
+    audience: 'de-DE',
+  },
+  {
+    identifier: 'antragsgruen',
+    mention: 'antragsgruennrw',
+    title: 'Antragsgrün NRW',
     audience: 'de-DE',
   },
   {
@@ -338,6 +345,18 @@ describe('locale-aware picker', () => {
     expect(ids).not.toContain('hamburg-notebook');
   });
 
+  it('offers preview notebooks where the instance serves them, and only there', () => {
+    setMentionLocale('de-DE');
+    setMentionInstance('beta');
+    expect(visibleNotebookMentionables().map((m) => m.identifier)).toContain(
+      'landtag-bayern-notebook'
+    );
+    setMentionInstance('production');
+    expect(visibleNotebookMentionables().map((m) => m.identifier)).not.toContain(
+      'landtag-bayern-notebook'
+    );
+  });
+
   it('filters the @-typeahead too, not just the plus menu', () => {
     setMentionLocale('de-AT');
     // The exact bug: typing "@bun" offered @bundestag because filterMentionables
@@ -349,7 +368,7 @@ describe('locale-aware picker', () => {
 
 // ---------------------------------------------------------------------------
 // Slug uniqueness ACROSS sources. Each source (agents, notebooks, tools, boards,
-// docs, wolke, connect, canva, …) keeps its own slugs unique on its own; nothing
+// docs, wolke, connect, …) keeps its own slugs unique on its own; nothing
 // checked the union. `rebuildMentionableMap` is first-wins, so a later source
 // that reuses a slug is silently unreachable — the picker offers the entry, the
 // parser resolves it to a different one, and the turn routes somewhere else.

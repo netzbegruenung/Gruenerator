@@ -12,15 +12,17 @@
 import {
   driveBrowseResponseSchema,
   driveProviderSchema,
+  googlePickerConfigResponseSchema,
   type DriveProvider,
   type SharepicVorlage,
 } from '@gruenerator/contracts';
 import { ApiError } from '@gruenerator/shared/api';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
 
 import { createChatApiClient } from '../context/ChatContext';
 import { formatFileSize } from '../lib/fileUtils';
+import { pickGoogleFiles, type PickedGoogleFile } from '../lib/googlePicker';
 import { setHiddenAgentIdentifiers } from '../lib/hiddenAgentsState';
 import {
   setHiddenSkillMentions,
@@ -63,6 +65,28 @@ function useMentionableFetch(): MentionableFetch {
       <T>(path: string) =>
         apiClient.get<T>(path),
     [apiClient]
+  );
+}
+
+/**
+ * `mention-docs` and `mention-sheets` read the same `GET /api/docs` list and only
+ * differ in their filter, so both queries ride one request: `fetchQuery` joins a
+ * fetch that is already in flight (default `staleTime` 0 keeps later refetches,
+ * e.g. after a trash invalidation, fresh).
+ */
+function useSharedDocsListFetch(): MentionableFetch {
+  const get = useMentionableFetch();
+  const queryClient = useQueryClient();
+  return useMemo(
+    () =>
+      <T>(path: string) =>
+        path === '/api/docs'
+          ? (queryClient.fetchQuery({
+              queryKey: ['mention-docs-source'],
+              queryFn: () => get<T>(path),
+            }) as Promise<T>)
+          : get<T>(path),
+    [get, queryClient]
   );
 }
 
@@ -116,7 +140,7 @@ export function useBoardsQuery() {
 }
 
 export function useSheetsQuery() {
-  const get = useMentionableFetch();
+  const get = useSharedDocsListFetch();
   return useQuery<DocListItem[]>({
     queryKey: ['mention-sheets'],
     queryFn: () => syncSheets(get),
@@ -126,7 +150,7 @@ export function useSheetsQuery() {
 }
 
 export function useDocsQuery() {
-  const get = useMentionableFetch();
+  const get = useSharedDocsListFetch();
   return useQuery<DocListItem[]>({
     queryKey: ['mention-docs'],
     queryFn: () => syncDocs(get),
@@ -150,10 +174,18 @@ export function useUserNotebooksQuery() {
  * @brevo, …). Only enabled servers become mentions; anonymous users / no
  * servers resolve to an empty list.
  */
+/**
+ * Query key of the @mention server list. Exported so the connector settings can
+ * invalidate it after adding, removing or switching a server: the settings are a
+ * dialog over the chat, so the composer stays mounted and would otherwise keep
+ * the old list until it remounts after `STALE_TIME`.
+ */
+export const MCP_SERVER_MENTIONS_QUERY_KEY = ['mention-mcp-servers'] as const;
+
 export function useMcpServersQuery() {
   const get = useMentionableFetch();
   return useQuery<McpServerListItem[]>({
-    queryKey: ['mention-mcp-servers'],
+    queryKey: MCP_SERVER_MENTIONS_QUERY_KEY,
     queryFn: () => syncMcpServers(get),
     staleTime: STALE_TIME,
     retry: 1,
@@ -287,6 +319,28 @@ export function useConnectProvidersQuery(enabled = true) {
 }
 
 /**
+ * Every connected Nango provider key, not just the drives — the document menu
+ * needs it for the Teams/Slack send targets. Fetched on open for the
+ * same reason as {@link useConnectProvidersQuery}.
+ */
+export function useConnectedProvidersQuery(enabled = true) {
+  const apiClient = useApiClient();
+  return useQuery<string[]>({
+    queryKey: ['connected-providers'],
+    queryFn: async () => {
+      const res = await apiClient.get<{ providers?: ChatConnectProvider[] }>(
+        '/api/connections/status'
+      );
+      return (res?.providers ?? []).filter((p) => p.connected).map((p) => p.provider);
+    },
+    staleTime: 0,
+    refetchOnMount: 'always',
+    enabled,
+    retry: 1,
+  });
+}
+
+/**
  * One folder of a connected drive (OneDrive, Google Drive), already in one
  * shape for both providers (`/api/connections/:provider/browse`). Jira and
  * Confluence have no folder view. A 403 means the grant expired: the picker
@@ -295,13 +349,18 @@ export function useConnectProvidersQuery(enabled = true) {
 export function useConnectBrowseQuery(
   provider: string | null,
   folderId: string | null,
-  enabled = true
+  enabled = true,
+  /** Suche beim Anbieter (Postfächer). */
+  search: string | null = null
 ) {
   const apiClient = useApiClient();
   return useQuery<ChatConnectFile[]>({
-    queryKey: ['mention-connect-browse', provider, folderId],
+    queryKey: ['mention-connect-browse', provider, folderId, search],
     queryFn: async () => {
-      const qs = folderId ? `?folderId=${encodeURIComponent(folderId)}` : '';
+      const params = new URLSearchParams();
+      if (folderId) params.set('folderId', folderId);
+      if (search) params.set('q', search);
+      const qs = params.size > 0 ? `?${params.toString()}` : '';
       const res = driveBrowseResponseSchema.parse(
         await apiClient.get<unknown>(`/api/connections/${provider}/browse${qs}`)
       );
@@ -320,49 +379,20 @@ export function useConnectBrowseQuery(
   });
 }
 
-// ── @canva (direct Canva Connect API designs) ────────────────────────────────
-//
-// Unlike @connect/@wolke (Nango / Nextcloud), Canva is a direct OAuth
-// integration. The picker lists the user's designs live; selecting designs
-// inserts a markdown link per design into the composer.
-
-export interface ChatCanvaDesign {
-  id: string;
-  title: string;
-  viewUrl: string;
-  editUrl: string;
-  thumbnailUrl: string | null;
-  updatedAt: number | null;
-}
-
 /**
- * The user's Canva designs. Disabled until the picker opens (`enabled`), and
- * re-fetched on open so newly created designs show up. Returns an empty list
- * (not an error) when the user hasn't connected Canva yet — the picker renders
- * an empty-state in that case.
+ * Opens the Google Picker with the user's own token. Google Drive runs under
+ * the `drive.file` scope: the app only sees files picked here, so Google has
+ * no folder listing in the cloud browser. Resolves to `[]` on cancel; a 403
+ * (`ApiError`) means the grant expired, a 404 that the picker key is missing.
  */
-export function useCanvaDesignsQuery(query: string, enabled = true) {
+export function useOpenGooglePicker(): () => Promise<PickedGoogleFile[]> {
   const apiClient = useApiClient();
-  return useQuery<{ designs: ChatCanvaDesign[]; connected: boolean }>({
-    queryKey: ['mention-canva-designs', query],
-    queryFn: async () => {
-      try {
-        const qs = query ? `?query=${encodeURIComponent(query)}` : '';
-        const res = await apiClient.get<{ designs?: ChatCanvaDesign[]; error?: string }>(
-          `/api/canva/designs${qs}`
-        );
-        return { designs: Array.isArray(res?.designs) ? res.designs : [], connected: true };
-      } catch {
-        // 404 (not connected) or any failure → treat as "not connected" so the
-        // picker shows the connect-first empty-state instead of an error.
-        return { designs: [], connected: false };
-      }
-    },
-    staleTime: 0,
-    refetchOnMount: 'always',
-    enabled,
-    retry: 1,
-  });
+  return async () => {
+    const config = googlePickerConfigResponseSchema.parse(
+      await apiClient.get<unknown>('/api/connections/google/picker')
+    );
+    return pickGoogleFiles(config);
+  };
 }
 
 // ── @vorlage (Sharepic-Vorlagen catalogue) ───────────────────────────────────

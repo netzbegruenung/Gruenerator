@@ -5,7 +5,8 @@ import {
   ShareModeSelect,
   type ShareMode,
 } from '@gruenerator/docs';
-import { ApiError, getContractsClient } from '@gruenerator/shared/api';
+import { apiErrorFromResponse, getContractsClient, shareErrorText } from '@gruenerator/shared/api';
+import { groupContentKey } from '@gruenerator/shared/groups';
 import {
   Button,
   Dialog,
@@ -14,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@gruenerator/ui';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
 import { FiCheckCircle } from 'react-icons/fi';
 
@@ -55,7 +57,9 @@ export function ShareCanvasDialog({ canvasId, open, onOpenChange }: ShareCanvasD
     shareWithGroup,
     updateGroupPermission,
     unshareFromGroup,
+    error: sharingError,
   } = useCanvasSharing(canvasId);
+  const queryClient = useQueryClient();
 
   const handleShareAsVorlage = useCallback(async () => {
     if (!vorlageGroupId) return;
@@ -71,19 +75,16 @@ export function ShareCanvasDialog({ canvasId, open, onOpenChange }: ShareCanvasD
           permissions: { read: true },
         },
       });
-      if (res.status !== 200) throw new ApiError(res.status, 'share failed');
+      if (res.status !== 200) throw apiErrorFromResponse(res);
+      void queryClient.invalidateQueries({ queryKey: groupContentKey(vorlageGroupId) });
       setVorlageStatus('shared');
       setVorlageSharedGroupName(targetGroup?.name ?? null);
       setVorlageGroupId('');
     } catch (err) {
-      const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        (err as Error).message ||
-        'Fehler beim Teilen';
       setVorlageStatus('error');
-      setVorlageError(message);
+      setVorlageError(shareErrorText(err));
     }
-  }, [vorlageGroupId, userGroups, canvasId]);
+  }, [vorlageGroupId, userGroups, canvasId, queryClient]);
 
   if (isLoading || !shareSettings) {
     return (
@@ -103,10 +104,11 @@ export function ShareCanvasDialog({ canvasId, open, onOpenChange }: ShareCanvasD
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[28rem]">
         <DialogHeader>
-          <DialogTitle>Canvas teilen</DialogTitle>
+          <DialogTitle>Design teilen</DialogTitle>
           <DialogDescription>
-            Teile diesen Canvas per Link mit einzelnen Personen oder mit deinen Projekten, um
-            gemeinsam zu bearbeiten.
+            {shareSettings.share_mode === 'private'
+              ? 'Nur Projekte und Personen mit Zugriff können dieses Design öffnen. Schalte den Link ein, um weitere Personen einzuladen.'
+              : 'Teile dieses Design per Link mit einzelnen Personen oder mit deinen Projekten, um gemeinsam zu bearbeiten.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -138,6 +140,12 @@ export function ShareCanvasDialog({ canvasId, open, onOpenChange }: ShareCanvasD
           isSharing={shareWithGroup.isPending}
         />
 
+        {sharingError && (
+          <p role="alert" className="m-0 text-sm text-red-600 dark:text-red-400">
+            {sharingError}
+          </p>
+        )}
+
         {userGroups.length > 0 && (
           <div className="border-t border-grey-200 dark:border-grey-700 pt-md">
             <label
@@ -149,7 +157,7 @@ export function ShareCanvasDialog({ canvasId, open, onOpenChange }: ShareCanvasD
             <p className="text-[11px] text-grey-500 mb-1.5">
               Mitglieder des Projekts oder der Gruppe können dieses Sharepic als Vorlage nutzen.
             </p>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <select
                 id="share-canvas-vorlage-group"
                 value={vorlageGroupId}
@@ -160,7 +168,7 @@ export function ShareCanvasDialog({ canvasId, open, onOpenChange }: ShareCanvasD
                     setVorlageError(null);
                   }
                 }}
-                className="flex-1 rounded-md border border-grey-200 dark:border-grey-700 bg-background px-2 py-1.5 text-sm outline-none focus:border-primary-500"
+                className="min-w-[10rem] flex-1 rounded-md border border-grey-200 dark:border-grey-700 bg-background px-2 py-1.5 text-sm outline-none focus:border-primary-500"
               >
                 <option value="">Projekt oder Gruppe auswählen...</option>
                 {userGroups.map((g) => (

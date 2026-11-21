@@ -21,13 +21,18 @@ import {
   ToolChoiceViolationError,
 } from 'ai';
 
+import { PANDA_LANE_MODEL } from '../../../../services/ai/textModelPolicy.js';
 import { classifyProviderError } from '../../../../services/providers/providerErrors.js';
 import { buildAiTelemetry } from '../../../../services/telemetry/langfuseTelemetry.js';
 import { recordDecision } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { reportBackgroundError } from '../../../../utils/reportBackgroundError.js';
 import { createControlTokenFilter, stripToolControlTokens } from '../outputSanity.js';
-import { prefillAllowanceForModel } from '../prefillAllowance.js';
+import {
+  modelNameOfModel,
+  prefillAllowanceForModel,
+  providerOfModel,
+} from '../prefillAllowance.js';
 import { isWholesaleRefusal, refusalLanguage } from '../refusalDetection.js';
 import { createIdleDeadline, type IdleDeadline } from '../streamIdleDeadline.js';
 
@@ -36,6 +41,7 @@ import {
   DEGENERATE_FINISH_REASON,
   trimDegenerate,
 } from './degeneration.js';
+import { reportMidWordEnd } from './midWordEnd.js';
 import { toolsForProvider } from './providerTools.js';
 import { findSourceEchoCut } from './sourceRegistry.js';
 import { ANSWER_CONCRETELY_RULE } from './synthPrompt.js';
@@ -116,6 +122,68 @@ function mountedToolCeilingMs(tools: ToolSet): number {
 const TOOL_PHASE_IDLE_DEADLINE_MS = 45_000;
 
 /**
+ * Zuschlag auf das Fenster oben für Anbieter, die einen Werkzeugaufruf erst
+ * senden, wenn sein Argument fertig ist.
+ *
+ * Mistral streamt Werkzeugargumente nicht: Rohaufruf am 18.11.2026 (Large 4,
+ * ein Gastbeitrag als Argument), 70 Text-Chunks bis ~15 s, dann 44 s gar nichts,
+ * auch kein Keep-alive, dann der ganze Aufruf (6 kB) in einem Chunk. Auf der
+ * Leitung ist „schreibt ein langes Argument" von „ist tot" nicht zu
+ * unterscheiden, und die 45 s rissen genau so einen Ultra-Zug ab („silent for
+ * 45000ms after 245 chars"). 45 s Zuschlag decken bei ~33 Token/s rund 3.000
+ * Token Argument. Andere Anbieter bleiben ohne Messung bei 0.
+ *
+ * Schlüssel ist der Anbieter oder `anbieter/modell`; das Modell gewinnt.
+ *
+ * Panda (DeepSeek v4.1 Flash auf Melious) tut dasselbe, gemessen 19.11.2026 in
+ * 16 Rohläufen und über das SDK: ein Argument von 3.500–5.100 Zeichen kam nach
+ * 13–18 s Stille, eines von 9.400–14.400 Zeichen nach 31–42 s (~88 Token/s),
+ * jeweils in einem Chunk — auch mit `parallel_tool_calls: false` oder
+ * `tool_choice: 'required'`. Panda hat im Loop keine Ausweich-Lane
+ * (`resolveLoopLaneChain`), ein Abriss kostet also den ganzen Zug. Nur dieses
+ * Modell, nicht ganz Melious: Gemma dort ist nicht gemessen.
+ */
+const SILENT_TOOL_ARGUMENT_ALLOWANCE_MS: Readonly<Record<string, number>> = {
+  mistral: 45_000,
+  [`melious/${PANDA_LANE_MODEL}`]: 45_000,
+};
+
+function silentToolArgumentAllowanceMs(model: LanguageModel): number {
+  const provider = providerOfModel(model);
+  return (
+    SILENT_TOOL_ARGUMENT_ALLOWANCE_MS[`${provider}/${modelNameOfModel(model)}`] ??
+    SILENT_TOOL_ARGUMENT_ALLOWANCE_MS[provider] ??
+    0
+  );
+}
+
+/**
+ * Wie lange ununterbrochenes Denken als Lebenszeichen zählt.
+ *
+ * Jedes Denk-Delta stellt die Leerlauf-Frist neu scharf. Ein Modell, das nur
+ * noch denkt, lief deshalb bis zur harten Decke (#5422: Large 4, fünf Minuten,
+ * kein Wort). Nach diesem Budget zählt Denken nicht mehr, und die Frist der
+ * Phase läuft ab wie bei Stille. Jeder andere Teil (Text, Werkzeug, Schritt)
+ * setzt das Budget zurück. Dieselbe Zahl wie `REASONING_PHASE_BUDGET_MS` im
+ * Single-Pass, mit derselben Begründung: sie fängt die Entgleisung, nicht das
+ * gründliche Denken eines Schritts.
+ */
+const REASONING_RUN_BUDGET_MS = 120_000;
+
+/**
+ * Das SDK meldet einen Abbruch als Stream-Teil `abort` und schliesst den Strom
+ * danach regulär (ai v7). Ohne diesen Fehler endete die harte Decke wie eine
+ * fertige Antwort: halber Text ohne Abbruch-Hinweis, leerer Text als „keine
+ * passende Antwort" (#5365, #5422).
+ */
+class StreamAbortedError extends Error {
+  constructor(reason: string | undefined) {
+    super(reason ?? 'stream aborted');
+    this.name = 'AbortError';
+  }
+}
+
+/**
  * Frist bis zum ERSTEN Lebenszeichen eines Planer-Versuchs, solange danach
  * noch eine Ausweich-Lane wartet.
  *
@@ -133,8 +201,26 @@ const TOOL_PHASE_IDLE_DEADLINE_MS = 45_000;
  */
 const FIRST_RESPONSE_DEADLINE_MS = 8_000;
 
+/**
+ * Lanes, deren erste Antwort ein stumm geschriebenes Werkzeugargument sein kann
+ * und die deshalb die kurze Frist oben NICHT bekommen; für sie gilt nur das
+ * Fenster der Werkzeugphase samt Zuschlag (`SILENT_TOOL_ARGUMENT_ALLOWANCE_MS`).
+ *
+ * Panda schreibt vor einem Werkzeugaufruf oft gar keinen Text: gemessen am
+ * 19.11.2026 in 2 von 16 Rohläufen, über das SDK mit „ohne Vorrede" in 3 von 3 —
+ * dann liefert das SDK 14–48 s lang keinen einzigen Stream-Teil, nicht einmal
+ * `start-step` oder mit `includeRawChunks` einen `raw`-Teil. Die 8 s rissen
+ * genau diese Züge ab, gaben sie an die nächste Stufe und vermerkten Panda als
+ * zäh. Der Preis: ein wirklich stummes Panda geht erst nach dem vollen Fenster
+ * an seinen Ausweich; Ablehnungen (5xx, 429) wechseln weiter sofort.
+ *
+ * Mistral steht trotz desselben Pufferns NICHT hier: Ultra schrieb in jedem
+ * gemessenen Lauf zuerst Text, und ein Zug ohne Vorrede ist dort nicht gemessen.
+ */
+const NO_FIRST_RESPONSE_DEADLINE: ReadonlySet<string> = new Set([`melious/${PANDA_LANE_MODEL}`]);
+
 /** Stream-Teile, die das SDK selbst erzeugt, bevor der Anbieter geantwortet hat. */
-/** finishReason, wenn das Modell einen erzwungenen Werkzeugschritt ignorierte. */
+/** finishReason, wenn das Modell auf dem werkzeuglosen Schlussschritt doch ein Werkzeug rief. */
 const TOOL_CHOICE_VIOLATION_FINISH = 'tool_choice_violation';
 
 const SDK_PREAMBLE_PARTS = new Set(['start', 'start-step']);
@@ -153,10 +239,13 @@ export class ToolPhaseStallError extends Error {
  *  (prefillAllowance.ts). */
 function createToolPhaseIdle(
   p: LoopEngineParams,
+  model: LanguageModel,
   prefillMs: number
 ): { idle: IdleDeadline; idleMs: number } {
   const idleMs =
-    (p.toolActivity ? TOOL_PHASE_IDLE_DEADLINE_MS : mountedToolCeilingMs(p.tools)) + prefillMs;
+    (p.toolActivity
+      ? TOOL_PHASE_IDLE_DEADLINE_MS + silentToolArgumentAllowanceMs(model)
+      : mountedToolCeilingMs(p.tools)) + prefillMs;
   return {
     idle: createIdleDeadline(
       idleMs,
@@ -377,34 +466,32 @@ function withTurnContextOnSteps<
 }
 
 /** On the last step (or when forceFinish trips) strip tools AND explain why
- *  via a per-step system override. */
+ *  via a per-step system override.
+ *
+ *  Kein Schritt verlangt einen Werkzeugaufruf: ob und welches Werkzeug, entscheidet
+ *  das Modell (`toolChoice` bleibt `auto`). Bis 11/2026 erzwang Schritt 0 aus elf
+ *  Gründen einen Aufruf (`required` oder benannt) — ein Drittel dieser Schritte
+ *  brach den Zwang, und Mistral Large 4 sowie Melious-Gemma kamen danach nicht
+ *  mehr zum Ende-Token (Schleifen bis 77.707 Zeichen, #5686). LobeHub und Open
+ *  WebUI setzen `tool_choice` im Chat nie. */
 export function buildPrepareStep(
   baseSystem: string,
   /** A getter: the wording depends on WHY the step finishes (artefact vs. limit). */
   finishSuffix: string | (() => string),
   maxSteps: number,
   forceFinish: () => boolean,
-  forceFirstToolCall: boolean,
-  /** Names a tool the NEXT step must call (see guards.emptyResultFallback), or
-   *  null to leave the choice to the model. Consulted on every step but the
-   *  first — step 0 has no tool result to react to yet. */
-  forcedTool: () => string | null = () => null,
   /**
    * Text appended to the system on EVERY step once it is non-empty — a GETTER,
    * not a captured string, because it fills up mid-loop (`rezept_laden`
    * registers during the run).
    *
-   * The loop model's only channel for the recipe body. Note the branch above:
+   * The loop model's only channel for the recipe body. Note the branch below:
    * force-finish is the step where the model writes the answer WITHOUT tools,
    * so a recipe missing there is lost exactly where it matters. It has to land
    * in both branches, and in the plain `{}` one — hence the `system` override
    * appearing where previously nothing was returned.
    */
   extraSystem: () => string = () => '',
-  /** Names the tool the FIRST step must call, when an @-mention pinned one
-   *  (see {@link pinnedFirstTool}). Only consulted while `forceFirstToolCall`
-   *  holds — the research ban vetoes both, and it vetoes first. */
-  firstToolName: string | null = null,
   /**
    * Welche Werkzeuge dieser Schritt MITSCHICKT, oder `undefined` für alle
    * montierten (siehe toolScope.ts). Ein GETTER, aus demselben Grund wie
@@ -412,15 +499,9 @@ export function buildPrepareStep(
    * ruft. Ein einmal eingefangenes Array wäre der Stand von Schritt 0.
    */
   activeTools: (steps?: ReadonlyArray<PreparedStepView>) => readonly string[] | undefined = () =>
-    undefined,
-  /**
-   * Welche Werkzeuge der ERZWUNGENE erste Schritt sieht (`forcedFirstStepTools`),
-   * oder `null` für den vollen Umfang. Nur auf Schritt 0 gelesen, und nur
-   * wenn kein Werkzeug benannt ist — ein benanntes trägt sich selbst.
-   */
-  firstStepTools: readonly string[] | null = null
+    undefined
 ): ({ stepNumber, steps }: { stepNumber: number; steps?: ReadonlyArray<PreparedStepView> }) => {
-  toolChoice?: 'none' | 'required' | { type: 'tool'; toolName: string };
+  toolChoice?: 'none';
   system?: string;
   activeTools?: readonly string[];
 } {
@@ -432,36 +513,6 @@ export function buildPrepareStep(
     // den Aufruf, nicht die Definitionen — der Katalog wird auch auf dem
     // Schlussschritt mitgeschickt und bezahlt.
     const scope = active ? { activeTools: active } : {};
-    /**
-     * Ein BENANNTER Schritt schickt NUR das benannte Werkzeug mit. Das deckt
-     * zweierlei: die Definition geht mit, auch wenn der Umfang sie
-     * zurückgestellt hat (sonst verlangt der Schritt einen Aufruf ohne
-     * Definition), und kein anderes Werkzeug steht daneben.
-     *
-     * Das Zweite ist der Stillstand vom 28.10.2026: `tool_choice` mit Namen über
-     * den vollen Katalog (25 Werkzeuge, ~44k Zeichen Schemata) liess Gemma 4 bei
-     * Cortecs 26 214 unsichtbare Tokens bis `finish_reason: length` erzeugen
-     * (60 s, kein Delta) und bei Melious nach ~30 s mit „malformed" scheitern —
-     * jedes Mal, sobald der Prompt das Modell zu einem anderen ersten Werkzeug
-     * zog (Bürger*innen-Mail: „Schritt 1: gruenerator_search"). GreenPT setzt
-     * den Namen gar nicht durch und rief `web_search`. Mit nur dem benannten
-     * Werkzeug antworteten alle drei in 2–5 s. Mehr als dieses eine kann der
-     * Schritt ohnehin nicht rufen; die anderen Definitionen sind nur Ablenkung.
-     * Die Absicherung sitzt hier, weil jeder Zwang durch diesen Trichter läuft:
-     * `forcedTool`, `firstToolName`, was danach kommt.
-     */
-    const onlyTool = (name: string) => ({ activeTools: [name] as readonly string[] });
-    /**
-     * Der Systemprompt zieht das Modell sonst zu einem Werkzeug, das dieser
-     * Schritt nicht mehr führt: „Fragen nach Reden gehen immer an
-     * `bundestag_reden`, nicht an `bundestag`" bei erzwungenem `bundestag` —
-     * Stillstand vom 28.10.2026 („Wann hat Katrin Uhlig … gesprochen?"):
-     * Cortecs und Melious schwiegen je 15 s, GreenPT rief nichts. Gleiche Frage
-     * mit gestrichener Zeile oder mit diesem Hinweis: Aufruf nach 2–3 s. Der
-     * Hinweis steht am Ende, wo er die Zuordnung weiter oben überstimmt.
-     */
-    const namedStepNote = (name: string) =>
-      `\n\n## DIESER SCHRITT\nDein einziger Aufruf in diesem Schritt ist \`${name}\`. Andere Werkzeuge aus der Zuordnung oben gelten erst für die folgenden Schritte; sie stehen diesem Schritt nicht zur Wahl.`;
     if (stepNumber >= maxSteps - 1 || forceFinish()) {
       return {
         toolChoice: 'none' as const,
@@ -475,40 +526,6 @@ export function buildPrepareStep(
       if (nudge) retryNudged = true;
     }
     const extra = `${extraSystem()}${nudge}`;
-    // Explicit-scope MCP FOLLOW-UP: the small planner otherwise answers from
-    // prose without ever calling the connector (observed: intent=mcp steps=0,
-    // "Tally gibt nur die interne ID zurück" fabricated). Require a tool call on
-    // the first step so it actually hits the server. Gated off for the first
-    // scope turn (clarification allowed) and meta questions by the caller.
-    if (forceFirstToolCall && stepNumber === 0) {
-      // Eine @-Erwähnung hat ein Werkzeug benannt: `required` liesse das Modell
-      // stattdessen die generische Suche rufen — den Erwähnungstext sieht es
-      // gar nicht mehr.
-      const choice = firstToolName
-        ? ({ type: 'tool' as const, toolName: firstToolName } as const)
-        : ('required' as const);
-      const system = `${baseSystem}${extra}${firstToolName ? namedStepNote(firstToolName) : ''}`;
-      return {
-        toolChoice: choice,
-        ...(system !== baseSystem && { system }),
-        ...(firstToolName
-          ? onlyTool(firstToolName)
-          : firstStepTools
-            ? { activeTools: firstStepTools }
-            : scope),
-      };
-    }
-    if (stepNumber > 0) {
-      const toolName = forcedTool();
-      // `required` would only guarantee SOME call — the model would happily
-      // re-run the internal search that just came back empty. Name the tool.
-      if (toolName)
-        return {
-          toolChoice: { type: 'tool' as const, toolName },
-          system: `${baseSystem}${extra}${namedStepNote(toolName)}`,
-          ...onlyTool(toolName),
-        };
-    }
     return extra ? { system: `${baseSystem}${extra}`, ...scope } : { ...scope };
   };
 }
@@ -597,22 +614,12 @@ export interface LoopEngineParams {
   abortSignal: AbortSignal;
   /** Extra force-finish trigger (e.g. an image was generated). */
   forceFinish: () => boolean;
-  /** Force a tool call on the first step (explicit-scope MCP follow-ups). */
-  forceFirstToolCall?: boolean;
   /**
    * Welche der montierten Werkzeuge mitgeschickt werden — `undefined` heisst
    * alle, also das Verhalten vor `toolScope.ts`. Getter: eine zurückgestellte
    * Gruppe kann sich mitten im Lauf öffnen.
    */
   activeTools?: (steps?: ReadonlyArray<PreparedStepView>) => readonly string[] | undefined;
-  /** Names the tool that first step must call, when an @-mention pinned one. */
-  firstToolName?: string | null;
-  /** Tool set the forced first step sees (`forcedFirstStepTools`); null = full scope. */
-  firstStepTools?: readonly string[] | null;
-  /** Names a specific tool the next step must call — used to turn the "web is
-   *  now allowed" permission after an empty internal search into an actual
-   *  fallback. Evaluated per step; null leaves the choice to the model. */
-  forcedToolForStep?: () => string | null;
   onText: (delta: string) => void;
   onReasoning: (delta: string) => void;
   /** The repair writer's sibling took over because the writer stalled or came
@@ -635,9 +642,8 @@ export interface LoopEngineParams {
    * arrived, only the stream stayed open — see the end of `streamWithTools`).
    */
   onLaneUnhealthy?: (laneIndex: number, grund: LaneUnhealthyReason) => void;
-  /** Runs AFTER the stream: the net for an owed artifact or edit the model did
-   *  not call even under the named step (`owedToolName`), e.g. on a host that
-   *  ignores `tool_choice`. Idempotent — no-op when the tool already ran. */
+  /** Runs AFTER the stream: the net for an ordered artifact or edit the model
+   *  did not call. Idempotent — no-op when the tool already ran. */
   ensureOwedTools?: () => Promise<boolean | void>;
   /**
    * Output-integrity check on the answer (after the refusal/tool-plan
@@ -836,11 +842,22 @@ async function streamWithTools(
     `${unifiedSystem}${p.turnContext ?? ''}`,
     p.messages
   );
-  const { idle, idleMs } = createToolPhaseIdle(p, prefillMs);
+  const { idle, idleMs } = createToolPhaseIdle(p, model, prefillMs);
   const firstResponseMs = FIRST_RESPONSE_DEADLINE_MS + prefillMs;
-  let firstResponse: IdleDeadline | null = hasNextLane
+  const shortFirstResponse =
+    hasNextLane &&
+    !NO_FIRST_RESPONSE_DEADLINE.has(`${providerOfModel(model)}/${modelNameOfModel(model)}`);
+  let firstResponse: IdleDeadline | null = shortFirstResponse
     ? createIdleDeadline(firstResponseMs, () => new ToolPhaseStallError(firstResponseMs))
     : null;
+  const prepareStep = buildPrepareStep(
+    unifiedSystem,
+    () => (p.producedArtifact?.() ? ARTIFACT_FINISH_SYSTEM_SUFFIX : FORCE_FINISH_SYSTEM_SUFFIX),
+    p.maxSteps,
+    p.forceFinish,
+    p.getRecipeBlock,
+    p.activeTools
+  );
   const result = deps.streamText({
     model,
     system: withTurnContext(unifiedSystem, p.turnContext),
@@ -857,21 +874,7 @@ async function streamWithTools(
       idle.signal,
       ...(firstResponse ? [firstResponse.signal] : []),
     ]),
-    prepareStep: withTurnContextOnSteps(
-      buildPrepareStep(
-        unifiedSystem,
-        () => (p.producedArtifact?.() ? ARTIFACT_FINISH_SYSTEM_SUFFIX : FORCE_FINISH_SYSTEM_SUFFIX),
-        p.maxSteps,
-        p.forceFinish,
-        p.forceFirstToolCall ?? false,
-        p.forcedToolForStep,
-        p.getRecipeBlock,
-        p.firstToolName ?? null,
-        p.activeTools,
-        p.firstStepTools ?? null
-      ),
-      p.turnContext
-    ),
+    prepareStep: withTurnContextOnSteps(prepareStep, p.turnContext),
     experimental_repairToolCall: repairToolCall,
     ...phaseTelemetry('unified'),
     onError: logStreamError('unified'),
@@ -909,13 +912,14 @@ async function streamWithTools(
       'stop'
     );
   } catch (error) {
-    // Ein Modell, das den erzwungenen Schritt ignoriert (benannter
-    // `toolChoice` für ein geschuldetes Artefakt), beendet nur den Strom, nicht
-    // den Zug: danach legt `ensureOwedTools` das Artefakt an, und die
-    // Reparatur schreibt die Antwort (`abnormal_finish`). Live 07.11.2026:
-    // Mistral Large 4 ohne `create_sheet` → Fehlermeldung statt Tabelle.
+    // Der einzige Zwang ist der Schlussschritt (`toolChoice: 'none'`). Ein
+    // Modell, das dort trotzdem ruft, beendet nur den Strom, nicht den Zug:
+    // danach legt `ensureOwedTools` ein geschuldetes Artefakt an, und die
+    // Reparatur schreibt die Antwort (`abnormal_finish`).
     if (!ToolChoiceViolationError.isInstance(error)) throw error;
-    log.warn(`[Engine] ${modelLabel(model)} ignored the forced tool step — ${error.message}`);
+    log.warn(
+      `[Engine] ${modelLabel(model)} called a tool on the tool-less final step — ${error.message}`
+    );
     firstResponse?.clear();
     return { text: streamed, finishReason: TOOL_CHOICE_VIOLATION_FINISH };
   }
@@ -951,6 +955,7 @@ async function streamWithTools(
     // The start of the copied register is already on the wire.
     return { text, finishReason, replacement: 'unified_source_echo' };
   }
+  reportMidWordEnd(text, finishReason, modelLabel(model), 'unified');
   return { text, finishReason };
 }
 
@@ -966,8 +971,10 @@ interface LaneProbe {
    *  already said so, and the writer, missing the failure note, announced a
    *  research plan with tool names and asked „Soll ich starten?". */
   sawToolResult: boolean;
-  /** Reasoning or text already reached the client. A second lane would
-   *  stream its own next to it, so the attempt is not repeated either. */
+  /** Answer text already reached the client. A second lane would stream its
+   *  own next to it, so the attempt is not repeated either. Reasoning does not
+   *  count: it is shown apart from the answer, and a lane that only thought
+   *  until its deadline left nothing a retry would duplicate (#5422). */
   sawOutput: boolean;
 }
 
@@ -1065,14 +1072,13 @@ function observeLane(
           ]);
           if (next.done) return next;
           const part = next.value;
+          // The first-response deadline fired and the SDK closed the stream
+          // before the race saw it: surface the stall, not a bare abort.
+          if (part.type === 'abort' && waiting?.signal.aborted) await waiting.deadline;
           if (!SDK_PREAMBLE_PARTS.has(part.type)) onFirstResponse();
           if (part.type === 'tool-call') probe.sawToolCall = true;
           if (part.type === 'tool-result') probe.sawToolResult = true;
-          if (
-            (part.type === 'reasoning-delta' || part.type === 'text-delta') &&
-            part.text != null &&
-            part.text.length > 0
-          ) {
+          if (part.type === 'text-delta' && part.text != null && part.text.length > 0) {
             probe.sawOutput = true;
           }
           return next;
@@ -1225,7 +1231,9 @@ async function writeRepair(p: LoopEngineParams, deps: LoopDeps): Promise<string>
     });
     const { text, finishReason } = await drain(result, () => {}, p.onReasoning, idle);
     // What gets persisted and what every validator downstream reads.
-    return { text: stripToolControlTokens(text), finishReason };
+    const clean = stripToolControlTokens(text);
+    reportMidWordEnd(clean, finishReason, modelLabel(model), 'synth');
+    return { text: clean, finishReason };
   };
 
   /** A stalled or empty pass costs the user the whole turn, so try the sibling
@@ -1391,7 +1399,13 @@ async function writeRepair(p: LoopEngineParams, deps: LoopDeps): Promise<string>
   return retry.text;
 }
 
-type StreamPart = { type: string; text?: string; error?: unknown; finishReason?: string };
+type StreamPart = {
+  type: string;
+  text?: string;
+  error?: unknown;
+  finishReason?: string;
+  reason?: string;
+};
 
 interface Drainable {
   stream: AsyncIterable<StreamPart>;
@@ -1401,9 +1415,10 @@ async function drain(
   result: Drainable,
   onText: (d: string) => void,
   onReasoning: (d: string) => void,
-  /** Optional stall guard. Every chunk — text OR reasoning — counts as liveness,
-   *  so a thinking model is never mistaken for a hung one. */
-  idle?: { deadline: Promise<never>; clear: () => void; touch: () => void },
+  /** Optional stall guard. Every chunk counts as liveness, reasoning too, so a
+   *  thinking model is not mistaken for a hung one — but reasoning only up to
+   *  REASONING_RUN_BUDGET_MS without any other part in between. */
+  idle?: IdleDeadline,
   /**
    * Was ein Stillstand bedeutet. `throw` (Standard) für die Synth-Phase, die
    * darauf ihre Geschwister-Lane startet. `stop` für die Werkzeugphase: dort
@@ -1419,6 +1434,8 @@ async function drain(
   let echoCut = false;
   const degeneration = createDegenerationGuard();
   const iterator = result.stream[Symbol.asyncIterator]();
+  let reasoningSince: number | null = null;
+  let reasoningOverrun = false;
   try {
     while (true) {
       // Racing the deadline is what makes a stall observable: awaiting `next()`
@@ -1440,8 +1457,35 @@ async function drain(
         next = await iterator.next();
       }
       if (next.done) break;
-      idle?.touch();
       const part = next.value;
+      if (part.type === 'abort') {
+        // Our own deadline fired and the SDK closed the stream before the race
+        // saw the rejection: that is a stall, not a bare abort.
+        if (idle?.signal.aborted) {
+          const stall: unknown = await idle.deadline.catch((err: unknown) => err);
+          if (onStall === 'stop' && stall instanceof ToolPhaseStallError) {
+            stalled = true;
+            break;
+          }
+          throw stall;
+        }
+        throw new StreamAbortedError(part.reason);
+      }
+      if (part.type.startsWith('reasoning')) {
+        reasoningSince ??= Date.now();
+        if (Date.now() - reasoningSince < REASONING_RUN_BUDGET_MS) {
+          idle?.touch();
+        } else if (!reasoningOverrun) {
+          reasoningOverrun = true;
+          log.warn(
+            `[Engine] reasoning ran ${REASONING_RUN_BUDGET_MS}ms without text or a tool call — no longer counting it as liveness`
+          );
+        }
+      } else {
+        reasoningOverrun = false;
+        reasoningSince = null;
+        idle?.touch();
+      }
       if (part.type === 'error') throw part.error;
       if (part.type === 'reasoning-delta' && part.text != null && part.text.length > 0) {
         onReasoning(part.text);

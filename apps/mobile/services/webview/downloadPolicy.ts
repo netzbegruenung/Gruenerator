@@ -46,10 +46,11 @@ export function safeCacheFilename(raw: string, fallbackExtension = 'bin'): strin
 }
 
 /**
- * Where a file of this type should go. Images belong in the gallery, where the
- * user looks for a sharepic; everything else goes to the share sheet, which can
- * hand it to any app that understands the type.
+ * Where a file of this type should go. Images and videos belong in the gallery,
+ * where the user looks for a sharepic or a reel; everything else goes to the
+ * share sheet, which can hand it to any app that understands the type.
  */
 export function pickTarget(mime: string): 'gallery' | 'share' {
-  return mime.toLowerCase().startsWith('image/') ? 'gallery' : 'share';
+  const type = mime.toLowerCase();
+  return type.startsWith('image/') || type.startsWith('video/') ? 'gallery' : 'share';
 }

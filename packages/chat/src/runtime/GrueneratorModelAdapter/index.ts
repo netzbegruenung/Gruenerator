@@ -43,13 +43,13 @@ import { parseSSEStream } from './parseSSEStream';
 import { parseWithReattach } from './reattach';
 import { truncateAttachmentContext } from './truncation';
 
+import type { ThreadMode } from '../../stores/chatStore';
 import type {
   GrueneratorAdapterConfig,
   GrueneratorAdapterCallbacks,
   StreamOutcome,
   ToolCallPart,
 } from './types';
-import type { ThreadMode } from '../../stores/chatStore';
 import type {
   ChatModelAdapter,
   ChatModelRunOptions,
@@ -298,8 +298,11 @@ export function createGrueneratorModelAdapter(
       const baseConfig = getConfig();
       // Per-run thread binding: the runtime passes the owning thread's remoteId.
       // Prefer it over the store's currentThreadId, which can lag on rapid
-      // thread switches; a fresh thread has no remoteId snapshot yet, so fall
-      // back to the store id that initialize() just set.
+      // thread switches. A draft's first send gets it too: append() awaits
+      // initialize() and the runtime then reports the minted remoteId. That is
+      // load-bearing — initialize() leaves the store alone when the user has
+      // opened another thread meanwhile (#5719), so the store fallback below
+      // would name that other thread.
       //
       // BUT assistant-ui also reports its INTERNAL ids as unstable_threadId:
       // the legacy local sentinel "__DEFAULT_ID__" AND — since useLocalRuntime

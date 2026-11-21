@@ -8,8 +8,10 @@ import { axe, renderWithProviders } from '../../../test-utils';
 
 import {
   buildRoleShortcuts,
+  bundesgeschaeftsstelleShortcut,
   grueneJugendShortcut,
   landesverbandShortcut,
+  mdbBueroShortcut,
   type RoleShortcut,
 } from './roleShortcuts';
 import { RoleShortcutsSidebarSection } from './RoleShortcutsSidebarSection';
@@ -150,7 +152,83 @@ describe('RoleShortcutsSidebarSection — Grüne Jugend', () => {
   });
 });
 
+const bgst = { ebene: 'bund', rolle: 'Mitarbeiter*in Bundesgeschäftsstelle' };
+const mdbBuero = { ebene: 'bund', rolle: 'Mitarbeiter*in MdB-Büro', abgeordnete: 'Lisa Badum' };
+
+describe('RoleShortcutsSidebarSection — Bundesgeschäftsstelle', () => {
+  it('offers the five bgst recipes and the Bundesverband notebook on bgst', () => {
+    const shortcut = bundesgeschaeftsstelleShortcut([bgst], 'bgst');
+    expect(shortcut?.role).toEqual(bgst);
+    expect(shortcut?.starters.links.map((l) => l.path)).toEqual([
+      '/chat?rezept=beschlusslage',
+      '/chat?rezept=rechtsstand',
+      '/chat?rezept=sprechzettel',
+      '/chat?rezept=leitantrag',
+      '/chat?rezept=presse-beschluss',
+    ]);
+    expect(shortcut?.links.map((l) => l.key)).toEqual([
+      'gruene-notebook',
+      'wahlpruefsteine-notebook',
+    ]);
+  });
+
+  it('offers nothing where the bgst recipes are not on offer', () => {
+    expect(bundesgeschaeftsstelleShortcut([bgst], 'production')).toBeNull();
+    expect(bundesgeschaeftsstelleShortcut([mdbBuero], 'bgst')).toBeNull();
+  });
+
+  it('starts a chat with a bgst recipe', async () => {
+    const user = userEvent.setup();
+    const { onNavigate } = renderSection([bundesgeschaeftsstelleShortcut([bgst], 'bgst')!]);
+    await user.click(screen.getByRole('button', { name: 'Bundesgeschäftsstelle' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Beschlusslage' }));
+    expect(onNavigate).toHaveBeenCalledWith('/chat?rezept=beschlusslage', 'Beschlusslage');
+  });
+});
+
+describe('RoleShortcutsSidebarSection — MdB-Büro', () => {
+  it('is named after the MP and offers the Bundestag agents and notebooks', () => {
+    const shortcut = mdbBueroShortcut([mdbBuero], 'production');
+    expect(shortcut?.name).toBe('Büro Lisa Badum');
+    expect(shortcut?.starters.links.map((l) => l.key)).toEqual([
+      'gruenerator-bundestag',
+      'gruenerator-abgeordnetenwatch',
+      'gruenerator-rede-schreiber',
+      'gruenerator-buergerservice',
+    ]);
+    expect(shortcut?.links.map((l) => l.key)).toEqual([
+      'bundestagsfraktion-notebook',
+      'bundestag-dip-notebook',
+    ]);
+  });
+
+  it('falls back to "MdB-Büro" without an MP and drops notebooks the instance hides', () => {
+    const shortcut = mdbBueroShortcut([{ ...mdbBuero, abgeordnete: '' }], 'bgst');
+    expect(shortcut?.name).toBe('MdB-Büro');
+    // bgst blendet `parlamente` aus.
+    expect(shortcut?.links).toEqual([]);
+    expect(mdbBueroShortcut([bgst], 'production')).toBeNull();
+  });
+
+  it('opens the Abgeordnetenwatch agent', async () => {
+    const user = userEvent.setup();
+    const { onNavigate } = renderSection([mdbBueroShortcut([mdbBuero], 'production')!]);
+    await user.click(screen.getByRole('button', { name: 'Büro Lisa Badum' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Abgeordnetenwatch' }));
+    expect(onNavigate).toHaveBeenCalledWith(
+      `/agents/${getAgentSlug('gruenerator-abgeordnetenwatch')}`,
+      'Abgeordnetenwatch'
+    );
+  });
+});
+
 describe('buildRoleShortcuts', () => {
+  it('orders LV, bgst, MdB-Büro and GJ entries', () => {
+    expect(
+      buildRoleShortcuts([...roles, bgst, mdbBuero], 'de-DE', 'local').map((s) => s.key)
+    ).toEqual([berlin.slug, 'bundesgeschaeftsstelle', 'mdb-buero', 'gruene-jugend']);
+  });
+
   it('lists the LV and the GJ entry, and skips roles switched off for the sidebar', () => {
     expect(buildRoleShortcuts(roles, 'de-DE', 'production').map((s) => s.key)).toEqual([
       berlin.slug,

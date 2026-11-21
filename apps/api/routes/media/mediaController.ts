@@ -1,5 +1,5 @@
 import { UPLOAD_SOURCES } from '@gruenerator/shared/media-library/constants';
-import express, { type Request, type Response, type Router } from 'express';
+import express, { type NextFunction, type Request, type Response, type Router } from 'express';
 import multer, { type FileFilterCallback } from 'multer';
 import { z } from 'zod';
 
@@ -55,11 +55,13 @@ const ALLOWED_MIME_TYPES: AllowedMimeType[] = [
   'video/quicktime',
 ];
 
+const MAX_MULTIPART_MB = 50;
+
 const upload = multer({
   defParamCharset: 'utf8',
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB limit
+    fileSize: MAX_MULTIPART_MB * 1024 * 1024,
   },
   fileFilter: (_req: Request, file: Express.Multer.File, cb: FileFilterCallback): void => {
     if (ALLOWED_MIME_TYPES.includes(file.mimetype as AllowedMimeType)) {
@@ -69,6 +71,24 @@ const upload = multer({
     }
   },
 });
+
+/** Not the global multer handler: its text would name another route's limit (#5863). */
+function receiveFile(req: Request, res: Response, next: NextFunction): void {
+  upload.single('file')(req, res, (err: unknown) => {
+    if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+      res.status(413).json({
+        success: false,
+        error: `Die Datei ist zu groß. Dieser Upload nimmt höchstens ${MAX_MULTIPART_MB} MB; größere Videos und Audio werden in Teilen hochgeladen (/api/uploads, danach /api/media/import-upload).`,
+      });
+      return;
+    }
+    if (err) {
+      next(err);
+      return;
+    }
+    next();
+  });
+}
 
 /**
  * GET /api/media
@@ -202,7 +222,7 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response): Promise<
  */
 router.post(
   '/upload',
-  upload.single('file'),
+  receiveFile,
   validateBody(mediaUploadSchema),
   async (req: TypedRequest<MediaUploadBody>, res: Response): Promise<void> => {
     try {

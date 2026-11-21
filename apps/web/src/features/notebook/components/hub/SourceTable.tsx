@@ -122,107 +122,135 @@ export function SourceTable({
       ) : null}
 
       <div className="rounded-lg border border-grey-200 text-sm dark:border-grey-700">
-        <div
-          className={cn(
-            'grid items-center gap-sm rounded-t-lg bg-background-alt px-md py-sm text-xs tracking-wide text-grey-500 uppercase',
-            COLS
-          )}
-        >
-          <Checkbox
-            checked={allChecked}
-            onCheckedChange={(v) =>
-              setChecked(v === true ? new Set(rows.map((r) => r.id)) : new Set())
-            }
-            aria-label="Alle auswählen"
-          />
-          <span>Name</span>
-          <span className="hidden @min-[760px]:block">Umfang</span>
-          <span className="hidden @min-[760px]:block">Hinzugefügt</span>
-          <span className="hidden @min-[760px]:block">Status</span>
-          <span />
-        </div>
-
-        {rows.map((doc) => {
-          const isChecked = checked.has(doc.id);
-          const status = sourceStatus(doc);
-          const added = formatRelativeTime(doc.created_at);
-          const rowActions = actions.filter((a) => !a.when || a.when(doc));
-          return (
-            <div
-              key={doc.id}
-              className={cn(
-                'grid items-center gap-sm border-t border-grey-200 px-md py-sm dark:border-grey-700',
-                COLS,
-                isChecked && 'bg-secondary-600/8'
-              )}
-            >
+        {/* Ein Raster, das wie eine Tabelle aussieht, muss sich auch so vorlesen:
+            ohne die Rollen hörte man „Bereit" ohne Spalte und ohne Datei dazu. */}
+        <div role="table" aria-label="Quellen" aria-rowcount={rows.length + 1}>
+          <div
+            role="row"
+            className={cn(
+              'grid items-center gap-sm rounded-t-lg bg-background-alt px-md py-sm text-xs tracking-wide text-grey-500 uppercase',
+              COLS
+            )}
+          >
+            <div role="columnheader" className="flex items-center">
               <Checkbox
-                checked={isChecked}
-                onCheckedChange={(v) => toggle(doc.id, v === true)}
-                aria-label={`${doc.title} auswählen`}
+                checked={allChecked}
+                onCheckedChange={(v) =>
+                  setChecked(v === true ? new Set(rows.map((r) => r.id)) : new Set())
+                }
+                aria-label="Alle auswählen"
               />
-              <div className="flex min-w-0 items-center gap-sm">
-                <span
-                  aria-hidden
-                  className="inline-flex size-[30px] shrink-0 items-center justify-center rounded-md bg-secondary-600/15 text-[8px] font-bold text-secondary-700 dark:text-secondary-300"
-                >
-                  {kindLabel(doc)}
-                </span>
-                <div className="flex min-w-0 flex-col">
-                  <button
-                    type="button"
-                    onClick={() => onPreview(doc)}
-                    className="truncate text-left hover:text-secondary-700 hover:underline dark:hover:text-secondary-300"
+            </div>
+            <span role="columnheader">Name</span>
+            <span role="columnheader" className="hidden @min-[760px]:block">
+              Umfang
+            </span>
+            <span role="columnheader" className="hidden @min-[760px]:block">
+              Hinzugefügt
+            </span>
+            <span role="columnheader" className="hidden @min-[760px]:block">
+              Status
+            </span>
+            <span role="columnheader">
+              <span className="sr-only">Aktionen</span>
+            </span>
+          </div>
+
+          {rows.map((doc) => {
+            const isChecked = checked.has(doc.id);
+            const status = sourceStatus(doc);
+            const added = formatRelativeTime(doc.created_at);
+            const rowActions = actions.filter((a) => !a.when || a.when(doc));
+            return (
+              <div
+                key={doc.id}
+                role="row"
+                className={cn(
+                  'grid items-center gap-sm border-t border-grey-200 px-md py-sm dark:border-grey-700',
+                  COLS,
+                  isChecked && 'bg-secondary-600/8'
+                )}
+              >
+                <div role="cell" className="flex items-center">
+                  <Checkbox
+                    checked={isChecked}
+                    onCheckedChange={(v) => toggle(doc.id, v === true)}
+                    aria-label={`${doc.title} auswählen`}
+                  />
+                </div>
+                <div role="cell" className="flex min-w-0 items-center gap-sm">
+                  <span
+                    aria-hidden
+                    className="inline-flex size-[30px] shrink-0 items-center justify-center rounded-md bg-secondary-600/15 text-[8px] font-bold text-secondary-700 dark:text-secondary-300"
                   >
-                    {doc.title}
-                  </button>
-                  <span className="truncate text-xs text-grey-500 @min-[760px]:hidden">
-                    {[pagesLabel(doc), added, statusText(doc)]
-                      .filter((p) => p && p !== '—')
-                      .join(' · ')}
+                    {kindLabel(doc)}
                   </span>
-                  {status === 'failed' && doc.processing_error ? (
-                    <span
-                      className="truncate text-xs text-red-700 dark:text-red-400"
-                      title={doc.processing_error}
+                  <div className="flex min-w-0 flex-col">
+                    <button
+                      type="button"
+                      onClick={() => onPreview(doc)}
+                      className="truncate text-left hover:text-secondary-700 hover:underline dark:hover:text-secondary-300"
                     >
-                      {doc.processing_error}
+                      {doc.title}
+                    </button>
+                    <span className="truncate text-xs text-grey-500 @min-[760px]:hidden">
+                      {[pagesLabel(doc), added, statusText(doc)]
+                        .filter((p) => p && p !== '—')
+                        .join(' · ')}
                     </span>
-                  ) : null}
+                    {status === 'failed' && doc.processing_error ? (
+                      <span
+                        className="truncate text-xs text-red-700 dark:text-red-400"
+                        title={doc.processing_error}
+                      >
+                        {doc.processing_error}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+                <span role="cell" className="hidden text-grey-500 @min-[760px]:block">
+                  {pagesLabel(doc)}
+                </span>
+                <span role="cell" className="hidden text-grey-500 @min-[760px]:block">
+                  {added}
+                </span>
+                <span role="cell" className="hidden items-center gap-xs @min-[760px]:inline-flex">
+                  <StatusDot status={status} />
+                  {statusText(doc)}
+                </span>
+                <div role="cell" className="flex items-center">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={`Aktionen für ${doc.title}`}
+                      >
+                        <HiDotsHorizontal aria-hidden />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="min-w-[12.5rem]">
+                      <DropdownMenuItem onSelect={() => onPreview(doc)}>Vorschau</DropdownMenuItem>
+                      {rowActions.map((a) => (
+                        <DropdownMenuItem key={a.label} onSelect={() => a.onSelect(doc)}>
+                          {a.label}
+                        </DropdownMenuItem>
+                      ))}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        variant="destructive"
+                        disabled={disabled}
+                        onSelect={() => void onRemove([doc.id])}
+                      >
+                        Aus Notebook entfernen
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
-              <span className="hidden text-grey-500 @min-[760px]:block">{pagesLabel(doc)}</span>
-              <span className="hidden text-grey-500 @min-[760px]:block">{added}</span>
-              <span className="hidden items-center gap-xs @min-[760px]:inline-flex">
-                <StatusDot status={status} />
-                {statusText(doc)}
-              </span>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon-sm" aria-label={`Aktionen für ${doc.title}`}>
-                    <HiDotsHorizontal aria-hidden />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="min-w-[12.5rem]">
-                  <DropdownMenuItem onSelect={() => onPreview(doc)}>Vorschau</DropdownMenuItem>
-                  {rowActions.map((a) => (
-                    <DropdownMenuItem key={a.label} onSelect={() => a.onSelect(doc)}>
-                      {a.label}
-                    </DropdownMenuItem>
-                  ))}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    variant="destructive"
-                    disabled={disabled}
-                    onSelect={() => void onRemove([doc.id])}
-                  >
-                    Aus Notebook entfernen
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
         {footer}
       </div>
     </div>

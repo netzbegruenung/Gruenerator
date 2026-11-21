@@ -62,8 +62,13 @@
     },
     {
       "key": "cloud_files",
-      "label": "Wolke",
-      "description": "Durchsucht die verbundenen Wolke-Ordner, listet Dateien auf und liest sie — ausschließlich lesend."
+      "label": "Dateiablagen",
+      "description": "Durchsucht die verbundenen Ablagen (Wolke, OneDrive, Google Drive), listet Dateien auf und liest sie — ausschließlich lesend."
+    },
+    {
+      "key": "atlassian",
+      "label": "Jira & Confluence",
+      "description": "Sucht und liest Jira-Issues und Confluence-Seiten aus den verbundenen Atlassian-Konten — ausschließlich lesend."
     },
     {
       "key": "vertonen",

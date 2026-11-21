@@ -101,6 +101,41 @@ describe('resolveUpgradeAuth', () => {
       expect(getSessionMock).not.toHaveBeenCalled();
     });
 
+    it('wechselt mit dev_auth_user auf eine erlaubte zweite Dev-Identität', async () => {
+      envMock.NODE_ENV = 'development';
+      envMock.ALLOW_DEV_AUTH_BYPASS = true;
+      envMock.DEV_AUTH_BYPASS_TOKEN = 'geheim';
+      const result = await resolveUpgradeAuth(
+        request(),
+        url('?dev_auth_token=geheim&dev_auth_user=00000000-0000-4000-a000-0000000000b2')
+      );
+      expect(result).toEqual({ ok: true, userId: '00000000-0000-4000-a000-0000000000b2' });
+    });
+
+    it('ignoriert dev_auth_user außerhalb der Allowlist', async () => {
+      envMock.NODE_ENV = 'development';
+      envMock.ALLOW_DEV_AUTH_BYPASS = true;
+      envMock.DEV_AUTH_BYPASS_TOKEN = 'geheim';
+      const result = await resolveUpgradeAuth(
+        request(),
+        url('?dev_auth_token=geheim&dev_auth_user=00000000-0000-4000-a000-0000000000ee')
+      );
+      expect(result).toEqual({ ok: true, userId: '00000000-0000-4000-a000-000000000001' });
+    });
+
+    it('ignoriert dev_auth_user ohne passendes Token', async () => {
+      envMock.NODE_ENV = 'development';
+      envMock.ALLOW_DEV_AUTH_BYPASS = true;
+      envMock.DEV_AUTH_BYPASS_TOKEN = 'geheim';
+      getSessionMock.mockResolvedValue(null);
+      await expect(
+        resolveUpgradeAuth(
+          request(),
+          url('?dev_auth_token=falsch&dev_auth_user=00000000-0000-4000-a000-0000000000b2')
+        )
+      ).resolves.toEqual({ ok: false, reason: 'unauthorized' });
+    });
+
     it('greift in production auch mit passendem Token nicht', async () => {
       envMock.ALLOW_DEV_AUTH_BYPASS = true;
       envMock.DEV_AUTH_BYPASS_TOKEN = 'geheim';

@@ -97,6 +97,36 @@ export const HOST_CAPABILITY_REQUEST_CLOSE = 'requestClose';
  */
 export const HOST_CAPABILITY_EDITOR_CHROME = 'editorChrome';
 
+/**
+ * The host takes files in pieces: `FILE_TRANSFER_BEGIN`, then `FILE_TRANSFER_CHUNK`s
+ * it acknowledges one at a time, then `FILE_TRANSFER_END`. For what does not fit
+ * one `DOWNLOAD_FILE` — an exported video is 30–40 MB for two minutes. One
+ * page-side implementation: `downloadBlob` in `./download.ts`.
+ */
+export const HOST_CAPABILITY_FILE_TRANSFER = 'fileTransfer';
+
+/**
+ * Raw bytes per `FILE_TRANSFER_CHUNK` (base64: 1 MiB). Small enough that one
+ * message never stalls the string channel, large enough that a 40 MB video is
+ * 40 round trips, not 400. A multiple of 3, so the base64 of a chunk carries no
+ * padding and the pieces read like one stream in a log.
+ */
+export const FILE_TRANSFER_CHUNK_BYTES = 3 * 256 * 1024;
+
+/** Longest `data` a `FILE_TRANSFER_CHUNK` may carry; the parser rejects more. */
+export const FILE_TRANSFER_CHUNK_MAX_BASE64_LENGTH = 2 * 1024 * 1024;
+
+/** Largest file the host accepts in pieces (1 GiB): it is written to the cache. */
+export const FILE_TRANSFER_MAX_BYTES = 1024 * 1024 * 1024;
+
+const FILE_TRANSFER_ID_MAX_LENGTH = 64;
+
+const isTransferId = (value: unknown): value is string =>
+  typeof value === 'string' && value.length > 0 && value.length <= FILE_TRANSFER_ID_MAX_LENGTH;
+
+const isChunkIndex = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isInteger(value) && value >= 0;
+
 /** What the host's native editor bar can ask the page to do. */
 export type EditorCommand = 'undo' | 'redo' | 'share';
 const EDITOR_COMMANDS: readonly EditorCommand[] = ['undo', 'redo', 'share'];
@@ -221,6 +251,42 @@ export type WebViewOutboundMessage =
       data: string;
       title?: string;
       text?: string;
+    }
+  | {
+      /**
+       * Opens a file transfer; see `HOST_CAPABILITY_FILE_TRANSFER`. The host
+       * answers `FILE_TRANSFER_ACK` with `received: 0` once it can take chunks.
+       * Same delivery as `DOWNLOAD_FILE`: gallery for images and videos,
+       * share sheet for the rest.
+       */
+      type: 'FILE_TRANSFER_BEGIN';
+      transferId: string;
+      filename: string;
+      mime: string;
+      /** Total bytes; the host refuses a transfer whose chunks add up to more or less. */
+      size: number;
+    }
+  | {
+      /** The next piece, in order. Sent only after the previous one was acknowledged. */
+      type: 'FILE_TRANSFER_CHUNK';
+      transferId: string;
+      index: number;
+      /** Base64 WITHOUT a data-URL prefix, at most `FILE_TRANSFER_CHUNK_MAX_BASE64_LENGTH`. */
+      data: string;
+    }
+  | {
+      /**
+       * Every chunk is acknowledged. The host closes the file, answers
+       * `FILE_TRANSFER_ACK` with `received` = number of chunks + 1, then
+       * delivers it.
+       */
+      type: 'FILE_TRANSFER_END';
+      transferId: string;
+    }
+  | {
+      /** The page gave up (the blob could not be read); the host drops what it has. */
+      type: 'FILE_TRANSFER_ABORT';
+      transferId: string;
     }
   | {
       /**
@@ -373,6 +439,21 @@ export type WebViewInboundMessage =
       /** The user picked an entry of the host's "…" menu; `id` is one from `EDITOR_STATE.actions`. */
       type: 'EDITOR_ACTION';
       id: string;
+    }
+  | {
+      /** The host has written `received` chunks of this transfer; the page sends the next. */
+      type: 'FILE_TRANSFER_ACK';
+      transferId: string;
+      received: number;
+    }
+  | {
+      /**
+       * The host refused or lost this transfer (too large, out of order, a
+       * failed write). `reason` is for the log; the page stops sending.
+       */
+      type: 'FILE_TRANSFER_FAILED';
+      transferId: string;
+      reason: string;
     };
 
 type WebViewRenderRequest = {
@@ -524,6 +605,31 @@ export function parseWebViewMessage(raw: unknown): WebViewOutboundMessage | null
       ...(typeof text === 'string' && { text }),
     };
   }
+  if (type === 'FILE_TRANSFER_BEGIN') {
+    const transferId = (candidate as { transferId?: unknown }).transferId;
+    const filename = (candidate as { filename?: unknown }).filename;
+    const mime = (candidate as { mime?: unknown }).mime;
+    const size = (candidate as { size?: unknown }).size;
+    if (!isTransferId(transferId)) return null;
+    if (typeof filename !== 'string' || !isSafeDownloadFilename(filename)) return null;
+    if (typeof mime !== 'string' || mime.length === 0) return null;
+    if (!isChunkIndex(size) || size === 0 || size > FILE_TRANSFER_MAX_BYTES) return null;
+    return { type: 'FILE_TRANSFER_BEGIN', transferId, filename, mime, size };
+  }
+  if (type === 'FILE_TRANSFER_CHUNK') {
+    const transferId = (candidate as { transferId?: unknown }).transferId;
+    const index = (candidate as { index?: unknown }).index;
+    const data = (candidate as { data?: unknown }).data;
+    if (!isTransferId(transferId) || !isChunkIndex(index)) return null;
+    if (typeof data !== 'string' || data.length === 0) return null;
+    if (data.length > FILE_TRANSFER_CHUNK_MAX_BASE64_LENGTH) return null;
+    return { type: 'FILE_TRANSFER_CHUNK', transferId, index, data };
+  }
+  if (type === 'FILE_TRANSFER_END' || type === 'FILE_TRANSFER_ABORT') {
+    const transferId = (candidate as { transferId?: unknown }).transferId;
+    if (!isTransferId(transferId)) return null;
+    return { type, transferId };
+  }
   if (type === 'PRESENTING' || type === 'CLOSE_HANDLER') {
     const active = (candidate as { active?: unknown }).active;
     if (typeof active !== 'boolean') return null;
@@ -663,6 +769,18 @@ export function parseHostMessage(raw: unknown): WebViewInboundMessage | null {
       return null;
     }
     return { type: 'EDITOR_ACTION', id };
+  }
+  if (type === 'FILE_TRANSFER_ACK') {
+    const transferId = (candidate as { transferId?: unknown }).transferId;
+    const received = (candidate as { received?: unknown }).received;
+    if (!isTransferId(transferId) || !isChunkIndex(received)) return null;
+    return { type: 'FILE_TRANSFER_ACK', transferId, received };
+  }
+  if (type === 'FILE_TRANSFER_FAILED') {
+    const transferId = (candidate as { transferId?: unknown }).transferId;
+    const reason = (candidate as { reason?: unknown }).reason;
+    if (!isTransferId(transferId) || typeof reason !== 'string') return null;
+    return { type: 'FILE_TRANSFER_FAILED', transferId, reason };
   }
   if (type === 'CREATOR_RENDER_REQUEST') {
     const requestId = (candidate as { requestId?: unknown }).requestId;

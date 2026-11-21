@@ -19,11 +19,12 @@ import {
 } from '@gruenerator/contracts';
 import { getSystemAgent } from '@gruenerator/shared/agents';
 import { buildNotebookSlug } from '@gruenerator/shared/utils';
-import { and, eq, inArray, sql, type SQL } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, sql, type SQL } from 'drizzle-orm';
 
 import { profiles } from '../../database/schema/core.js';
 import { entityComments } from '../../database/schema/entityComments.js';
 import { sharedMedia } from '../../database/schema/media.js';
+import { userSites } from '../../database/schema/sites.js';
 import { studioAssets } from '../../database/schema/studioAssets.js';
 import { userTemplates } from '../../database/schema/templates.js';
 import { userTextForms } from '../../database/schema/textForms.js';
@@ -389,6 +390,76 @@ const userTemplateTarget: ModerationTarget = {
   },
 };
 
+// ── Websites ────────────────────────────────────────────────────────────────
+
+/** Public means published with a snapshot to serve; a draft nobody can reach is not reportable. */
+const userSiteReportable = and(
+  eq(userSites.is_published, true),
+  isNotNull(userSites.published_snapshot),
+  eq(userSites.moderation, 'ok'),
+  notTrashed(userSites)
+);
+
+const userSiteTarget: ModerationTarget = {
+  async loadReportable(id) {
+    const [row] = await getDrizzleInstance()
+      .select({ ownerId: userSites.user_id })
+      .from(userSites)
+      .where(and(eq(userSites.id, id), userSiteReportable, notTrashed(userSites)))
+      .limit(1);
+    return row ?? null;
+  },
+  async hideIf(db, id, when) {
+    const rows = await db
+      .update(userSites)
+      .set({ moderation: 'hidden', updated_at: new Date() })
+      .where(and(eq(userSites.id, id), userSiteReportable, when))
+      .returning({ id: userSites.id });
+    return rows.length > 0;
+  },
+  async setModeration(db, id, state, onlyFrom) {
+    await db
+      .update(userSites)
+      .set({ moderation: state, updated_at: new Date() })
+      .where(and(eq(userSites.id, id), onlyFrom ? eq(userSites.moderation, onlyFrom) : undefined));
+    const [row] = await db
+      .select({ moderation: userSites.moderation })
+      .from(userSites)
+      .where(eq(userSites.id, id))
+      .limit(1);
+    return row?.moderation ?? null;
+  },
+  async previews(ids) {
+    if (ids.length === 0) return new Map();
+    const rows = await getDrizzleInstance()
+      .select({
+        id: userSites.id,
+        title: userSites.site_title,
+        moderation: userSites.moderation,
+        ownerId: userSites.user_id,
+        ownerName: profiles.display_name,
+        deletedAt: userSites.deleted_at,
+      })
+      .from(userSites)
+      .leftJoin(profiles, eq(profiles.id, userSites.user_id))
+      .where(inArray(userSites.id, ids));
+    const out = new Map<string, AdminReportPreview>();
+    for (const r of rows) {
+      if (!r.ownerId) continue;
+      out.set(r.id, {
+        title: r.title,
+        thumbUrl: null,
+        href: null,
+        ownerId: r.ownerId,
+        ownerName: trimmedName(r.ownerName),
+        moderation: r.moderation,
+        trashed: r.deletedAt !== null,
+      });
+    }
+    return out;
+  },
+};
+
 // ── Notebooks ───────────────────────────────────────────────────────────────
 
 /*
@@ -586,6 +657,7 @@ export const MODERATION_TARGETS = {
   user_agent: userAgentTarget,
   user_text_form: userTextFormTarget,
   user_template: userTemplateTarget,
+  user_site: userSiteTarget,
   entity_comment: entityCommentTarget,
   notebook: notebookTarget,
 } as const satisfies Record<ModeratableReportKind, ModerationTarget>;

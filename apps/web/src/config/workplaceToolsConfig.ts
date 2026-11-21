@@ -21,6 +21,8 @@ import { NEWSLETTER_SIGNUP_URL } from './newsletter';
 import type { IconType } from './icons';
 import type { OfficeCreateKind, OfficeSuiteActionId, ToolAudience, ToolId } from './toolRegistry';
 
+import { PiGlobe } from '@/config/shellIcons.generated';
+
 export { type OfficeCreateKind } from './toolRegistry';
 
 type RegisteredTile = WorkplaceToolItem & { id: ToolId };
@@ -180,6 +182,20 @@ export const CANVAS_TOOLS: WorkplaceToolItem[] = [
     icon: getIcon('navigation', 'videoEditor')!,
   },
   {
+    id: 'studio-ki-schnitt',
+    title: 'KI-Schnitt',
+    description: 'Rohvideos automatisch schneiden',
+    path: '/studio/ki-schnitt',
+    icon: getIcon('navigation', 'kiSchnitt')!,
+  },
+  {
+    id: 'parteitage',
+    title: 'Parteitage',
+    description: 'Reden als Reels',
+    path: '/parteitage',
+    icon: getIcon('navigation', 'reel')!,
+  },
+  {
     id: 'studio-voice',
     title: 'Voice',
     description: 'Text vertonen',
@@ -253,6 +269,14 @@ export const WORKPLACE_TOOLS: WorkplaceToolItem[] = [
     description: 'Chats & Inhalte bündeln',
     path: '/projekte',
     icon: getIcon('navigation', 'projekte')!,
+  },
+  {
+    id: 'sites',
+    title: 'Sites',
+    description: 'Website für deine Kandidatur',
+    path: '/sites',
+    icon: PiGlobe,
+    badge: 'Neu',
   },
 ] satisfies RegisteredTile[];
 

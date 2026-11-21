@@ -15,6 +15,8 @@ export const generateBoardBodySchema = z.object({
 export const createBoardBodySchema = z.object({
   title: z.string().optional(),
   boardType: z.enum(['kanban', 'whiteboard']).optional(),
+  /** Gleich ins Projekt legen (Freigabe mit Schreibrecht, in derselben Transaktion). */
+  groupId: z.string().uuid().optional(),
 });
 
 export const updateBoardBodySchema = z.object({

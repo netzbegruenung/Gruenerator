@@ -232,33 +232,16 @@ export function reworksSuppliedText(raw: string): boolean {
 }
 
 /**
- * Die Frage benennt einen mitgebrachten Text als ihren Gegenstand — „Welche vier
- * Maßnahmen stehen im Antrag?", „Wie hoch sind die Kosten laut Antrag?", „Was
- * steht darin zur Finanzierung?". Ob es diesen Text im Thread gibt, weiss der
- * Aufrufer; hier steht nur, ob die Frage auf ihn zeigt (#4789).
- *
- * „Programm" fehlt bewusst: „im Wahlprogramm" meint die Beschlusslage, nach der
- * gesucht werden soll, nicht den eingefügten Text.
- */
-const SUPPLIED_MATERIAL_REF_RE =
-  /(?<!\p{L})(?:(?:im|(?:laut|gem[äa](?:ß|ss))(?:\s+(?:de[rms]|diese[rms]))?|(?:in|aus|nach)\s+(?:de[rm]|diese[rm]))\s+(?:\p{L}+en\s+)?(?:antrag|text|dokument|entwurf|artikel|beitrag|newsletter|brief|schreiben|papier|beschluss|pressemitteilung|anfrage|stellungnahme|vorlage|e-?mail)\p{L}*|darin|drin)(?!\p{L})/iu;
-
-export function asksAboutSuppliedMaterial(raw: string): boolean {
-  return SUPPLIED_MATERIAL_REF_RE.test(orderText((raw ?? '').trim()));
-}
-
-/**
  * Eine Anschlussfrage, die den Gegenstand des VORIGEN Turns weiterträgt statt
  * ein eigenes Thema zu eröffnen — „Und die FDP?", „Was ist mit Bayern?".
  *
  * Gemessen am Klassifikator (20.08.2026, Zwei-Turn-Sonde auf `classifierNode`):
- * so ein Turn bekommt `direct@0.25`, wird nach `agentic` demotiert und trägt
- * `loopDemotedFromRetrieval: false` — das Abruf-Verdikt steht im Turn DAVOR,
- * nicht in diesem. Der Text allein kann das nicht wissen; deshalb ist diese
+ * so ein Turn bekommt `direct@0.25` und wird nach `agentic` demotiert —
+ * das Abruf-Verdikt (damals `loopDemotedFromRetrieval: false`) stand im Turn
+ * DAVOR, nicht in diesem. Der Text allein kann das nicht wissen; deshalb ist diese
  * Prüfung allein nicht, ob der Turn nachschlagen muss — das entscheidet seit
  * dem 09.11.2026 das Modell mit dem Verlauf. Gelesen wird sie für
- * Anschlussfragen an eine Tabelle (`asksAboutTheTable`) und für die
- * Fortsetzung eines Werkzeug-Turns im Klassifikator (`continuesToolTurn`).
+ * die Fortsetzung eines Werkzeug-Turns im Klassifikator (`continuesToolTurn`).
  *
  * Die Wortgrenze ist dieselbe wie die des Klassifikators für `isVagueFollowup`
  * (≤ 8 Wörter): darüber nennt ein Turn sein Thema selbst und braucht diesen Weg
@@ -382,47 +365,6 @@ export function looksLikeUnsourcedWritingOrder(
   return WRITING_ORDER_RE.test(t);
 }
 
-/** Ein Prüfwort und ein Sachgegenstand im selben Satz, in beliebiger Reihenfolge.
- *  „stimmt"/„stimmen" zählt hier nicht: „die Stimmen und Zahlen der Wahl" ist
- *  das Nomen, und „stimmt, schreib den Post mit den Zahlen" eine Zustimmung.
- *  Das Verb trägt nur im ob-Satz und in der Frage (unten). */
-const CHECK_WORD = String.raw`(?:[üu]berpr[üu]f|pr[üu]f|verifizier|check|kontrollier)\p{L}*`;
-const FACT_NOUN = String.raw`(?:fakten|zahlen|angaben|daten|behauptung(?:en)?|aussagen?|quellen|richtigkeit|korrektheit|wahrheitsgehalt)(?!\p{L})`;
-/** Satzanfang — auch unter dem Stoff, wenn beide Ränder Auftrag sind. */
-const SENTENCE_START = String.raw`(?:^|[.?!:\n]\s*)`;
-const FACT_CHECK_ORDER_RE = new RegExp(
-  [
-    String.raw`(?<!\p{L})${CHECK_WORD}[^.?!]*?(?<!\p{L})${FACT_NOUN}`,
-    String.raw`(?<!\p{L})${FACT_NOUN}[^.?!]*?(?<!\p{L})${CHECK_WORD}`,
-    // „…, ob die Zahlen stimmen" — das Verb steht am Ende des ob-Satzes.
-    String.raw`(?<!\p{L})ob(?!\p{L})[^.?!]*?(?<!\p{L})stimm(?:t|en)(?:\s+oder\s+nicht)?\s*(?:[.?!,;:)]|$)`,
-    // „stimmt das so?", „stimmen die Angaben?" — als Frage, nicht als Aussage
-    // („Stimmen der Jugend werden lauter.").
-    String.raw`${SENTENCE_START}stimm(?:t|en)\s+(?:das|dies|diese\p{L}*|die|der)(?!\p{L})[^.?!\n]*(?:\?|$)`,
-    // „Ist das korrekt?", „Sind die Zahlen richtig?"
-    String.raw`${SENTENCE_START}(?:ist|sind)\s+(?:das|dies|die\s+${FACT_NOUN})(?:\s+so)?\s+(?:korrekt|richtig|zutreffend|wahr|belegt)(?!\p{L})`,
-    String.raw`(?<!\p{L})(?:fakten-?check|fact-?check)`,
-  ].join('|'),
-  'iu'
-);
-
-/** Prüft die Sprache, nicht die Sache — „ob die Kommasetzung stimmt", „Ist das
- *  korrekt formuliert?". Mit Wortende, wo ein Stamm Sachwörter trifft:
- *  „Stilllegung", „Kommando". „Ausdruck" fehlt bewusst: „bevor ich das im Ausdruck verteile" ist der Papierausdruck. */
-const LANGUAGE_CHECK_RE =
-  /(?<!\p{L})(?:rechtschreib|orthogra[fp]h?|komma(?:s|ta|setzung|fehler)?(?!\p{L})|zeichensetzung|grammatik|tippfehler|schreibfehler|stil(?:s|istik|istisch\p{L}*)?(?!\p{L})|formulierung|ausdrucksweise|sprachlich|(?:formuliert|geschrieben|ausgedrückt|ausgedrueckt)(?!\p{L}))/iu;
-
-/**
- * Eine Faktenprüfung, die nachschlagen muss (#3915): „prüf die Fakten darin",
- * „stimmen die Angaben?". Enger als `FACT_CHECK_RE` in `routing.ts` — das ist
- * ein Veto gegen die Überarbeitungs-Abkürzung und darf grosszügig sein; hier
- * ERZWINGT der Treffer eine Websuche, und „prüfe, ob die Rechtschreibung
- * korrekt ist" darf das nicht (#3903).
- */
-export function looksLikeFactCheckOrder(order: string): boolean {
-  return FACT_CHECK_ORDER_RE.test(order) && !LANGUAGE_CHECK_RE.test(order);
-}
-
 /**
  * Generation intents that can enter the loop as a COMPOUND turn (research +
  * generation composed in one turn via an opaque fat tool). Each keeps its
@@ -467,43 +409,13 @@ export function looksLikeCompoundGeneration(raw: string): boolean {
   return (GENERATION_NOUN_RE.test(t) || hasExplicitSharepicWord(t)) && RESEARCH_SIGNAL_RE.test(t);
 }
 
-// The ask points at the picture: an image noun, a seeing verb, or a bare
-// deictic ending ("Was ist das?", "Wer ist das hier?"). The nouns carry no
-// leading `\b` so compounds count ("Wahlplakat", "Gruppenfoto"); their endings
-// are spelled out so `bild` does not also claim "Bildung".
-const IMAGE_REFERENCE_RE =
-  /(bild(?:er|ern|es|s|chen)?|fotos?|fotografie|screenshots?|grafik(?:en)?|logos?|plakat(?:e|en|es|s)?|motiv(?:e|en|s)?|abbildung(?:en)?|flyers?|sharepics?)\b|\b(siehst|sieht\s+man|zu\s+sehen|erkenn\w*|abgebildet|drauf|darauf|beschreib\w*|alt-?text\w*)\b|\b(das|dies|dieses|hier|da)\s*[?.!]*\s*$/i;
-
-// The answer lies OUTSIDE the picture: what someone said or demanded, how recent
-// something is, or where to look it up. RESEARCH_SIGNAL_RE counts as well.
-const BEYOND_THE_IMAGE_RE =
-  /\b(zuletzt|neulich|heute|gestern|gesagt|ge[äa]u(?:ß|ss)ert|gefordert|hintergr[üu]nd\w*|internet|online|web|google)\b/i;
-
-/**
- * An image turn whose question the picture itself answers — "Was siehst du?",
- * "Passt das Logo?", "Was steht auf dem Plakat?".
- *
- * Those stay single-pass (#3841): there a vision model reads the pixels
- * directly, while the loop can only ask about the image through `bild_ansehen`
- * and pays a planner step on top. A question that points past the picture
- * ("Wer sind die Leute, und was haben sie zuletzt gesagt?") is not image-only
- * and takes the normal gate.
- *
- * Errs towards the loop: an image question it misses still gets answered there,
- * one tool call later.
- */
-export function looksLikeImageOnlyAsk(raw: string): boolean {
-  const t = (raw ?? '').trim();
-  if (!IMAGE_REFERENCE_RE.test(t)) return false;
-  return !RESEARCH_SIGNAL_RE.test(t) && !BEYOND_THE_IMAGE_RE.test(t) && !PERSONAL_DATA_RE.test(t);
-}
-
 const PIXEL_INTENTS: ReadonlySet<string> = new Set(['image', 'image_edit']);
 
 /**
  * An image turn whose intent works on the pixels themselves (generate from or
- * edit the attachment). No loop tool does that, so these stay single-pass on
- * every path; every other image turn can read the image via `bild_ansehen`.
+ * edit the attachment): the classifier already decided, and the single-pass
+ * image nodes run it. Every other image turn goes to the loop, which reads the
+ * image via `bild_ansehen` and changes it via `edit_image`.
  */
 export function isPixelTurn(hasImageAttachments: boolean, intent: string): boolean {
   return hasImageAttachments && PIXEL_INTENTS.has(intent);
@@ -524,9 +436,7 @@ const RESEARCH_VERB_RE = /\b(recherchier\w*|such\w*|finde|informier\w*|nachschla
 /**
  * The user explicitly told the assistant to look something up in THIS turn.
  *
- * Why this exists: `forceFirstToolCall` was scoped to connector turns (then
- * `intent === 'mcp'`, now a set `mcpServerScope`, #4043), while
- * the classifier's loop demotion routes search/web asks into `agentic`, where
+ * Why this exists: the classifier's loop demotion routes search/web asks into `agentic`, where
  * the planner is free to call nothing at all. Live result: "Recherchiere bitte
  * mit Quellen" answered "Ich habe keinen Zugriff auf eine Live-Datenbank …
  * soll ich das für Dich übernehmen?" with steps=0 — after the assistant had
@@ -1020,8 +930,8 @@ export interface AgenticDecisionInput {
   /** Compound research+generation sharepic turn (fat tool mounted). */
   compoundGeneration: boolean;
   /** The turn carries image attachments. The loop reads them through
-   *  `bild_ansehen`; which image turns still stay single-pass is
-   *  `imageStaysSinglePass` in {@link decideRunAgentic}. */
+   *  `bild_ansehen` and edits them through `edit_image`; only a pixel intent
+   *  (`isPixelTurn`) keeps an image turn single-pass. */
   hasImageAttachments: boolean;
   /** A fill ask ("füll das aus") on a thread that has a REACHABLE form — a PDF
    *  whose bytes were kept because `isFillablePdf` accepted it. Precomputed by
@@ -1065,7 +975,6 @@ export type SinglePassReason =
   | 'compound'
   | 'secondary_intent'
   | 'pixel_turn'
-  | 'image_only_ask'
   | 'reworks_own_material';
 
 /** Alles, was einen Turn UNABHÄNGIG vom Intent in die Schleife hebt. */
@@ -1086,10 +995,9 @@ function hasExplicitLoopReason(p: AgenticDecisionInput): boolean {
  * Pipeline-Agent (eigene Kette) und das „ja" auf ein Artefakt-Angebot.
  *
  * Gegründet auf Zustand: Intent, Schalter, Anhänge, Pins, gewähltes Notebook.
- * Textgegründet sind nur noch
- * `image_only_ask` (`looksLikeImageOnlyAsk`) und `reworks_own_material`
- * (`reworksSuppliedText`) — beide waren schon vorher so erkannt und sind hier
- * unverändert übernommen.
+ * Textgegründet ist nur noch
+ * `reworks_own_material` (`reworksSuppliedText`) — schon vorher so erkannt und
+ * hier unverändert übernommen.
  */
 export function keepsSinglePass(p: AgenticDecisionInput): SinglePassReason | null {
   const tabular = p.isTabularAnalysisTurn === true;
@@ -1106,9 +1014,13 @@ export function keepsSinglePass(p: AgenticDecisionInput): SinglePassReason | nul
     return 'secondary_intent';
   }
   if (isPixelTurn(p.hasImageAttachments, p.intent)) return 'pixel_turn';
-  if (p.hasImageAttachments && !hasExplicitLoopReason(p) && looksLikeImageOnlyAsk(p.lastUserText)) {
-    return 'image_only_ask';
-  }
+  // Kein `image_only_ask` mehr (20.11.2026): die Wortweiche hielt jeden
+  // Foto-Turn mit „Bild" und ohne Recherche-Wort für eine Frage an das Foto.
+  // „erstelle aus diesem Bild ein winterliches Bild" blieb so im
+  // Einzeldurchlauf, der kein Bild bauen kann: die Antwort fragte „Soll ich?",
+  // und das „Ja" danach fand das Foto nicht mehr (es überlebt den Turn
+  // serverseitig nicht). Eine reine Bildfrage kostet im Loop einen
+  // `bild_ansehen`-Schritt mehr — der Preis für eine Weiche weniger.
   // Nur wenn nichts anderes den Turn in die Schleife hebt: eine mitgenannte Art
   // („Dazu passt später ein Sharepic") montiert ihr Werkzeug auch an einer
   // Umarbeitung des eigenen Materials.
@@ -1174,7 +1086,7 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
       ...(keptReason != null && { singlePassReason: keptReason }),
       // Only on image turns, so the imageless decision maps keep their columns.
       ...(p.hasImageAttachments && {
-        imageStaysSinglePass: keptReason === 'pixel_turn' || keptReason === 'image_only_ask',
+        imageStaysSinglePass: keptReason === 'pixel_turn',
       }),
     },
   });

@@ -1,146 +1,90 @@
-import { cn } from '@gruenerator/shared/utils';
-import { useRef, useEffect } from 'react';
+import { SITE_PHONE_MAX, SITE_SECTION_TITLE_MAX } from '@gruenerator/contracts';
+import { Input, Label } from '@gruenerator/ui';
 
-import { useSectionFocus } from '../../../hooks/useSectionFocus';
-import { useEditorStore } from '../../../stores/editorStore';
+import { useDraft, useDraftActions, useDraftBlock } from '../../../draft/SiteDraftContext';
+import { useFieldRegistry } from '../../../hooks/useFieldRegistry';
+import { Field, SectionHeading } from '../common/Field';
+import { FocalPointPicker } from '../common/FocalPointPicker';
 import { ImageUpload } from '../common/ImageUpload';
 
-import type { ContactSectionType as ContactSection } from '@gruenerator/sites-design';
-
-interface ContactSectionEditorProps {
-  data: ContactSection;
-  onChange: (data: ContactSection) => void;
-}
-
-export function ContactSectionEditor({ data, onChange }: ContactSectionEditorProps) {
-  const { registerField, handleFieldFocus, handleFieldBlur } = useSectionFocus();
-  const { highlightedElement } = useEditorStore();
-
-  const titleRef = useRef<HTMLInputElement>(null);
-  const emailRef = useRef<HTMLInputElement>(null);
-  const phoneRef = useRef<HTMLInputElement>(null);
-  const addressRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    registerField('contact', 'title', titleRef.current);
-    registerField('contact', 'email', emailRef.current);
-    registerField('contact', 'phone', phoneRef.current);
-    registerField('contact', 'address', addressRef.current);
-  }, [registerField]);
-
-  const updateField = (field: keyof ContactSection, value: string) => {
-    onChange({ ...data, [field]: value });
-  };
-
-  const isFieldHighlighted = (field: string) => {
-    return highlightedElement?.section === 'contact' && highlightedElement?.field === field;
-  };
+export function ContactSectionEditor({ blockId }: { blockId: string }) {
+  const { registerField, handleFieldFocus, handleFieldBlur } = useFieldRegistry();
+  const { setField, setBlockField } = useDraftActions();
+  const block = useDraftBlock(blockId, 'contact');
+  const email = useDraft((d) => d.contact_email);
+  const phone = useDraft((d) => d.contact_phone);
+  if (!block) return null;
+  const { title, backgroundImageUrl } = block;
+  const backgroundFocus = block.backgroundFocus ?? null;
+  const titlePath = `blocks.${blockId}.title`;
 
   return (
     <div>
-      <h3 className="flex items-center gap-2 m-0 mb-md text-lg font-semibold text-foreground">
-        Kontakt
-      </h3>
+      <SectionHeading>Kontakt</SectionHeading>
 
-      <div
-        className={cn('mb-md', isFieldHighlighted('title') && 'animate-[field-highlight_1s_ease]')}
-      >
-        <label htmlFor="contact-title" className="block text-sm font-medium text-foreground mb-1.5">
-          Titel
-        </label>
-        <input
-          ref={titleRef}
+      <Field panel={blockId} path={titlePath} htmlFor="contact-title" label="Titel">
+        <Input
+          ref={(el) => registerField(titlePath, el)}
           id="contact-title"
-          type="text"
-          value={data.title}
-          onChange={(e) => updateField('title', e.target.value)}
-          onFocus={() => handleFieldFocus('contact', 'title')}
+          value={title}
+          onChange={(e) => setBlockField(blockId, 'contact', { title: e.target.value })}
+          onFocus={() => handleFieldFocus(blockId, titlePath)}
           onBlur={handleFieldBlur}
           placeholder="Kontakt"
-          className="w-full py-2.5 px-3 text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
+          maxLength={SITE_SECTION_TITLE_MAX}
         />
-      </div>
+      </Field>
 
-      <div
-        className={cn('mb-md', isFieldHighlighted('email') && 'animate-[field-highlight_1s_ease]')}
-      >
-        <label htmlFor="contact-email" className="block text-sm font-medium text-foreground mb-1.5">
-          E-Mail *
-        </label>
-        <input
-          ref={emailRef}
+      <Field panel={blockId} path="contact_email" htmlFor="contact-email" label="E-Mail">
+        <Input
+          ref={(el) => registerField('contact_email', el)}
           id="contact-email"
           type="email"
-          value={data.email}
-          onChange={(e) => updateField('email', e.target.value)}
-          onFocus={() => handleFieldFocus('contact', 'email')}
+          value={email}
+          onChange={(e) => setField('contact_email', e.target.value)}
+          onFocus={() => handleFieldFocus(blockId, 'contact_email')}
           onBlur={handleFieldBlur}
           placeholder="kontakt@beispiel.de"
-          required
-          className="w-full py-2.5 px-3 text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
         />
-      </div>
+      </Field>
 
-      <div
-        className={cn('mb-md', isFieldHighlighted('phone') && 'animate-[field-highlight_1s_ease]')}
-      >
-        <label htmlFor="contact-phone" className="block text-sm font-medium text-foreground mb-1.5">
-          Telefon
-        </label>
-        <input
-          ref={phoneRef}
+      <Field panel={blockId} path="contact_phone" htmlFor="contact-phone" label="Telefon">
+        <Input
+          ref={(el) => registerField('contact_phone', el)}
           id="contact-phone"
           type="tel"
-          value={data.phone || ''}
-          onChange={(e) => updateField('phone', e.target.value)}
-          onFocus={() => handleFieldFocus('contact', 'phone')}
+          value={phone}
+          onChange={(e) => setField('contact_phone', e.target.value)}
+          onFocus={() => handleFieldFocus(blockId, 'contact_phone')}
           onBlur={handleFieldBlur}
           placeholder="+49 123 456789"
-          className="w-full py-2.5 px-3 text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
+          maxLength={SITE_PHONE_MAX}
         />
-      </div>
-
-      <div
-        className={cn(
-          'mb-md',
-          isFieldHighlighted('address') && 'animate-[field-highlight_1s_ease]'
-        )}
-      >
-        <label
-          htmlFor="contact-address"
-          className="block text-sm font-medium text-foreground mb-1.5"
-        >
-          Adresse
-        </label>
-        <textarea
-          ref={addressRef}
-          id="contact-address"
-          value={data.address || ''}
-          onChange={(e) => updateField('address', e.target.value)}
-          onFocus={() => handleFieldFocus('contact', 'address')}
-          onBlur={handleFieldBlur}
-          placeholder="Musterstraße 1&#10;12345 Musterstadt"
-          rows={3}
-          className="w-full py-2.5 px-3 text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15 resize-y min-h-[100px]"
-        />
-      </div>
+      </Field>
 
       <div className="h-px bg-grey-200 dark:bg-grey-700 my-md" />
 
       <div className="mb-md">
-        <label
-          htmlFor="contact-background-image"
+        <p
+          id="contact-background-image-label"
           className="block text-sm font-medium text-foreground mb-1.5"
         >
           Hintergrundbild
-        </label>
+        </p>
         <ImageUpload
-          id="contact-background-image"
-          value={data.backgroundImageUrl}
-          onChange={(url) => updateField('backgroundImageUrl', url)}
+          labelledBy="contact-background-image-label"
+          value={backgroundImageUrl}
+          onChange={(url) => setBlockField(blockId, 'contact', { backgroundImageUrl: url })}
           aspectRatio="16/9"
           placeholder="Kontakt-Hintergrund"
         />
+        {backgroundImageUrl && (
+          <FocalPointPicker
+            src={backgroundImageUrl}
+            value={backgroundFocus}
+            onChange={(focus) => setBlockField(blockId, 'contact', { backgroundFocus: focus })}
+          />
+        )}
       </div>
     </div>
   );

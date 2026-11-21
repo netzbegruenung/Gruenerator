@@ -40,8 +40,8 @@ const getThreadLastMcpServer = vi.fn<(threadId: string) => Promise<string | null
 const setThreadLastMcpServer = vi.fn<(threadId: string, serverId: string) => Promise<void>>();
 
 vi.mock('../threadPersistenceService.js', () => ({
-  getThreadLastMcpServer: (threadId: string) => getThreadLastMcpServer(threadId),
-  setThreadLastMcpServer: (threadId: string, serverId: string) =>
+  getThreadLastMcpServer: (threadId: string, _userId: string) => getThreadLastMcpServer(threadId),
+  setThreadLastMcpServer: (threadId: string, _userId: string, serverId: string) =>
     setThreadLastMcpServer(threadId, serverId),
   getRecentThreadSources: async () => [],
   getRecentToolSteps: async () => [],
@@ -93,6 +93,7 @@ function deps(over: Partial<CatalogDeps> = {}): CatalogDeps {
     loadMcpCatalog: async () => mcpCatalog(),
     buildRecipeCatalog: async () => [],
     resolveRecipe: async () => null,
+    isForeignMcpServer: async () => false,
     ...over,
   } as unknown as CatalogDeps;
 }
@@ -185,6 +186,62 @@ describe('assembleToolCatalog — ausgefallener MCP-Dienst', () => {
     });
 
     expect(assembled.staleConnectorName).toBeNull();
+  });
+
+  // Team chats: the sticky server was written by whoever used a connector last.
+  // Another member's turn must never mount it, and must not be told it is gone.
+  it('mounts a sticky server that belongs to another member for nobody', async () => {
+    getThreadLastMcpServer.mockResolvedValue('server-von-a');
+    const loadMcpCatalog = vi.fn(async () => mcpCatalog({ scopedServerMissing: true }));
+    const isForeignMcpServer = vi.fn(async () => true);
+
+    const assembled = await assemble(
+      fakeState({ intent: 'agentic' }),
+      deps({ loadMcpCatalog, isForeignMcpServer }),
+      {
+        threadId: 't1',
+        lastTurnToolSteps: [
+          { toolCallId: 'c1', toolName: 'rateo__suche', args: {}, result: {}, serverName: 'Rateo' },
+        ],
+      }
+    );
+
+    expect(isForeignMcpServer).toHaveBeenCalledWith('u1', 'server-von-a');
+    expect(loadMcpCatalog).not.toHaveBeenCalled();
+    expect(assembled.mcpCatalog).toBeNull();
+    expect(assembled.staleConnectorName).toBeNull();
+    expect(setThreadLastMcpServer).not.toHaveBeenCalled();
+  });
+
+  it('skips the sticky server when the owner check fails, and still assembles', async () => {
+    getThreadLastMcpServer.mockResolvedValue('server-von-a');
+    const loadMcpCatalog = vi.fn(async () => mcpCatalog());
+    const isForeignMcpServer = vi.fn(async () => {
+      throw new Error('db down');
+    });
+
+    const assembled = await assemble(
+      fakeState({ intent: 'agentic' }),
+      deps({ loadMcpCatalog, isForeignMcpServer }),
+      { threadId: 't1' }
+    );
+
+    expect(loadMcpCatalog).not.toHaveBeenCalled();
+    expect(assembled.mcpCatalog).toBeNull();
+    expect(setThreadLastMcpServer).not.toHaveBeenCalled();
+  });
+
+  it('still mounts the sender’s own sticky server', async () => {
+    getThreadLastMcpServer.mockResolvedValue('server-von-u1');
+    const loadMcpCatalog = vi.fn(async () => mcpCatalog());
+
+    await assemble(fakeState({ intent: 'agentic' }), deps({ loadMcpCatalog }), {
+      threadId: 't1',
+    });
+
+    expect(loadMcpCatalog).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'u1', scope: 'server-von-u1' })
+    );
   });
 
   it('montiert ohne Scope nichts', async () => {
@@ -364,21 +421,16 @@ describe('assembleToolCatalog — Rezept-Werkzeug', () => {
     expect(assembled.recipeCatalog).toHaveLength(1);
   });
 
-  // Ein Methoden-Rezept (`@bundestag`) gibt keine Form vor — die Textsorte
-  // bleibt offen, und das Modell muss sie selbst laden können.
-  it('montiert methode_laden nur, wenn der Katalog eine Methode trägt, und scoped es aus späteren Schritten', async () => {
-    const without = await assemble(fakeState(), withRecipes());
-    expect(without.tools.methode_laden).toBeUndefined();
-
+  // `methode_laden` wird nicht mehr montiert — auch nicht, wenn der Katalog
+  // eine Methode trägt; `rezept_laden` bleibt montiert.
+  it('montiert methode_laden nie, auch nicht bei einem Methoden-Rezept im Katalog', async () => {
     const rechtsstand = { ...catalog[0]!, key: 'rechtsstand', mention: 'rechtsstand' };
     const assembled = await assemble(
       fakeState(),
       withRecipes({ buildRecipeCatalog: async () => [...catalog, rechtsstand] })
     );
-    expect(assembled.tools.methode_laden).toBeDefined();
-    // Nur der erzwungene erste Schritt wählt es selbst; sonst fehlt es im Umfang.
-    expect(assembled.toolScope.activeTools([])).not.toContain('methode_laden');
-    expect(assembled.toolScope.activeTools([])).toContain('rezept_laden');
+    expect(assembled.tools.methode_laden).toBeUndefined();
+    expect(assembled.tools.rezept_laden).toBeDefined();
   });
 
   it('montiert rezept_laden weiter, wenn nur ein Methoden-Rezept aktiv ist', async () => {
@@ -498,6 +550,31 @@ describe('assembleToolCatalog — Rezept-Werkzeug', () => {
     expect(assembled.recipeRegistry.size).toBe(1);
     expect(assembled.recipeRegistry.has(LIB_ID)).toBe(true);
     expect(assembled.recipeRegistry.render()).toContain('Fremdrumpf');
+  });
+
+  // #5804: ohne `antragsgruen_seite_anlegen` lud das Modell `antragsgruen-seite`
+  // und meldete die Seite als angelegt.
+  it('lässt ein Methoden-Rezept weg, dessen Werkzeuge alle fehlen', async () => {
+    const seite = {
+      ...catalog[0]!,
+      key: 'antragsgruen-seite',
+      mention: 'antragsgruen-seite',
+      recommendedTools: ['antragsgruen_seite_anlegen'],
+    };
+    const assembled = await assemble(
+      fakeState(),
+      withRecipes({ buildRecipeCatalog: async () => [...catalog, seite] })
+    );
+    expect(assembled.recipeCatalog.map((e) => e.key)).toEqual(['presse']);
+  });
+
+  it('behält eine Textsorte, auch wenn ihre empfohlenen Werkzeuge fehlen', async () => {
+    const presse = { ...catalog[0]!, recommendedTools: ['nicht_montiert'] };
+    const assembled = await assemble(
+      fakeState(),
+      withRecipes({ buildRecipeCatalog: async () => [presse] })
+    );
+    expect(assembled.recipeCatalog).toEqual([{ ...presse, recommendedTools: [] }]);
   });
 
   it('montiert es NICHT, wenn der Katalog leer ist', async () => {
@@ -1172,6 +1249,46 @@ describe('assembleToolCatalog — toolAllowlist', () => {
     });
     expect(Object.keys(assembled.tools)).toEqual(['notebook_quellen']);
     expect(buildRecipeCatalog).not.toHaveBeenCalled();
+  });
+});
+
+// Review #5889: der Prompt nennt das eigene Notebook des Agenten — dann darf
+// `notebook_quellen` nicht hinter dem „meine Inhalte"-Lader warten.
+describe('assembleToolCatalog — Notebook des Agenten bleibt sichtbar', () => {
+  const visibleFor = async (defaultNotebookIds: string[]) => {
+    const buildChatToolCatalog = vi.fn(() => ({
+      tools: {
+        notebook_quellen: { execute: async () => ({}) },
+        find_content: { execute: async () => ({}) },
+      },
+      toolNames: ['notebook_quellen', 'find_content'],
+    }));
+    const assembled = await assembleToolCatalog(
+      {
+        state: fakeState({
+          agentConfig: { identifier: 'eigener-agent', userId: 'u1', defaultNotebookIds },
+          lastUserTextNoMentions: 'Warum sind die Grünen für Rot-Rot-Grün in Berlin?',
+        }),
+        sourceRegistry: createSourceRegistry(),
+        sse: fakeSse().sse,
+        threadId: 't1',
+      },
+      deps({
+        buildChatToolCatalog:
+          buildChatToolCatalog as unknown as CatalogDeps['buildChatToolCatalog'],
+      })
+    );
+    return assembled.toolScope.activeTools([]) ?? Object.keys(assembled.tools);
+  };
+
+  it('auch wenn der Agent nur an eigene Notebooks gebunden ist', async () => {
+    expect(await visibleFor(['6f1c2e9a-0000-4000-8000-000000000001'])).toContain(
+      'notebook_quellen'
+    );
+  });
+
+  it('versteckt es ohne gebundenes Notebook hinter dem Lader', async () => {
+    expect(await visibleFor([])).not.toContain('notebook_quellen');
   });
 });
 

@@ -1,17 +1,18 @@
-import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
-
-import { setSitesUnauthorizedHandler } from './lib/apiClient';
+import { type CollaborationConfig } from '@gruenerator/collab';
+import { type SupportedLocale } from '@gruenerator/contracts';
+import { createContext, useContext, useMemo, type ReactNode } from 'react';
 
 /**
  * Minimal user shape Sites consumes. Satisfied by each host's own user object
- * (web `UserProfile`, mobile shared `User`) — Sites only ever reads `email`
- * and `display_name`, so it intentionally does not depend on either heavy type
+ * (web `UserProfile`, mobile shared `User`) — Sites only ever reads `email`,
+ * `display_name` and `locale`, so it intentionally does not depend on either heavy type
  * (which disagree on whether `email` is required).
  */
 export interface SitesUser {
   id: string;
   email?: string;
   display_name?: string;
+  locale: SupportedLocale;
 }
 
 export interface SitesAuth {
@@ -27,6 +28,7 @@ export interface SitesContextValue {
   login: (redirectTo?: string) => void;
   logout: () => void | Promise<void>;
   reportError: (error: unknown, context?: Record<string, unknown>) => void;
+  collaboration: CollaborationConfig;
 }
 
 const SitesContext = createContext<SitesContextValue | null>(null);
@@ -41,24 +43,12 @@ export function SitesProvider({
   login,
   logout,
   reportError,
+  collaboration,
   children,
 }: SitesProviderProps) {
-  useEffect(() => {
-    setSitesUnauthorizedHandler(() => {
-      const here =
-        typeof window !== 'undefined'
-          ? window.location.pathname + window.location.search
-          : undefined;
-      login(here);
-    });
-    return () => {
-      setSitesUnauthorizedHandler(null);
-    };
-  }, [login]);
-
   const value = useMemo<SitesContextValue>(
-    () => ({ basePath, auth, login, logout, reportError }),
-    [basePath, auth, login, logout, reportError]
+    () => ({ basePath, auth, login, logout, reportError, collaboration }),
+    [basePath, auth, login, logout, reportError, collaboration]
   );
 
   return <SitesContext.Provider value={value}>{children}</SitesContext.Provider>;
@@ -74,6 +64,26 @@ function useSitesContext(): SitesContextValue {
 
 export function useSitesBasePath(): string {
   return useSitesContext().basePath;
+}
+
+/** The overview path (`/sites`), the create path, or one site's editor (`/sites/<handle>`). */
+export function useSitesPaths() {
+  const basePath = useSitesBasePath();
+  return useMemo(
+    () => ({
+      overview: basePath,
+      create: `${basePath}/neu`,
+      site: (handle: string) => `${basePath}/${encodeURIComponent(handle)}`,
+    }),
+    [basePath]
+  );
+}
+
+/** Router state the overview sets, so the way back is a step back instead of a new entry. */
+export const FROM_OVERVIEW_STATE = { fromOverview: true } as const;
+
+export function useSitesCollaboration(): CollaborationConfig {
+  return useSitesContext().collaboration;
 }
 
 export function useSitesActions(): Pick<SitesContextValue, 'login' | 'logout' | 'reportError'> {

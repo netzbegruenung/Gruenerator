@@ -1,132 +1,76 @@
-import { cn } from '@gruenerator/shared/utils';
-import { useRef, useEffect } from 'react';
+import { SITE_SECTION_TITLE_MAX } from '@gruenerator/contracts';
+import { Input } from '@gruenerator/ui';
 import { FaInstagram } from 'react-icons/fa';
 
-import { useSectionFocus } from '../../../hooks/useSectionFocus';
-import { useEditorStore } from '../../../stores/editorStore';
+import { useDraftActions, useDraftBlock } from '../../../draft/SiteDraftContext';
+import { useFieldRegistry } from '../../../hooks/useFieldRegistry';
+import { Field, SectionHeading } from '../common/Field';
 
-import type { SocialFeedSectionType as SocialFeedSection } from '@gruenerator/sites-design';
+const cleanUsername = (value: string) => value.replace(/^@/, '').replace(/[^a-zA-Z0-9._]/g, '');
 
-interface SocialFeedSectionEditorProps {
-  data: SocialFeedSection;
-  onChange: (data: SocialFeedSection) => void;
-}
-
-export function SocialFeedSectionEditor({ data, onChange }: SocialFeedSectionEditorProps) {
-  const { registerField, handleFieldFocus, handleFieldBlur } = useSectionFocus();
-  const { highlightedElement } = useEditorStore();
-
-  const titleRef = useRef<HTMLInputElement>(null);
-  const usernameRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    registerField('socialFeed', 'title', titleRef.current);
-    registerField('socialFeed', 'instagramUsername', usernameRef.current);
-  }, [registerField]);
-
-  const updateField = <K extends keyof SocialFeedSection>(
-    field: K,
-    value: SocialFeedSection[K]
-  ) => {
-    onChange({ ...data, [field]: value });
-  };
-
-  const isFieldHighlighted = (field: string) => {
-    return highlightedElement?.section === 'socialFeed' && highlightedElement?.field === field;
-  };
-
-  const cleanUsername = (value: string) => {
-    return value.replace(/^@/, '').replace(/[^a-zA-Z0-9._]/g, '');
-  };
+export function SocialFeedSectionEditor({ blockId }: { blockId: string }) {
+  const { registerField, handleFieldFocus, handleFieldBlur } = useFieldRegistry();
+  const { setBlockField } = useDraftActions();
+  const block = useDraftBlock(blockId, 'socialFeed');
+  if (!block) return null;
+  const { title } = block;
+  const username = block.instagramUsername ?? '';
+  const set = (patch: Parameters<typeof setBlockField<'socialFeed'>>[2]) =>
+    setBlockField(blockId, 'socialFeed', patch);
+  const titlePath = `blocks.${blockId}.title`;
+  const userPath = `blocks.${blockId}.instagramUsername`;
 
   return (
     <div>
-      <h3 className="flex items-center gap-2 m-0 mb-md text-lg font-semibold text-foreground">
-        <FaInstagram style={{ marginRight: '8px', color: '#E4405F' }} />
+      <SectionHeading>
+        <FaInstagram aria-hidden="true" style={{ marginRight: '8px', color: '#E4405F' }} />
         Instagram Feed
-      </h3>
+      </SectionHeading>
 
-      <div className="mb-md">
-        <label className="flex items-center gap-sm cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={data.showFeed}
-            onChange={(e) => updateField('showFeed', e.target.checked)}
-            className="w-5 h-5 accent-primary-600 cursor-pointer"
+      <Field panel={blockId} path={titlePath} htmlFor="socialfeed-title" label="Abschnittstitel">
+        <Input
+          ref={(el) => registerField(titlePath, el)}
+          id="socialfeed-title"
+          value={title}
+          onChange={(e) => set({ title: e.target.value })}
+          onFocus={() => handleFieldFocus(blockId, titlePath)}
+          onBlur={handleFieldBlur}
+          placeholder="Instagram"
+          maxLength={SITE_SECTION_TITLE_MAX}
+        />
+      </Field>
+
+      <Field
+        panel={blockId}
+        path={userPath}
+        htmlFor="socialfeed-username"
+        label="Instagram-Benutzername"
+        hint="Der Benutzername deines öffentlichen Instagram-Profils"
+      >
+        <div className="flex items-center gap-2">
+          <span aria-hidden="true" className="text-sm text-grey-600 dark:text-grey-400">
+            @
+          </span>
+          <Input
+            ref={(el) => registerField(userPath, el)}
+            id="socialfeed-username"
+            value={username}
+            onChange={(e) => set({ instagramUsername: cleanUsername(e.target.value) })}
+            onFocus={() => handleFieldFocus(blockId, userPath)}
+            onBlur={handleFieldBlur}
+            placeholder="benutzername"
+            maxLength={30}
           />
-          <span className="text-base text-foreground">Instagram-Feed anzeigen</span>
-        </label>
+        </div>
+      </Field>
+
+      <div className="p-md bg-primary-100 dark:bg-primary-900 rounded-sm mt-md">
+        <p className="m-0 text-sm text-primary-800 dark:text-primary-300 leading-relaxed">
+          <strong className="font-semibold">Datenschutz-Hinweis:</strong> Der Instagram-Feed wird
+          erst geladen, nachdem Besucher*innen der Datenübertragung an Meta zugestimmt haben
+          (DSGVO-konforme Zwei-Klick-Lösung).
+        </p>
       </div>
-
-      {data.showFeed && (
-        <>
-          <div
-            className={cn(
-              'mb-md',
-              isFieldHighlighted('title') && 'animate-[field-highlight_1s_ease]'
-            )}
-          >
-            <label
-              htmlFor="socialfeed-title"
-              className="block text-sm font-medium text-foreground mb-1.5"
-            >
-              Abschnittstitel
-            </label>
-            <input
-              ref={titleRef}
-              id="socialfeed-title"
-              type="text"
-              value={data.title}
-              onChange={(e) => updateField('title', e.target.value)}
-              onFocus={() => handleFieldFocus('socialFeed', 'title')}
-              onBlur={handleFieldBlur}
-              placeholder="Instagram"
-              className="w-full py-2.5 px-3 text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
-            />
-          </div>
-
-          <div
-            className={cn(
-              'mb-md',
-              isFieldHighlighted('instagramUsername') && 'animate-[field-highlight_1s_ease]'
-            )}
-          >
-            <label
-              htmlFor="socialfeed-username"
-              className="block text-sm font-medium text-foreground mb-1.5"
-            >
-              Instagram-Benutzername
-            </label>
-            <div className="flex items-center border border-grey-300 dark:border-grey-700 rounded-md overflow-hidden bg-background-pure focus-within:border-primary-500 focus-within:ring-[2px] focus-within:ring-primary-500/15">
-              <span className="py-2.5 px-3 bg-grey-100 dark:bg-grey-800 text-grey-600 dark:text-grey-400 text-sm border-r border-grey-300 dark:border-grey-700">
-                @
-              </span>
-              <input
-                ref={usernameRef}
-                id="socialfeed-username"
-                type="text"
-                value={data.instagramUsername || ''}
-                onChange={(e) => updateField('instagramUsername', cleanUsername(e.target.value))}
-                onFocus={() => handleFieldFocus('socialFeed', 'instagramUsername')}
-                onBlur={handleFieldBlur}
-                placeholder="benutzername"
-                className="flex-1 border-none py-2.5 px-3 text-sm outline-none"
-              />
-            </div>
-            <p className="text-xs text-grey-500 dark:text-grey-400 mt-1">
-              Der Benutzername deines öffentlichen Instagram-Profils
-            </p>
-          </div>
-
-          <div className="p-md bg-primary-100 dark:bg-primary-900 rounded-sm mt-md">
-            <p className="m-0 text-sm text-primary-800 dark:text-primary-300 leading-relaxed">
-              <strong className="font-semibold">Datenschutz-Hinweis:</strong> Der Instagram-Feed
-              wird erst geladen, nachdem Besucher*innen der Datenübertragung an Meta zugestimmt
-              haben (DSGVO-konforme Zwei-Klick-Lösung).
-            </p>
-          </div>
-        </>
-      )}
     </div>
   );
 }

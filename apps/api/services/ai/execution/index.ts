@@ -19,8 +19,8 @@ async function executeProvider(
 ): Promise<AiResult> {
   let provider = providerName as ProviderName;
   if (!KNOWN.includes(provider)) {
-    // Retired provider names (e.g. 'ionos' from a stale client or a persisted
-    // playground selection) degrade to a live lane instead of failing the turn.
+    // Retired provider names (e.g. 'ionos' from a stale client or a stored row)
+    // degrade to a live lane instead of failing the turn.
     provider = normalizeProviderName(String(providerName));
     console.warn(
       `[providers ${requestId}] Unknown provider "${providerName}", falling back to "${provider}"`

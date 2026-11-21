@@ -32,6 +32,7 @@ export const DOCUMENT_TYPE_LABELS: Record<CollabSubtype, string> = {
   tabelle: 'Tabelle',
   sheets: 'Tabellenkalkulation',
   presentations: 'Präsentation',
+  video: 'Videoprojekt',
 };
 
 /** A `YYYY-MM-DD` day is a calendar day, not an instant — render it in UTC so no zone shifts it. */
@@ -64,6 +65,7 @@ export const FEATURE_LABELS: Record<UsageFeature, string> = {
   notebook: 'Notebooks',
   voice: 'Voice',
   briefing: 'Tagesbriefing',
+  video_ai: 'KI-Schnitt',
   other: 'Sonstiges',
 };
 
@@ -186,19 +188,6 @@ export function formatTokens(value: number): string {
   if (value >= 1_000_000) return `${numberFormat.format(Math.round(value / 100_000) / 10)} Mio.`;
   if (value >= 10_000) return `${numberFormat.format(Math.round(value / 1000))} Tsd.`;
   return numberFormat.format(value);
-}
-
-/**
- * German prose runs at roughly 1.6 tokens per word on the models we serve, so
- * a generated token is worth about 0.6 written words. An estimate, not a
- * measurement: reasoning tokens count as generated but never reach the page,
- * which pulls the true figure lower for thinking-heavy use — callers say "ca.".
- */
-export const WORDS_PER_OUTPUT_TOKEN = 0.6;
-
-/** Generated tokens as an approximate written-word count, abbreviated like tokens. */
-export function formatApproxWords(outputTokens: number): string {
-  return formatTokens(Math.round(outputTokens * WORDS_PER_OUTPUT_TOKEN));
 }
 
 /**

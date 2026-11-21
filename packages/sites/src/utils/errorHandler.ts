@@ -5,11 +5,13 @@ import { type useToast } from '../hooks/useToast';
 /** Error thrown by the typed contracts-client calls in useSite. */
 export class SitesApiError extends Error {
   readonly status: number;
+  readonly consentRequired: boolean;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, consentRequired = false) {
     super(message);
     this.name = 'SitesApiError';
     this.status = status;
+    this.consentRequired = consentRequired;
   }
 }
 

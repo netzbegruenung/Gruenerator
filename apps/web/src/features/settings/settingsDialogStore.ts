@@ -21,8 +21,17 @@ interface SettingsDialogState {
    * jeden Deep-Link kapern oder wäre nur über die Seitenleiste erreichbar.
    */
   tabWasNamed: boolean;
+  /**
+   * Schmale Breite: zeigt der Dialog den Bereich (true) oder die Liste der
+   * Bereiche (false)? Wer mit Ziel öffnet, landet direkt im Bereich, wer ohne
+   * Ziel öffnet, in der Liste. Auf breitem Schirm stehen beide nebeneinander,
+   * dort spielt der Wert keine Rolle.
+   */
+  paneOpen: boolean;
   openSettings: (tab?: SettingsTab) => void;
   setTab: (tab: SettingsTab) => void;
+  /** Schmale Breite: zurück vom Bereich zur Liste. */
+  showNav: () => void;
   close: () => void;
 }
 
@@ -31,13 +40,19 @@ export const useSettingsDialogStore = create<SettingsDialogState>((set) => ({
   hasOpened: false,
   tab: 'allgemein',
   tabWasNamed: false,
+  paneOpen: false,
   openSettings: (tab) =>
     set((state) => ({
       isOpen: true,
       hasOpened: true,
       tab: tab ?? state.tab,
       tabWasNamed: tab !== undefined,
+      paneOpen: tab !== undefined,
     })),
-  setTab: (tab) => set({ tab, tabWasNamed: true }),
+  setTab: (tab) => set({ tab, tabWasNamed: true, paneOpen: true }),
+  // tabWasNamed mit setzen: sonst holt die offene Einrichtung den Dialog
+  // gleich wieder in ihren Bereich (resolveSettingsTab), und „Zurück" führte
+  // nirgendwohin.
+  showNav: () => set({ paneOpen: false, tabWasNamed: true }),
   close: () => set({ isOpen: false }),
 }));

@@ -15,6 +15,7 @@ export const contentReportKindSchema = z.enum([
   'user_agent',
   'user_text_form',
   'user_template',
+  'user_site',
   'entity_comment',
   'notebook',
 ]);
@@ -25,6 +26,7 @@ export const moderatableReportKindSchema = contentReportKindSchema.extract([
   'user_agent',
   'user_text_form',
   'user_template',
+  'user_site',
   'entity_comment',
   'notebook',
 ]);

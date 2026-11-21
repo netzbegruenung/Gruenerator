@@ -1,5 +1,6 @@
 import { type TrashItem, type TrashKind } from '@gruenerator/contracts';
 import { type IconType } from 'react-icons';
+
 import {
   PiBrain,
   PiChatCircle,
@@ -7,6 +8,7 @@ import {
   PiEnvelope,
   PiFile,
   PiFileText,
+  PiFilmSlate,
   PiFilmStrip,
   PiFloppyDisk,
   PiGlobe,
@@ -26,7 +28,7 @@ import {
   PiTable,
   PiUsersThree,
   PiVideo,
-} from 'react-icons/pi';
+} from '@/config/shellIcons.generated';
 
 /** Label per storage kind; the Select offers these, a row refines two of them by `subtype`. */
 export const TRASH_KIND_LABELS: Record<TrashKind, string> = {
@@ -50,6 +52,7 @@ export const TRASH_KIND_LABELS: Record<TrashKind, string> = {
   explainable: 'Explainable',
   podcast: 'Podcast',
   studio_asset: 'Sticker & Hintergründe',
+  video_ai_project: 'KI-Schnitt',
 };
 
 export const TRASH_KIND_ICONS: Record<TrashKind, IconType> = {
@@ -73,6 +76,7 @@ export const TRASH_KIND_ICONS: Record<TrashKind, IconType> = {
   explainable: PiLightbulb,
   podcast: PiHeadphones,
   studio_asset: PiSticker,
+  video_ai_project: PiFilmSlate,
 };
 
 interface SubtypeDisplay {
@@ -90,6 +94,7 @@ const COLLAB_SUBTYPES: Record<string, SubtypeDisplay> = {
   presentations: { label: 'Präsentation', icon: PiPresentation },
   boards: { label: 'Board', icon: PiKanban },
   canvas: { label: 'Sharepic', icon: PiImage },
+  video: { label: 'Videoprojekt', icon: PiFilmSlate },
 };
 
 /** `media_type` of a shared media row. */

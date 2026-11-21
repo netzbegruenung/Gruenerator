@@ -22,7 +22,13 @@
  * {{gliederung}}", wenn keine Gliederung angegeben ist) — also eine
  * Template-Sprache. Prosa plus angehängter Kontext kommt ohne aus.
  */
-import { AT_EBENEN, DE_EBENEN, type UserRole, roleBausteinKey } from '@gruenerator/shared/roles';
+import {
+  AT_EBENEN,
+  DE_EBENEN,
+  type UserRole,
+  mdbOfficeContext,
+  roleBausteinKey,
+} from '@gruenerator/shared/roles';
 
 import { createLogger } from '../../utils/logger.js';
 import { localizePlaceholders } from '../localization/index.js';
@@ -45,7 +51,8 @@ function buildContextLine(role: UserRole, ebeneLabel: string): string {
   if (role.gliederung) parts.push(`${ebeneLabel} ${role.gliederung}`);
   else if (ebeneLabel) parts.push(`Ebene ${ebeneLabel}`);
   if (role.bundesland) parts.push(role.bundesland);
-  if (role.abgeordnete) parts.push(`Büro von ${role.abgeordnete}`);
+  const office = mdbOfficeContext(role);
+  if (office) parts.push(office);
   return parts.length > 0 ? `Dein Kontext: ${parts.join(', ')}.` : '';
 }
 

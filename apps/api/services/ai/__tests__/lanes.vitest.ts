@@ -1,60 +1,121 @@
 /**
- * The lane registry must route exactly as the if/else chain it replaces.
- *
- * This is a parity test, not a specification: it drives every known `type`
- * through both `selectProviderAndModel` (the chain) and `laneTarget` (the
- * registry) and demands they agree. It is the only thing standing between a
- * table rewrite and a silent re-routing of ~66 call sites, and it is meant to
- * be deleted along with `providerSelector` once nothing calls the chain.
+ * The lane registry: which provider and model answer which kind of request.
  */
 import { describe, it, expect } from 'vitest';
 
-import { selectProviderAndModel } from '../../providers/providerSelector.js';
 import { GEMMA_31B_ALTERNATE, GEMMA_31B_PRIMARY } from '../gemmaHosts.js';
-import { AI_LANES, laneFallback, laneTarget, providerForModel, resolveLane } from '../lanes.js';
+import {
+  AI_LANES,
+  isLaneId,
+  laneFallback,
+  laneTarget,
+  providerForModel,
+  resolveLane,
+} from '../lanes.js';
 import { getDefaultModel } from '../providers.js';
 
 import type { LaneId } from '../lanes.js';
 
 const LANE_IDS = Object.keys(AI_LANES) as LaneId[];
 
-describe('parity with providerSelector', () => {
-  for (const lane of LANE_IDS) {
-    if (lane === 'default') continue;
+/** What a `type` resolves to, with the provider default filled in. */
+function route(type: string): { provider: string; model: string } {
+  const target = laneTarget(resolveLane(type), {}, {});
+  return { provider: target.provider, model: target.model ?? getDefaultModel(target.provider) };
+}
 
-    it(`${lane} routes the same way in both`, () => {
-      const chain = selectProviderAndModel({ type: lane, env: {} });
-      const registry = laneTarget(lane, {}, {});
+describe('the lane table', () => {
+  // A verdigado alias under the Mistral provider is a 400 on every request:
+  // the provider and the model of a lane have to name the same host.
+  it('routes structured creation to Mistral Large 4', () => {
+    for (const type of [
+      'board_generation',
+      'canvas_ai_suggest',
+      'website',
+      'flyer-analysis',
+      'sharepic_dreizeilen',
+      'sharepic_zitat',
+      'sharepic_zitat_pure',
+      'sharepic_headline',
+      'sharepic_info',
+      'sharepic_veranstaltung',
+      'sharepic_simple',
+      'sharepic_slider',
+    ]) {
+      expect(route(type), type).toEqual({ provider: 'mistral', model: 'mistral-large-4' });
+    }
+  });
 
-      expect(registry.provider).toBe(chain.provider);
-      expect(registry.model ?? getDefaultModel(registry.provider)).toBe(chain.model);
+  it('has a row for the flyer analysis', () => {
+    expect(isLaneId('flyer-analysis')).toBe(true);
+  });
+
+  // Gemma 4 calls the artefact tools reliably (Mistral Medium wrote them as
+  // prose); since 19.11.2026 on the Gemma primary instead of GreenPT, which ran
+  // out the 60 s budget 3 of 3 times (#5842).
+  // `documentation/scripts/generate-models.mjs` reads this row.
+  it('routes artifact generation to Gemma 4 on its primary host, not GreenPT', () => {
+    expect(route('doc_generation')).toEqual({
+      provider: GEMMA_31B_PRIMARY.provider,
+      model: GEMMA_31B_PRIMARY.model,
     });
-  }
-
-  it('an unrouted type lands where the chain put it', () => {
-    const chain = selectProviderAndModel({ type: 'no_such_type', env: {} });
-    const registry = laneTarget(resolveLane('no_such_type'), {}, {});
-
-    expect(registry.provider).toBe(chain.provider);
-    expect(registry.model).toBe(chain.model);
+    expect(route('doc_generation').provider).not.toBe('greenpt');
   });
 
-  it('a caller-named model wins in both', () => {
-    const chain = selectProviderAndModel({ type: 'qa_draft', options: { model: 'mine' }, env: {} });
-    const registry = laneTarget('qa_draft', { model: 'mine' }, {});
-
-    expect(registry.model).toBe('mine');
-    expect(chain.model).toBe('mine');
+  it('routes finished texts to Gemma 4 on its primary host, with the model named', () => {
+    for (const type of [
+      'antrag',
+      'antrag_simple',
+      'kleine_anfrage',
+      'grosse_anfrage',
+      'universal',
+      'leichte_sprache',
+      'custom_prompt',
+      'protokoll',
+      'rede',
+      'wahlprogramm',
+      'buergeranfragen',
+      'social',
+      'social_post_edit',
+      'subtitler_social',
+    ]) {
+      expect(route(type), type).toEqual({
+        provider: GEMMA_31B_PRIMARY.provider,
+        model: GEMMA_31B_PRIMARY.model,
+      });
+      expect(route(type).model, type).not.toMatch(/qwen/);
+    }
   });
 
-  it('MAIN_LLM_OVERRIDE wins in both', () => {
-    const env = { MAIN_LLM_OVERRIDE: 'Llama-3.3-70B-Instruct' };
-    const chain = selectProviderAndModel({ type: 'sharepic_zitat', env });
-    const registry = laneTarget('sharepic_zitat', {}, env);
+  it('leaves non-creation traffic on its own lanes', () => {
+    expect(route('image_picker').provider).not.toBe('mistral');
+  });
 
-    expect(registry).toEqual({ provider: chain.provider, model: chain.model });
+  it('answers types without a row on the default lane', () => {
+    expect(route('text_adjustment').model).toBe('mistral-large-4');
+    expect(route('chat_quality_gate').model).toBe('mistral-large-4');
+    expect(route('no_such_type')).toEqual({ provider: 'mistral', model: 'mistral-large-4' });
+  });
+
+  it('lets a caller-named model win', () => {
+    expect(laneTarget('doc_generation', { model: 'mistral-medium-2604' }, {}).model).toBe(
+      'mistral-medium-2604'
+    );
+  });
+
+  it('lets MAIN_LLM_OVERRIDE win over every row', () => {
     // Llama hat seit der Regolo-Abschaltung keinen eigenen Host mehr → Standard.
-    expect(registry.provider).toBe('mistral');
+    expect(
+      laneTarget('sharepic_zitat', {}, { MAIN_LLM_OVERRIDE: 'Llama-3.3-70B-Instruct' })
+    ).toEqual({ provider: 'mistral', model: 'Llama-3.3-70B-Instruct' });
+  });
+
+  it('never pairs a model with another host', () => {
+    for (const lane of LANE_IDS) {
+      const { provider, model } = route(lane);
+      if (provider === 'mistral') expect(model, lane).not.toMatch(/verdigado/);
+      if (provider === 'litellm') expect(model, lane).not.toMatch(/^mistral-(medium|large|small)-/);
+    }
   });
 });
 
@@ -97,7 +158,9 @@ describe('laneFallback', () => {
     const gemma = GEMMA_31B_PRIMARY.provider;
     expect(laneFallback('sharepic_zitat')[0]).toBe(gemma); // mistral is primary, so dropped
     expect(laneFallback('default')[0]).toBe(gemma); // mistral is primary, so dropped
-    expect(laneFallback('image_picker')[0]).toBe(gemma);
+    // image_picker runs on the `standard` stage, itself on Melious since
+    // 19.11.2026 — so its chain starts on the second Gemma host.
+    expect(laneFallback('image_picker')[0]).toBe(GEMMA_31B_ALTERNATE.provider);
   });
 
   it('leaves the creation families the second Gemma host, then Mistral', () => {
@@ -111,16 +174,9 @@ describe('laneFallback', () => {
     expect(laneFallback('social')).toEqual([second, 'mistral']);
   });
 
-  it('gives the GreenPT artefact lane a host of its own model family', () => {
-    // `doc_generation` liegt auf GreenPT, das in keiner der beiden Ketten
-    // steht — also bleiben alle übrig. Die beiden Gemma-Hosts vorn sind hier
-    // der Punkt: bis zum 28.08.2026 enthielt die Ausweichkette dieser Lane
-    // keinen einzigen Host desselben Gemma 4, auf dem ihr Primär läuft.
-    expect(laneFallback('doc_generation')).toEqual([
-      GEMMA_31B_PRIMARY.provider,
-      GEMMA_31B_ALTERNATE.provider,
-      'mistral',
-    ]);
+  it('gives the artefact lane the second Gemma host, then Mistral', () => {
+    // `doc_generation` liegt auf dem Gemma-Primär; der fällt aus der Kette.
+    expect(laneFallback('doc_generation')).toEqual([GEMMA_31B_ALTERNATE.provider, 'mistral']);
     // Die beiden Hosts sind zwei Vertragspartner, nicht einer zweimal.
     expect(GEMMA_31B_PRIMARY.provider).not.toBe(GEMMA_31B_ALTERNATE.provider);
   });

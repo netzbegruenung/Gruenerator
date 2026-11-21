@@ -67,9 +67,10 @@ import { z } from 'zod';
 import type { ToolSet } from 'ai';
 
 /**
- * Das engere Rezept-Werkzeug für den erzwungenen Recherche-Schritt (Enum nur über
- * Methoden-Rezepte, `recipeTools.ts`). Hier definiert, weil der Umfang es aus
- * jedem anderen Schritt heraushält.
+ * Das frühere engere Rezept-Werkzeug (Enum nur über Methoden-Rezepte), bis
+ * 11/2026 nur im erzwungenen Recherche-Schritt montiert. Heute nicht mehr
+ * montiert; der Name bleibt, weil gespeicherte Schritte ihn tragen (F0) und
+ * beim Fortsetzen und im Verlauf als Rezept-Aufruf gelesen werden.
  */
 export const METHOD_RECIPE_TOOL = 'methode_laden';
 
@@ -168,7 +169,13 @@ interface DeferrableGroup {
    * `parlament_lesen`): sie werden erst gebraucht, wenn der Einstieg gelaufen ist.
    */
   readonly opensOn?: readonly string[];
-  readonly loaderDescription: string;
+  /**
+   * Was der Lader verspricht. Als Funktion bekommt sie die MONTIERTEN Werkzeuge
+   * der Gruppe: ein Lader, der ein fehlendes Werkzeug ankündigt, lädt das Modell
+   * ein, dessen Wirkung zu behaupten (#5804 — „Seite angelegt" ohne
+   * `antragsgruen_seite_anlegen`).
+   */
+  readonly loaderDescription: string | ((present: readonly string[]) => string);
 }
 
 /**
@@ -230,6 +237,66 @@ export const DEFERRABLE_GROUPS = [
     loaderDescription:
       'Schaltet die Parlaments-Werkzeuge frei, soweit vorhanden: parlament_lesen (Drucksachen/Plenarprotokolle lesen), bundestag_reden (Reden im Plenum), abgeordnetenwatch (Abstimmungen, Nebentätigkeiten, Mandate) und umfragen (Sonntagsfrage).\n\nNUTZE WENN Parlamentsdokumente gelesen, Reden gesucht, Abgeordnete nachgeschlagen oder Umfragen gebraucht werden. Die Liste liefern bundestag und landtag (Österreich: nationalrat), immer bereit.',
   },
+  {
+    // Antragsgrün GRÜNE NRW (`@antragsgruennrw`): nur NRW-Parteitage, für die
+    // meisten Turns ohne Belang — deshalb die ganze Familie hinter dem Lader,
+    // auch der Einstieg. Die Erwähnung heftet `antragsgruen` an und öffnet damit.
+    id: 'antragsgruen',
+    loaderTool: 'antragsgruen_werkzeuge_laden',
+    // `antragsgruen_seite_anlegen` gilt nicht nur für NRW; es steht hier, weil
+    // dieselben Wörter es aufrufen und es sonst in jedem Turn ein Platz wäre.
+    tools: [
+      'antragsgruen',
+      'antragsgruen_lesen',
+      'antragsgruen_auswerten',
+      'antragsgruen_seite_anlegen',
+      'antragsgruen_antrag_stellen',
+      'antragsgruen_tagesordnung',
+      'antragsgruen_seite_lesen',
+    ],
+    hint: /antragsgr[üu]n|parteitag|landesdelegiertenkonferenz|\bldk\b|landesparteirat|\blpr\b|[äa]nderungsantr[äa]g|antragskommission|verfahrensvorschlag/i,
+    // Die Seiten-Werkzeuge montiert der Katalog nur mit Zugangsdaten des
+    // Grünerator-Kontos (`siteCreationConfigured`), alle vier zusammen.
+    loaderDescription: (present: readonly string[]) => {
+      const nrw = present.includes('antragsgruen');
+      const site = present.includes('antragsgruen_seite_anlegen');
+      return [
+        'Schaltet die Antragsgrün-Werkzeuge frei.',
+        nrw
+          ? ' Parteitage der GRÜNEN NRW: antragsgruen (finden), antragsgruen_lesen, antragsgruen_auswerten (exakte Zahlen).'
+          : '',
+        site
+          ? ' Eigene Seite auf antragsgruen.de: antragsgruen_seite_anlegen, antragsgruen_antrag_stellen, antragsgruen_tagesordnung (lesen/setzen), antragsgruen_seite_lesen (Anträge mit Zeilennummern, für Änderungsanträge).'
+          : '',
+        '\n\nNUTZE WENN es um ',
+        nrw
+          ? 'Parteitage der GRÜNEN NRW geht: LDK, Landesparteirat, Anträge, Änderungsanträge, Beschlüsse, Verfahrensvorschläge der Antragskommission'
+          : '',
+        nrw && site ? ' — oder um ' : '',
+        site ? 'eine eigene Antragsgrün-Seite für eine Versammlung' : '',
+        nrw && !site
+          ? '. Eine eigene Antragsgrün-Seite anlegen kann der Grünerator hier nicht.'
+          : '.',
+      ].join('');
+    },
+  },
+  {
+    // nuudel-Umfragen (Terminfindung, Auswahl): für die meisten Turns ohne Belang.
+    id: 'nuudel',
+    loaderTool: 'nuudel_werkzeuge_laden',
+    tools: [
+      'nuudel_umfrage_anlegen',
+      'nuudel_umfrage_lesen',
+      'nuudel_umfrage_bearbeiten',
+      'nuudel_umfrage_loeschen',
+    ],
+    // Kein bloßes „Umfrage": das meint meist Wahlumfragen (Werkzeug `umfragen`).
+    // Nur Wörter, die eine selbst gestellte Abstimmung meinen; alles andere
+    // entscheidet das Modell über den Lader.
+    hint: /nuudel|doodle|dudle|termin(?:umfrage|abstimmung|findung|suche|vorschl[äa]ge)|termin\s+(?:finden|abstimmen)|datumsumfrage|abstimmungslink|umfragelink/i,
+    loaderDescription:
+      "Schaltet die nuudel-Werkzeuge frei: nuudel_umfrage_anlegen (Terminfindung oder Auswahl auf nuudel.digitalcourage.de anlegen), nuudel_umfrage_lesen (Ergebnis einer eigenen Umfrage: wer kann wann), nuudel_umfrage_bearbeiten (Titel, Beschreibung, Ablauf, Termine einer eigenen Umfrage ändern), nuudel_umfrage_loeschen (eigene Umfrage endgültig löschen).\n\nNUTZE WENN die Person für eine Gruppe eine Terminabstimmung (wie Doodle) oder eine eigene Abstimmung erstellen, auswerten, ändern oder löschen will. NICHT für Wahl- oder Meinungsumfragen (dafür 'umfragen').",
+  },
 ] as const satisfies readonly DeferrableGroup[];
 
 export type DeferrableGroupId = (typeof DEFERRABLE_GROUPS)[number]['id'];
@@ -270,11 +337,17 @@ export interface ToolScope {
  * @param pinnedTool  Ein von einer @-Erwähnung festgezurrtes Werkzeug
  *   (`mentionPinnedTool`). MUSS die Gruppe öffnen, in der es liegt: das Label
  *   der Erwähnung ist aus `userText` entfernt, das Tor sieht die Absicht also
- *   gar nicht — und `pinnedFirstTool` erzwingt dieses Werkzeug auf Schritt 0.
+ *   gar nicht — und `buildPinnedToolNote` kündigt dieses Werkzeug dem Modell an.
  * @param priorToolNames  Die Werkzeuge, die frühere Turns dieses Threads
  *   gerufen haben. Hat einer davon in einer Gruppe gelegen, bleibt sie offen:
  *   nach "Zeig meine Aufgaben" trägt "und die vom Radentscheid?" kein einziges
  *   Wort mehr, an dem das Tor die Absicht erkennen könnte.
+ * @param previousUserText  Die Nachricht der Person im Turn davor. Passte der
+ *   `hint` dort, bleibt die Gruppe einen Turn länger offen: die Antwort auf eine
+ *   Rückfrage („KMV Köln März 2027, die Adresse schlag du vor") trägt kein
+ *   Stichwort mehr, und ohne Werkzeugaufruf im Turn davor greift auch
+ *   `priorToolNames` nicht. Gemessen 16.11.2026: die Gruppe war zu, Gemma rief
+ *   den Lader nicht und kündigte das Anlegen nur an.
  * @param enforce  `false` = Schattenbetrieb: das Tor entscheidet und wird
  *   protokolliert, schneidet aber nichts ab. Siehe `isToolScopeEnforced`.
  */
@@ -283,6 +356,7 @@ export function createToolScope(params: {
   userText: string;
   pinnedTool?: string | null;
   priorToolNames?: readonly string[];
+  previousUserText?: string | null;
   /**
    * Werkzeuge, die dieser Turn von Anfang an sehen muss, auch wenn ihre Gruppe
    * geschlossen bleibt — nur sie, nicht die Gruppe: `notebook_quellen` für
@@ -307,6 +381,7 @@ export function createToolScope(params: {
     const present = groupTools.filter((t) => mounted.has(t) && !keepVisible.has(t));
     if (present.length === 0) continue;
     if (group.hint.test(text)) continue;
+    if (params.previousUserText && group.hint.test(params.previousUserText)) continue;
     const opening = [...groupTools, ...(group.opensOn ?? [])];
     if (pinned && opening.includes(pinned)) continue;
     if (opening.some((t) => prior.has(t))) continue;
@@ -330,16 +405,8 @@ export function createToolScope(params: {
           if (group.opensOn?.some((t) => called.has(t))) closed.delete(group.id);
         }
       }
-      // `methode_laden` gehört allein dem erzwungenen ersten Schritt (er schneidet
-      // seine `activeTools` selbst zu); in jedem anderen Schritt bleibt es aus,
-      // dort gilt `rezept_laden` mit dem ganzen Katalog. Unabhängig von `enforce`.
-      const methodOnly = mounted.has(METHOD_RECIPE_TOOL) ? [METHOD_RECIPE_TOOL] : [];
-      if (!params.enforce || closed.size === 0) {
-        return methodOnly.length > 0
-          ? params.toolNames.filter((t) => t !== METHOD_RECIPE_TOOL)
-          : undefined;
-      }
-      const hidden = new Set<string>(methodOnly);
+      if (!params.enforce || closed.size === 0) return undefined;
+      const hidden = new Set<string>();
       for (const group of closed.values()) for (const t of group.tools) hidden.add(t);
       // Die Lader stehen nicht in `toolNames` — sie werden erst nach diesem
       // Aufruf montiert. Deshalb ausdrücklich anhängen, sonst schneidet
@@ -353,8 +420,9 @@ export function createToolScope(params: {
       for (const group of DEFERRABLE_GROUPS) {
         const open = closed.get(group.id);
         if (!open) continue;
+        const describe = (group as DeferrableGroup).loaderDescription;
         tools[group.loaderTool] = tool({
-          description: group.loaderDescription,
+          description: typeof describe === 'function' ? describe(open.tools) : describe,
           inputSchema: z.object({}),
           execute: async () => {
             closed.delete(group.id);

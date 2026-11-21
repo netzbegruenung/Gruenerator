@@ -47,9 +47,6 @@ const TYPE_TEMPERATURE_DEFAULTS: Record<string, number> = {
   image_picker: 0.2,
   qa_tools: 0.3,
   chat_rerank: 0,
-
-  // Creative content
-  antrag_question_generation: 0.7,
 };
 
 /**

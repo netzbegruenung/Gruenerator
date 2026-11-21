@@ -31,6 +31,7 @@ export const COLLAB_SUBTYPE_VALUES = [
   'canvas',
   'sheets',
   'presentations',
+  'video',
 ] as const;
 
 export const collabSubtypeSchema = z.enum(COLLAB_SUBTYPE_VALUES);
@@ -123,6 +124,8 @@ export const userPermissionEntrySchema = z.object({
   avatar_robot_id: z.string().nullable(),
   permission_level: z.enum(['owner', 'editor', 'viewer']),
   granted_at: z.string(),
+  /** Who granted it; `auto:share_link` marks people who joined via the share link. */
+  granted_by: z.string().nullish(),
 });
 
 export const groupPermissionEntrySchema = z.object({
@@ -165,6 +168,8 @@ export const createDocumentBodySchema = z.object({
   title: z.string().nullish(),
   folder_id: z.string().nullish(),
   document_subtype: collabSubtypeSchema.nullish(),
+  /** Gleich ins Projekt legen (Freigabe mit Schreibrecht, in derselben Transaktion). */
+  groupId: z.string().uuid().nullish(),
 });
 
 /**
@@ -209,6 +214,8 @@ export const userGroupSchema = z.object({
   id: z.string(),
   name: z.string(),
   role: z.string(),
+  /** Team-Projekt: der Teilen-Dialog belegt dort „Bearbeiten“ vor. Fehlt bei alten Servern. */
+  team: z.boolean().optional(),
 });
 export const userGroupsListSchema = z.array(userGroupSchema);
 

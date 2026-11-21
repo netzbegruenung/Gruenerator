@@ -38,6 +38,11 @@ import {
   createDocumentWithContent,
 } from '../../services/docs/DocGenerationService.js';
 import { getDocPreview } from '../../services/docs/docPreview.js';
+import {
+  CREATE_IN_GROUP_FORBIDDEN,
+  type TxQuery,
+  createInGroup,
+} from '../../services/groups/createInGroup.js';
 import { listShareTargetGroups } from '../../services/groups/groupMembership.js';
 import { shareToPermissionLevel } from '../../services/groups/groupSharePermissions.js';
 import {
@@ -63,8 +68,8 @@ import {
   redactDocumentForReader,
 } from './documentAccess.js';
 
-import type { CollaborativeDocument } from './types.js';
 import type { UserProfile } from '../../services/user/types.js';
+import type { CollaborativeDocument } from './types.js';
 import type { Application, Request } from 'express';
 
 const log = createLogger('docsContractRouter');
@@ -220,7 +225,7 @@ export const docsContractRouter = s.router(docsContract, {
       if (doc[0].created_by !== userId) {
         return {
           status: 403 as const,
-          body: { error: 'Only document owner can manage group sharing' },
+          body: { error: 'Nur wem das Dokument gehört, kann es in Projekte teilen.' },
         };
       }
 
@@ -270,7 +275,7 @@ export const docsContractRouter = s.router(docsContract, {
       if (doc[0].created_by !== userId) {
         return {
           status: 403 as const,
-          body: { error: 'Only document owner can unshare from groups' },
+          body: { error: 'Nur wem das Dokument gehört, kann es aus Projekten nehmen.' },
         };
       }
 
@@ -279,7 +284,11 @@ export const docsContractRouter = s.router(docsContract, {
         contentType: 'collaborative_documents',
         contentId: id,
       });
-      if (!removed) return { status: 404 as const, body: { error: 'Group share not found' } };
+      if (!removed)
+        return {
+          status: 404 as const,
+          body: { error: 'Das Dokument liegt nicht in diesem Projekt.' },
+        };
 
       return {
         status: 200 as const,
@@ -307,7 +316,7 @@ export const docsContractRouter = s.router(docsContract, {
         // satisfies the strict enum in permissionListEntrySchema.
         permissions: Record<
           string,
-          { level: 'owner' | 'editor' | 'viewer'; granted_at: string }
+          { level: 'owner' | 'editor' | 'viewer'; granted_at: string; granted_by?: string | null }
         > | null;
         [key: string]: unknown;
       }
@@ -358,6 +367,7 @@ export const docsContractRouter = s.router(docsContract, {
         avatar_robot_id: profile.avatar_robot_id,
         permission_level: permissions[profile.id].level,
         granted_at: permissions[profile.id].granted_at,
+        granted_by: permissions[profile.id].granted_by ?? null,
       }));
 
       const groupShares = (await db.query(
@@ -477,7 +487,7 @@ export const docsContractRouter = s.router(docsContract, {
       if (doc[0].created_by !== userId) {
         return {
           status: 403 as const,
-          body: { error: 'Only document owner can share with groups' },
+          body: { error: 'Nur wem das Dokument gehört, kann es in Projekte teilen.' },
         };
       }
 
@@ -496,13 +506,13 @@ export const docsContractRouter = s.router(docsContract, {
         if (!(error instanceof GroupShareForbiddenError)) throw error;
         return {
           status: 403 as const,
-          body: { error: 'You are not allowed to share with this group' },
+          body: { error: 'Du kannst in diesem Projekt nichts teilen.' },
         };
       }
       if (!created) {
         return {
           status: 409 as const,
-          body: { error: 'Document is already shared with this group' },
+          body: { error: 'Das Dokument liegt schon in diesem Projekt.' },
         };
       }
 
@@ -561,7 +571,7 @@ export const docsContractRouter = s.router(docsContract, {
       if (doc[0].created_by !== userId) {
         return {
           status: 403 as const,
-          body: { error: 'Only document owner can update group permissions' },
+          body: { error: 'Nur wem das Dokument gehört, kann die Rechte im Projekt ändern.' },
         };
       }
 
@@ -572,7 +582,10 @@ export const docsContractRouter = s.router(docsContract, {
         permissions: { read: true, write: permission_level === 'editor' },
       });
       if (!updated) {
-        return { status: 404 as const, body: { error: 'Group share not found' } };
+        return {
+          status: 404 as const,
+          body: { error: 'Das Dokument liegt nicht in diesem Projekt.' },
+        };
       }
 
       return { status: 200 as const, body: { message: 'Group permission updated successfully' } };
@@ -624,28 +637,41 @@ export const docsContractRouter = s.router(docsContract, {
         title = 'Untitled Document',
         folder_id = null,
         document_subtype = 'blank',
+        groupId = null,
       } = args.body;
 
       const subtype = DOCS_SUBTYPES.includes(document_subtype ?? 'blank')
         ? (document_subtype ?? 'blank')
         : 'blank';
 
-      const result = (await db.query(
-        `INSERT INTO collaborative_documents
-          (title, created_by, last_edited_by, document_subtype, folder_id, permissions, is_public)
-         VALUES ($1, $2, $2, $3, $4, $5, false)
-         RETURNING *`,
-        [
-          title,
-          userId,
-          subtype,
-          folder_id,
-          JSON.stringify({ [userId]: { level: 'owner', granted_at: new Date().toISOString() } }),
-        ]
-      )) as CollaborativeDocument[];
+      const insert = async (query: TxQuery) =>
+        (
+          await query(
+            `INSERT INTO collaborative_documents
+              (title, created_by, last_edited_by, document_subtype, folder_id, permissions, is_public)
+             VALUES ($1, $2, $2, $3, $4, $5, false)
+             RETURNING *`,
+            [
+              title,
+              userId,
+              subtype,
+              // Im Projekt angelegt: kein Ordner der Person.
+              groupId ? null : folder_id,
+              JSON.stringify({
+                [userId]: { level: 'owner', granted_at: new Date().toISOString() },
+              }),
+            ]
+          )
+        )[0] as unknown as CollaborativeDocument;
 
-      return { status: 201 as const, body: result[0] };
+      const doc = groupId
+        ? await createInGroup({ userId, groupId, insert })
+        : await insert((text, params) => db.query(text, params));
+      return { status: 201 as const, body: doc };
     } catch (error) {
+      if (error instanceof GroupShareForbiddenError) {
+        return { status: 403 as const, body: { error: CREATE_IN_GROUP_FORBIDDEN } };
+      }
       const message = error instanceof Error ? error.message : String(error);
       log.error('[docsContract.createDocument] Error:', error);
       return {

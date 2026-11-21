@@ -18,8 +18,8 @@ Skills nutzen progressive disclosure: beim Start lädt nur Name + Beschreibung, 
 | Tailwind **v4** | `tailwind-4-docs` (Lombiq) | Tailwind hat **kein** `llms.txt` — die Skill ist die einzige maschinenlesbare Quelle. Plus `CLAUDE-styling.md` |
 | LangChain / LangGraph | 21 Skills: `langgraph-*`, `langchain-*`, `deep-agents-*` | `docs.langchain.com/llms.txt` (100 kB). Vor Umbauten am Chat-Stack: `docs/chat-architecture-evaluation.md` |
 | Qdrant | 10 Skills: `qdrant-search-quality`, `-multitenancy`, `-performance-optimization`, `-monitoring`, `-scaling`, … | `qdrant.tech/llms.txt` |
-| Expo | Plugin `expo@claude-plugins-official` (22 Skills) | `docs.expo.dev/llms.txt`, `/llms-eas.txt`, `/llms-sdk.txt`; jede Doku-URL + `.md` = Markdown. **Wir sind auf SDK 57** — versionierte Bundles beachten |
-| Better Auth | `better-auth-best-practices`, `create-auth-skill`, `organization-best-practices` | `better-auth.com/llms.txt`; Remote-MCP `https://mcp.better-auth.com/mcp` (nicht eingerichtet) |
+| Expo | Plugin `expo@claude-plugins-official` (22 Skills) | `docs.expo.dev/llms.txt`, `/llms-eas.txt`, `/llms-sdk.txt`; jede Doku-URL + `.md` = Markdown. **Wir sind auf SDK 58** — versionierte Bundles beachten |
+| Better Auth | `better-auth-best-practices`, `create-auth-skill`, `organization-best-practices` | `better-auth.com/llms.txt`; Remote-MCP `https://mcp.better-auth.com/mcp` (in `.mcp.json` eingerichtet) |
 | Sentry | Plugin `sentry@claude-plugins-official` (`sentry-instrument`, `sentry-debug-issue`, `sentry-feature-setup`, …) | Quell-Repo `getsentry/sentry-for-ai` ist **nicht** direkt installierbar; Skills auch per HTTP unter `skills.sentry.dev` |
 | Langfuse | `langfuse` (offiziell: `langfuse/skills`) | Deckt CLI-Zugriff auf Traces/Prompts/Datasets **und** Doku-Lookup ab |
 | mem0 | `mem0` (SDK, Default), `mem0-integrate` (offiziell: `mem0ai/mem0`) | `github.com/mem0ai/mem0/blob/main/docs/llms.txt`. Weitere Skills im Repo: `mem0-cli`, `mem0-vercel-ai-sdk`, `mem0-oss-to-platform` |

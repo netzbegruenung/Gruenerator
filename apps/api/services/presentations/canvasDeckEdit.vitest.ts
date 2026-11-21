@@ -20,6 +20,12 @@ vi.mock('../canvas/canvasStateService.js', () => ({
 }));
 
 const {
+  CanvasDocumentNewerError,
+  CanvasDocumentNewerReadError,
+  CanvasLiveStateUnavailableError,
+  CanvasStateUnwritableError,
+} = await import('../canvas/canvasWriteErrors.js');
+const {
   describeDeckForEditing,
   planAndApplyCanvasDeckEdit,
   planCanvasDeckEdit,
@@ -103,8 +109,47 @@ describe('planAndApplyCanvasDeckEdit', () => {
     const [, changes] = mocks.applyDeckChanges.mock.calls[0] as [string, Record<string, unknown>];
     expect(changes['replacePages']).toBeUndefined();
     expect(changes['pagePatches']).toEqual([
-      { pageId: pages[1]!.id, patch: { additionalTexts: expect.any(Array) } },
+      {
+        pageId: pages[1]!.id,
+        patch: { additionalTexts: expect.any(Array) },
+        // The page as it was read: the server merges the patch into what is there now (#5765).
+        base: { additionalTexts: pages[1]!.state['additionalTexts'] },
+      },
     ]);
+  });
+
+  it.each([
+    ['CanvasDocumentNewerError', new CanvasDocumentNewerError('c1'), 'document_newer'],
+    ['CanvasStateUnwritableError', new CanvasStateUnwritableError('c1'), 'unwritable'],
+  ])(
+    'a refused write (%s) is its own outcome, without the retry hint',
+    async (_n, error, reason) => {
+      modelAnswers([
+        {
+          kind: 'edit-slide',
+          slide: 2,
+          operations: [
+            { kind: 'set-text', field: 'folie-headline', label: 'Titel', value: 'Darum' },
+          ],
+        },
+      ]);
+      mocks.applyDeckChanges.mockRejectedValue(error);
+      const out = await run();
+      expect(out).toMatchObject({ status: 'failed', reason, message: (error as Error).message });
+      expect((out as { message: string }).message).not.toMatch(/noch einmal|erneut/);
+    }
+  );
+
+  it('any other write failure keeps the retry message', async () => {
+    modelAnswers([
+      {
+        kind: 'edit-slide',
+        slide: 2,
+        operations: [{ kind: 'set-text', field: 'folie-headline', label: 'Titel', value: 'Darum' }],
+      },
+    ]);
+    mocks.applyDeckChanges.mockRejectedValue(new Error('fetch failed'));
+    expect(await run()).toMatchObject({ status: 'failed', reason: 'write_failed' });
   });
 
   it('asks before removing a slide and writes nothing', async () => {
@@ -191,6 +236,66 @@ describe('edit prompt', () => {
     const { system } = mocks.aiObject.mock.calls[0]![0] as { system: string };
     expect(system).toContain('punkte (Array von Texten, 3–6 Punkte je ≤70)');
     expect(system).toContain('"punkte": ["');
+  });
+});
+
+describe('a deck newer than the server', () => {
+  it('is not planned on partial pages: the edit fails without asking the model or writing', async () => {
+    mocks.getCurrentDeckState.mockRejectedValue(new CanvasDocumentNewerReadError('c1'));
+    const out = await planAndApplyCanvasDeckEdit({
+      canvasId: 'c1',
+      userId: 'u1',
+      instruction: 'x',
+      destructiveAllowed: true,
+    });
+    expect(out).toMatchObject({ status: 'failed', reason: 'document_newer' });
+    expect((out as { message: string }).message).toMatch(/neueres Format/);
+    expect(mocks.aiObject).not.toHaveBeenCalled();
+    expect(mocks.applyDeckChanges).not.toHaveBeenCalled();
+  });
+
+  it('a confirmed edit is not applied on partial pages either', async () => {
+    mocks.getCurrentDeckState.mockRejectedValue(new CanvasDocumentNewerReadError('c1'));
+    const out = await applyPlannedCanvasDeckOperations({
+      canvasId: 'c1',
+      userId: 'u1',
+      operations: [{ kind: 'remove-slide', slide: 2 }],
+      basePageIds: pages.map((p) => p.id),
+    });
+    expect(out).toMatchObject({ status: 'failed', reason: 'document_newer' });
+    expect(mocks.applyDeckChanges).not.toHaveBeenCalled();
+  });
+});
+
+describe('a deck whose live state is unavailable (#5775)', () => {
+  it('is not planned on the stale mirror: the edit fails with the retry sentence', async () => {
+    const error = new CanvasLiveStateUnavailableError('c1');
+    mocks.getCurrentDeckState.mockRejectedValue(error);
+    const out = await planAndApplyCanvasDeckEdit({
+      canvasId: 'c1',
+      userId: 'u1',
+      instruction: 'x',
+      destructiveAllowed: true,
+    });
+    expect(out).toMatchObject({
+      status: 'failed',
+      reason: 'live_unavailable',
+      message: error.message,
+    });
+    expect(mocks.aiObject).not.toHaveBeenCalled();
+    expect(mocks.applyDeckChanges).not.toHaveBeenCalled();
+  });
+
+  it('a confirmed edit is not applied on the stale mirror either', async () => {
+    mocks.getCurrentDeckState.mockRejectedValue(new CanvasLiveStateUnavailableError('c1'));
+    const out = await applyPlannedCanvasDeckOperations({
+      canvasId: 'c1',
+      userId: 'u1',
+      operations: [{ kind: 'remove-slide', slide: 2 }],
+      basePageIds: pages.map((p) => p.id),
+    });
+    expect(out).toMatchObject({ status: 'failed', reason: 'live_unavailable' });
+    expect(mocks.applyDeckChanges).not.toHaveBeenCalled();
   });
 });
 

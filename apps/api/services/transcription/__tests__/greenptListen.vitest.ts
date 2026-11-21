@@ -79,6 +79,15 @@ describe('listenWithGreenpt', () => {
     expect(url.searchParams.get('diarize_model')).toBe('v2');
   });
 
+  it('sends each key term as its own keyterm parameter', async () => {
+    respond({ transcript: 'Hallo', words: [] });
+    await listenWithGreenpt(Buffer.from('audio'), 'clip.mp3', {
+      keyterms: ['Wolfsteiner', ' ', 'Sauerlacher Straße'],
+    });
+    const url = new URL(fetchMock.mock.calls[0][0] as string);
+    expect(url.searchParams.getAll('keyterm')).toEqual(['Wolfsteiner', 'Sauerlacher Straße']);
+  });
+
   it('converts number words in transcript and words identically', async () => {
     respond({
       transcript: 'Im Jahr zweitausendfünfzehn waren es zehn Prozent',

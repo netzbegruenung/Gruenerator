@@ -1,14 +1,14 @@
-import { PiGlobe } from 'react-icons/pi';
-import { RiSpyLine } from 'react-icons/ri';
-
 import { getIcon, getIconById as getIconFromRegistry } from '../../../config/icons';
 
 import type { BadgeType } from '../../common/StatusBadge';
 import type { JSX, ComponentType } from 'react';
 import type { IconType } from 'react-icons';
 
+import { PiGlobe, RiSpyLine } from '@/config/shellIcons.generated';
+
 export interface MenuFlags {
   isAustrian?: boolean;
+  canSeeSites?: boolean;
 }
 
 // Menu item type definition
@@ -47,7 +47,9 @@ export type DirectMenuItemsResult = Record<string, MenuItemType>;
 export const GLOBAL_SEARCH_ITEM_ID = 'globalSearch';
 
 // Direkte Menüpunkte ohne Dropdown
-export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResult => {
+export const getDirectMenuItems = ({
+  canSeeSites = false,
+}: MenuFlags = {}): DirectMenuItemsResult => {
   const items: DirectMenuItemsResult = {};
 
   items.startseite = {
@@ -81,7 +83,7 @@ export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResul
     activePaths: ['/grueneratoren', '/agentura', '/agents'],
   };
 
-  if (import.meta.env.DEV) {
+  if (canSeeSites) {
     items.sites = {
       id: 'sites',
       path: '/sites',

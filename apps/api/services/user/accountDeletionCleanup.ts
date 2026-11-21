@@ -3,7 +3,7 @@
  * reaches any of it: `collaborative_documents.created_by` is SET NULL,
  * notebooks live in Qdrant, `entity_likes` and `entity_comments` have no FK to
  * the item at all, `user_agents` and `user_text_forms` have no FK to the
- * profile (#4723), and the OAuth
+ * profile (#4723), the Yjs draft of a Website is keyed by the bare site id, and the OAuth
  * tokens of connected accounts (Microsoft, Google, …) live in Nango. Account
  * deletion stays hard — nothing here goes through the Papierkorb.
  *
@@ -29,6 +29,7 @@ import {
   deleteLikesForEntity,
   deleteLikesOfDeletedUser,
 } from '../entityLikes/EntityLikesService.js';
+import { purgeUserSite, USER_SITE_TRASH } from '../sites/userSiteTrash.js';
 import { type OwnedTrashTable, trashAllOwnedRowsOfDeletedUser } from '../trash/ownedRowTrash.js';
 import { purgeUserAgent, USER_AGENT_TRASH } from '../userAgents/userAgentsRepository.js';
 
@@ -88,6 +89,7 @@ export async function cleanUpBeforeProfileDelete(userId: string): Promise<void> 
 
   const agents = await purgeAllOwnedRows(USER_AGENT_TRASH, userId, purgeUserAgent);
   const recipes = await purgeAllOwnedRows(TEXT_FORM_TRASH, userId, purgeTextForm);
+  const sites = await purgeAllOwnedRows(USER_SITE_TRASH, userId, purgeUserSite);
 
   try {
     await deleteLikesOfDeletedUser(userId);
@@ -117,6 +119,6 @@ export async function cleanUpBeforeProfileDelete(userId: string): Promise<void> 
   }
 
   log.info(
-    `Removed ${docs} sole-owned documents, ${notebooks} notebooks, ${agents} agents, ${recipes} recipes and ${connections} connections of ${userId}`
+    `Removed ${docs} sole-owned documents, ${notebooks} notebooks, ${agents} agents, ${recipes} recipes, ${sites} websites and ${connections} connections of ${userId}`
   );
 }

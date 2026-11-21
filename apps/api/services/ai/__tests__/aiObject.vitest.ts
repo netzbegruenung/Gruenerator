@@ -26,6 +26,7 @@ vi.mock('../execution/index.js', () => ({
 
 const { aiObject } = await import('../generate.js');
 const { AiProviderError } = await import('../../providers/providerErrors.js');
+const { GEMMA_31B_PRIMARY } = await import('../gemmaHosts.js');
 
 import type { StructuredValidation } from '../structuredParsing.js';
 
@@ -101,15 +102,15 @@ describe('aiObject', () => {
 
   it('routes through the lane registry instead of leaving the model open', async () => {
     // `generateStructured` set no provider and no model and left both to
-    // `providerSelector`. The lane table is that decision, written down:
-    // `doc_generation` is Gemma 4 on GreenPT because Medium 3.5 does not call
-    // the tool here (ARTIFACT_MODEL in providerSelector.ts).
+    // the old selector chain. The lane table is that decision, written down:
+    // `doc_generation` is Gemma 4 on its primary host because Medium 3.5 does
+    // not call the tool here (doc_generation row in lanes.ts).
     answering(toolCall({ title: 'X' }));
 
     await aiObject(base);
 
-    expect(executeProvider.mock.calls[0][0]).toBe('greenpt');
-    expect(requestAt(0).options.model).toBe('gemma4');
+    expect(executeProvider.mock.calls[0][0]).toBe(GEMMA_31B_PRIMARY.provider);
+    expect(requestAt(0).options.model).toBe(GEMMA_31B_PRIMARY.model);
     expect(requestAt(0).type).toBe('doc_generation');
   });
 

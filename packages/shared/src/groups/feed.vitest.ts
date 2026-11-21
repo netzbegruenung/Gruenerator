@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { filterGroupFeed, groupFeedByKind, toGroupFeedItems } from './feed.js';
+import {
+  austauschItems,
+  filterGroupFeed,
+  groupFeedByKind,
+  postTitle,
+  toGroupFeedItems,
+} from './feed.js';
 
 const share = (over: Record<string, unknown> = {}) => ({
   shareId: 's',
@@ -19,6 +25,7 @@ const content = {
       title: 'Pressemitteilung',
       document_subtype: 'docs',
       shared_at: '2026-09-24T10:00:00Z',
+      group_permissions: { read: true, write: true },
       share: share({ shareId: 'sd1', note: 'Bitte gegenlesen', commentCount: 2 }),
     },
     {
@@ -96,6 +103,13 @@ describe('toGroupFeedItems', () => {
     expect(items.find((i) => i.id === 'c1')?.thumbnailUrl).toBe('https://x/t.png');
     expect(items.find((i) => i.id === 'g1')?.slug).toBe('klima-tipps');
     expect(items.find((i) => i.id === 'x1')?.excerpt).toBe('420 Wörter');
+  });
+
+  it('reads the members’ role on documents, and has none elsewhere', () => {
+    expect(items.find((i) => i.id === 'd1')?.projectWrite).toBe(true);
+    // No group_permissions on the board row: reading only.
+    expect(items.find((i) => i.id === 'b1')?.projectWrite).toBe(false);
+    expect(items.find((i) => i.id === 'g1')?.projectWrite).toBeNull();
   });
 
   it('returns an empty list for missing content', () => {
@@ -257,5 +271,88 @@ describe('toGroupFeedItems — recipes', () => {
       }),
     ]);
     expect(groupFeedByKind(items).map((s) => s.plural)).toEqual(['Rezepte']);
+  });
+});
+
+describe('austauschItems', () => {
+  const items = toGroupFeedItems({
+    group_posts: [
+      {
+        id: 'p1',
+        body: 'Hallo',
+        author_id: 'u1',
+        created_at: '2026-11-12T10:00:00Z',
+        edited_at: null,
+        files: [],
+        shared_at: '2026-11-12T10:00:00Z',
+        share: share({ shareId: 'sp1' }),
+      },
+    ],
+    collaborative_documents: [
+      {
+        id: 'plain',
+        title: 'Still',
+        document_subtype: 'docs',
+        share: share({ shareId: 's-plain' }),
+      },
+      {
+        id: 'noted',
+        title: 'Notiz',
+        document_subtype: 'docs',
+        share: share({ shareId: 's-note', note: 'Hi' }),
+      },
+      {
+        id: 'talk',
+        title: 'Kommentar',
+        document_subtype: 'docs',
+        share: share({ shareId: 's-talk', commentCount: 1 }),
+      },
+      {
+        id: 'react',
+        title: 'Reaktion',
+        document_subtype: 'docs',
+        share: share({
+          shareId: 's-react',
+          reactions: [{ emoji: '👍', count: 1, reacted: false }],
+        }),
+      },
+      {
+        id: 'pin',
+        title: 'Pin',
+        document_subtype: 'docs',
+        share: share({ shareId: 's-pin', pinnedAt: '2026-11-01T00:00:00Z' }),
+      },
+      {
+        id: 'disc',
+        title: 'Besprochen',
+        document_subtype: 'docs',
+        share: share({ shareId: 's-disc' }),
+      },
+      { id: 'foc', title: 'Fokus', document_subtype: 'docs', share: share({ shareId: 's-foc' }) },
+    ],
+  });
+
+  it('keeps talked-about items and leaves plain knowledge out', () => {
+    const titles = austauschItems(items, new Set(), null).map((i) => i.title);
+    expect(titles).toEqual(
+      expect.arrayContaining(['Hallo', 'Notiz', 'Kommentar', 'Reaktion', 'Pin'])
+    );
+    expect(titles).not.toContain('Still');
+    expect(titles).not.toContain('Besprochen');
+    expect(titles).not.toContain('Fokus');
+  });
+
+  it('adds discussed and focused shares', () => {
+    const titles = austauschItems(items, new Set(['s-disc']), 's-foc').map((i) => i.title);
+    expect(titles).toEqual(expect.arrayContaining(['Besprochen', 'Fokus']));
+    expect(titles).not.toContain('Still');
+  });
+});
+
+describe('postTitle', () => {
+  it('shows mentions as plain names, not as stored tokens', () => {
+    expect(
+      postTitle('Hallo @[Lena Hoffmann](user:00000000-0000-4000-a000-0000000000b2) kannst du?', [])
+    ).toBe('Hallo @Lena Hoffmann kannst du?');
   });
 });

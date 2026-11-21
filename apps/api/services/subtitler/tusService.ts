@@ -75,6 +75,33 @@ void (async () => {
 })();
 
 const AUDIO_UPLOAD_PATH = '/api/audio/upload';
+// Generic resumable upload for any client (Mediathek, video editor, KI-Schnitt);
+// same size rule as the audio mount, finished by POST /api/media/import-upload.
+const GENERIC_UPLOAD_PATH = '/api/uploads';
+
+/**
+ * Who created an upload. The tus server hands its hooks a web Request whose
+ * `runtime.node.req` is the Express request requireAuth already filled, so the
+ * uploader comes from the session, never from a header or metadata pair the
+ * client sent (a client-sent `uploader` pair is overwritten). `onUploadCreate`
+ * writes it into the upload metadata, i.e. the `.json` sidecar.
+ */
+const UPLOADER_METADATA_KEY = 'uploader';
+
+function authenticatedUserId(req: Request | { runtime?: unknown }): string | null {
+  const node = (req as { runtime?: { node?: { req?: { user?: { id?: unknown } } } } }).runtime
+    ?.node;
+  const id = node?.req?.user?.id;
+  return typeof id === 'string' && id.length > 0 ? id : null;
+}
+
+/** The person who created the upload; null for uploads made before the uploader was recorded. */
+function getUploadOwner(status: UploadStatus): string | null {
+  const owner = status.metadata?.metadata?.[UPLOADER_METADATA_KEY];
+  return typeof owner === 'string' && owner.length > 0 ? owner : null;
+}
+// Admin-only Parteitage import (reels up to MAX_VIDEO_UPLOAD_BYTES, any filetype).
+const PARTEITAGE_UPLOAD_PATH = '/api/admin/parteitage/upload';
 
 /**
  * `filetype` from the client-supplied Upload-Metadata creation header
@@ -116,13 +143,42 @@ const tusServer = new Server({
     // req.url is an absolute URL here (@tus/server v2 hands the callback a
     // fetch Request), so match on the parsed pathname.
     const pathname = new URL(req.url, 'http://internal').pathname;
-    if (!pathname.startsWith(AUDIO_UPLOAD_PATH)) return MAX_AUDIO_BYTES;
+    if (pathname.startsWith(PARTEITAGE_UPLOAD_PATH)) return MAX_VIDEO_UPLOAD_BYTES;
+    if (!pathname.startsWith(AUDIO_UPLOAD_PATH) && !pathname.startsWith(GENERIC_UPLOAD_PATH)) {
+      return MAX_AUDIO_BYTES;
+    }
     // The ceiling matters at creation, where Upload-Metadata is present; PATCH
     // requests carry no metadata but validate against the size fixed at
     // creation, so falling back to the audio cap there is harmless.
     return declaresVideoFiletype(req) ? MAX_VIDEO_UPLOAD_BYTES : MAX_AUDIO_BYTES;
   },
+  onUploadCreate: async (req, upload) => {
+    const uploader = authenticatedUserId(req);
+    const metadata = { ...upload.metadata };
+    // Drop a client-supplied pair first: an upload without a session user must
+    // not keep a forged owner.
+    delete metadata[UPLOADER_METADATA_KEY];
+    if (uploader) metadata[UPLOADER_METADATA_KEY] = uploader;
+    return { metadata };
+  },
   respectForwardedHeaders: true,
+  // `/api/subtitler/upload/<id>` instead of an absolute URL. tus-js-client
+  // resolves it against its endpoint, so a web page keeps talking to its own
+  // origin and the desktop shell (absolute endpoint) to the API host. Absolute,
+  // a local dev server's proxy was bypassed: the browser PATCHed the API port
+  // cross-origin, and this server's `Access-Control-Allow-Origin: *` is refused
+  // together with the session cookie — every resumed chunk failed, 0 bytes
+  // landed (10.11.2026, KI-Schnitt on :3003).
+  relativeLocation: true,
+  // The server's `path` option is the subtitler mount, so every upload's
+  // Location would name it whichever mount created the upload. The generic mount
+  // answers with its own path so a new client talks to one URL family; the older
+  // mounts keep the Location shipped clients already follow.
+  generateUrl: (req, { path: defaultPath, id }) => {
+    const created = new URL(req.url, 'http://internal').pathname;
+    const mount = created.startsWith(GENERIC_UPLOAD_PATH) ? GENERIC_UPLOAD_PATH : defaultPath;
+    return `${mount}/${id}`;
+  },
 });
 
 async function getUploadStatus(uploadId: string): Promise<UploadStatus> {
@@ -512,6 +568,7 @@ if (!isInitialized) {
 
 export {
   tusServer,
+  getUploadOwner,
   handleBinaryUpload,
   getFilePathFromUploadId,
   checkFileExists,

@@ -13,8 +13,8 @@ Deployment, Docker, and environment configuration.
 - **Workflow**: "Build and Push Docker Images" (`build-images.yml`)
   - Triggers on push to `master` or `test-branch` (when app/service files change)
   - Manual dispatch with `force_all: true` to rebuild everything
-  - Individual services: `build_web`, `build_api`, `build_docs`, `build_mcp`, `build_doku`
-  - Registry: `ghcr.io/netzbegruenung/gruenerator-{web,api,docs,mcp,doku}`
+  - Individual services: `build_web`, `build_api`, `build_doku`, `build_hocuspocus`, `build_gruen_o_mat`, `build_nlp`, `build_browser_agent`
+  - Registry: `ghcr.io/netzbegruenung/gruenerator-<service>`
 
 ### Adding a New Shared Package (Docker Checklist)
 

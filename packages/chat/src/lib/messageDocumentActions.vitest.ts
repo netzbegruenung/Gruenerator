@@ -9,6 +9,42 @@ import {
 } from './messageDocumentActions';
 
 describe('buildDocumentActions', () => {
+  it('offers each connected drive right after the Word download', () => {
+    const actions = buildDocumentActions({
+      hasLinkedDoc: false,
+      canExportPdfLetterhead: false,
+      canCreateExplainable: false,
+      canCreatePodcast: false,
+      cloudTargets: ['microsoft', 'google'],
+    });
+
+    expect(actions.slice(1, 4)).toEqual([
+      { id: 'docx', label: 'Als Word (.docx)' },
+      { id: 'cloud-microsoft', label: 'In OneDrive speichern' },
+      { id: 'cloud-google', label: 'In Google Drive speichern' },
+    ]);
+  });
+
+  it('offers each connected send target after the cloud entries', () => {
+    const actions = buildDocumentActions({
+      hasLinkedDoc: false,
+      canExportPdfLetterhead: false,
+      canCreateExplainable: false,
+      canCreatePodcast: false,
+      cloudTargets: ['google'],
+      sendTargets: ['microsoft-teams', 'slack'],
+    });
+
+    expect(actions.slice(2, 5)).toEqual([
+      { id: 'cloud-google', label: 'In Google Drive speichern' },
+      { id: 'send-microsoft-teams', label: 'In Teams ablegen …' },
+      { id: 'send-slack', label: 'In Slack posten …' },
+    ]);
+    expect(actions[5]?.id).toBe('pdf');
+    const ids = actions.map((a) => a.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
   it('offers the editor and both plain downloads by default', () => {
     const ids = buildDocumentActions({
       hasLinkedDoc: false,

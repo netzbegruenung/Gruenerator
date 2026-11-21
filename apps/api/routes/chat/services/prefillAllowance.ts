@@ -20,6 +20,8 @@
  *                         861.094 tok → 111,2 s
  *   deepseek-v4.1-flash   114.507 tok → 6,1 s
  *   (Melious)             884.661 tok → 52,9 s
+ *   glm-5.3 (Melious)     513.156 tok → 101,5 s   (19.11.2026, nicht gestreamt,
+ *                                                  50 Ausgabe-Tokens; ≈ 5.000 tok/s)
  *
  * Die Raten liegen unter dem langsamsten Messpunkt, und die Schätzung zählt mit
  * `CHARS_PER_TOKEN` (3,5) mehr Tokens als Mistrals Tokenizer an deutscher Prosa
@@ -41,9 +43,14 @@ const CHARS_PER_TOKEN = 3.5;
 
 const FREE_PROMPT_TOKENS = 20_000;
 
+/** Schlüssel: Anbieter oder `anbieter/modell`; das Modell gewinnt. GLM-5.3
+ *  (der Ausweich der Lane „Panda") liest halb so schnell wie DeepSeek ein und
+ *  risse mit der Melious-Rate genau bei den grossen Kontexten, für die er
+ *  einspringt. */
 const PREFILL_TOKENS_PER_SECOND: Readonly<Record<string, number>> = {
   mistral: 4_000,
   melious: 10_000,
+  'melious/glm-5.3': 4_500,
 };
 
 /** `mistral.chat` (AI-SDK-Provider) und `mistral` (Lane-Tabelle) sind derselbe Anbieter. */
@@ -52,8 +59,15 @@ function providerKey(provider: string): string {
 }
 
 /** Zuschlag in ms für einen Prompt dieser Länge auf diesem Anbieter. */
-export function prefillAllowanceMs(provider: string, promptChars: number): number {
-  const rate = PREFILL_TOKENS_PER_SECOND[providerKey(provider)];
+export function prefillAllowanceMs(
+  provider: string,
+  promptChars: number,
+  modelName: string | null = null
+): number {
+  const key = providerKey(provider);
+  const rate =
+    (modelName != null ? PREFILL_TOKENS_PER_SECOND[`${key}/${modelName}`] : undefined) ??
+    PREFILL_TOKENS_PER_SECOND[key];
   const tokens = promptChars / CHARS_PER_TOKEN - FREE_PROMPT_TOKENS;
   if (!rate || tokens <= 0) return 0;
   return Math.ceil((tokens / rate) * 1000);
@@ -79,16 +93,33 @@ export function promptChars(
   return total;
 }
 
+/** Anbieter eines Modell-Objekts der agentischen Schleife, normalisiert wie
+ *  oben (`mistral.chat` → `mistral`). */
+export function providerOfModel(model: LanguageModel): string {
+  // `provider` fehlt bei Modell-Attrappen — wie in `modelLabel` (loopEngine.ts).
+  const provider =
+    typeof model === 'string'
+      ? (model.split('/')[0] ?? '')
+      : ((model.provider as string | undefined) ?? '');
+  return providerKey(provider);
+}
+
+/** Modellname eines Modell-Objekts der agentischen Schleife (`melious/glm-5.3`
+ *  → `glm-5.3`); leer bei Modell-Attrappen ohne `modelId`. */
+export function modelNameOfModel(model: LanguageModel): string {
+  if (typeof model === 'string') return model.slice(model.indexOf('/') + 1);
+  return (model.modelId as string | undefined) ?? '';
+}
+
 /** Derselbe Zuschlag für ein Modell-Objekt der agentischen Schleife. */
 export function prefillAllowanceForModel(
   model: LanguageModel,
   system: string | null | undefined,
   messages: readonly ModelMessage[]
 ): number {
-  // `provider` fehlt bei Modell-Attrappen — wie in `modelLabel` (loopEngine.ts).
-  const provider =
-    typeof model === 'string'
-      ? (model.split('/')[0] ?? '')
-      : ((model.provider as string | undefined) ?? '');
-  return prefillAllowanceMs(provider, promptChars(system, messages));
+  return prefillAllowanceMs(
+    providerOfModel(model),
+    promptChars(system, messages),
+    modelNameOfModel(model)
+  );
 }

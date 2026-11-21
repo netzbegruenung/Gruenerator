@@ -42,6 +42,12 @@ const log = createLogger('notebookEnrichment');
  * 6 (10/2026): `keywords` leave out contact words ("E-Mail", "Telefon") and
  * filler nouns ("Schritt", "Ziel", "Lage") via `stopword_nouns.txt`.
  *
+ * 7 (11/2026, #5670): eight more topic categories (wohnen, landwirtschaft,
+ * tierschutz, gleichstellung, demokratie, kultur, kommunales, partei) and
+ * compound matching in the lexicon lookup ("Kinderarmut", "Klimastiftung").
+ * On the two golden sets in the PR, documents left without any theme fell
+ * from 33/66 and 14/72 to 1/66 and 2/72.
+ *
  * Changes to the person rules no longer need a bump here: the NLP service
  * reports its own `persons_version`, which is stamped as `nlp_persons_version`
  * and compared in `alreadyEnriched`. The API-side bump could only ever say "re-tag
@@ -49,7 +55,7 @@ const log = createLogger('notebookEnrichment');
  * documents with pre-v3 names (bare `Böttcher` next to `Bernd Böttcher`), and
  * they were never looked at again (#3695).
  */
-export const NLP_VERSION = 6;
+export const NLP_VERSION = 7;
 /** Per-mille noun-frequency floor for including a topic in `themes`. */
 const THEME_MIN_SCORE = 30;
 /** Cap themes per doc to bound facet noise on long programmatic docs. */
@@ -92,8 +98,6 @@ export const ENRICHMENT_COLLECTIONS = [
   'boell_stiftung_documents',
   'landesverbaende_documents',
   'abgeordnetenwatch_documents',
-  'bundestag_dip_documents',
-  'bundesrat_documents',
   'landtag_bayern_documents',
   'wahlpruefstein_examples',
 ] as const;

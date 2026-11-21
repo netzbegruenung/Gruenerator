@@ -49,7 +49,7 @@ describe('resolveRoleSystemPrompt', () => {
 
     expect(prompt).toBe(
       'Du arbeitest im Bundestagsbüro von Bündnis 90/Die Grünen.\n\n' +
-        'Dein Kontext: Ebene Bund, Nordrhein-Westfalen, Büro von Katharina Dröge.\n\n' +
+        'Dein Kontext: Ebene Bund, Nordrhein-Westfalen, Büro von Katharina Dröge, Fraktionsvorsitzende.\n\n' +
         'Schreibe auf Deutsch, in der Du-Form, mit Genderstern.'
     );
   });

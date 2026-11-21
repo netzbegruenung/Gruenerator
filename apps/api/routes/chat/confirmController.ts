@@ -455,6 +455,105 @@ export async function executeAction(
       };
     }
 
+    case 'create_antragsgruen_site': {
+      const { orderAntragsgruenSite } =
+        await import('../../services/antragsgruen/hosting/sites.js');
+      const { FormStepError, OrderRefused } = await import('../../services/webForms/formClient.js');
+      const { loginRefusalText } = await import('../../services/antragsgruen/hosting/session.js');
+      try {
+        const site = await orderAntragsgruenSite(action.userId, action.payload);
+        const agendaNote =
+          site.agendaSet === false
+            ? ' Die Tagesordnung konnte nicht gesetzt werden; sag mir Bescheid, dann versuche ich es noch einmal.'
+            : '';
+        const adminEmailNote = site.adminEmailHandedOver
+          ? ''
+          : ' Die Admin-E-Mail-Adresse der Veranstaltung steht noch auf dem Grünerator; trag unter „Einstellungen" deine eigene ein, sonst gehen Antworten auf Mails der Seite an uns.';
+        return {
+          message: `Die Antragsgrün-Seite **„${action.payload.title}"** steht unter ${site.url}. Antragsgrün schickt dir gleich eine Mail mit deinen Zugangsdaten.${agendaNote}${adminEmailNote}`,
+          url: site.url,
+        };
+      } catch (err) {
+        if (err instanceof OrderRefused) throw new ConfirmActionRefusal(err.message);
+        const loginText = loginRefusalText(err);
+        if (loginText) throw new ConfirmActionRefusal(loginText);
+        if (err instanceof FormStepError) {
+          log.warn(
+            `[antragsgruen-site] step=${err.step} site=${err.createdUrl ?? '-'}: ${err.message}`
+          );
+          throw new ConfirmActionRefusal(
+            err.step === 'check-subdomain'
+              ? `Die Adresse „${action.payload.subdomain}" ist bei Antragsgrün schon vergeben. Nimm eine andere.`
+              : err.createdUrl
+                ? `Die Seite steht unter ${err.createdUrl}, aber dich dort als Admin einzutragen hat nicht geklappt. Das holen wir von Hand nach.`
+                : 'Antragsgrün hat das Anlegen nicht angenommen. Es wurde nichts angelegt.'
+          );
+        }
+        throw err;
+      }
+    }
+
+    case 'set_antragsgruen_agenda': {
+      const { orderAntragsgruenAgenda } =
+        await import('../../services/antragsgruen/hosting/sites.js');
+      const { FormStepError, OrderRefused } = await import('../../services/webForms/formClient.js');
+      const { loginRefusalText } = await import('../../services/antragsgruen/hosting/session.js');
+      try {
+        const items = await orderAntragsgruenAgenda(
+          action.userId,
+          action.payload.subdomain,
+          action.payload.entries
+        );
+        return { message: `Die Tagesordnung steht: ${items.length} Punkte.` };
+      } catch (err) {
+        if (err instanceof OrderRefused) throw new ConfirmActionRefusal(err.message);
+        const loginText = loginRefusalText(err);
+        if (loginText) throw new ConfirmActionRefusal(loginText);
+        if (err instanceof FormStepError) {
+          log.warn(`[antragsgruen-agenda] step=${err.step}: ${err.message}`);
+          throw new ConfirmActionRefusal(
+            err.step === 'revoked'
+              ? 'Der Grünerator ist auf dieser Seite nicht mehr Admin — jemand hat ihn ausgetragen.'
+              : err.step === 'not-admin'
+                ? 'Du bist auf dieser Seite nicht mehr Admin (mit der E-Mail-Adresse deines Grünerator-Kontos). Darum handelt der Grünerator dort nicht mehr für dich.'
+                : 'Antragsgrün hat die Tagesordnung nicht übernommen. Es wurde nichts geändert.'
+          );
+        }
+        throw err;
+      }
+    }
+
+    case 'create_antragsgruen_motion': {
+      const { orderAntragsgruenMotion } =
+        await import('../../services/antragsgruen/hosting/sites.js');
+      const { FormStepError, OrderRefused } = await import('../../services/webForms/formClient.js');
+      const { loginRefusalText } = await import('../../services/antragsgruen/hosting/session.js');
+      try {
+        const motion = await orderAntragsgruenMotion(action.userId, action.payload);
+        return {
+          message: `Der Antrag **„${action.payload.title}"** ist eingereicht (${motion.status || 'ungeprüft'}).`,
+          ...(motion.url && { url: motion.url }),
+        };
+      } catch (err) {
+        if (err instanceof OrderRefused) throw new ConfirmActionRefusal(err.message);
+        const loginText = loginRefusalText(err);
+        if (loginText) throw new ConfirmActionRefusal(loginText);
+        if (err instanceof FormStepError) {
+          log.warn(`[antragsgruen-motion] step=${err.step}: ${err.message}`);
+          throw new ConfirmActionRefusal(
+            err.step === 'revoked'
+              ? 'Der Grünerator ist auf dieser Seite nicht mehr Admin — jemand hat ihn ausgetragen. Darum reicht er dort nichts mehr ein.'
+              : err.step === 'not-admin'
+                ? 'Du bist auf dieser Seite nicht mehr Admin (mit der E-Mail-Adresse deines Grünerator-Kontos). Darum handelt der Grünerator dort nicht mehr für dich.'
+                : err.step === 'create' || err.step === 'motion-type' || err.step === 'agenda-item'
+                  ? `Antragsgrün hat den Antrag nicht angenommen: ${err.message}`
+                  : 'Antragsgrün war nicht erreichbar oder hat unerwartet geantwortet. Es wurde nichts eingereicht.'
+          );
+        }
+        throw err;
+      }
+    }
+
     default: {
       const _exhaustive: never = action;
       throw new Error(`Unknown action type: ${(action as PendingAction).type}`);

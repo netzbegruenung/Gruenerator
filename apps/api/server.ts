@@ -26,12 +26,26 @@ import { createCorsOptions } from './config/cors.js';
 import { env } from './config/env.js';
 import { CURRENT_INSTANCE } from './config/instance.js';
 import { getServerConfig } from './config/serverConfig.js';
+import { siteOrigin } from './config/sitesOrigin.js';
 import { Sentry } from './lib/sentry.js';
 import { requireAuth } from './middleware/authMiddleware.js';
 import { shouldSkipBodyParser } from './middleware/bodyParserConfig.js';
 import { createCacheMiddleware } from './middleware/cacheMiddleware.js';
 import { shouldCompress } from './middleware/compressionFilter.js';
 import { jsonBody } from './middleware/jsonBody.js';
+import { requireInstanceAdminMiddleware } from './middleware/requireInstanceAdminMiddleware.js';
+import {
+  createSiteAssets,
+  defaultSiteAssetPaths,
+  type SiteAssets,
+} from './routes/sites/public/siteAssets.js';
+import { createSitePagesRouter } from './routes/sites/public/sitePages.js';
+import { SITE_ROBOTS } from './routes/sites/public/siteSecurity.js';
+import {
+  createSitesHostGate,
+  createSitesUnavailableGate,
+  sitesReadLimiter,
+} from './routes/sites/public/sitesHostGate.js';
 import { setupRoutes } from './routes.js';
 import {
   startModelLatencyCleanup,
@@ -55,10 +69,12 @@ import {
   LV_SOCIAL_IMAGE_DIR,
   LV_SOCIAL_IMAGE_PATH,
 } from './services/scrapers/utils/lvSocialImages.js';
+import { loadPublishedSite } from './services/sites/publishedSite.js';
 import { startCleanupScheduler as startExportCleanup } from './services/subtitler/exportCleanupService.js';
 import { tusServer, handleBinaryUpload } from './services/subtitler/tusService.js';
 import { shutdownLangfuseTelemetry } from './services/telemetry/langfuseTelemetry.js';
 import { startTrashPurge } from './services/trash/trashPurgeService.js';
+import { startVideoAiWorker } from './services/videoAi/videoAiWorker.js';
 import { getCorsOrigins, PRIMARY_DOMAIN } from './utils/domainUtils.js';
 import { createLogger } from './utils/logger.js';
 import redisClient, { ensureConnected, checkRedisHealth } from './utils/redis/client.js';
@@ -222,6 +238,38 @@ async function startWorker(): Promise<void> {
   // Trust proxy for secure cookies behind nginx/load balancer
   app.set('trust proxy', 1);
 
+  // Must stay before CORS, the upload routes, the session and the Redis cache: each of them
+  // would answer, or set a cookie, on the sites host before the gate could.
+  if (env.SITES_HOST) {
+    let assets: SiteAssets | null = null;
+    try {
+      assets = createSiteAssets(defaultSiteAssetPaths());
+    } catch (error) {
+      log.error(
+        '[sites] site assets missing, the sites host answers 404 — run pnpm --filter @gruenerator/sites-design build:',
+        error
+      );
+    }
+    const origin = siteOrigin(env.SITES_HOST, config.port);
+    app.use(
+      assets
+        ? createSitesHostGate({
+            host: env.SITES_HOST,
+            origin,
+            pages: createSitePagesRouter({
+              assets,
+              origin,
+              reportEmail: env.SITES_REPORT_EMAIL ?? '',
+              robots: SITE_ROBOTS,
+              loadSnapshot: loadPublishedSite,
+            }),
+            limiter: sitesReadLimiter,
+            robots: SITE_ROBOTS,
+          })
+        : createSitesUnavailableGate(env.SITES_HOST)
+    );
+  }
+
   // CORS configuration
   const allowedOrigins = getCorsOrigins(isDevelopment);
   const corsOptions = createCorsOptions(allowedOrigins);
@@ -315,6 +363,8 @@ async function startWorker(): Promise<void> {
   startExplainableImageWorker();
   // Writes and voices queued podcasts. Same cluster-safe claim.
   startPodcastWorker();
+  // Analyses and cuts queued KI-Schnitt projects. Same cluster-safe claim.
+  startVideoAiWorker();
 
   // Dispatches the Content Sync workflow on its schedule — GitHub throttles the
   // cron itself (#2972). Cluster-safe: each slot is claimed once in Redis.
@@ -380,6 +430,41 @@ async function startWorker(): Promise<void> {
     audioUploadPath + '/*splat',
     tusCreationLimiter,
     requireAuth,
+    (req: Request, res: Response) => {
+      void tusServer.handle(req, res);
+    }
+  );
+
+  // Generic resumable upload for any client (Mediathek web, the video editor,
+  // KI-Schnitt): create + PATCH here, then POST /api/media/import-upload.
+  const genericUploadPath = '/api/uploads';
+  app.all(genericUploadPath, tusCreationLimiter, requireAuth, (req: Request, res: Response) => {
+    void tusServer.handle(req, res);
+  });
+  app.all(
+    genericUploadPath + '/*splat',
+    tusCreationLimiter,
+    requireAuth,
+    (req: Request, res: Response) => {
+      void tusServer.handle(req, res);
+    }
+  );
+
+  // Admin-only TUS uploads for the Parteitage import. No creation limiter: the import
+  // creates ~180 uploads in one run and every request is already admin-gated.
+  const parteitageUploadPath = '/api/admin/parteitage/upload';
+  app.all(
+    parteitageUploadPath,
+    requireAuth,
+    requireInstanceAdminMiddleware,
+    (req: Request, res: Response) => {
+      void tusServer.handle(req, res);
+    }
+  );
+  app.all(
+    parteitageUploadPath + '/*splat',
+    requireAuth,
+    requireInstanceAdminMiddleware,
     (req: Request, res: Response) => {
       void tusServer.handle(req, res);
     }
@@ -634,7 +719,7 @@ async function startWorker(): Promise<void> {
     if (error instanceof multer.MulterError) {
       if (error.code === 'LIMIT_FILE_SIZE') {
         res.status(413).json({
-          error: 'Datei ist zu groß. Videos dürfen maximal 150MB groß sein.',
+          error: 'Die Datei ist zu groß.',
         });
         return;
       }

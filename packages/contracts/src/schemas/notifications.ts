@@ -37,6 +37,7 @@ export const notificationTypeSchema = z.enum([
   'group_content_shared',
   'group_comment_added',
   'group_post_created',
+  'group_chat_message',
   'group_user_mentioned',
   'group_mention_all',
   'group_deleted',
@@ -54,6 +55,8 @@ export const notificationTypeSchema = z.enum([
   'template_approved',
   'template_rejected',
   'daily_briefing',
+  'video_ai_ready',
+  'video_ai_failed',
 ]);
 export type NotificationType = z.infer<typeof notificationTypeSchema>;
 

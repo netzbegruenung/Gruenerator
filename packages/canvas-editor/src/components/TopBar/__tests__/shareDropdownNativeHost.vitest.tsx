@@ -51,13 +51,15 @@ async function openMenu() {
 }
 
 const menu = () => within(screen.getByRole('dialog'));
-const shareEntry = () => menu().queryByRole('button', { name: /^(Teilen|Geteilt!)$/ });
+// The native share tile ("Senden …") exists on mobile only, which is where the
+// app's WebView renders the editor.
+const shareEntry = () => menu().queryByRole('button', { name: /^(Senden …|Geteilt!)$/ });
 
 type HostWindow = Window & Record<string, unknown>;
 
 beforeEach(() => {
   window.matchMedia = vi.fn().mockImplementation((query: string) => ({
-    matches: false,
+    matches: true,
     media: query,
     addEventListener: () => {},
     removeEventListener: () => {},

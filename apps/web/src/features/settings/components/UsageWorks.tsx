@@ -11,6 +11,7 @@ import { useEffect, useRef } from 'react';
 import { DOCUMENT_TYPE_LABELS, formatCount, formatDate } from '../../../utils/usageFormat';
 import { useUsageActivity } from '../hooks/useUsageActivity';
 
+import SettingsSection from './SettingsSection';
 import { SettingsStatsSkeleton } from './SettingsSkeleton';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -199,64 +200,62 @@ export function UsageWorks() {
   const tiles = data ? worksTiles(data.works) : [];
 
   return (
-    <section className="flex flex-col gap-lg">
-      <div className="flex flex-col gap-1">
-        <h2 className="m-0 text-lg font-semibold text-foreground-heading">Deine Werke</h2>
-        {data?.member_since && (
+    <SettingsSection
+      title="Deine Werke"
+      description={
+        data?.member_since
+          ? `Dabei seit ${formatDate(data.member_since)} — gezählt über die gesamte Zeit.`
+          : undefined
+      }
+    >
+      <div className="flex flex-col gap-lg pt-2">
+        {isPending ? (
+          <SettingsStatsSkeleton />
+        ) : isError || !data ? (
           <p className="m-0 text-sm text-grey-500">
-            Dabei seit {formatDate(data.member_since)} — gezählt über die gesamte Zeit.
+            Deine Werke konnten nicht geladen werden. Bitte versuche es später erneut.
           </p>
+        ) : (
+          <>
+            {tiles.length === 0 ? (
+              <p className="m-0 text-sm text-grey-500">Du hast noch nichts erstellt.</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-sm md:grid-cols-4">
+                {tiles.map((tile) => (
+                  <WorkTile key={tile.label} label={tile.label} value={formatCount(tile.value)} />
+                ))}
+              </div>
+            )}
+
+            {data.documents_by_type.length > 1 && (
+              <section className="flex flex-col gap-sm">
+                <h3 className="m-0 text-sm font-semibold text-foreground-heading">
+                  Dokumente nach Art
+                </h3>
+                <ul className="m-0 flex list-none flex-wrap gap-xs p-0">
+                  {data.documents_by_type.map((entry) => (
+                    <li
+                      key={entry.subtype}
+                      className="rounded-full border border-grey-200 px-sm py-1 text-xs dark:border-grey-700"
+                    >
+                      {DOCUMENT_TYPE_LABELS[entry.subtype]}{' '}
+                      <span className="tabular-nums text-grey-500">{formatCount(entry.count)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            <ActivityCalendar heatmap={data.heatmap} />
+
+            <p className="m-0 text-xs text-grey-500">
+              Gezählt wird, was du angelegt hast, auch was im Papierkorb liegt. Endgültig gelöschte
+              Inhalte zählen nicht mehr mit. Wörter zählen nur die Antworten im Chat. Die Zahlen
+              aktualisieren sich alle paar Minuten.
+            </p>
+          </>
         )}
       </div>
-
-      {isPending ? (
-        <SettingsStatsSkeleton />
-      ) : isError || !data ? (
-        <p className="m-0 text-sm text-grey-500">
-          Deine Werke konnten nicht geladen werden. Bitte versuche es später erneut.
-        </p>
-      ) : (
-        <>
-          {tiles.length === 0 ? (
-            <p className="m-0 rounded-xl border border-dashed border-grey-300 p-lg text-sm text-grey-500 dark:border-grey-700">
-              Du hast noch nichts erstellt.
-            </p>
-          ) : (
-            <div className="grid grid-cols-2 gap-sm md:grid-cols-4">
-              {tiles.map((tile) => (
-                <WorkTile key={tile.label} label={tile.label} value={formatCount(tile.value)} />
-              ))}
-            </div>
-          )}
-
-          {data.documents_by_type.length > 1 && (
-            <section className="flex flex-col gap-sm">
-              <h3 className="m-0 text-sm font-semibold text-foreground-heading">
-                Dokumente nach Art
-              </h3>
-              <ul className="m-0 flex list-none flex-wrap gap-xs p-0">
-                {data.documents_by_type.map((entry) => (
-                  <li
-                    key={entry.subtype}
-                    className="rounded-full border border-grey-200 px-sm py-1 text-xs dark:border-grey-700"
-                  >
-                    {DOCUMENT_TYPE_LABELS[entry.subtype]}{' '}
-                    <span className="tabular-nums text-grey-500">{formatCount(entry.count)}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-
-          <ActivityCalendar heatmap={data.heatmap} />
-
-          <p className="m-0 text-xs text-grey-500">
-            Gezählt wird, was du angelegt hast, auch was im Papierkorb liegt. Endgültig gelöschte
-            Inhalte zählen nicht mehr mit. Wörter zählen nur die Antworten im Chat. Die Zahlen
-            aktualisieren sich alle paar Minuten.
-          </p>
-        </>
-      )}
-    </section>
+    </SettingsSection>
   );
 }

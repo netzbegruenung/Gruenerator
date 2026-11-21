@@ -22,7 +22,11 @@ export const GroupShareControls = ({
   isSharing,
 }: GroupShareControlsProps) => {
   const [selectedGroupId, setSelectedGroupId] = useState('');
-  const [groupPermission, setGroupPermission] = useState<'viewer' | 'editor'>('viewer');
+  // Wie der Picker auf der Projektseite: in Team-Projekten bearbeiten alle mit, sonst
+  // lesen sie. Wer die Rolle selbst gewählt hat, behält sie beim Projektwechsel.
+  const [chosenPermission, setChosenPermission] = useState<'viewer' | 'editor' | null>(null);
+  const selectedTeam = userGroups.find((g) => g.id === selectedGroupId)?.team === true;
+  const groupPermission = chosenPermission ?? (selectedTeam ? 'editor' : 'viewer');
 
   const sharedGroupIds = new Set(groupShares.map((s) => s.group_id));
   const availableGroups = userGroups.filter((g) => !sharedGroupIds.has(g.id));
@@ -31,7 +35,7 @@ export const GroupShareControls = ({
     if (!selectedGroupId) return;
     onShare(selectedGroupId, groupPermission);
     setSelectedGroupId('');
-    setGroupPermission('viewer');
+    setChosenPermission(null);
   }, [selectedGroupId, groupPermission, onShare]);
 
   if (userGroups.length === 0) return null;
@@ -43,11 +47,11 @@ export const GroupShareControls = ({
           <label className="mb-1 block text-xs font-medium text-grey-500">
             Mit Projekt oder Gruppe teilen
           </label>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <select
               value={selectedGroupId}
               onChange={(e) => setSelectedGroupId(e.target.value)}
-              className="flex-1 rounded-md border border-grey-200 bg-background px-2 py-1.5 text-sm outline-none focus:border-primary-500 dark:border-grey-700"
+              className="min-w-[10rem] flex-1 rounded-md border border-grey-200 bg-background px-2 py-1.5 text-sm outline-none focus:border-primary-500 dark:border-grey-700"
             >
               <option value="">Projekt oder Gruppe auswählen...</option>
               {availableGroups.map((g) => (
@@ -58,11 +62,12 @@ export const GroupShareControls = ({
             </select>
             <select
               value={groupPermission}
-              onChange={(e) => setGroupPermission(e.target.value as 'viewer' | 'editor')}
+              onChange={(e) => setChosenPermission(e.target.value as 'viewer' | 'editor')}
+              aria-label="Mitglieder können"
               className="rounded-md border border-grey-200 bg-background px-2 py-1.5 text-xs outline-none dark:border-grey-700"
             >
-              <option value="viewer">Betrachter*in</option>
-              <option value="editor">Bearbeiter*in</option>
+              <option value="editor">Bearbeiten</option>
+              <option value="viewer">Nur lesen</option>
             </select>
             <Button size="sm" onClick={handleShare} disabled={!selectedGroupId || isSharing}>
               Teilen
@@ -92,14 +97,16 @@ export const GroupShareControls = ({
                     onChange={(e) =>
                       onUpdatePermission(share.group_id, e.target.value as 'viewer' | 'editor')
                     }
+                    aria-label={`Mitglieder von ${share.group_name} können`}
                     className="rounded border border-grey-200 bg-background px-1.5 py-1 text-xs outline-none dark:border-grey-700"
                   >
-                    <option value="viewer">Betrachter*in</option>
-                    <option value="editor">Bearbeiter*in</option>
+                    <option value="editor">Bearbeiten</option>
+                    <option value="viewer">Nur lesen</option>
                   </select>
                   <button
                     type="button"
-                    aria-label="Gruppenfreigabe entfernen"
+                    aria-label={`Aus ${share.group_name} entfernen`}
+                    title="Aus dem Projekt entfernen"
                     onClick={() => onRemove(share.group_id)}
                     className="cursor-pointer border-none bg-transparent p-0.5 text-grey-400 hover:text-red-600"
                   >

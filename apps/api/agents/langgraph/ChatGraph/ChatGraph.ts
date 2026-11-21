@@ -146,6 +146,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     threadAttachments: input.threadAttachments || [],
     hasTabularAttachment: input.hasTabularAttachment ?? false,
     cloudConnectionCount: input.cloudConnectionCount ?? 0,
+    atlassianConnections: input.atlassianConnections ?? { jira: false, confluence: false },
     pdfFormAttachments: input.pdfFormAttachments || [],
     turnTabularTexts: input.turnTabularTexts ?? [],
     clientCanRunPython: input.clientCanRunPython ?? false,
@@ -230,6 +231,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
 
     // User profile instructions (from profiles.custom_prompt)
     userInstructions: input.userInstructions || null,
+    projectInstructions: input.projectInstructions ?? null,
 
     // Memory context (will be set by controller before graph execution)
     memoryContext: null,

@@ -2,6 +2,8 @@ import { useHiddenAgentIdentifiers } from '@gruenerator/chat';
 import { type Agent } from '@gruenerator/shared/agents';
 import { useMemo } from 'react';
 
+import { useCanSeeAdminTools } from '../../config/adminToolsGate';
+import { useCanSeeSites } from '../../config/sitesGate';
 import { useAuthBootstrap } from '../../hooks/useAuthBootstrapped';
 import { useUserAgents } from '../agents/api';
 
@@ -19,6 +21,8 @@ const NO_AGENTS: Agent[] = [];
  */
 export function useFeatureIndex(): FeatureHit[] {
   const locale = useAuthStore((state) => state.locale);
+  const canSeeAdminTools = useCanSeeAdminTools();
+  const canSeeSites = useCanSeeSites();
   const { isAuthenticated } = useAuthBootstrap();
   const { data: userAgents = NO_AGENTS } = useUserAgents();
   // Die Suche ist auch auf öffentlichen Seiten offen; der Endpunkt verlangt
@@ -32,8 +36,10 @@ export function useFeatureIndex(): FeatureHit[] {
         locale,
         userAgents,
         hiddenAgentIdentifiers,
+        canSeeAdminTools,
+        canSeeSites,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- die Array-Identität wechselt bei jedem Abruf; `hiddenKey` ist die stabile Abhängigkeit
-    [locale, userAgents, hiddenKey]
+    [locale, userAgents, hiddenKey, canSeeAdminTools, canSeeSites]
   );
 }
