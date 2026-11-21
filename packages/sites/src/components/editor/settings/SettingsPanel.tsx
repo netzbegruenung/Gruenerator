@@ -8,6 +8,7 @@ import { handleApiError } from '../../../utils/errorHandler';
 import { SectionHeading } from '../common/Field';
 
 import { AddressField } from './AddressField';
+import { HeaderStylePicker } from './HeaderStylePicker';
 import { SectionVisibility } from './SectionVisibility';
 import { VariantPicker } from './VariantPicker';
 
@@ -75,6 +76,13 @@ export function SettingsPanel() {
           Farbvariante
         </h4>
         <VariantPicker />
+      </section>
+
+      <section className="mb-xl" aria-labelledby="settings-header">
+        <h4 id="settings-header" className="mb-sm text-base font-semibold text-foreground">
+          Kopfzeile
+        </h4>
+        <HeaderStylePicker />
       </section>
 
       <section aria-labelledby="settings-sections">

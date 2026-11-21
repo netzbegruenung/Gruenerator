@@ -36,6 +36,7 @@ export const SITE_FIELD_KEYS = [
   'profile_image',
   'profileImageFocus',
   'variant',
+  'header',
   'contact_email',
   'contact_phone',
   'social_links',
@@ -61,6 +62,7 @@ export type SiteFieldValues = {
   profile_image: SiteDraft['profile_image'];
   profileImageFocus: SiteImageFocus | null;
   variant: SiteDraft['variant'];
+  header: SiteDraft['header'];
   contact_email: SiteDraft['contact_email'];
   contact_phone: SiteDraft['contact_phone'];
   social_links: SiteDraft['social_links'];
