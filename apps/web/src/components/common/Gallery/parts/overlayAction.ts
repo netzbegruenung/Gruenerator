@@ -12,7 +12,8 @@
  * besser. Geliked (primary-500) liegt bei 3,73:1 — Bestand, siehe variables.css.
  */
 export const overlayAction =
-  'flex size-[34px] items-center justify-center rounded-full border border-white/[0.16] ' +
+  // touch-target: 44 px to tap on a touch screen, the circle stays 34 px over the picture.
+  'touch-target flex size-[34px] items-center justify-center rounded-full border border-white/[0.16] ' +
   'bg-[#0f1210]/60 text-white backdrop-blur-sm ' +
   'transition-[transform,background-color] duration-150 ' +
   'hover:scale-110 active:scale-[0.94] disabled:pointer-events-none disabled:opacity-60';
@@ -23,7 +24,9 @@ export const overlayAction =
  * — Tailwind gibt `.relative` NACH `.absolute` aus, gleiche Spezifität, also
  * gewinnt das Falsche und die Knöpfe rutschen aus der Ecke in den Bildfluss.
  */
-export const overlayRow = 'absolute right-2.5 top-2.5 z-[2] flex items-center gap-2';
+// 12 px apart on touch screens, so two 44 px tap areas around 34 px circles don't overlap.
+export const overlayRow =
+  'absolute right-2.5 top-2.5 z-[2] flex items-center gap-2 pointer-coarse:gap-3';
 
 /** Base classes of every gallery card (Vorlagen, Mediathek). */
 export const galleryCard =
