@@ -48,7 +48,10 @@ export function FilterMenuButton({
           size="icon"
           aria-label={label}
           title={label}
-          className={cn('relative', active && 'text-primary-600 dark:text-primary-400')}
+          className={cn(
+            'relative touch-target',
+            active && 'text-primary-600 dark:text-primary-400'
+          )}
         >
           {icon}
           {active && (
