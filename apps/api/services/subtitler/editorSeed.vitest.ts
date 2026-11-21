@@ -2,8 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('../sharedMediaService.js', () => ({ getSharedMediaService: vi.fn() }));
 
+import { getSharedMediaService } from '../sharedMediaService.js';
 import {
   aspectRatioFor,
+  buildEditorSeed,
   captionTemplateFor,
   clipStartsFor,
   displaySize,
@@ -83,5 +85,36 @@ describe('clipStartsFor', () => {
   it('turns joined part lengths into clip starts', () => {
     expect(clipStartsFor({ parts: [4, 2.5, 3] })).toEqual([0, 4, 6.5]);
     expect(clipStartsFor({})).toEqual([0]);
+  });
+});
+
+describe('buildEditorSeed', () => {
+  it('makes one Mediathek copy when two seed calls overlap', async () => {
+    const createVideoShare = vi.fn(async () => {
+      await new Promise((r) => setTimeout(r, 5));
+      return { shareToken: 'tok' };
+    });
+    vi.mocked(getSharedMediaService).mockReturnValue({
+      findProjectVideoShare: vi.fn(async () => null),
+      createVideoShare,
+    } as never);
+    const service = {
+      getProjectById: vi.fn(async () => ({
+        user_id: 'u1',
+        title: 'T',
+        video_metadata: { duration: 3 },
+        subtitles: 'Hallo',
+        style_preference: 'standard',
+        height_preference: 'tief',
+      })),
+      getVideoSource: vi.fn(async () => ({ path: '/tmp/v.mp4' })),
+    } as never;
+    const [a, b] = await Promise.all([
+      buildEditorSeed(service, 'u1', 'p1'),
+      buildEditorSeed(service, 'u1', 'p1'),
+    ]);
+    expect(createVideoShare).toHaveBeenCalledTimes(1);
+    expect(a.status).toBe('ok');
+    expect(b.status).toBe('ok');
   });
 });

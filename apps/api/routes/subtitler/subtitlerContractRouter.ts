@@ -353,7 +353,13 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
       if (!(await checkFileExists(videoPath))) {
         return { status: 404 as const, body: { error: 'Video nicht gefunden' } };
       }
-      const appendPaths = appendUploadIds.map(getFilePathFromUploadId);
+      let appendPaths: string[];
+      try {
+        appendPaths = appendUploadIds.map(getFilePathFromUploadId);
+      } catch {
+        // A malformed id is not an upload of ours.
+        return { status: 404 as const, body: { error: 'Video nicht gefunden' } };
+      }
       for (const path of appendPaths) {
         if (!(await checkFileExists(path))) {
           return { status: 404 as const, body: { error: 'Video nicht gefunden' } };

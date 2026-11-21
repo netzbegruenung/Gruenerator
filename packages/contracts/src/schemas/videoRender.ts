@@ -16,6 +16,8 @@ export const VIDEO_RENDER_MAX_BODY_BYTES = 5 * 1024 * 1024;
 /** Fields of an overlay that hold a media address. */
 const MEDIA_URL_KEYS = new Set(['src', 'thumbnail', 'poster', 'file', 'url']);
 const ALLOWED_EXTERNAL_HOSTS = new Set(['images.unsplash.com']);
+/** Stand-in for the media base when vetting a relative address. */
+const RELATIVE_PROBE_BASE = 'http://media.invalid/';
 
 /**
  * Media is addressed relative to the Grünerator (`/api/share/<token>/stream`),
@@ -23,16 +25,19 @@ const ALLOWED_EXTERNAL_HOSTS = new Set(['images.unsplash.com']);
  * else would make the render service fetch an address the user picked.
  */
 export function isAllowedMediaUrl(value: string): boolean {
-  if (value.startsWith('//')) return false;
-  if (value.startsWith('/')) return true;
-  if (value.startsWith('data:')) return true;
+  if (value === '' || value.startsWith('data:')) return true;
+  // A value with a scheme must stand on its own. Anything else is resolved the
+  // way the render browser will (whitespace, backslashes, `//host`) and has to
+  // stay on the base: the raw string never decides.
+  const hasScheme = /^[a-z][a-z0-9+.-]*:/i.test(value);
+  let url: URL;
   try {
-    const url = new URL(value);
-    return url.protocol === 'https:' && ALLOWED_EXTERNAL_HOSTS.has(url.hostname);
+    url = hasScheme ? new URL(value) : new URL(value, RELATIVE_PROBE_BASE);
   } catch {
-    // Not a URL at all (a bare name): the renderer treats it as relative too.
-    return !/^[a-z][a-z0-9+.-]*:/i.test(value);
+    return false;
   }
+  if (!hasScheme) return url.origin === new URL(RELATIVE_PROBE_BASE).origin;
+  return url.protocol === 'https:' && ALLOWED_EXTERNAL_HOSTS.has(url.hostname);
 }
 
 /** First disallowed media address in the tree, or null. */

@@ -147,6 +147,32 @@ function parseSegments(stored: string): SubtitleSegment[] {
 export type EditorSeedResult =
   { status: 'ok'; seed: SubtitlerEditorSeed } | { status: 'not_found' } | { status: 'source_gone' };
 
+/**
+ * Find-then-create is not atomic: two seed calls at once (StrictMode, a retry,
+ * two tabs) would copy the video twice. Calls for the same project share one
+ * promise. Per process only; across cluster workers the window stays open.
+ */
+const pendingShares = new Map<string, Promise<string>>();
+
+function projectShareToken(
+  userId: string,
+  projectId: string,
+  videoPath: string,
+  title: string,
+  duration: number
+): Promise<string> {
+  const pending = pendingShares.get(projectId);
+  if (pending) return pending;
+  const shares = getSharedMediaService();
+  const created = (async () =>
+    (await shares.findProjectVideoShare(userId, projectId, path.basename(videoPath))) ??
+    (await shares.createVideoShare(userId, { videoPath, title, duration, projectId }))
+      .shareToken)();
+  pendingShares.set(projectId, created);
+  void created.finally(() => pendingShares.delete(projectId)).catch(() => null);
+  return created;
+}
+
 export async function buildEditorSeed(
   service: SubtitlerProjectService,
   userId: string,
@@ -167,12 +193,7 @@ export async function buildEditorSeed(
 
   // One Mediathek copy of the original per project: the editor project keeps
   // playing it after the subtitler project is trashed (the 20-project cap).
-  const shares = getSharedMediaService();
-  const fileName = path.basename(source.path);
-  const shareToken =
-    (await shares.findProjectVideoShare(userId, projectId, fileName)) ??
-    (await shares.createVideoShare(userId, { videoPath: source.path, title, duration, projectId }))
-      .shareToken;
+  const shareToken = await projectShareToken(userId, projectId, source.path, title, duration);
 
   return {
     status: 'ok',

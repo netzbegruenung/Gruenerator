@@ -49,6 +49,21 @@ describe('videoRenderBodySchema', () => {
     expect(videoRenderBodySchema.safeParse(evil).success).toBe(false);
     const protocolRelative = { ...BODY, overlays: [{ src: '//evil.example/a.mp4' }] };
     expect(videoRenderBodySchema.safeParse(protocolRelative).success).toBe(false);
+    // Addresses a browser resolves to another host than the base.
+    for (const src of [
+      '/\\169.254.169.254/latest/meta-data',
+      '/\t/evil.example/x',
+      '\\\\evil.example/x',
+      ' http://169.254.169.254/x',
+      'http:evil.example/x',
+      'file:///etc/passwd',
+    ]) {
+      expect(videoRenderBodySchema.safeParse({ ...BODY, overlays: [{ src }] }).success, src).toBe(
+        false
+      );
+    }
+    const unsplash = { ...BODY, overlays: [{ src: 'https://images.unsplash.com/p.jpg' }] };
+    expect(videoRenderBodySchema.safeParse(unsplash).success).toBe(true);
     expect(videoRenderBodySchema.safeParse({ ...BODY, durationInFrames: 10_000_000 }).success).toBe(
       false
     );
