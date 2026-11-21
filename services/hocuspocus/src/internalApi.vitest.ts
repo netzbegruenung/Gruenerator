@@ -571,6 +571,8 @@ describe('POST /internal/site/:siteId/seed', () => {
   const seedOf = (title: string) => {
     const doc = new Y.Doc();
     doc.getMap('siteMeta').set('title', title);
+    // The block order is the seed mark (siteRooms `hasCurrentSeed`).
+    doc.getArray('siteBlockOrder').push([`hero-${title}`]);
     return Buffer.from(Y.encodeStateAsUpdate(doc)).toString('base64');
   };
 

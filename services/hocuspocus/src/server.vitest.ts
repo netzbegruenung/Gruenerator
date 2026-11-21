@@ -42,6 +42,8 @@ const liveSiteDb = async () => [{ '?column?': 1 }];
 function seedUpdate(title: string): Uint8Array {
   const doc = new Y.Doc();
   doc.getMap('siteMeta').set('title', title);
+  // The block order is the seed mark (siteRooms `hasCurrentSeed`).
+  doc.getArray('siteBlockOrder').push([`hero-${title}`]);
   return Y.encodeStateAsUpdate(doc);
 }
 
