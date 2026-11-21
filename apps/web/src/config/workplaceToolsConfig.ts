@@ -199,7 +199,7 @@ export const CANVAS_TOOLS: WorkplaceToolItem[] = [
     id: 'studio-voice',
     title: 'Voice',
     description: 'Text vertonen',
-    path: '/voice',
+    path: '/vertonen',
     icon: getIcon('navigation', 'voice')!,
   },
 ] satisfies RegisteredTile[];
