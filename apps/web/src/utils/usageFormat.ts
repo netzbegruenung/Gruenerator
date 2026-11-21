@@ -32,6 +32,7 @@ export const DOCUMENT_TYPE_LABELS: Record<CollabSubtype, string> = {
   tabelle: 'Tabelle',
   sheets: 'Tabellenkalkulation',
   presentations: 'Präsentation',
+  video: 'Videoprojekt',
 };
 
 /** A `YYYY-MM-DD` day is a calendar day, not an instant — render it in UTC so no zone shifts it. */

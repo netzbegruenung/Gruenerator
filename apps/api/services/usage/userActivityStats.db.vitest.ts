@@ -89,6 +89,7 @@ describe.skipIf(!url)('computeUserActivity', () => {
         ('Ohne Typ', $1, NULL, false, NULL),
         ('Design', $1, 'canvas', false, NULL),
         ('Board', $1, 'boards', false, NULL),
+        ('Video', $1, 'video', false, NULL),
         ('Fremd', $2, 'docs', false, NULL)`,
       [me, other]
     );

@@ -414,7 +414,7 @@ export class PostgresPersistence {
   async updateContentPreview(documentId: string, ydoc: Y.Doc): Promise<void> {
     try {
       const kind = detectPreviewKind(ydoc);
-      if (kind === 'site') return;
+      if (kind === 'site' || kind === 'video') return;
 
       if (kind !== 'blocknote') {
         await this.storeTypedPreview(documentId, ydoc, kind);
@@ -535,7 +535,7 @@ export class PostgresPersistence {
       Y.applyUpdate(ydoc, state);
 
       const kind = detectPreviewKind(ydoc);
-      if (kind === 'site') return null;
+      if (kind === 'site' || kind === 'video') return null;
       if (kind !== 'blocknote') {
         return await this.storeTypedPreview(documentId, ydoc, kind);
       }

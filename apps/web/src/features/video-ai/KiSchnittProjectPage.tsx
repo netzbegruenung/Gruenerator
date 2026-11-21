@@ -144,7 +144,9 @@ function ProjectBody({ project }: { project: VideoAiProjectDto }) {
     mutationFn: () => handOff(project.id),
     onSuccess: (next) => {
       store(next);
-      void navigate(`/studio/videoeditor?ki=${project.id}`);
+      void navigate(
+        `/studio/videoeditor?ki=${project.id}${next.version === null ? '' : `&v=${next.version}`}`
+      );
     },
     onError,
   });

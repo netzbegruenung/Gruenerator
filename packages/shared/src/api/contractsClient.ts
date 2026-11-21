@@ -314,6 +314,7 @@ const NAMESPACES = {
   groups: { contract: 'groupsContract', opts: 'plain' },
   userProfile: { contract: 'userProfileContract', opts: 'plain' },
   canvas: { contract: 'canvasContract', opts: 'validated' },
+  videoProjects: { contract: 'videoProjectsContract', opts: 'validated' },
   monitor: { contract: 'monitorContract', opts: 'plain' },
   sites: { contract: 'sitesContract', opts: 'plain' },
   texte: { contract: 'texteContract', opts: 'plain' },
