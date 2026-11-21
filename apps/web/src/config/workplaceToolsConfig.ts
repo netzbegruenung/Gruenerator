@@ -49,7 +49,7 @@ export interface WorkplaceToolItem {
 }
 
 /** A single entry inside a dropdown tool card. Rendered as a tool-card row. */
-export interface WorkplaceToolMenuItem {
+interface WorkplaceToolMenuItem {
   id: string;
   title: string;
   description: string;
@@ -61,7 +61,7 @@ export interface WorkplaceToolMenuItem {
 }
 
 /** A tool card that opens a dropdown of related tools instead of navigating. */
-export interface WorkplaceToolMenu {
+interface WorkplaceToolMenu {
   id: string;
   title: string;
   description: string;
@@ -230,13 +230,6 @@ export const TOOL_MENUS: WorkplaceToolMenu[] = [
         icon: getIcon('navigation', 'transkription')!,
       },
       {
-        id: 'voice',
-        title: 'Voice',
-        description: 'Text vertonen',
-        path: '/voice',
-        icon: getIcon('navigation', 'voice')!,
-      },
-      {
         id: 'scanner',
         title: 'Scanner',
         description: 'Fotos & Scans zu Text',
@@ -289,23 +282,4 @@ export function isFavouritableTool(tool: WorkplaceToolItem): tool is WorkplaceTo
   path: string;
 } {
   return Boolean(tool.path) && !tool.href;
-}
-
-/**
- * Favourited tools float to the front, ordered by when they were pinned; the
- * rest keep their curated order. Stable within each group.
- */
-export function sortToolsByFavourites<T extends { id: string }>(
-  tools: T[],
-  favouriteIds: string[]
-): T[] {
-  const favRank = new Map(favouriteIds.map((id, index) => [id, index]));
-  return tools
-    .map((tool, index) => ({ tool, index }))
-    .sort((a, b) => {
-      const aFav = favRank.get(a.tool.id) ?? Infinity;
-      const bFav = favRank.get(b.tool.id) ?? Infinity;
-      return aFav - bFav || a.index - b.index;
-    })
-    .map((entry) => entry.tool);
 }

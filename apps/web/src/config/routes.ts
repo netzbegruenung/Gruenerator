@@ -337,6 +337,7 @@ const SharedVideoPage = lazy(() => import('../features/subtitler/components/Shar
 const SharedMediaPage = lazy(() => import('../features/shared-media/SharedMediaPage'));
 const SharedChatPage = lazy(() => import('../features/chat/SharedChatPage'));
 const AppsPage = lazy(() => import('../features/apps/AppsPage'));
+const AppDownloadRedirect = lazy(() => import('../features/apps/AppDownloadRedirect'));
 
 // Chat page (uses @gruenerator/chat shared package)
 const ChatPage = lazy(() => import('../features/chat/ChatPage'));
@@ -862,6 +863,8 @@ const standardRoutes: RouteConfig[] = [
   { path: '/voice-agent', component: VoiceAgentPage, layoutMode: 'noChrome' },
   // Apps & Connect Page
   { path: '/apps', component: AppsPage },
+  // Public target of the app-download QR codes: phones go to their store, others to /apps.
+  { path: '/app', component: AppDownloadRedirect, public: true, layoutMode: 'noChrome' as const },
   // Media Library Route
   { path: '/media-library', component: MediathekRedirect },
   // Legacy /image-studio/* redirects to /studio/* (dev-only — target is sharepics)

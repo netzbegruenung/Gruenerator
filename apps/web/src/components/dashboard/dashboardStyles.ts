@@ -7,7 +7,8 @@ import './dashboardTokens.css';
 // Tailwind sie findet.
 
 /** Weiße (dunkel: anthrazit) Inhaltskarte. */
-export const DASH_CARD = 'bg-(--dash-card)';
+// `dash-card` is a styling hook: the neutral variant (dashboardTokens.css) adds frame and shadow.
+export const DASH_CARD = 'dash-card bg-(--dash-card)';
 /** Magenta-getönte Kachel (Notebook-Kategorien, Composer-Knopf). */
 export const DASH_TINT = 'bg-(--dash-mg-tint)';
 export const DASH_TINT_HOVER = 'hover:bg-(--dash-mg-tint-2)';

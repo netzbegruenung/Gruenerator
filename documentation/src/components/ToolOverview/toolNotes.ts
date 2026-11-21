@@ -110,10 +110,6 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
     note: 'Übersetzt Texte und ganze Dokumente (DOCX, PPTX, PDF …) mit DeepL — das gepflegte Grünen-Glossar wird automatisch angewendet.',
     platform: ['web', 'desktop'],
   },
-  voice: {
-    note: 'Grünerator Voice verwandelt Text in gesprochene Sprache — als Sprechertext für ein Reel, Ansage für den Anrufbeantworter, Vorlesefassung eines Textes oder Audiodeskription. Die Datei landet in der Mediathek.',
-    platform: ['web', 'desktop'],
-  },
   transkription: {
     note: 'Verschriftlicht Audioaufnahmen — für Interviews, Sitzungen und Sprachnotizen.',
     platform: ['web', 'desktop', 'mobile'],

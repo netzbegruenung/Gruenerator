@@ -305,7 +305,6 @@ const TOOLS = [
     title: 'Voice',
     path: '/voice',
     icon: { navigation: 'voice' },
-    menuItem: { description: 'Text vertonen' },
     search: {
       id: 'tool-voice',
       title: 'Grünerator Voice',
@@ -325,6 +324,7 @@ const TOOLS = [
         'tts',
       ],
     },
+    theme: true,
   },
   {
     id: 'newsletter',
@@ -609,8 +609,6 @@ export const LEGACY_TOOL_ID_ALIASES: Record<string, ToolId> = {
   'canvas-sharepics': 'canvas-vorlagen',
   // „Hintergrund entfernen" lives in the canvas editor now; its tile left the Studio.
   freisteller: 'canvas',
-  // Voice left the Studio's tool menu for the workplace's „Weitere" menu (11/2026).
-  'studio-voice': 'voice',
   // „Bild erweitern" is the canvas editor's „Erweitern" on a selected image now.
   'bild-erweitern': 'canvas',
 };
@@ -650,6 +648,8 @@ const LEGACY_FAVOURITE_ITEMS: readonly {
     icon: { navigation: 'kiSchnitt' },
   },
   { id: 'parteitage', title: 'Parteitage', path: '/parteitage', icon: { navigation: 'reel' } },
+  // Voice left with it too; the Arbeiten tab links it (see ArbeitenSections).
+  { id: 'studio-voice', title: 'Voice', path: '/voice', icon: { navigation: 'voice' } },
   // The Studio's Chat tile left too; the chat has its own place in the sidebar.
   { id: 'canvas-ki', title: 'Chat', path: '/chat', icon: { navigation: 'messenger' } },
   // Vorlagen, Profilbild and Sticker left the Studio row (Sticker is a hero icon there now).
@@ -674,7 +674,6 @@ const MENU_ORDER = [
   'uebersetzer',
   'mcp',
   'transkription',
-  'voice',
   'scanner',
   'zeichenzaehler',
   'newsletter',
@@ -729,6 +728,20 @@ export interface DerivedTile {
   audience?: ToolAudience;
   icon: IconType;
   badge?: string;
+}
+
+/** Title, target and icon of one tool, with or without a tile — for cards that pick tools by id. */
+export function toolLink(id: ToolId): Omit<DerivedTile, 'description' | 'badge'> {
+  const tool = ALL_TOOLS.find((t) => t.id === id);
+  if (!tool) throw new Error(`unknown tool id: ${id}`);
+  return {
+    id: tool.id,
+    title: tool.title,
+    ...(tool.path != null ? { path: tool.path } : {}),
+    ...(tool.href != null ? { href: tool.href } : {}),
+    ...(tool.audience != null ? { audience: tool.audience } : {}),
+    icon: resolveToolIcon(tool.icon),
+  };
 }
 
 export function toolsWithTile(group: WorkplaceTileGroup): DerivedTile[] {

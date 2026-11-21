@@ -50,7 +50,7 @@ const PageLayout = ({
   }, []);
 
   const handleDesktopNavigation = useCallback(
-    (path: string, title: string) => {
+    (path: string, title: string, state: unknown = null) => {
       // Compare against the ACTUAL current URL, not the stored tab route — the
       // tab's route can go stale when navigation happens outside the sidebar
       // (e.g. opening a document via a link), which would otherwise make a
@@ -64,7 +64,7 @@ const PageLayout = ({
         } else {
           createTab(path, title);
         }
-        void navigate(path);
+        void navigate(path, { state });
       }
     },
     [pathname, activeTabId, navigateTab, createTab, navigate]

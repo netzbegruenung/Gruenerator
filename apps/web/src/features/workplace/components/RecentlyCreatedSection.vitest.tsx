@@ -9,13 +9,14 @@ import type { RecentItem } from '../hooks/useRecentActivity';
 
 const navigate = vi.fn();
 const items: RecentItem[] = [];
+let loading = false;
 
 vi.mock('react-router-dom', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   useNavigate: () => navigate,
 }));
 vi.mock('../hooks/useRecentActivity', () => ({
-  useRecentActivity: () => ({ data: items, isLoading: false, isError: false, refetch: vi.fn() }),
+  useRecentActivity: () => ({ data: items, isLoading: loading, isError: false, refetch: vi.fn() }),
 }));
 vi.mock('../../../hooks/useBoardsTyped', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -72,5 +73,31 @@ describe('RecentlyCreatedSection canvas cards', () => {
     fireEvent.error(img);
     expect(screen.queryByRole('img', { name: 'Plakat' })).toBeNull();
     expect(screen.getByText('Bild-Vorschau')).toBeTruthy();
+  });
+});
+
+describe('RecentlyCreatedSection layout', () => {
+  it('reports the expanded state on the toggle button', async () => {
+    loading = false;
+    // jsdom has no grid layout: columns fall back to 2, so 3 items overflow one row.
+    items.splice(0, items.length, image('a', 'A'), image('b', 'B'), image('c', 'C'));
+    const { user } = renderWithProviders(<RecentlyCreatedSection />);
+
+    const toggle = screen.getByRole('button', { name: 'Mehr anzeigen' });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(document.getElementById(toggle.getAttribute('aria-controls') ?? '')).toBeTruthy();
+    await user.click(toggle);
+    expect(
+      screen.getByRole('button', { name: 'Weniger anzeigen' }).getAttribute('aria-expanded')
+    ).toBe('true');
+  });
+
+  it('renders one row of skeletons (phone fallback of 2 when unmeasured)', () => {
+    loading = true;
+    const { container } = renderWithProviders(<RecentlyCreatedSection />);
+    loading = false;
+
+    // The heading row plus two skeletons (jsdom has no grid layout, so the phone fallback applies).
+    expect(container.querySelectorAll('section > div > div')).toHaveLength(3);
   });
 });

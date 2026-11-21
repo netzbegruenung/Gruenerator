@@ -1,14 +1,6 @@
 import { type MediaItem } from '@gruenerator/shared/media-library';
 import { Button } from '@gruenerator/ui';
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type DragEvent,
-  type JSX,
-  type RefObject,
-} from 'react';
+import { useCallback, useRef, useState, type DragEvent, type JSX } from 'react';
 import { HiArrowUpTray } from 'react-icons/hi2';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -25,6 +17,7 @@ import { getIcon } from '../../config/icons';
 import { CANVAS_TOOLS, filterWorkplaceTools } from '../../config/workplaceToolsConfig';
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import { useFirstName } from '../../hooks/useFirstName';
+import { useGridColumns } from '../../hooks/useGridColumns';
 import VideoProjectsSection from '../image-studio/components/VideoProjectsSection';
 import { SubscribedCollectionSection } from '../marketplace/SubscribedCollectionSection';
 import { LinkedEntryCard } from '../media-library/components/LinkedEntryCard';
@@ -77,23 +70,6 @@ function useFileDrop(onFiles: (files: FileList) => void) {
       },
     },
   };
-}
-
-/** Column count of the grid inside `ref`; 0 while unknown (no layout, e.g. in tests). */
-function useGridColumns(ref: RefObject<HTMLDivElement | null>, gridSize: string): number {
-  const [cols, setCols] = useState(0);
-  useEffect(() => {
-    const grid = ref.current?.firstElementChild;
-    if (!grid || typeof ResizeObserver === 'undefined') return undefined;
-    // Fires once on observe, then on every resize (the breakpoints change the columns).
-    const observer = new ResizeObserver(() => {
-      const tracks = getComputedStyle(grid).gridTemplateColumns;
-      setCols(tracks && tracks !== 'none' ? tracks.split(' ').length : 0);
-    });
-    observer.observe(grid);
-    return () => observer.disconnect();
-  }, [ref, gridSize]);
-  return cols;
 }
 
 /** „Deine Inhalte" opens on two rows; „Mehr anzeigen" shows the rest. */
@@ -178,8 +154,13 @@ function Studio(): JSX.Element {
   const handleDownload = useCallback((item: MediaItem) => void download(item), [download]);
 
   const settled = !isLoading;
-  const gridRef = useRef<HTMLDivElement>(null);
-  const columns = useGridColumns(gridRef, gridSize);
+  // The grid's own element: the hook reads its columns (keyed by size, so a size switch re-measures).
+  const [gridEl, setGridEl] = useState<HTMLElement | null>(null);
+  const columns = useGridColumns(gridEl);
+  const gridWrapperRef = useCallback(
+    (el: HTMLDivElement | null) => setGridEl((el?.firstElementChild as HTMLElement | null) ?? null),
+    []
+  );
   const [expanded, setExpanded] = useState(false);
   const collapsed = !expanded && columns > 0;
   const shown = collapsed ? entries.slice(0, columns * COLLAPSED_ROWS) : entries;
@@ -236,7 +217,7 @@ function Studio(): JSX.Element {
             <p className="text-center text-error">{error}</p>
           ) : (
             <>
-              <div ref={gridRef}>
+              <div key={gridSize} ref={gridWrapperRef}>
                 <GalleryGrid size={gridSize}>
                   {!settled && entries.length === 0 ? (
                     <GallerySkeleton className="aspect-[4/5]" />

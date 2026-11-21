@@ -114,6 +114,15 @@ export const TOOL_THEME = {
   },
   // Agentura reads as a chat/companion tool, so it wears a soft yellow — kept in
   // the same pale, desaturated register as the other tiles (not a strong yellow).
+  // Coral (formerly Bild erweitern's, which lives in the canvas editor now).
+  voice: {
+    tile: 'bg-[#F8E1D8] dark:bg-[#2E1B14]',
+    icon: 'text-[#9A4A30] dark:text-[#D69A82]',
+    title: 'text-[#7A3820] dark:text-[#EBBBA8]',
+    desc: 'text-[#8E6252] dark:text-[#B08272]',
+    gradient:
+      'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#FCEFEA_0%,#FEF7F4_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#251912_0%,#19110C_55%,#100B08_100%)]',
+  },
   agents: {
     tile: 'bg-[#F5EFC9] dark:bg-[#26220F]',
     icon: 'text-[#7C6A1E] dark:text-[#CDBB72]',

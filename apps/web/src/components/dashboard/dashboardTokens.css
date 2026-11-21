@@ -7,6 +7,7 @@
  */
 .dashboard-surface {
   --dash-mg: #b0005f; /* Akzent: Links, Linien, aktive Marken */
+  --dash-bar: linear-gradient(var(--dash-mg), var(--dash-mg)); /* Balken-Füllung (background-image), z. B. Trends */
   --dash-mg-ink: #8a004a; /* Text auf der Tönung */
   --dash-on-mg: #ffffff; /* Text auf voller Akzentfläche */
   --dash-mg-tint: #fce4ef; /* Kachel- und Knopffläche */
@@ -29,4 +30,46 @@
   --dash-page: #161314;
   --dash-card: #242022;
   --dash-skeleton: #332c30;
+}
+
+/*
+ * Neutrale Variante für eingebettete Dashboard-Bausteine (Arbeiten-Tab): dieselben
+ * Rollen, aber Eucalyptus statt Magenta, Karten weiß mit Rahmen und Schatten.
+ */
+.dashboard-surface.dashboard-neutral {
+  --dash-mg: #47806d; /* Eukalyptus, 4,6:1 auf Weiß */
+  --dash-bar: linear-gradient(90deg, #7fae9c, #47806d);
+  --dash-mg-ink: #1f2a23;
+  --dash-on-mg: #ffffff;
+  --dash-mg-tint: #edf1ed;
+  --dash-mg-tint-2: #e1e7e2;
+  --dash-mg-sub: #5d6b62;
+  --dash-mg-dot: #cbd3cd;
+  --dash-page: var(--background-color);
+  --dash-card: #ffffff;
+  --dash-skeleton: #eef1ee;
+  --dash-card-border: rgb(16 40 26 / 0.06);
+  --dash-card-shadow: 0 1px 2px rgb(16 40 26 / 0.03), 0 6px 20px -10px rgb(16 40 26 / 0.1);
+}
+
+[data-theme='dark'] .dashboard-surface.dashboard-neutral {
+  --dash-mg: #9cc8b8;
+  --dash-bar: linear-gradient(90deg, #6f9e8d, #9cc8b8);
+  --dash-mg-ink: #e3ebe6;
+  --dash-on-mg: #121614;
+  --dash-mg-tint: #222925;
+  --dash-mg-tint-2: #2b332e;
+  --dash-mg-sub: #9aa8a0;
+  --dash-mg-dot: #3a453f;
+  --dash-page: var(--background-color);
+  --dash-card: #181d1a;
+  --dash-skeleton: #2b322e;
+  --dash-card-border: rgb(255 255 255 / 0.06);
+  --dash-card-shadow: 0 1px 2px rgb(0 0 0 / 0.25), 0 10px 24px -14px rgb(0 0 0 / 0.5);
+}
+
+/* Moderne Karten statt getönter Fläche: weiß, feiner Rahmen, weicher Schatten. */
+.dashboard-neutral .dash-card {
+  border: 1px solid var(--dash-card-border);
+  box-shadow: var(--dash-card-shadow);
 }

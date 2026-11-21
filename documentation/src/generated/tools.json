@@ -125,12 +125,6 @@
           "path": "/transkription"
         },
         {
-          "id": "voice",
-          "title": "Voice",
-          "description": "Text vertonen",
-          "path": "/voice"
-        },
-        {
           "id": "scanner",
           "title": "Scanner",
           "description": "Fotos & Scans zu Text",
@@ -275,6 +269,7 @@
   },
   "publicRoutes": [
     "/",
+    "/app",
     "/boards/public/:id",
     "/datenschutz",
     "/docs/:id",
