@@ -15,8 +15,10 @@ vi.mock('../../utils/logger.js', () => ({
   createLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }),
 }));
 
+const incrementRateLimit = vi.fn();
 vi.mock('../../middleware/rateLimitMiddleware.js', () => ({
   rateLimitMiddleware: () => (_req: unknown, _res: unknown, next: () => void) => next(),
+  incrementRateLimit: (...args: unknown[]) => incrementRateLimit(...args),
 }));
 
 const uploadMediaFile = vi.fn();
@@ -80,7 +82,11 @@ describe('POST /api/video/enhance/file', () => {
         title: 'Rede (Ton verbessert)',
       })
     );
-    expect(uploadMediaFile.mock.calls[0][1].fileBuffer.toString()).toBe('enhanced');
+    // The enhanced file is handed over by path, not buffered.
+    expect(uploadMediaFile.mock.calls[0][1].filePath).toBe(enhanceVideoAudio.mock.calls[0][1]);
+    expect(incrementRateLimit.mock.invocationCallOrder[0]).toBeLessThan(
+      enhanceVideoAudio.mock.invocationCallOrder[0]
+    );
   });
 
   it.each([

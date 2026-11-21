@@ -125,8 +125,15 @@ describe('enhanceVideoAudio', () => {
     expect(Math.abs(durationSeconds - 2)).toBeLessThan(0.1);
     expect(enhanceSpeech).toHaveBeenCalledOnce();
     expect(recordOperation).toHaveBeenCalledWith(
-      expect.objectContaining({ count: 2, feature: 'audio_enhance' })
+      expect.objectContaining({ count: Math.ceil(durationSeconds), feature: 'audio_enhance' })
     );
+  });
+
+  it('rejects an unreadable file as invalid input before calling the provider', async () => {
+    const garbage = path.join(path.dirname(out), 'garbage.mp4');
+    await fs.writeFile(garbage, 'not a video');
+    await expect(enhanceVideoAudio(garbage, out)).rejects.toMatchObject({ code: 'invalid_input' });
+    expect(enhanceSpeech).not.toHaveBeenCalled();
   });
 
   it('rejects a clip without audio before calling the provider', async () => {

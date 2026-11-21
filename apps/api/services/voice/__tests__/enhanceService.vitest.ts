@@ -58,4 +58,12 @@ describe('enhanceSpeech', () => {
     );
     await expect(enhanceSpeech(Buffer.from('RIFF'))).rejects.toMatchObject({ code, status });
   });
+
+  it('maps a request that never completes to unavailable', async () => {
+    fetchMock.mockRejectedValueOnce(new DOMException('timed out', 'TimeoutError'));
+    await expect(enhanceSpeech(Buffer.from('RIFF'))).rejects.toMatchObject({
+      code: 'unavailable',
+      status: null,
+    });
+  });
 });

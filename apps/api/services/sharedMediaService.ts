@@ -1596,14 +1596,7 @@ class SharedMediaService {
   async uploadMediaFile(userId: string, params: UploadMediaFileParams): Promise<ShareResult> {
     await this.ensureInitialized();
 
-    const {
-      fileBuffer,
-      originalFilename,
-      mimeType,
-      title,
-      altText,
-      uploadSource = 'upload',
-    } = params;
+    const { originalFilename, mimeType, title, altText, uploadSource = 'upload' } = params;
 
     // Non-library sources (gallery thumbnails, canvas-element tool output) are
     // internal artifacts — keep them out of the Mediathek (getMediaLibrary
@@ -1625,7 +1618,12 @@ class SharedMediaService {
 
       const extension = this.getExtensionFromMime(mimeType);
       const targetPath = path.join(shareDir, `media.${extension}`);
-      await fs.writeFile(targetPath, fileBuffer);
+      if (params.filePath !== undefined) {
+        await fs.copyFile(params.filePath, targetPath);
+      } else {
+        await fs.writeFile(targetPath, params.fileBuffer);
+      }
+      const fileSize = (await fs.stat(targetPath)).size;
 
       const relativeFilePath = `${shareToken}/media.${extension}`;
       let imageInfo: ImageInfo | null = null;
@@ -1667,7 +1665,7 @@ class SharedMediaService {
         relativeFilePath,
         `media.${extension}`,
         null, // thumbnail_path filled by processMediaVariants / processVideoPoster
-        fileBuffer.length,
+        fileSize,
         mimeType,
         isLibraryItem,
         altText || null,

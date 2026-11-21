@@ -19,6 +19,9 @@ export class AudioEnhanceError extends Error {
   }
 }
 
+/** 300 s of audio; Clarity answers well under real time, so this only catches a stall. */
+const ENHANCE_TIMEOUT_MS = 120_000;
+
 function codeForStatus(status: number): AudioEnhanceErrorCode {
   if (status === 429) return 'rate_limited';
   if (status === 400) return 'invalid_input';
@@ -35,16 +38,27 @@ export async function enhanceSpeech(
   form.append('model', 'clarity-1');
   form.append('file', new Blob([new Uint8Array(wav)], { type: 'audio/wav' }), 'input.wav');
 
-  const response = await fetch(`${kugelaudioBaseUrl()}/v1/audio/enhance`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${kugelaudioApiKey('Ton verbessern')}`,
-      // A full queue should come back fast as 503 instead of holding the request.
-      'X-Queue-Timeout': '20',
-    },
-    body: form,
-    ...(options.signal ? { signal: options.signal } : {}),
-  });
+  const signals = [AbortSignal.timeout(ENHANCE_TIMEOUT_MS)];
+  if (options.signal) signals.push(options.signal);
+
+  let response: Response;
+  try {
+    response = await fetch(`${kugelaudioBaseUrl()}/v1/audio/enhance`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${kugelaudioApiKey('Ton verbessern')}`,
+        // A full queue should come back fast as 503 instead of holding the request.
+        'X-Queue-Timeout': '20',
+      },
+      body: form,
+      signal: AbortSignal.any(signals),
+    });
+  } catch (error: unknown) {
+    log.warn('KugelAudio enhance request did not complete', {
+      reason: error instanceof Error ? error.name : String(error),
+    });
+    throw new AudioEnhanceError('unavailable', null, 'KugelAudio enhance request failed');
+  }
 
   if (!response.ok) {
     let errorCode: string | null = null;

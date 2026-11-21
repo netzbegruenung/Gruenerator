@@ -5,12 +5,11 @@
  * step with the clip's segments and speed.
  */
 
-import fs from 'fs';
 import path from 'path';
 
 import { Router, type Response } from 'express';
 
-import { rateLimitMiddleware } from '../../middleware/rateLimitMiddleware.js';
+import { incrementRateLimit, rateLimitMiddleware } from '../../middleware/rateLimitMiddleware.js';
 import { type AuthenticatedRequest } from '../../middleware/types.js';
 import { getSharedMediaService } from '../../services/sharedMediaService.js';
 import { enhanceVideoAudio } from '../../services/subtitler/audioEnhance.js';
@@ -21,6 +20,15 @@ import { cleanupTempFile, receiveFile, tempFilePath } from './tempUpload.js';
 
 const log = createLogger('video-enhance');
 const router = Router();
+
+/** Aborts the provider call when the person closes the editor mid-request. */
+function abortOnClose(res: Response): AbortSignal {
+  const controller = new AbortController();
+  res.on('close', () => {
+    if (!res.writableFinished) controller.abort();
+  });
+  return controller.signal;
+}
 
 function failure(error: unknown): { status: number; message: string } {
   if (error instanceof AudioEnhanceError) {
@@ -51,7 +59,7 @@ function failure(error: unknown): { status: number; message: string } {
  */
 router.post(
   '/enhance/file',
-  rateLimitMiddleware('audio_enhance', { autoIncrement: true }),
+  rateLimitMiddleware('audio_enhance'),
   receiveFile,
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     if (!req.file) {
@@ -68,13 +76,17 @@ router.post(
         res.status(401).json({ error: 'Nicht angemeldet.' });
         return;
       }
-      await enhanceVideoAudio(inputPath, outputPath);
+      // Counted before the provider call, not after success: each call takes
+      // tens of seconds, and parallel requests would all pass a check that only
+      // counts finished ones.
+      await incrementRateLimit(req);
+      await enhanceVideoAudio(inputPath, outputPath, { signal: abortOnClose(res) });
 
       const body = req.body as { title?: unknown } | null;
       const rawTitle = typeof body?.title === 'string' ? body.title.trim() : '';
       const title = `${rawTitle || 'Video'} (Ton verbessert)`;
       const share = await getSharedMediaService().uploadMediaFile(userId, {
-        fileBuffer: await fs.promises.readFile(outputPath),
+        filePath: outputPath,
         originalFilename: `${path.parse(req.file.originalname || 'video').name}-ton-verbessert.mp4`,
         mimeType: 'video/mp4',
         title,
