@@ -1,8 +1,13 @@
-import { type GroupPostCreatedResponse, type GroupShareComment } from '@gruenerator/contracts';
+import {
+  type GroupContentType,
+  type GroupPostCreatedResponse,
+  type GroupShareComment,
+} from '@gruenerator/contracts';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { apiErrorFromResponse, getContractsClient, getGlobalApiClient } from '../api/index.js';
 
+import { buildGroupPostFormData, type GroupPostUploadFile } from './postFormData.js';
 import {
   GROUPS_QUERY_KEY,
   groupContentKey,
@@ -363,20 +368,17 @@ export const useDeleteGroupAvatar = (groupId: string) => {
 
 /**
  * Beitrag mit Text und Dateien schreiben. Multipart, daher der rohe Client
- * wie beim Avatar. Web übergibt `File`s; eine fertige `FormData` (Felder
- * `body` und `files`) geht unverändert durch.
+ * wie beim Avatar. Web übergibt `File`s, React Native `{ uri, name, type }`.
  */
 export const useCreateGroupPost = (groupId: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: {
       body: string;
-      files: File[];
+      files: GroupPostUploadFile[];
       onProgress?: (fraction: number) => void;
     }): Promise<GroupPostCreatedResponse> => {
-      const formData = new FormData();
-      formData.append('body', input.body);
-      for (const file of input.files) formData.append('files', file, file.name);
+      const formData = buildGroupPostFormData(new FormData(), input.body, input.files);
       const res = await getGlobalApiClient().post<GroupPostCreatedResponse>(
         `/auth/groups/${groupId}/posts`,
         formData,
@@ -514,6 +516,55 @@ export const useDeleteGroupShareComment = (groupId: string, shareId: string) => 
           .map((c) => (c.parentId === commentId ? { ...c, parentId: null } : c))
       );
       void qc.invalidateQueries({ queryKey: groupContentKey(groupId) });
+    },
+  });
+};
+
+/** Nimmt eine Freigabe aus dem Projekt (Server: Admin oder die Person, die geteilt hat). */
+export const useRemoveGroupContent = (groupId: string | null) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      contentId,
+      contentType,
+    }: {
+      contentId: string;
+      contentType: GroupContentType | string;
+    }) => {
+      if (!groupId) throw new Error('Group ID missing');
+      const res = await getContractsClient().groups.removeGroupContent({
+        params: { groupId, contentId },
+        body: { contentType: contentType as GroupContentType },
+      });
+      if (res.status !== 200) throw apiErrorFromResponse(res);
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: groupContentKey(groupId ?? '') });
+    },
+  });
+};
+
+/**
+ * Docs, Sheets, Präsentationen und Boards: dürfen Mitglieder bearbeiten oder nur lesen?
+ * Der Server erlaubt das Admins und der Person, die geteilt hat, und schließt
+ * offene Editor-Räume, damit das neue Recht sofort gilt.
+ */
+export const useSetGroupContentWrite = (groupId: string | null) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ contentId, write }: { contentId: string; write: boolean }) => {
+      if (!groupId) throw new Error('Group ID missing');
+      const res = await getContractsClient().groups.updateContentPermissions({
+        params: { groupId, contentId },
+        body: {
+          contentType: 'collaborative_documents',
+          permissions: { read: true, write, collaborative: false },
+        },
+      });
+      if (res.status !== 200) throw apiErrorFromResponse(res);
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: groupContentKey(groupId ?? '') });
     },
   });
 };

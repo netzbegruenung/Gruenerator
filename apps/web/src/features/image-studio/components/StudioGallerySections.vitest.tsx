@@ -20,6 +20,7 @@ vi.mock('../hooks/useRecentCanvases', () => ({
   useRecentCanvases: () => ({ data: [], isFetched: true }),
 }));
 vi.mock('../canvasQuery', () => ({ useCanvasEditorPrefetch: () => vi.fn() }));
+vi.mock('./VideoProjectsSection', () => ({ default: () => null }));
 vi.mock('../../workplace/components/ReelsSection', () => ({ default: () => null }));
 vi.mock('../../../components/common/SharedMediaImage', () => ({ SharedMediaImage: () => null }));
 

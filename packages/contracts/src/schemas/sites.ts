@@ -19,6 +19,8 @@ import { localeSchema, type SupportedLocale } from './userProfile.js';
 
 export const SITE_HANDLE_MIN = 3;
 export const SITE_HANDLE_MAX = 30;
+/** Live Websites one account may have at a time; trashed ones do not count. */
+export const SITES_PER_ACCOUNT_MAX = 25;
 export const RESERVED_SITE_HANDLES: readonly string[] = [
   'www',
   'api',
@@ -40,6 +42,10 @@ export const RESERVED_SITE_HANDLES: readonly string[] = [
   'datenschutz',
   'gruene',
   'gruenerator',
+  // Editor paths under /sites/ that a handle must not shadow (/sites/<handle> is the editor).
+  'neu',
+  'demo',
+  'edit',
 ];
 
 const HANDLE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -861,6 +867,27 @@ export function buildSitePreviewSnapshot(
 export const siteResponseSchema = z.object({ site: siteSchema });
 export const mySiteResponseSchema = z.object({
   site: siteSchema.nullable(),
+  public_origin: z.string().nullable(),
+});
+export const siteSummarySchema = siteSchema.pick({
+  id: true,
+  subdomain: true,
+  site_title: true,
+  is_published: true,
+  last_published: true,
+  moderation: true,
+  updated_at: true,
+  profile_image: true,
+  theme: true,
+});
+export type SiteSummary = z.infer<typeof siteSummarySchema>;
+export const siteListResponseSchema = z.object({
+  sites: z.array(siteSummarySchema),
+  public_origin: z.string().nullable(),
+  limit: z.number().int(),
+});
+export const siteByHandleResponseSchema = z.object({
+  site: siteSchema,
   public_origin: z.string().nullable(),
 });
 

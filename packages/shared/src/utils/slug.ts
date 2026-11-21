@@ -103,6 +103,14 @@ export function buildGroupSlug(name: string, suffix: string): string {
 }
 
 /**
+ * Video-project variant of {@link buildNotebookSlug}: `<slugified-title>-<suffix>`
+ * with a "video" fallback. Resolution reuses the shared {@link extractSlugSuffix}.
+ */
+export function buildVideoProjectSlug(title: string, suffix: string): string {
+  return `${slugifyName(title, 'video')}-${suffix}`;
+}
+
+/**
  * Chat-thread variant of {@link buildNotebookSlug}: `<slugified-title>-<suffix>`
  * with a "chat" fallback for untitled threads. Resolution reuses the shared
  * {@link extractSlugSuffix}.

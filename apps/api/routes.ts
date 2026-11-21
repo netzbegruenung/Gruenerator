@@ -170,6 +170,7 @@ import v1ChatCompletionsRouter, {
 import v1CollectionsRouter from './routes/v1/collectionsRouter.js';
 import v1NotebooksRouter from './routes/v1/notebooksRouter.js';
 import { mountVideoAiContractRouter } from './routes/videoAi/videoAiContractRouter.js';
+import { mountVideoProjectsContractRouter } from './routes/videoProjects/videoProjectsContractRouter.js';
 import agentSessionRouter from './routes/voice/agentSessionController.js';
 import { mountSpeechContractRouter } from './routes/voice/speechContractRouter.js';
 import ttsRouter from './routes/voice/ttsController.js';
@@ -726,6 +727,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   // The vision check is a model call: consent + the generation limiter, like /api/sharepic-creator.
   app.use('/api/canvas/ai-check', requireAiConsent, aiGenerationLimiter);
   mountCanvasContractRouter(app);
+
+  // Video editor projects (collaborative documents, subtype 'video').
+  app.use('/api/video-projects', requireAuth, authenticatedReadLimiter);
+  mountVideoProjectsContractRouter(app);
 
   // ts-rest contract router — mount before legacy campaignCanvasRoute.
   // requireAuth läuft auf dem Prefix, weil createExpressEndpoints die Handler

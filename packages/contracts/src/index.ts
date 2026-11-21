@@ -116,6 +116,7 @@ export {
   recurringTasksContract,
   briefingContract,
   canvasContract,
+  videoProjectsContract,
   groupsContract,
   contentSyncContract,
   monitorContract,
@@ -231,6 +232,7 @@ export * from './schemas/recurringTasks.js';
 export * from './schemas/briefing.js';
 export * from './schemas/canvasAi.js';
 export * from './schemas/canvas.js';
+export * from './schemas/videoProjects.js';
 export * from './schemas/canvasTemplateDescriptors.js';
 export * from './schemas/canvasTemplateFields.js';
 export * from './schemas/sliderDeck.js';

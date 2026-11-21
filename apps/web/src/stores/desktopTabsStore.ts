@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from 'uuid';
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
@@ -43,7 +44,7 @@ const DEFAULT_TAB_TITLE = 'Start';
 const MAX_TABS = 20;
 
 const createDefaultTab = (): Tab => ({
-  id: crypto.randomUUID(),
+  id: uuidv4(),
   title: DEFAULT_TAB_TITLE,
   route: DEFAULT_TAB_ROUTE,
   isDirty: false,
@@ -68,7 +69,7 @@ export const useDesktopTabsStore = create<TabsState & TabsActions>()(
         }
 
         const newTab: Tab = {
-          id: crypto.randomUUID(),
+          id: uuidv4(),
           title,
           route,
           isDirty: false,

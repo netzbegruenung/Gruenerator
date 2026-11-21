@@ -1,4 +1,3 @@
-import { type GroupContentType } from '@gruenerator/contracts';
 import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
 import {
   useAddGroupLink,
@@ -10,6 +9,8 @@ import {
   useGroupMembers as useGroupMembersShared,
   useJoinGroup,
   useLeaveGroup,
+  useRemoveGroupContent,
+  useSetGroupContentWrite,
   useSetGroupMute,
   useUpdateGroupLink,
   useUpdateMemberRole as useUpdateMemberRoleShared,
@@ -241,7 +242,6 @@ interface GroupContentData {
 
 export const useGroupSharing = (groupId: string | null, _options: UseGroupsOptions = {}) => {
   const { user, isAuthenticated, loading: authLoading } = useOptimizedAuth();
-  const queryClient = useQueryClient();
 
   // Derselbe Schlüssel, den die Teilen-Dialoge der Inhalte nach jedem Schritt auffrischen.
   const groupContentQueryKey = groupContentKey(groupId ?? '');
@@ -276,39 +276,8 @@ export const useGroupSharing = (groupId: string | null, _options: UseGroupsOptio
     meta: { silent: true },
   });
 
-  const unshareContentMutation = useMutation({
-    mutationFn: async ({ contentId, contentType }: { contentId: string; contentType: string }) => {
-      if (!groupId) throw new Error('Group ID missing');
-      const res = await getContractsClient().groups.removeGroupContent({
-        params: { groupId, contentId },
-        body: { contentType: contentType as GroupContentType },
-      });
-      if (res.status !== 200) throw apiErrorFromResponse(res);
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: groupContentQueryKey });
-    },
-  });
-
-  // Docs, Sheets, Präsentationen und Boards: dürfen Mitglieder bearbeiten oder nur lesen?
-  // Der Server erlaubt das Admins und der Person, die geteilt hat, und schließt
-  // offene Editor-Räume, damit das neue Recht sofort gilt.
-  const setShareWriteMutation = useMutation({
-    mutationFn: async ({ contentId, write }: { contentId: string; write: boolean }) => {
-      if (!groupId) throw new Error('Group ID missing');
-      const res = await getContractsClient().groups.updateContentPermissions({
-        params: { groupId, contentId },
-        body: {
-          contentType: 'collaborative_documents',
-          permissions: { read: true, write, collaborative: false },
-        },
-      });
-      if (res.status !== 200) throw apiErrorFromResponse(res);
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: groupContentQueryKey });
-    },
-  });
+  const unshareContentMutation = useRemoveGroupContent(groupId);
+  const setShareWriteMutation = useSetGroupContentWrite(groupId);
 
   return {
     groupContent: groupContentQuery.data || {},

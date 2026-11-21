@@ -13,6 +13,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import { handleUnauthorized } from '../components/utils/apiClient';
 import { CHUNK_PAGE_SIZE } from '../features/admin/hooks/useChunkInspector';
+import { QUERY_KEYS } from '../features/auth/hooks/useProfileData';
+import { profileApiService } from '../features/auth/services/profileApiService';
 import {
   ChatPdfLetterheadExportHost,
   requestPdfLetterheadExport,
@@ -20,7 +22,6 @@ import {
 import { ChatSourceReaderHost, requestChatSourceReader } from '../features/chat/ChatSourceReader';
 import { useModelPreferences } from '../features/models/hooks/useModelPreferences';
 import { useNotebookChatStore } from '../features/notebook/stores/notebookChatStore';
-import useNotebookStore from '../features/notebook/stores/notebookStore';
 import { resolveNotebookChatEntries } from '../features/notebook/utils/notebookChatResolver';
 import { useTrashUndoToast } from '../features/trash/trashUndoToast';
 import { useSetUserDefault } from '../features/user-defaults/userDefaultsQueries';
@@ -78,7 +79,6 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
   const isInstanceAdmin = useAuthStore((s) => s.user?.is_admin === true);
   const navigate = useNavigate();
   const location = useLocation();
-  const qaCollectionsLength = useNotebookStore((s) => s.qaCollections.length);
   const { enabledModelIds } = useModelPreferences({ enabled: !!userId });
 
   // Rollenwahl im Composer → Konto-Voreinstellung. Über einen Ref, weil
@@ -90,16 +90,14 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
     setUserDefaultRef.current = setUserDefault;
   }, [setUserDefault]);
 
-  // Notebook collections power @notebook mention metadata; fetch lazily when
-  // an authenticated user actually needs them. React Query caches the result.
-  useQuery({
-    queryKey: ['qa-collections', userId],
-    queryFn: async () => {
-      await useNotebookStore.getState().fetchQACollections();
-      return useNotebookStore.getState().qaCollections;
-    },
-    enabled: !!userId && qaCollectionsLength === 0,
-    staleTime: 5 * 60_000,
+  // Notebook collections name the notebook chats in the thread list. Same key and
+  // fetcher as the profile/notebook pages (and the /auth/init seed), so it joins
+  // their request instead of issuing a second one.
+  const { data: notebookCollections } = useQuery({
+    queryKey: QUERY_KEYS.notebookCollections(userId),
+    queryFn: profileApiService.getNotebookCollections,
+    enabled: !!userId,
+    staleTime: 15 * 60_000,
   });
 
   useEffect(() => {
@@ -119,18 +117,18 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
 
   // Refs for stable getExternalThreads callback — updated via Zustand .subscribe() to avoid re-renders
   const chatsRef = useRef(useNotebookChatStore.getState().chats);
-  const qaRef = useRef(useNotebookStore.getState().qaCollections);
+  const qaRef = useRef<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    qaRef.current = notebookCollections ?? [];
+  }, [notebookCollections]);
 
   useEffect(() => {
     const unsubChats = useNotebookChatStore.subscribe((s) => {
       chatsRef.current = s.chats;
     });
-    const unsubQa = useNotebookStore.subscribe((s) => {
-      qaRef.current = s.qaCollections;
-    });
     return () => {
       unsubChats();
-      unsubQa();
     };
   }, []);
 

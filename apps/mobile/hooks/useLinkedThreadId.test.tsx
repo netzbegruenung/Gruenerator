@@ -38,10 +38,15 @@ describe('useLinkedThreadId', () => {
   });
 
   it('resolves a slug from a link to the thread id', async () => {
+    // Hold the request: the async renderHook flushes microtasks, so an answer
+    // that is already there lands before the pending state can be seen.
+    let answer: (value: { status: 200; body: { id: string } }) => void = () => {};
+    resolveShared.mockImplementationOnce(() => new Promise((resolve) => (answer = resolve)));
     const { result } = await renderHook(() => useLinkedThreadId('dein-tag-19-nov-ab12cd'), {
       wrapper,
     });
     expect(result.current).toBeUndefined();
+    answer({ status: 200, body: { id: THREAD_ID } });
     await waitFor(() => expect(result.current).toBe(THREAD_ID));
   });
 

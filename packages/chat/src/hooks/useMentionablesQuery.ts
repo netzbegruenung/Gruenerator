@@ -17,7 +17,7 @@ import {
   type SharepicVorlage,
 } from '@gruenerator/contracts';
 import { ApiError } from '@gruenerator/shared/api';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
 
 import { createChatApiClient } from '../context/ChatContext';
@@ -65,6 +65,28 @@ function useMentionableFetch(): MentionableFetch {
       <T>(path: string) =>
         apiClient.get<T>(path),
     [apiClient]
+  );
+}
+
+/**
+ * `mention-docs` and `mention-sheets` read the same `GET /api/docs` list and only
+ * differ in their filter, so both queries ride one request: `fetchQuery` joins a
+ * fetch that is already in flight (default `staleTime` 0 keeps later refetches,
+ * e.g. after a trash invalidation, fresh).
+ */
+function useSharedDocsListFetch(): MentionableFetch {
+  const get = useMentionableFetch();
+  const queryClient = useQueryClient();
+  return useMemo(
+    () =>
+      <T>(path: string) =>
+        path === '/api/docs'
+          ? (queryClient.fetchQuery({
+              queryKey: ['mention-docs-source'],
+              queryFn: () => get<T>(path),
+            }) as Promise<T>)
+          : get<T>(path),
+    [get, queryClient]
   );
 }
 
@@ -118,7 +140,7 @@ export function useBoardsQuery() {
 }
 
 export function useSheetsQuery() {
-  const get = useMentionableFetch();
+  const get = useSharedDocsListFetch();
   return useQuery<DocListItem[]>({
     queryKey: ['mention-sheets'],
     queryFn: () => syncSheets(get),
@@ -128,7 +150,7 @@ export function useSheetsQuery() {
 }
 
 export function useDocsQuery() {
-  const get = useMentionableFetch();
+  const get = useSharedDocsListFetch();
   return useQuery<DocListItem[]>({
     queryKey: ['mention-docs'],
     queryFn: () => syncDocs(get),

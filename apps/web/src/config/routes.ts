@@ -957,6 +957,12 @@ const standardRoutes: RouteConfig[] = [
     component: VideoEditorPage,
     layoutMode: 'immersive',
   },
+  {
+    accent: 'studio',
+    path: '/studio/videoeditor/:slug',
+    component: VideoEditorPage,
+    layoutMode: 'immersive',
+  },
   // KI-Schnitt: before /studio/:category, like every literal studio path.
   { accent: 'studio', path: '/studio/ki-schnitt', component: KiSchnittNewPage },
   { accent: 'studio', path: '/studio/ki-schnitt/:slug', component: KiSchnittProjectPage },
@@ -1025,6 +1031,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/boards/:id', component: BoardPage, layoutMode: 'sidebarOnly' },
   // Sites Feature Routes — embedded candidate site builder
   { path: '/sites', component: SitesEditPage, layoutMode: 'immersive' },
+  { path: '/sites/:handle', component: SitesEditPage, layoutMode: 'immersive' },
   { path: '/sites/login', component: SitesLegacyRedirect, layoutMode: 'immersive', public: true },
   { path: '/sites/demo', component: SitesLegacyRedirect, layoutMode: 'sidebarOnly' },
   { path: '/sites/edit', component: SitesLegacyRedirect, layoutMode: 'sidebarOnly' },

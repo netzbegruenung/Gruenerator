@@ -78,7 +78,7 @@ export default function JoinGroupScreen() {
               ]}
               accessibilityRole="button"
             >
-              <Text style={styles.primaryButtonText}>Zu meinen Gruppen</Text>
+              <Text style={styles.primaryButtonText}>Zu meinen Projekten</Text>
             </Pressable>
           </>
         ) : (
