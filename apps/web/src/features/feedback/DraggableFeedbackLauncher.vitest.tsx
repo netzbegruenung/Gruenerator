@@ -51,7 +51,7 @@ function MeasuredBar({ left, right, top }: { left: number; right: number; top: n
 describe('DraggableFeedbackLauncher', () => {
   it('klebt ohne Nachbarn an der Ecke', () => {
     render(<DraggableFeedbackLauncher onOpen={vi.fn()} />);
-    const button = screen.getByRole('button', { name: /Feedback/ });
+    const button = screen.getByRole('button', { name: /Support/ });
     expect(button.style.bottom).toBe('1rem');
     expect(button.style.right).toBe('1rem');
   });
@@ -63,7 +63,7 @@ describe('DraggableFeedbackLauncher', () => {
         <DraggableFeedbackLauncher onOpen={vi.fn()} />
       </>
     );
-    const button = screen.getByRole('button', { name: /^Feedback$/ });
+    const button = screen.getByRole('button', { name: /^Support$/ });
     expect(button.style.bottom).toBe('calc(1rem + calc(4.5rem + env(safe-area-inset-bottom)))');
     // Die freie Achse bleibt unangetastet.
     expect(button.style.right).toBe('1rem');
@@ -77,7 +77,7 @@ describe('DraggableFeedbackLauncher', () => {
         <DraggableFeedbackLauncher onOpen={vi.fn()} />
       </>
     );
-    const button = screen.getByRole('button', { name: /Feedback/ });
+    const button = screen.getByRole('button', { name: /Support/ });
     // jsdom 31 faltet die Summanden nicht mehr zusammen und gibt `max()` unverändert aus.
     expect(button.style.right).toBe('calc(1rem + max(20rem, 28rem))');
   });
@@ -89,10 +89,10 @@ describe('DraggableFeedbackLauncher', () => {
         <DraggableFeedbackLauncher onOpen={vi.fn()} />
       </>
     );
-    expect(screen.getByRole('button', { name: /Feedback/ }).style.right).toBe('calc(21rem)');
+    expect(screen.getByRole('button', { name: /Support/ }).style.right).toBe('calc(21rem)');
 
     rerender(<DraggableFeedbackLauncher onOpen={vi.fn()} />);
-    expect(screen.getByRole('button', { name: /Feedback/ }).style.right).toBe('1rem');
+    expect(screen.getByRole('button', { name: /Support/ }).style.right).toBe('1rem');
   });
 
   it('verschwindet, wenn ein Vollbild-Panel die Ecke zudeckt', () => {
@@ -102,7 +102,7 @@ describe('DraggableFeedbackLauncher', () => {
         <DraggableFeedbackLauncher onOpen={vi.fn()} />
       </>
     );
-    expect(screen.queryByRole('button', { name: /Feedback/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Support/ })).not.toBeInTheDocument();
   });
 
   it('reagiert nur auf die Ecke, an der er gerade hängt', () => {
@@ -113,7 +113,7 @@ describe('DraggableFeedbackLauncher', () => {
         <DraggableFeedbackLauncher onOpen={vi.fn()} />
       </>
     );
-    const button = screen.getByRole('button', { name: /Feedback/ });
+    const button = screen.getByRole('button', { name: /Support/ });
     expect(button.style.left).toBe('1rem');
     expect(button.style.right).toBe('');
   });
@@ -127,7 +127,7 @@ describe('DraggableFeedbackLauncher', () => {
         <DraggableFeedbackLauncher onOpen={vi.fn()} />
       </>
     );
-    const button = screen.getByRole('button', { name: /Feedback/ });
+    const button = screen.getByRole('button', { name: /Support/ });
     // 768 - 700 = 68px belegte Höhe, plus der Grundabstand. jsdom sortiert die
     // Summanden beim Serialisieren um.
     expect(button.style.bottom).toBe('calc(68px + 1rem)');
@@ -142,7 +142,7 @@ describe('DraggableFeedbackLauncher', () => {
         <DraggableFeedbackLauncher onOpen={vi.fn()} />
       </>
     );
-    expect(screen.getByRole('button', { name: /Feedback/ }).style.bottom).toBe('1rem');
+    expect(screen.getByRole('button', { name: /Support/ }).style.bottom).toBe('1rem');
   });
 
   it('hat keine a11y-Verstöße', async () => {
