@@ -13,8 +13,7 @@ vi.mock('../SitesContext', () => ({
   useAuth: () => ({ user: { id: 'u1', locale: 'de-DE' } }),
 }));
 vi.mock('../preview/usePreviewInteractions', () => ({
-  usePreviewClickToEdit: () => {},
-  usePreviewScrollSync: () => {},
+  usePreviewSelection: () => {},
   usePreviewHighlight: () => {},
 }));
 
