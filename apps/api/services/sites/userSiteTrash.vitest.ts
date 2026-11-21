@@ -1,13 +1,13 @@
 /**
- * One Website per user is a rule in code, not an index: a restore next to a
- * site built meanwhile must answer `conflict`, never produce a second site.
- * A subdomain someone took meanwhile is the partial unique index's 23505.
+ * The per-account limit is a rule in code, not an index: a restore into an
+ * account already at the limit must answer `conflict`. A subdomain someone took
+ * meanwhile is the partial unique index's 23505.
  */
 import { type SQL } from 'drizzle-orm';
 import { PgDialect } from 'drizzle-orm/pg-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-let liveSite = false;
+let liveSites = 0;
 let restoreError: unknown = null;
 let purgeHit = true;
 const statements: string[] = [];
@@ -21,8 +21,8 @@ vi.mock('../../database/services/PostgresService.js', () => {
     if (s.startsWith('SELECT id, site_title AS title, deleted_at, user_id')) {
       return [{ id: 'x', title: 'Meine Seite', deleted_at: new Date(), user_id: USER }];
     }
-    if (s.startsWith('SELECT id FROM user_sites WHERE user_id = $1 AND deleted_at IS NULL')) {
-      return liveSite ? [{ id: 'other-site' }] : [];
+    if (s.startsWith('SELECT count(*)::int AS n FROM user_sites WHERE user_id = $1')) {
+      return [{ n: liveSites }];
     }
     if (s.startsWith('DELETE FROM user_sites')) return purgeHit ? [{ id: ID }] : [];
     return [];
@@ -53,7 +53,7 @@ const ID = '33333333-3333-4333-8333-333333333333';
 const { purgeUserSite, restoreUserSite } = await import('./userSiteTrash.js');
 
 beforeEach(() => {
-  liveSite = false;
+  liveSites = 0;
   restoreError = null;
   purgeHit = true;
   statements.length = 0;
@@ -82,8 +82,13 @@ describe('Website restore', () => {
     expect(reset).toBeLessThan(statements.length - 1);
   });
 
-  it('answers conflict next to a Website built meanwhile', async () => {
-    liveSite = true;
+  it('restores next to other live Websites below the limit', async () => {
+    liveSites = 24;
+    expect(await restoreUserSite(USER, ID)).toBe('ok');
+  });
+
+  it('answers conflict when the account is at the limit', async () => {
+    liveSites = 25;
     expect(await restoreUserSite(USER, ID)).toBe('conflict');
     expect(statements.some((s) => s.startsWith('UPDATE'))).toBe(false);
   });

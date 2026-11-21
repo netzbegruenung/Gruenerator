@@ -38,7 +38,7 @@ const BY_KIND: Record<TrashKind, readonly QueryKey[]> = {
   user_template: [['userTemplates'], ['profileData'], ['user-templates', 'docs-and-boards']],
   user_text_form: [['text-forms'], ['mention-textforms']],
   custom_prompt: [['mention-custom-agents']],
-  user_site: [['my-site']],
+  user_site: [['sites']],
   recurring_task: [['recurring-tasks']],
   user_letterhead: [LETTERHEADS_QUERY_KEY],
   user_document: [['userTexts']],

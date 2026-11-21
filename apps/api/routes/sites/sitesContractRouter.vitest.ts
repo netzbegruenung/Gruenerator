@@ -25,7 +25,11 @@ vi.mock('../../database/services/PostgresService.js', () => ({
   getPostgresInstance: () => ({ query: queryMock }),
 }));
 vi.mock('../../database/services/DrizzleService.js', () => ({
-  getDrizzleInstance: () => ({ execute: executeMock }),
+  getDrizzleInstance: () => ({
+    execute: executeMock,
+    transaction: (fn: (tx: { execute: typeof executeMock }) => Promise<unknown>) =>
+      fn({ execute: executeMock }),
+  }),
 }));
 vi.mock('../../services/collab/hocuspocusInternal.js', () => ({
   hocuspocusInternal,
@@ -180,15 +184,30 @@ describe('sitesContract', () => {
     expect(queryMock).not.toHaveBeenCalled();
   });
 
-  it('create names the reason when the account already has a site', async () => {
-    queryMock.mockResolvedValueOnce([]);
-    executeMock.mockRejectedValueOnce(pgUnique('user_sites_one_live_per_user'));
-    expect((await create(validCreate())).body.error).toBe('Du hast bereits eine Website erstellt');
+  /** Lock, then the live count, then the insert — all on the transaction. */
+  const createAt = (live: number) =>
+    executeMock.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [{ n: live }] });
+
+  it('create adds a further site next to existing ones', async () => {
+    createAt(3).mockResolvedValueOnce({ rows: [rawRow()] });
+    const res = await create(validCreate());
+    expect(res.status).toBe(200);
+    expect(executedSql(0)).toContain('pg_advisory_xact_lock');
+    expect(executeMock.mock.calls[0][0].queryChunks).toContainEqual(`user_sites:${USER_ID}`);
+    expect(executedSql(1)).toMatch(/count\(\*\).*user_id = \$1 AND deleted_at IS NULL/);
+    expect(executedSql(2)).toMatch(/^INSERT INTO user_sites/);
+  });
+
+  it('create answers 409 at the limit and inserts nothing', async () => {
+    createAt(25);
+    const res = await create(validCreate());
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('Du hast bereits 25 Websites.');
+    expect(executeMock).toHaveBeenCalledTimes(2);
   });
 
   it('create names the reason when the address is taken', async () => {
-    queryMock.mockResolvedValueOnce([]);
-    executeMock.mockRejectedValueOnce(pgUnique('user_sites_subdomain_unique'));
+    createAt(0).mockRejectedValueOnce(pgUnique('user_sites_subdomain_unique'));
     expect((await create(validCreate())).body.error).toBe('Diese Adresse ist bereits vergeben');
   });
 
@@ -201,10 +220,9 @@ describe('sitesContract', () => {
   });
 
   it('create starts a site on the dark variant', async () => {
-    queryMock.mockResolvedValueOnce([]);
-    executeMock.mockResolvedValueOnce({ rows: [rawRow()] });
+    createAt(0).mockResolvedValueOnce({ rows: [rawRow()] });
     await create(validCreate());
-    const chunks = executeMock.mock.calls[0][0].queryChunks as unknown[];
+    const chunks = executeMock.mock.calls[2][0].queryChunks as unknown[];
     expect(
       chunks.some((c) => c === 'dunkel' || (c as { value?: unknown })?.value === 'dunkel')
     ).toBe(true);
@@ -428,6 +446,50 @@ describe('sitesContract', () => {
 
     envMock.SITES_HOST = undefined;
     expect((await call('getMySite', {})).body.public_origin).toBeNull();
+  });
+
+  it('listSites returns summaries, newest first, with the limit', async () => {
+    queryMock.mockResolvedValueOnce([row(), row({ id: 'second', subdomain: 'anna-wien' })]);
+    const res = await call('listSites', {});
+    expect(res.status).toBe(200);
+    expect(res.body.limit).toBe(25);
+    expect(res.body.public_origin).toBe('https://grsites.de');
+    expect(res.body.sites.map((s: { subdomain: string }) => s.subdomain)).toEqual([
+      'anna',
+      'anna-wien',
+    ]);
+    expect(res.body.sites[0]).not.toHaveProperty('published_snapshot');
+    const [sql, params] = queryMock.mock.calls[0];
+    expect(sql).toMatch(/user_id = \$1 AND deleted_at IS NULL/);
+    expect(sql).toMatch(/ORDER BY updated_at DESC/);
+    expect(params).toEqual([USER_ID]);
+  });
+
+  it('getSiteByHandle reads an own site by address or by id', async () => {
+    queryMock.mockResolvedValueOnce([row()]);
+    const byHandle = await call('getSiteByHandle', { params: { handle: 'Anna' } });
+    expect(byHandle.status).toBe(200);
+    expect(queryMock.mock.calls[0][0]).toMatch(/subdomain = \$1 AND user_id = \$2/);
+    expect(queryMock.mock.calls[0][1]).toEqual(['anna', USER_ID]);
+
+    queryMock.mockResolvedValueOnce([row()]);
+    await call('getSiteByHandle', { params: { handle: SITE_ID } });
+    expect(queryMock.mock.calls[1][0]).toMatch(/id = \$1 AND user_id = \$2/);
+  });
+
+  it('getSiteByHandle answers 404 for another account and for an invalid address', async () => {
+    queryMock.mockResolvedValueOnce([]);
+    expect((await call('getSiteByHandle', { params: { handle: 'bert' } })).status).toBe(404);
+
+    queryMock.mockClear();
+    expect((await call('getSiteByHandle', { params: { handle: 'a--b' } })).status).toBe(404);
+    expect(queryMock).not.toHaveBeenCalled();
+  });
+
+  it('getMySite answers the most recently edited site', async () => {
+    queryMock.mockResolvedValueOnce([row()]);
+    await call('getMySite', {});
+    expect(queryMock.mock.calls[0][0]).toMatch(/ORDER BY updated_at DESC, id LIMIT 1/);
   });
 
   it('deleteSite closes the site room after the trash', async () => {
