@@ -49,27 +49,31 @@ export function useAgentConversion(agent: ConvertibleAgent | null) {
   ) => {
     const noun = AGENT_CONVERSION_TARGET_LABEL[target];
     setBusy(true);
+    // Kein `finally`: der React Compiler der App übersetzt es nicht
+    // (test/reactCompilerCoverage.vitest.ts).
+    let res;
     try {
-      const res = await convert.mutateAsync({ target, fresh });
-      if (!res.result) return;
-      const path = res.result.path;
-      if (sameConversionOutcomes(planned, res.items)) {
-        openSuccessor(path);
-        return;
-      }
-      Alert.alert(
-        `${noun} angelegt`,
-        `Es kam aber nicht alles mit, was angekündigt war.\n\n${describeItems(res.items)}`,
-        [
-          { text: 'Schließen', style: 'cancel' },
-          { text: `${noun} öffnen`, onPress: () => openSuccessor(path) },
-        ]
-      );
+      res = await convert.mutateAsync({ target, fresh });
     } catch (err) {
-      Alert.alert('Umwandeln hat nicht geklappt', errorText(err));
-    } finally {
       setBusy(false);
+      Alert.alert('Umwandeln hat nicht geklappt', errorText(err));
+      return;
     }
+    setBusy(false);
+    if (!res.result) return;
+    const path = res.result.path;
+    if (sameConversionOutcomes(planned, res.items)) {
+      openSuccessor(path);
+      return;
+    }
+    Alert.alert(
+      `${noun} angelegt`,
+      `Es kam aber nicht alles mit, was angekündigt war.\n\n${describeItems(res.items)}`,
+      [
+        { text: 'Schließen', style: 'cancel' },
+        { text: `${noun} öffnen`, onPress: () => openSuccessor(path) },
+      ]
+    );
   };
 
   const review = async (target: AgentConversionTarget) => {
@@ -84,11 +88,11 @@ export function useAgentConversion(agent: ConvertibleAgent | null) {
         'Vorschau konnte nicht geladen werden.'
       );
     } catch (err) {
+      setBusy(false);
       Alert.alert('Vorschau nicht verfügbar', errorText(err));
       return;
-    } finally {
-      setBusy(false);
     }
+    setBusy(false);
 
     if (plan.blocked) {
       Alert.alert(`Nicht als ${noun} möglich`, plan.blocked);
