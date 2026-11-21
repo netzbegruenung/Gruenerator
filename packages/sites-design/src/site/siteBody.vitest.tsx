@@ -1,10 +1,16 @@
-import { type PublishedSiteSnapshot, SITE_SECTION_IDS } from '@gruenerator/contracts';
+import { type PublishedSiteSnapshot, type SiteBlock } from '@gruenerator/contracts';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
 import { type SiteLinks, sitePaths } from '../model/paths.js';
 import { type SiteRenderMode } from '../model/visibility.js';
-import { fullSnapshot, maxSnapshot, minimalSnapshot } from '../testing/fixtures.js';
+import {
+  fullSnapshot,
+  maxSnapshot,
+  minimalSnapshot,
+  withBlock,
+  withBlocks,
+} from '../testing/fixtures.js';
 
 import { SiteBody } from './SiteBody.js';
 import { SiteLegalBody } from './SiteLegalBody.js';
@@ -13,25 +19,27 @@ const links: SiteLinks = { ...sitePaths('anna'), report: 'mailto:melden@example.
 const html = (s: PublishedSiteSnapshot, mode: SiteRenderMode = 'public') =>
   renderToStaticMarkup(<SiteBody snapshot={s} links={links} mode={mode} />);
 const sections = (markup: string) =>
-  [...markup.matchAll(/data-section="([a-zA-Z]+)"/g)].map((m) => m[1]);
+  [...markup.matchAll(/data-block-type="([a-zA-Z]+)"/g)].map((m) => m[1]);
+const grounds = (markup: string) =>
+  [...markup.matchAll(/<section[^>]*data-ground="([a-z]+)"/g)].map((m) => m[1]);
+const slice = (markup: string, from: string, to: string) =>
+  markup.slice(
+    markup.indexOf(`data-block-type="${from}"`),
+    markup.indexOf(`data-block-type="${to}"`)
+  );
+const STANDARD = ['hero', 'about', 'heroImage', 'themes', 'actions', 'socialFeed', 'contact'];
 
 describe('SiteBody', () => {
   it('lays the portrait under the hero text in the full-bleed layout', () => {
-    const hero = (markup: string) =>
-      markup.slice(markup.indexOf('data-section="hero"'), markup.indexOf('data-section="about"'));
+    const hero = (markup: string) => slice(markup, 'hero', 'about');
     const portrait = hero(html(fullSnapshot()));
     expect(portrait).not.toContain('data-ground="photo"');
-    const s = fullSnapshot();
-    const full = hero(html({ ...s, sections: { ...s.sections, heroLayout: 'vollbild' } }));
+    const s = withBlock(fullSnapshot(), 'hero', { layout: 'vollbild' });
+    const full = hero(html(s));
     expect(full).toContain('data-ground="photo"');
     expect(full).toContain('fetchPriority="high"');
     expect(full).toContain('data-field="site_title"');
-    const bare = hero(
-      html(
-        { ...s, profile_image: '', sections: { ...s.sections, heroLayout: 'vollbild' } },
-        'preview'
-      )
-    );
+    const bare = hero(html({ ...s, profile_image: '' }, 'preview'));
     expect(bare).toContain('data-ground="deep"');
     expect(bare).toContain('data-field="profile_image" data-empty=""');
   });
@@ -60,21 +68,19 @@ describe('SiteBody', () => {
     );
     expect(out).toContain('data-slot="site_title"');
     expect(out).toContain('data-slot="tagline"');
-    expect(out).toContain('data-rich-slot="sections.about.content"');
+    expect(out).not.toContain('data-rich-slot="blocks.');
     expect(html({ ...minimalSnapshot(), tagline: '' }, 'preview')).not.toContain('data-slot');
     const actions = renderToStaticMarkup(
       <SiteBody snapshot={fullSnapshot()} links={links} mode="preview" edit={edit} />
     );
-    const tiles = actions.slice(
-      actions.indexOf('data-section="actions"'),
-      actions.indexOf('data-section="socialFeed"')
-    );
-    expect(tiles).toContain('data-slot="sections.actions.0.text"');
-    expect(tiles).not.toContain('data-field="sections.actions.0.link"');
+    expect(actions).toContain('data-rich-slot="blocks.about.content"');
+    const tiles = slice(actions, 'actions', 'socialFeed');
+    expect(tiles).toContain('data-slot="blocks.actions.items.a1.text"');
+    expect(tiles).not.toContain('data-field="blocks.actions.items.a1.link"');
   });
   it('renders the visible sections in page order with anchors', () => {
     const out = html(fullSnapshot());
-    expect(sections(out)).toEqual([...SITE_SECTION_IDS]);
+    expect(sections(out)).toEqual(STANDARD);
     expect(out).toContain('id="ueber-mich"');
     expect(out).toContain('<main id="inhalt" tabindex="-1"');
   });
@@ -83,10 +89,7 @@ describe('SiteBody', () => {
   it('has one h1 and moves rich-text headings below the section heading', () => {
     const out = html(fullSnapshot());
     expect(out.match(/<h1/g)).toHaveLength(1);
-    const about = out.slice(
-      out.indexOf('data-section="about"'),
-      out.indexOf('data-section="heroImage"')
-    );
+    const about = slice(out, 'about', 'heroImage');
     expect(about.match(/<h2/g)).toHaveLength(1);
     expect(about).toContain('<h3');
   });
@@ -111,38 +114,43 @@ describe('SiteBody', () => {
     expect(out).not.toContain('data-empty');
   });
   it('preview mode marks every empty section with a placeholder', () => {
-    const out = html(minimalSnapshot(), 'preview');
-    for (const field of [
-      'sections.about.content',
-      'sections.themes',
-      'sections.actions',
-      'contact_email',
-    ])
-      expect(out).toMatch(
+    const full = html(
+      withBlocks(minimalSnapshot(), [
+        { id: 'hero', type: 'hero' },
+        { id: 'ab', type: 'about', title: '', content: { type: 'doc' } },
+        { id: 'th', type: 'themes', items: [] },
+        { id: 'ac', type: 'actions', items: [] },
+        { id: 'co', type: 'contact', title: '', backgroundImageUrl: '' },
+      ]),
+      'preview'
+    );
+    expect(html(minimalSnapshot(), 'preview')).not.toContain('data-empty=""><');
+    for (const field of ['blocks.ab.content', 'blocks.th', 'blocks.ac', 'contact_email'])
+      expect(full).toMatch(
         new RegExp(`data-field="${field.replaceAll('.', '\\.')}"[^>]*data-empty`)
       );
   });
-  it('drops hidden sections and their nav entries', () => {
-    const out = html(fullSnapshot({ hidden_sections: ['themes', 'actions'] }));
+  it('drops blocks missing from the snapshot and their nav entries', () => {
+    const out = html(
+      withBlocks(
+        fullSnapshot(),
+        fullSnapshot().sections.blocks.filter((b) => b.type !== 'themes' && b.type !== 'actions')
+      )
+    );
     expect(sections(out)).not.toContain('themes');
     expect(out).not.toContain('href="#themen"');
     expect(out).not.toContain('href="#mitmachen"');
   });
   it('marks repeated cards with their index and path', () => {
     const out = html(fullSnapshot());
-    expect(out).toContain('data-index="2"');
-    expect(out).toContain('data-field="sections.themes.2.title"');
-    expect(out).toContain('data-field="sections.actions.0.link"');
+    expect(out).toContain('data-item-id="t3"');
+    expect(out).toContain('data-field="blocks.themes.items.t3.title"');
+    expect(out).toContain('data-field="blocks.actions.items.a2.link"');
   });
   it('never links an unsafe action', () => {
-    const s = fullSnapshot();
-    const bad = {
-      ...s,
-      sections: {
-        ...s.sections,
-        actions: [{ imageUrl: '', text: 'Los', link: 'javascript:alert(1)' }],
-      },
-    };
+    const bad = withBlock(fullSnapshot(), 'actions', {
+      items: [{ id: 'x', imageUrl: '', text: 'Los', link: 'javascript:alert(1)' }],
+    });
     expect(html(bad, 'preview')).not.toContain('javascript:');
   });
   it('writes no inline style and no target blank', () => {
@@ -199,5 +207,75 @@ describe('SiteBody', () => {
     expect(out).toContain('Offenlegung gemäß § 25 MedienG');
     expect(out).toContain('role="note"');
     expect(out).toContain('<address');
+  });
+});
+
+describe('block list', () => {
+  const twoThemes = (): PublishedSiteSnapshot => {
+    const s = fullSnapshot();
+    const themes = s.sections.blocks.find((b) => b.type === 'themes')!;
+    const copy = {
+      ...themes,
+      id: 'themes2',
+      items: themes.type === 'themes' ? themes.items.map((i) => ({ ...i, id: `${i.id}b` })) : [],
+    } as SiteBlock;
+    const blocks = [...s.sections.blocks];
+    blocks.splice(blocks.indexOf(themes) + 1, 0, copy);
+    return withBlocks(s, blocks);
+  };
+
+  it('paints the standard page with the grounds of each variant and locale', () => {
+    const expected = {
+      dunkel: ['surface', 'paper', 'photo', 'surface', 'paper', 'surface', 'photo'],
+      hell: ['surface', 'paper', 'photo', 'paper', 'surface', 'paper', 'photo'],
+      leuchtend: ['surface', 'paper', 'photo', 'deep', 'paper', 'surface', 'photo'],
+    } as const;
+    for (const variant of ['dunkel', 'hell', 'leuchtend'] as const) {
+      expect(grounds(html(fullSnapshot({ variant })))).toEqual(expected[variant]);
+    }
+    expect(grounds(html(fullSnapshot({ variant: 'hell', locale: 'de-AT' })))[1]).toBe('tint');
+  });
+
+  it('gives a second block of the same type its own ground and anchor', () => {
+    const out = html(twoThemes());
+    const [first, second] = [...out.matchAll(/<section[^>]*data-block-type="themes"[^>]*>/g)].map(
+      (m) => m[0]
+    );
+    expect(first).toContain('id="themen"');
+    expect(second).toContain('id="themen-2"');
+    expect(/data-ground="([a-z]+)"/.exec(first!)?.[1]).not.toBe(
+      /data-ground="([a-z]+)"/.exec(second!)?.[1]
+    );
+  });
+
+  it('never repeats an id on the page', () => {
+    const ids = [...html(twoThemes()).matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]);
+    expect(ids.length).toBeGreaterThan(10);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('links the navigation to the first block of a type', () => {
+    const out = html(twoThemes());
+    expect(out).toContain('href="#themen"');
+    expect(out).not.toContain('href="#themen-2"');
+  });
+
+  it('marks a hidden block while editing and keeps the other grounds', () => {
+    const edit = { text: () => null, richText: () => null };
+    const s = withBlock(fullSnapshot(), 'about', { hidden: true });
+    const editing = renderToStaticMarkup(
+      <SiteBody snapshot={s} links={links} mode="preview" edit={edit} />
+    );
+    expect(editing).toMatch(/<section[^>]*data-block-type="about"[^>]*data-editor-hidden=""/);
+    expect(grounds(editing)).toEqual(grounds(html(fullSnapshot())));
+    expect(sections(html(s, 'preview'))).not.toContain('about');
+    expect(sections(html(s))).not.toContain('about');
+  });
+
+  it('renders blocks in the order of the list', () => {
+    const s = fullSnapshot();
+    const [hero, ...rest] = s.sections.blocks;
+    const out = html(withBlocks(s, [hero!, ...rest.reverse()]));
+    expect(sections(out)).toEqual(['hero', ...STANDARD.slice(1).reverse()]);
   });
 });
