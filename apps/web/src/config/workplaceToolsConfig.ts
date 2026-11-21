@@ -150,7 +150,7 @@ export const OFFICE_SUITE_TOOLS: OfficeSuiteTool[] = [
   },
 ] satisfies RegisteredSuiteTool[];
 
-// The five creation tiles of the /studio page (Studio design 11/2026).
+// The two creation pills of the /studio page (Studio design 11/2026).
 // Sharepics and KI-Bilder are made in the chat, which has no tile here.
 export const CANVAS_TOOLS: WorkplaceToolItem[] = [
   {
@@ -167,27 +167,6 @@ export const CANVAS_TOOLS: WorkplaceToolItem[] = [
     description: 'Videos automatisch untertiteln',
     path: '/studio/video',
     icon: getIcon('navigation', 'reel')!,
-  },
-  {
-    id: 'canvas-vorlagen',
-    title: 'Vorlagen',
-    description: 'Sharepics aus beliebten Vorlagen',
-    path: '/vorlagen',
-    icon: getIcon('navigation', 'vorlagen')!,
-  },
-  {
-    id: 'profilbild',
-    title: 'Profilbild',
-    description: 'Freistellen & Hintergrund wechseln',
-    path: '/studio/profilbild',
-    icon: getIcon('navigation', 'profilbild')!,
-  },
-  {
-    id: 'sticker',
-    title: 'Sticker & Hintergründe',
-    description: 'Sticker & Hintergründe entdecken',
-    path: '/studio/sticker',
-    icon: getIcon('navigation', 'sticker')!,
   },
 ] satisfies RegisteredTile[];
 

@@ -199,16 +199,18 @@ describe('StudioPage', () => {
     const { container } = renderPage();
 
     expect(screen.getByRole('heading', { level: 1, name: 'Dein Studio' })).toBeInTheDocument();
-    const tiles = within(screen.getByRole('region', { name: 'Neu erstellen' }));
+    const tiles = within(screen.getByRole('navigation', { name: 'Neu erstellen' }));
     expect(tiles.queryByRole('link', { name: /Chat/ })).toBeNull();
     expect(tiles.getByRole('link', { name: /Video-Editor/ })).toHaveAttribute(
       'href',
       '/studio/videoeditor'
     );
     expect(tiles.getByRole('link', { name: /Auto-Untertitel/ })).toBeInTheDocument();
-    expect(tiles.getByRole('link', { name: /Vorlagen/ })).toBeInTheDocument();
-    expect(tiles.getByRole('link', { name: /Profilbild/ })).toBeInTheDocument();
-    expect(tiles.getByRole('link', { name: /Sticker/ })).toBeInTheDocument();
+    expect(tiles.getAllByRole('link')).toHaveLength(2);
+    expect(screen.getByRole('link', { name: 'Sticker & Hintergründe' })).toHaveAttribute(
+      'href',
+      '/studio/sticker'
+    );
     expect(screen.getByRole('heading', { level: 2, name: 'Deine Inhalte' })).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: 'Bild a' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Rede' })).toBeInTheDocument();

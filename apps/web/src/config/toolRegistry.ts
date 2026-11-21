@@ -414,7 +414,6 @@ const TOOLS = [
     title: 'Vorlagen',
     path: '/vorlagen',
     icon: { navigation: 'vorlagen' },
-    tile: { group: 'studio', description: 'Sharepics aus beliebten Vorlagen' },
     search: {
       id: 'tool-vorlagen',
       subtitle: 'Fertige Sharepic- und Design-Vorlagen',
@@ -427,7 +426,6 @@ const TOOLS = [
     title: 'Profilbild',
     path: '/studio/profilbild',
     icon: { navigation: 'profilbild' },
-    tile: { group: 'studio', description: 'Freistellen & Hintergrund wechseln' },
     search: {
       id: 'tool-profilbild',
       subtitle: 'Profilbild freistellen und Hintergrund wechseln',
@@ -448,7 +446,6 @@ const TOOLS = [
     title: 'Sticker & Hintergründe',
     path: '/studio/sticker',
     icon: { navigation: 'sticker' },
-    tile: { group: 'studio', description: 'Sticker & Hintergründe entdecken' },
     search: {
       id: 'tool-sticker',
       subtitle: 'Sticker und Hintergründe erstellen, teilen und entdecken',
@@ -655,6 +652,20 @@ const LEGACY_FAVOURITE_ITEMS: readonly {
   { id: 'parteitage', title: 'Parteitage', path: '/parteitage', icon: { navigation: 'reel' } },
   // The Studio's Chat tile left too; the chat has its own place in the sidebar.
   { id: 'canvas-ki', title: 'Chat', path: '/chat', icon: { navigation: 'messenger' } },
+  // Vorlagen, Profilbild and Sticker left the Studio row (Sticker is a hero icon there now).
+  { id: 'canvas-vorlagen', title: 'Vorlagen', path: '/vorlagen', icon: { navigation: 'vorlagen' } },
+  {
+    id: 'profilbild',
+    title: 'Profilbild',
+    path: '/studio/profilbild',
+    icon: { navigation: 'profilbild' },
+  },
+  {
+    id: 'sticker',
+    title: 'Sticker & Hintergründe',
+    path: '/studio/sticker',
+    icon: { navigation: 'sticker' },
+  },
 ];
 
 // Row order of the "Weitere" menu — reorder the menu here, not in TOOLS. Every

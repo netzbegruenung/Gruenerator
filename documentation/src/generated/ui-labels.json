@@ -399,11 +399,6 @@
     "subtitle": "Videos, Sharepics, KI-Bilder & Uploads",
     "path": "/studio"
   },
-  "workplace.canvas-vorlagen": {
-    "title": "Vorlagen",
-    "subtitle": "Sharepics aus beliebten Vorlagen",
-    "path": "/vorlagen"
-  },
   "workplace.docs": {
     "title": "Leeres Dokument",
     "subtitle": "Leeres Textdokument"
@@ -431,11 +426,6 @@
     "title": "Leere Präsentation",
     "subtitle": "Leere Foliensammlung"
   },
-  "workplace.profilbild": {
-    "title": "Profilbild",
-    "subtitle": "Freistellen & Hintergrund wechseln",
-    "path": "/studio/profilbild"
-  },
   "workplace.projekte": {
     "title": "Projekte",
     "subtitle": "Chats & Inhalte bündeln",
@@ -459,11 +449,6 @@
     "title": "Sites",
     "subtitle": "Website für deine Kandidatur",
     "path": "/sites"
-  },
-  "workplace.sticker": {
-    "title": "Sticker & Hintergründe",
-    "subtitle": "Sticker & Hintergründe entdecken",
-    "path": "/studio/sticker"
   },
   "workplace.studio-videoeditor": {
     "title": "Video-Editor",

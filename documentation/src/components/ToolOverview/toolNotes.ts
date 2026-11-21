@@ -67,26 +67,12 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
   },
 
   // ── Studio ────────────────────────────────────────────────────────────────
-  'canvas-vorlagen': {
-    note: 'Fertige Design-Vorlagen im grünen Erscheinungsbild — Ausgangspunkt für Sharepics, wenn du nicht bei null anfangen willst.',
-    platform: ['web', 'desktop', 'mobile'],
-  },
   'reels-untertitel': {
     note: 'Untertitelt Videoclips automatisch und brennt die Untertitel ein. Gedacht für kurze Social-Clips.',
     platform: ['web', 'desktop', 'mobile'],
   },
   'studio-videoeditor': {
     note: 'Schneidet Clips auf einer Zeitleiste, setzt Texte ins Bild und legt Musik darunter. Nimm ihn, wenn ein Clip mehr braucht als Untertitel. Noch in der Beta.',
-    platform: ['web'],
-  },
-
-  // ── Studio — Werkzeuge ────────────────────────────────────────────────────
-  profilbild: {
-    note: 'Macht aus einem Foto ein Profilbild: Person freistellen und den Hintergrund per Klick wechseln — als Farbe, Verlauf, Vorlage oder eigenes Bild. Im Editor setzt du Sticker und verschiebst Person und Sticker direkt im Bild.',
-    platform: ['web'],
-  },
-  sticker: {
-    note: 'Sticker und Hintergründe für dein Profilbild: unter „Entdecken“ öffnet sich der Marktplatz mit dem, was andere geteilt haben: liken, merken oder melden. Eigene Sticker bleiben privat, bis du sie mit Bestätigung der Bildrechte öffentlich machst.',
     platform: ['web'],
   },
 

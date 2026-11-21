@@ -10,7 +10,7 @@ import {
   type RefObject,
 } from 'react';
 import { HiArrowUpTray } from 'react-icons/hi2';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import {
   GalleryEmptyState,
@@ -21,6 +21,7 @@ import {
 import LoginRequired from '../../components/common/LoginRequired/LoginRequired';
 import { PageHero, PageHeroSearch, PageShell } from '../../components/common/PageHero';
 import { ShareMediaModal } from '../../components/common/ShareMediaModal';
+import { getIcon } from '../../config/icons';
 import { CANVAS_TOOLS, filterWorkplaceTools } from '../../config/workplaceToolsConfig';
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import { useFirstName } from '../../hooks/useFirstName';
@@ -38,7 +39,7 @@ import { useUploadQueue } from '../media-library/hooks/useUploadQueue';
 import { mediaTitle } from '../media-library/mediaFormat';
 import { useTrashUndoToast } from '../trash/trashUndoToast';
 import { PopularVorlagenRow } from '../vorlagen/components/PopularVorlagenRow';
-import { OfficeTile } from '../workplace/components/ToolsSection';
+import { OfficeLinkPill } from '../workplace/components/ToolsSection';
 
 import { cn } from '@/utils/cn';
 
@@ -102,17 +103,16 @@ const COLLAPSED_ROWS = 2;
 const STUDIO_THEME = 'canvas';
 const HERO_DESCRIPTION = 'Videos, Sharepics, KI-Bilder und Uploads an einem Ort.';
 
-/** The five creation tiles; unlike the workplace squares their height follows the content. */
+const StickerIcon = getIcon('navigation', 'sticker')!;
+
+/** The Studio's video tools as a row of pills (title and icon only). */
 function StudioTiles(): JSX.Element {
   return (
-    <section
-      aria-label="Neu erstellen"
-      className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 [&_a]:aspect-auto"
-    >
+    <nav aria-label="Neu erstellen" className="flex flex-wrap gap-2">
       {filterWorkplaceTools(CANVAS_TOOLS).map((tool) => (
-        <OfficeTile key={tool.id} tool={tool} themeKey={STUDIO_THEME} />
+        <OfficeLinkPill key={tool.id} tool={tool} themeKey={STUDIO_THEME} />
       ))}
-    </section>
+    </nav>
   );
 }
 
@@ -196,11 +196,22 @@ function Studio(): JSX.Element {
             </p>
           }
           toolbar={
-            <PageHeroSearch
-              query={filters.searchInput}
-              onQuery={filters.setSearchInput}
-              placeholder="Studio durchsuchen…"
-            />
+            <>
+              <PageHeroSearch
+                query={filters.searchInput}
+                onQuery={filters.setSearchInput}
+                placeholder="Studio durchsuchen…"
+              />
+              <Button asChild variant="ghost" size="icon">
+                <Link
+                  to="/studio/sticker"
+                  aria-label="Sticker & Hintergründe"
+                  title="Sticker & Hintergründe"
+                >
+                  <StickerIcon aria-hidden className="size-[18px]" />
+                </Link>
+              </Button>
+            </>
           }
         />
 
@@ -213,7 +224,7 @@ function Studio(): JSX.Element {
 
         <UploadQueueList queue={queue} progress={progress} onDismiss={dismiss} />
 
-        <section aria-labelledby="studio-inhalte" className="mt-md flex flex-col gap-md">
+        <section aria-labelledby="studio-inhalte" className="flex flex-col gap-md">
           <div className="mt-md flex flex-wrap items-center justify-between gap-x-lg gap-y-sm">
             <h2 id="studio-inhalte" className="text-xl font-semibold text-foreground-heading">
               Deine Inhalte

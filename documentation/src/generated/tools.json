@@ -75,24 +75,6 @@
           "title": "Auto-Untertitel",
           "description": "Videos automatisch untertiteln",
           "path": "/studio/video"
-        },
-        {
-          "id": "canvas-vorlagen",
-          "title": "Vorlagen",
-          "description": "Sharepics aus beliebten Vorlagen",
-          "path": "/vorlagen"
-        },
-        {
-          "id": "profilbild",
-          "title": "Profilbild",
-          "description": "Freistellen & Hintergrund wechseln",
-          "path": "/studio/profilbild"
-        },
-        {
-          "id": "sticker",
-          "title": "Sticker & Hintergründe",
-          "description": "Sticker & Hintergründe entdecken",
-          "path": "/studio/sticker"
         }
       ]
     },
