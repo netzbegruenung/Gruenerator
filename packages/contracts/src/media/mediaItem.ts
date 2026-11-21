@@ -36,6 +36,8 @@ export const UPLOAD_SOURCES = [
   'sharepic-illustration',
   // The KI-Schnitt's working copy of a clip; the project owns it, the original stays.
   'video-ai-proxy',
+  // A video with an enhanced audio track from "Ton verbessern" — the person's own material, so a Mediathek entry.
+  'audio-enhance',
 ] as const;
 
 // Moved from shared/media-library/contentOrigin.ts; the fallback classification stays there.

@@ -8,11 +8,15 @@
 
 import { Router } from 'express';
 
+import enhanceController from './enhanceController.js';
 import transcribeController from './transcribeController.js';
 
 const router = Router();
 
 // POST /api/video/transcribe
 router.use('/', transcribeController);
+
+// POST /api/video/enhance/file
+router.use('/', enhanceController);
 
 export default router;
