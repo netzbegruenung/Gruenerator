@@ -13,8 +13,13 @@ import { Placeholder } from '../Placeholder.js';
 import { SiteImage } from '../SiteImage.js';
 
 const TILE_LINK =
-  'site:underline-offset-4 site:hover:underline site:after:absolute site:after:inset-0 site:after:z-10 site:focus-visible:outline-none site:focus-visible:after:outline-3 site:focus-visible:after:outline-offset-3 site:focus-visible:after:outline-solid site:focus-visible:after:outline-[color:var(--site-palette-heading)]';
+  'site:after:absolute site:after:inset-0 site:after:z-10 site:focus-visible:outline-none site:focus-visible:after:outline-3 site:focus-visible:after:-outline-offset-3 site:focus-visible:after:outline-solid site:focus-visible:after:outline-[color:var(--site-color-focus)]';
 
+/**
+ * The tiles follow "Aktiv werden" on gruene.de: a 4:5 photo under a 30 % black veil, the title
+ * centred on it in the display face, the photo easing in on hover. Without a photo the tile is
+ * the deep green ground.
+ */
 export function ActionsSection({ ctx }: { ctx: SectionContext }) {
   const { snapshot, copy, visible } = ctx;
   const liveAnchors = visible.map((id) => `#${SECTION_ANCHORS[id]}`);
@@ -29,7 +34,7 @@ export function ActionsSection({ ctx }: { ctx: SectionContext }) {
       className="site:py-section"
     >
       <div className={CONTAINER}>
-        <div className="site:mb-8">
+        <div className="site:mb-8 site:sm:mb-14">
           <SectionHeading id={`${anchor}-titel`}>{copy.actionsHeading}</SectionHeading>
         </div>
         {actions.length === 0 ? (
@@ -37,7 +42,7 @@ export function ActionsSection({ ctx }: { ctx: SectionContext }) {
         ) : (
           <ul
             data-field="sections.actions"
-            className="site:grid site:gap-6 site:sm:grid-cols-2 site:lg:grid-cols-3 site:lg:gap-8"
+            className="site:grid site:gap-8 site:sm:grid-cols-3 site:sm:gap-14"
           >
             {actions.map((action, i) => {
               const safe = safeHref(action.link);
@@ -59,20 +64,18 @@ export function ActionsSection({ ctx }: { ctx: SectionContext }) {
                 <li
                   key={i}
                   data-index={i}
-                  className="site:relative site:flex site:flex-col site:overflow-hidden site:rounded-card site:motion-safe:transition-transform site:motion-safe:duration-[200ms] site:motion-safe:ease-[cubic-bezier(0.2,0,0,1)] site:motion-safe:has-[a:hover]:-translate-y-0.5"
+                  data-ground={action.imageUrl ? 'photo' : 'deep'}
+                  className="site:group/tile site:relative site:isolate site:aspect-[4/5] site:overflow-hidden site:bg-[var(--site-palette-deep)]"
                 >
                   <SiteImage
                     url={action.imageUrl}
                     slot="tile"
                     field={`sections.actions.${i}.imageUrl`}
                     focus={action.imageFocus}
-                    className="site:aspect-[3/2] site:sm:aspect-[4/5]"
+                    className="site:absolute site:inset-0 site:-z-10 site:after:absolute site:after:inset-0 site:after:bg-[rgb(0_0_0/0.3)] site:motion-safe:[&_img]:transition-transform site:motion-safe:[&_img]:duration-500 site:motion-safe:group-has-[a:hover]/tile:[&_img]:scale-105"
                   />
-                  <div
-                    data-ground="deep"
-                    className="site:flex site:grow site:items-end site:justify-between site:gap-4 site:px-6 site:py-5"
-                  >
-                    <p className="site:min-w-0 site:font-display site:text-h3 site:leading-[1.1] site:hyphens-auto site:break-words">
+                  <div className="site:flex site:size-full site:items-center site:justify-center site:p-5">
+                    <p className="site:min-w-0 site:text-center site:font-display site:text-tile site:leading-[1.05] site:hyphens-auto site:break-words site:[text-shadow:0_1px_12px_rgb(0_0_0/0.35)]">
                       {href ? (
                         <a
                           href={href}
@@ -85,12 +88,6 @@ export function ActionsSection({ ctx }: { ctx: SectionContext }) {
                         text
                       )}
                     </p>
-                    <span
-                      aria-hidden="true"
-                      className="site:text-h3 site:leading-[1.1] site:text-accent"
-                    >
-                      →
-                    </span>
                   </div>
                 </li>
               );
