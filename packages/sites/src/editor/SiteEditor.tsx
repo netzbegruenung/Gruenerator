@@ -12,6 +12,7 @@ import { SiteDraftProvider, useDraft } from '../draft/SiteDraftContext';
 import { useSiteDraftSession } from '../draft/useSiteDraftSession';
 import { useLeaveWarning } from '../hooks/useLeaveWarning';
 import { type SiteData } from '../hooks/useSite';
+import { SITE_EDIT_SLOTS } from '../inline/editSlots';
 import { SitePreviewFrame } from '../preview/SitePreviewFrame';
 import {
   usePreviewClickToEdit,
@@ -43,6 +44,7 @@ function DraftPreview({ site, editable }: { site: SiteData; editable: boolean })
         title="Vorschau der Website"
         className="block h-full w-full border-0"
         editable={editable}
+        edit={editable ? SITE_EDIT_SLOTS : undefined}
         onFrameDocument={setFrameDoc}
       />
     </>

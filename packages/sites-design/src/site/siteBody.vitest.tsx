@@ -16,6 +16,33 @@ const sections = (markup: string) =>
   [...markup.matchAll(/data-section="([a-zA-Z]+)"/g)].map((m) => m[1]);
 
 describe('SiteBody', () => {
+  it('hands every text field to the edit slots and keeps empty ones visible while editing', () => {
+    const edit = {
+      text: (field: string) => <i data-slot={field} />,
+      richText: (field: string) => <i data-rich-slot={field} />,
+    };
+    const out = renderToStaticMarkup(
+      <SiteBody
+        snapshot={{ ...minimalSnapshot(), tagline: '' }}
+        links={links}
+        mode="preview"
+        edit={edit}
+      />
+    );
+    expect(out).toContain('data-slot="site_title"');
+    expect(out).toContain('data-slot="tagline"');
+    expect(out).toContain('data-rich-slot="sections.about.content"');
+    expect(html({ ...minimalSnapshot(), tagline: '' }, 'preview')).not.toContain('data-slot');
+    const actions = renderToStaticMarkup(
+      <SiteBody snapshot={fullSnapshot()} links={links} mode="preview" edit={edit} />
+    );
+    const tiles = actions.slice(
+      actions.indexOf('data-section="actions"'),
+      actions.indexOf('data-section="socialFeed"')
+    );
+    expect(tiles).toContain('data-slot="sections.actions.0.text"');
+    expect(tiles).not.toContain('data-field="sections.actions.0.link"');
+  });
   it('renders the visible sections in page order with anchors', () => {
     const out = html(fullSnapshot());
     expect(sections(out)).toEqual([...SITE_SECTION_IDS]);

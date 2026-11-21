@@ -106,7 +106,10 @@ function Toolbar({ editor }: { editor: Editor }) {
 function CharCounter({ editor, maxLength }: { editor: Editor; maxLength: number }) {
   const characters = useEditorState({
     editor,
-    selector: ({ editor: e }) => e.storage.characterCount.characters() as number,
+    // The selector can run against an instance useEditor already destroyed (StrictMode rebuild),
+    // whose extension storage is gone; reading it unguarded took the whole editor down.
+    selector: ({ editor: e }) =>
+      (e.storage.characterCount as { characters(): number } | undefined)?.characters() ?? 0,
   });
 
   return (

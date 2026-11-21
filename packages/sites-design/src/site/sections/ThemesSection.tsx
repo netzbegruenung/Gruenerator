@@ -3,7 +3,13 @@ import { isRichTextDocEmpty } from '@gruenerator/contracts';
 
 import { sectionGround } from '../../model/grounds.js';
 import { SECTION_ANCHORS } from '../../model/visibility.js';
-import { CONTAINER, Section, type SectionContext, SectionHeading } from '../layout.js';
+import {
+  CONTAINER,
+  editableText,
+  Section,
+  type SectionContext,
+  SectionHeading,
+} from '../layout.js';
 import { Placeholder } from '../Placeholder.js';
 import { SiteImage } from '../SiteImage.js';
 import { SiteRichText } from '../SiteRichText.js';
@@ -58,14 +64,29 @@ export function ThemesSection({ ctx }: { ctx: SectionContext }) {
                         data-field={`sections.themes.${i}.title`}
                         className="site:mb-3 site:text-h3 site:leading-[1.2] site:text-heading site:hyphens-manual site:break-words"
                       >
-                        {title || `${copy.navThemes} ${i + 1}`}
+                        {editableText(
+                          ctx,
+                          `sections.themes.${i}.title`,
+                          `${copy.navThemes} ${i + 1}`,
+                          title || `${copy.navThemes} ${i + 1}`
+                        )}
                       </h3>
-                      {!isRichTextDocEmpty(theme.content) && (
-                        <SiteRichText
-                          content={theme.content}
-                          headingOffset={2}
-                          field={`sections.themes.${i}.content`}
-                        />
+                      {ctx.edit ? (
+                        <div
+                          data-rich-text=""
+                          data-field={`sections.themes.${i}.content`}
+                          className="site:max-w-prose site:hyphens-auto"
+                        >
+                          {ctx.edit.richText(`sections.themes.${i}.content`, copy.editThemeText)}
+                        </div>
+                      ) : (
+                        !isRichTextDocEmpty(theme.content) && (
+                          <SiteRichText
+                            content={theme.content}
+                            headingOffset={2}
+                            field={`sections.themes.${i}.content`}
+                          />
+                        )
                       )}
                     </div>
                   </article>

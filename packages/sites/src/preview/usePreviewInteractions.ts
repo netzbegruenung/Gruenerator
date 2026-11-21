@@ -22,6 +22,11 @@ export function usePreviewClickToEdit(doc: Document | null): void {
       if (!path) return;
       const panel = panelForPath(path);
       if (!panel) return;
+      // A field edited in place keeps the focus; the sidebar only follows to its section.
+      if (target?.closest?.('[data-inline-edit]')) {
+        useEditorStore.getState().setActiveSection(panel);
+        return;
+      }
       event.preventDefault();
       useEditorStore.getState().focusPath(panel, path);
     };
