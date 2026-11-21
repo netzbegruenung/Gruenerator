@@ -399,6 +399,11 @@
     "subtitle": "Videos, Sharepics, KI-Bilder & Uploads",
     "path": "/studio"
   },
+  "workplace.canvas-ki": {
+    "title": "Sharepic im Chat erstellen",
+    "subtitle": "Thema nennen, Entwürfe bekommen",
+    "path": "/chat"
+  },
   "workplace.docs": {
     "title": "Leeres Dokument",
     "subtitle": "Leeres Textdokument"

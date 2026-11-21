@@ -65,6 +65,12 @@
       "title": "Studio — Bilder, Sharepics, Reels",
       "tools": [
         {
+          "id": "canvas-ki",
+          "title": "Sharepic im Chat erstellen",
+          "description": "Thema nennen, Entwürfe bekommen",
+          "path": "/chat"
+        },
+        {
           "id": "studio-videoeditor",
           "title": "Video-Editor",
           "description": "Reels mit Schnitt, Text & Musik",

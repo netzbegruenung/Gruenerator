@@ -348,12 +348,14 @@ const TOOLS = [
     menuItem: { description: 'Verbrauch & CO₂ des Grünerators' },
   },
   // F1: id of the former KI-Bilder tile. Sharepics and KI-Bilder are made in
-  // the chat now; only the KI-Bild search hit is left, and it opens the chat.
+  // the chat now: the Studio's first card and the KI-Bild search hit open it.
   {
     id: 'canvas-ki',
-    title: 'Chat',
+    title: 'Sharepic im Chat erstellen',
     path: '/chat',
     icon: { navigation: 'messenger' },
+    // The Studio card opens the chat with a Sharepic order already typed in (StudioPage).
+    tile: { group: 'studio', description: 'Thema nennen, Entwürfe bekommen' },
     search: {
       id: 'tool-imagine',
       title: 'KI-Bild erstellen',
@@ -650,8 +652,6 @@ const LEGACY_FAVOURITE_ITEMS: readonly {
   { id: 'parteitage', title: 'Parteitage', path: '/parteitage', icon: { navigation: 'reel' } },
   // Voice left with it too; the Arbeiten tab links it (see ArbeitenSections).
   { id: 'studio-voice', title: 'Voice', path: '/voice', icon: { navigation: 'voice' } },
-  // The Studio's Chat tile left too; the chat has its own place in the sidebar.
-  { id: 'canvas-ki', title: 'Chat', path: '/chat', icon: { navigation: 'messenger' } },
   // Vorlagen, Profilbild and Sticker left the Studio row (Sticker is a hero icon there now).
   { id: 'canvas-vorlagen', title: 'Vorlagen', path: '/vorlagen', icon: { navigation: 'vorlagen' } },
   {

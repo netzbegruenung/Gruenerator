@@ -71,6 +71,10 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
     note: 'Untertitelt Videoclips automatisch und brennt die Untertitel ein. Gedacht für kurze Social-Clips.',
     platform: ['web', 'desktop', 'mobile'],
   },
+  'canvas-ki': {
+    note: 'Öffnet den Chat mit einem angefangenen Auftrag für ein Sharepic: Thema ergänzen, abschicken, und der Chat baut Entwürfe. Der erste Entwurf landet von selbst im Studio unter „Deine Inhalte“.',
+    platform: ['web', 'desktop'],
+  },
   'studio-videoeditor': {
     note: 'Schneidet Clips auf einer Zeitleiste, setzt Texte ins Bild und legt Musik darunter. Nimm ihn, wenn ein Clip mehr braucht als Untertitel. Noch in der Beta.',
     platform: ['web'],

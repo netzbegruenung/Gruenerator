@@ -1,3 +1,4 @@
+import { useAgentStore } from '@gruenerator/chat/stores';
 import {
   type CanvasContentItem,
   type MediathekItem,
@@ -200,13 +201,16 @@ describe('StudioPage', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'Dein Studio' })).toBeInTheDocument();
     const tiles = within(screen.getByRole('navigation', { name: 'Neu erstellen' }));
-    expect(tiles.queryByRole('link', { name: /Chat/ })).toBeNull();
+    expect(tiles.getByRole('link', { name: /Sharepic im Chat erstellen/ })).toHaveAttribute(
+      'href',
+      '/chat'
+    );
     expect(tiles.getByRole('link', { name: /Video-Editor/ })).toHaveAttribute(
       'href',
       '/studio/videoeditor'
     );
     expect(tiles.getByRole('link', { name: /Auto-Untertitel/ })).toBeInTheDocument();
-    expect(tiles.getAllByRole('link')).toHaveLength(2);
+    expect(tiles.getAllByRole('link')).toHaveLength(3);
     expect(screen.getByRole('link', { name: 'Sticker & Hintergründe' })).toHaveAttribute(
       'href',
       '/studio/sticker'
@@ -216,6 +220,17 @@ describe('StudioPage', () => {
     expect(screen.getByRole('button', { name: 'Rede' })).toBeInTheDocument();
     expect(screen.getByText(/^Video · /)).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('opens the chat with a Sharepic order already typed in', async () => {
+    serve();
+    const user = userEvent.setup();
+    useAgentStore.getState().setPendingDraft(null);
+    renderPage();
+
+    await user.click(screen.getByRole('link', { name: /Sharepic im Chat erstellen/ }));
+
+    expect(useAgentStore.getState().pendingDraft).toBe('Erstelle ein Sharepic zum Thema ');
   });
 
   it('filters by type through the filter menu and keeps it in the address', async () => {

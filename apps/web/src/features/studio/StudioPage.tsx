@@ -1,3 +1,4 @@
+import { useAgentStore } from '@gruenerator/chat/stores';
 import { type MediaItem } from '@gruenerator/shared/media-library';
 import { Button } from '@gruenerator/ui';
 import { useCallback, useRef, useState, type DragEvent, type JSX } from 'react';
@@ -79,15 +80,23 @@ const HERO_DESCRIPTION = 'Videos, Sharepics, KI-Bilder und Uploads an einem Ort.
 
 const StickerIcon = getIcon('navigation', 'sticker')!;
 
-/** The Studio's video tools as action cards — the same card as the Arbeiten tab's „Mach mehr". */
+/** What the Sharepic card types into the chat composer; the person adds the topic. */
+const SHAREPIC_DRAFT = 'Erstelle ein Sharepic zum Thema ';
+const handToChat = () => useAgentStore.getState().setPendingDraft(SHAREPIC_DRAFT);
+
+/** The Studio's tools as action cards — the same card as the Arbeiten tab's „Mach mehr". */
 function StudioTiles(): JSX.Element {
   return (
     <nav aria-label="Neu erstellen">
-      <ul className="m-0 grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-2 lg:gap-4">
+      <ul className="m-0 grid list-none grid-cols-1 gap-3 p-0 md:grid-cols-3 lg:gap-4">
         {filterWorkplaceTools(CANVAS_TOOLS).map((tool) => (
           <li key={tool.id}>
             {/* White cards with the Studio's green as accent, not their own tool hue. */}
-            <ToolCardLink tool={{ ...tool, theme: 'canvas' }} surface="white" />
+            <ToolCardLink
+              tool={{ ...tool, theme: 'canvas' }}
+              surface="white"
+              onClick={tool.id === 'canvas-ki' ? handToChat : undefined}
+            />
           </li>
         ))}
       </ul>

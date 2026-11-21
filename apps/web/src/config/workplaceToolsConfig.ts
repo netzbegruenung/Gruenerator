@@ -150,9 +150,16 @@ export const OFFICE_SUITE_TOOLS: OfficeSuiteTool[] = [
   },
 ] satisfies RegisteredSuiteTool[];
 
-// The two creation pills of the /studio page (Studio design 11/2026).
-// Sharepics and KI-Bilder are made in the chat, which has no tile here.
+// The action cards of the /studio page (Studio design 11/2026). Sharepics are
+// made in the chat, so the first card opens it with an order already typed in.
 export const CANVAS_TOOLS: WorkplaceToolItem[] = [
+  {
+    id: 'canvas-ki',
+    title: 'Sharepic im Chat erstellen',
+    description: 'Thema nennen, Entwürfe bekommen',
+    path: '/chat',
+    icon: getIcon('navigation', 'messenger')!,
+  },
   {
     id: 'studio-videoeditor',
     title: 'Video-Editor',

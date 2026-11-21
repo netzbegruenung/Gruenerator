@@ -182,9 +182,12 @@ const TOOL_CARD =
 export function ToolCardLink({
   tool,
   surface = 'tinted',
+  onClick,
 }: {
   tool: ToolCard;
   surface?: 'tinted' | 'white';
+  /** Runs before the link navigates, e.g. to hand the chat a draft. */
+  onClick?: () => void;
 }) {
   const white = surface === 'white';
   const theme = getToolTheme(tool.theme ?? tool.id) ?? getToolTheme('weitere');
@@ -263,7 +266,8 @@ export function ToolCardLink({
       {body}
     </a>
   ) : (
-    <Link to={tool.path ?? '/'} className={className}>
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- Link ist auf 'a' gemappt, jsx-a11y prüft dabei nur href statt to; Enter auf dem Link löst denselben Klick aus
+    <Link to={tool.path ?? '/'} className={className} onClick={onClick}>
       {body}
     </Link>
   );
