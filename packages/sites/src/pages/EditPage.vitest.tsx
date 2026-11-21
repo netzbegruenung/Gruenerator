@@ -40,16 +40,6 @@ vi.mock('../SitesContext', () => ({
 }));
 vi.mock('../create/CreateFlow', () => ({ CreateFlow: () => <p>Erstell-Ablauf</p> }));
 vi.mock('../preview/SitePreviewFrame', () => ({ SitePreviewFrame: () => <div /> }));
-vi.mock('../components/editor', () => ({
-  EditorLayout: ({ sidebar, preview }: { sidebar: unknown; preview: unknown }) => (
-    <div>
-      {sidebar as never}
-      {preview as never}
-    </div>
-  ),
-  EditorSidebar: () => <nav aria-label="Abschnitte" />,
-  SectionNavigation: () => <nav aria-label="Abschnitte" />,
-}));
 
 import { EditPage } from './EditPage';
 

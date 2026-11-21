@@ -12,7 +12,15 @@ import {
   type SiteFieldKey,
   type SiteFieldValues,
 } from '@gruenerator/contracts/site-ydoc';
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useStore } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -86,6 +94,12 @@ export function useDraft<T>(selector: (draft: SiteDraft) => T): T {
     store,
     useShallow((state) => selector(state.draft))
   );
+}
+
+/** Reads the current draft at call time, for event handlers that must not re-render on edits. */
+export function useDraftReader(): () => SiteDraft {
+  const { store } = useDraftContext();
+  return useCallback(() => store.getState().draft, [store]);
 }
 
 export function useDraftActions(): SiteDraftActions {

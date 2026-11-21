@@ -1,4 +1,5 @@
 export { SiteBody } from './site/SiteBody.js';
+export { type SiteEditSlots } from './site/layout.js';
 export { SiteLegalBody } from './site/SiteLegalBody.js';
 export { InstagramConsent } from './site/InstagramConsent.js';
 export { SiteRichText } from './site/SiteRichText.js';

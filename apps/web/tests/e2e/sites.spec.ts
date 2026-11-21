@@ -158,7 +158,7 @@ test.describe('Sites: Editor', () => {
     test.skip(true, reason);
   });
 
-  test('edit in the preview, publish', async ({ page }) => {
+  test('edit on the page, publish', async ({ page }) => {
     await installApiFixtures(page);
     const site = makeSite();
     const room = await startDraftServer(site);
@@ -176,11 +176,10 @@ test.describe('Sites: Editor', () => {
 
       const preview = page.frameLocator('iframe').first();
       await expect(preview.getByText(GENERATED.hero.heading).first()).toBeVisible();
-      await preview.locator('[data-field="site_title"]').click();
-      const input = page.locator('input:focus');
-      await expect(input).toHaveValue(GENERATED.hero.heading);
-      await input.press('End');
-      await input.pressSequentially(' Neu');
+      // The name is edited on the page itself.
+      const name = preview.getByRole('textbox', { name: 'Dein Name' });
+      await expect(name).toHaveText(GENERATED.hero.heading);
+      await name.fill(`${GENERATED.hero.heading} Neu`);
 
       await expect(page.getByText('Live', { exact: true })).toHaveCount(0);
       await page.getByRole('button', { name: 'Änderungen veröffentlichen' }).click();
