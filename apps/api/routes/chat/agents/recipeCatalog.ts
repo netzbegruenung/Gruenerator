@@ -282,38 +282,75 @@ async function buildLibraryEntries(
   return out.slice(-LIBRARY_CATALOG_MAX);
 }
 
+function catalogLine(e: RecipeCatalogEntry): string {
+  return (
+    // Die Herkunft steht VOR dem fremden Text: ein Suffix ließe sich von der
+    // Beschreibung nachahmen, ein Präfix nicht.
+    `- ${e.key}: ${e.title} —` +
+    (e.origin === 'library'
+      ? ` (Rezept von ${e.ownerName ?? 'einer anderen Person'}, gespeichert)`
+      : '') +
+    ` ${e.description}` +
+    (e.recommendedTools?.length ? ` (Werkzeuge: ${e.recommendedTools.join(', ')})` : '')
+  );
+}
+
+/**
+ * Die Rezepte des Projekts als eigener Block vor dem übrigen Katalog. Als eine
+ * Zeile unter rund 80 übersah das Modell sie: gemessen am 21.11.2026 (je
+ * Variante 30 Turns in drei Beispielprojekten) lud es das passende
+ * Projekt-Rezept ohne den Block in 10 von 27 Schreib-Turns, mit dem Block und
+ * dieser Regel in 18 — ein bloßer „passt eins, lade es"-Satz brachte 15, der
+ * Block an der Spitze der Systemnachricht statt am Ende 17. Folgeaufträge
+ * („noch einer", „kürzer") lud es trotzdem kaum neu; die trägt
+ * `carriedProjectRecipes`.
+ */
+function renderProjectRecipes(project: readonly RecipeCatalogEntry[], remaining: number): string {
+  return [
+    '',
+    '',
+    'REZEPTE DIESES PROJEKTS (manche nennen sie „Skills“):',
+    ...project.map(catalogLine),
+    'Diese Rezepte hat das Projekt dieses Chats bereitgestellt. Schreibst du in diesem Chat einen Text (Brief, Antwort, Post, Antrag, Pressemitteilung …), lade vorher das passende davon mit `rezept_laden` – in jedem Turn neu, auch wenn es früher im Chat schon geladen war. Im Zweifel lade es: ein Rezept zu viel kostet nichts, eins zu wenig verfehlt die Vorgaben des Projekts. Für dieselbe Textsorte geht ein Projekt-Rezept einem allgemeinen vor.',
+    `Bittet die Person ausdrücklich darum, ein bestimmtes Rezept oder alle Rezepte dieses Projekts zu laden, lade genau diese (höchstens ${remaining}, je Aufruf eins) und sag kurz, welche jetzt gelten.`,
+  ].join('\n');
+}
+
 /** The prompt block listing what the model may load. */
 export function renderRecipeCatalog(
   entries: readonly RecipeCatalogEntry[],
-  opts: { remaining: number; pinnedTitle: string | null } = {
+  opts: {
+    remaining: number;
+    pinnedTitle: string | null;
+    /** Ins Projekt des Threads geteilte Rezepte — sie stehen als eigener Block vorn. */
+    projectRecipeIds?: readonly string[];
+  } = {
     remaining: MAX_RECIPES_PER_TURN,
     pinnedTitle: null,
   }
 ): string {
   if (entries.length === 0) return '';
-  const lines = entries.map(
-    (e) =>
-      // Die Herkunft steht VOR dem fremden Text: ein Suffix ließe sich von der
-      // Beschreibung nachahmen, ein Präfix nicht.
-      `- ${e.key}: ${e.title} —` +
-      (e.origin === 'library'
-        ? ` (Rezept von ${e.ownerName ?? 'einer anderen Person'}, gespeichert)`
-        : '') +
-      ` ${e.description}` +
-      (e.recommendedTools?.length ? ` (Werkzeuge: ${e.recommendedTools.join(', ')})` : '')
+  const projectIds = new Set(opts.projectRecipeIds ?? []);
+  const project = entries.filter((e) => e.id !== null && projectIds.has(e.id));
+  const rest = entries.filter((e) => !project.includes(e));
+  const lead = project.length > 0 ? renderProjectRecipes(project, opts.remaining) : '';
+  return (
+    lead +
+    [
+      '',
+      '',
+      project.length > 0
+        ? 'WEITERE REZEPTE (erprobte Vorgehen für bestimmte Aufgaben – Textsorten, Recherche-Methoden, Ideenfindung, Abläufe; die Beschreibung sagt, wann eins passt):'
+        : 'VERFÜGBARE REZEPTE (erprobte Vorgehen für bestimmte Aufgaben – Textsorten, Recherche-Methoden, Ideenfindung, Abläufe; die Beschreibung sagt, wann eins passt):',
+      ...rest.map(catalogLine),
+      ...(opts.pinnedTitle
+        ? [
+            `Bereits aktiv: ${opts.pinnedTitle}. Verlangt die Aufgabe zusätzlich eine Recherche oder Prüfung, lade die passende Recherche-Methode dazu.`,
+          ]
+        : []),
+      `Prüfe vor jeder Aufgabe, ob ein Rezept passt, und lade es mit \`rezept_laden\`, bevor du loslegst. Passen mehrere (etwa eine Textsorte und eine Recherche-Methode), lade bis zu ${opts.remaining} – je Aufruf eins. Passt keins, arbeite ohne Rezept.`,
+    ].join('\n')
   );
-  return [
-    '',
-    '',
-    'VERFÜGBARE REZEPTE (erprobte Vorgehen für bestimmte Aufgaben – Textsorten, Recherche-Methoden, Ideenfindung, Abläufe; die Beschreibung sagt, wann eins passt):',
-    ...lines,
-    ...(opts.pinnedTitle
-      ? [
-          `Bereits aktiv: ${opts.pinnedTitle}. Verlangt die Aufgabe zusätzlich eine Recherche oder Prüfung, lade die passende Recherche-Methode dazu.`,
-        ]
-      : []),
-    `Prüfe vor jeder Aufgabe, ob ein Rezept passt, und lade es mit \`rezept_laden\`, bevor du loslegst. Passen mehrere (etwa eine Textsorte und eine Recherche-Methode), lade bis zu ${opts.remaining} – je Aufruf eins. Passt keins, arbeite ohne Rezept.`,
-  ].join('\n');
 }
 
 /**

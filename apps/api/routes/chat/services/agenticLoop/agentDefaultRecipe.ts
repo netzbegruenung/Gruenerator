@@ -73,6 +73,31 @@ export function isRecipeWriteTurn(state: DefaultRecipeState): boolean {
 }
 
 /**
+ * Die Projekt-Rezepte, die der vorige Turn dieses Chats geladen hat und die
+ * dieser Turn vorab lädt (`preloaded`, weicht also einer anderen gewählten
+ * Textsorte). Nur in einem Schreib-Turn ({@link isRecipeWriteTurn}) ohne eigene
+ * Wahl, ohne Persona und ohne Agent-Default. Nicht nur auf Prosa-Turns wie der
+ * Agent-Default: Folgeaufträge laufen meist direkt als `agentic`.
+ *
+ * Warum: Ein Rezept wirkt nur im Turn, der es lädt, und Folgeaufträge („noch
+ * einer", „mach es kürzer") lud das Modell gemessen kaum neu (21.11.2026, je
+ * drei Läufe): ohne Hilfe 0/3, mit einer Katalogzeile „im vorigen Turn
+ * geladen, lade es erneut" 0–2/3 — der Post zur Pflanzaktion verlor dabei
+ * jedes Mal die Pflicht-Hashtags. Vorab geladen bestanden alle 33 Prüfungen,
+ * und eine Sachfrage zwischen zwei Briefen blieb ein Satz (3/3).
+ */
+export function carriedProjectRecipes(
+  state: DefaultRecipeState & { projectRecipeIds?: readonly string[] },
+  lastTurn: readonly { mention: string; id: string | null }[]
+): string[] {
+  if (state.activeSkillMention || state.activeRecipeId || state.customSystemPrompt) return [];
+  const project = new Set(state.projectRecipeIds ?? []);
+  if (project.size === 0) return [];
+  if (!isRecipeWriteTurn(state)) return [];
+  return [...new Set(lastTurn.flatMap((r) => (r.id && project.has(r.id) ? [r.id] : [])))];
+}
+
+/**
  * Welches Standard-Rezept die Registry für diesen Loop-Turn vorab lädt, oder
  * `null`. Eine eigene Wahl (Mention, gepinnte Zeile) und eine Persona schließen
  * den Default aus (`resolveEffectiveRecipeMention`).

@@ -34,6 +34,7 @@ import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/type
 import type { McpCatalog } from '../../agents/mcpCatalog.js';
 import type { SSEWriter } from '../sseHelpers.js';
 import type { ThreadToolHistory } from '../threadPersistenceService.js';
+import type { UsedRecipeRef } from '../threadToolProjections.js';
 import type { ToolSet } from 'ai';
 
 const getThreadLastMcpServer = vi.fn<(threadId: string) => Promise<string | null>>();
@@ -106,6 +107,7 @@ function assemble(
     sse?: SSEWriter;
     resumedSteps?: PersistedStep[];
     lastTurnToolSteps?: PersistedStep[];
+    lastTurnRecipes?: UsedRecipeRef[];
   } = {}
 ) {
   return assembleToolCatalog(
@@ -115,13 +117,18 @@ function assemble(
       sse: opts.sse ?? fakeSse().sse,
       threadId: opts.threadId ?? null,
       ...(opts.resumedSteps && { resumedSteps: opts.resumedSteps }),
-      ...(opts.lastTurnToolSteps && { toolHistory: historyWithLastTurn(opts.lastTurnToolSteps) }),
+      ...((opts.lastTurnToolSteps || opts.lastTurnRecipes) && {
+        toolHistory: historyWithLastTurn(opts.lastTurnToolSteps ?? [], opts.lastTurnRecipes ?? []),
+      }),
     },
     d
   );
 }
 
-function historyWithLastTurn(steps: PersistedStep[]): ThreadToolHistory {
+function historyWithLastTurn(
+  steps: PersistedStep[],
+  recipes: UsedRecipeRef[] = []
+): ThreadToolHistory {
   return {
     artifacts: () => [],
     toolSteps: () => steps,
@@ -129,6 +136,7 @@ function historyWithLastTurn(steps: PersistedStep[]): ThreadToolHistory {
     lastTurnArtifacts: () => [],
     lastTurnIntent: () => null,
     lastTurnOffer: () => null,
+    lastTurnRecipes: () => recipes,
     sources: () => [],
     lastGeneratedImageUrl: () => null,
   };
@@ -1042,6 +1050,7 @@ describe('priorToolNames', () => {
     lastTurnArtifacts: () => [],
     lastTurnIntent: () => null,
     lastTurnOffer: () => null,
+    lastTurnRecipes: () => [],
     sources: () => [],
     lastGeneratedImageUrl: () => null,
   });
@@ -1329,5 +1338,73 @@ describe('priorLookups (#3931)', () => {
       { toolName: 'web_search', query: 'Solar', resultCount: null, failed: true },
       { toolName: 'scrape_url', query: 'https://example.org', resultCount: 2, failed: false },
     ]);
+  });
+});
+
+describe('assembleToolCatalog — Projekt-Rezept des vorigen Turns', () => {
+  const PROJECT_RECIPE = '11111111-1111-4111-8111-111111111111';
+  const resolveRecipe = vi.fn(async ({ recipeId }: { recipeId?: string | null }) =>
+    recipeId === PROJECT_RECIPE
+      ? {
+          id: PROJECT_RECIPE,
+          mention: 'insta-post-ov',
+          title: 'Instagram-Post Ortsverband',
+          body: 'Genau drei Hashtags.',
+          source: 'user' as const,
+        }
+      : null
+  );
+  const withRecipe = () => deps({ resolveRecipe } as unknown as Partial<CatalogDeps>);
+  const last = [{ mention: 'insta-post-ov', id: PROJECT_RECIPE }];
+
+  beforeEach(() => {
+    resolveRecipe.mockClear();
+  });
+
+  it('lädt es im Folgeauftrag vorab, als weichendes Rezept', async () => {
+    const assembled = await assemble(
+      fakeState({
+        projectRecipeIds: [PROJECT_RECIPE],
+        lastUserTextNoMentions: 'Noch einer zur Pflanzaktion im März bitte.',
+      }),
+      withRecipe(),
+      { lastTurnRecipes: last }
+    );
+    expect(assembled.recipeRegistry.mentions).toEqual(['insta-post-ov']);
+    expect(assembled.recipeRegistry.pinnedTitle).toBeNull();
+  });
+
+  it('lässt ein Rezept liegen, das nicht (mehr) im Projekt ist', async () => {
+    const assembled = await assemble(
+      fakeState({ projectRecipeIds: [], lastUserTextNoMentions: 'Noch einer bitte.' }),
+      withRecipe(),
+      { lastTurnRecipes: last }
+    );
+    expect(resolveRecipe).not.toHaveBeenCalled();
+    expect(assembled.recipeRegistry.size).toBe(0);
+  });
+
+  it('lädt nichts auf eine Plauder- oder Produktfrage', async () => {
+    const assembled = await assemble(
+      fakeState({ projectRecipeIds: [PROJECT_RECIPE], lastUserTextNoMentions: 'was kannst du?' }),
+      withRecipe(),
+      { lastTurnRecipes: last }
+    );
+    expect(assembled.recipeRegistry.size).toBe(0);
+  });
+
+  it('weicht einer ausdrücklichen Wahl der Person', async () => {
+    await assemble(
+      fakeState({
+        projectRecipeIds: [PROJECT_RECIPE],
+        activeSkillMention: 'presse',
+        lastUserTextNoMentions: 'Schreib eine PM',
+      }),
+      withRecipe(),
+      { lastTurnRecipes: last }
+    );
+    expect(resolveRecipe).not.toHaveBeenCalledWith(
+      expect.objectContaining({ recipeId: PROJECT_RECIPE })
+    );
   });
 });

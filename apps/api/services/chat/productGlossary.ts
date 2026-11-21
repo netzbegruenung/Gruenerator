@@ -117,10 +117,11 @@ export const PRODUCT_GLOSSARY = [
   {
     id: 'rezepte',
     label: 'Rezepte',
-    terms: /\brezept\w*\b/i,
+    // „Skill" ist das Wort aus anderen KI-Werkzeugen für dasselbe Ding.
+    terms: /\b(?:rezept\w*|skills?)\b/i,
     routes: null,
     definition:
-      'Schreibvorgaben je Textsorte und Plattform (Pressemitteilung, Instagram, Landesverbands-Varianten …), im Chat per @-Erwähnung oder automatisch angewendet; eigene Rezepte lassen sich anlegen und teilen.',
+      'Schreibvorgaben je Textsorte und Plattform (Pressemitteilung, Instagram, Landesverbands-Varianten …), im Chat per @-Erwähnung oder automatisch angewendet; eigene Rezepte lassen sich anlegen und teilen. Wer „Skill“ sagt, meint ein Rezept.',
     docsPath: '/docs/guides/fortgeschrittene/eigene-rezepte-erstellen',
   },
   {
