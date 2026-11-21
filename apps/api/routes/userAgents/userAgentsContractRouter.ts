@@ -8,6 +8,7 @@
  *   - GET    /api/user-agents/:identifier
  *   - PATCH  /api/user-agents/:identifier
  *   - DELETE /api/user-agents/:identifier
+ *   - POST   /api/user-agents/:identifier/convert  (→ Rezept oder Projekt, kopierend)
  *
  * requireAuth is applied at the /api/user-agents prefix in routes.ts. System
  * agents stay static (the registry); these rows merge in via
@@ -24,6 +25,7 @@ import { isRecipeUsableForAgent } from '../../services/recipes/recipeMentionAcce
 import { loadUserRoles } from '../../services/roles/userRoles.js';
 import { getUsageMap } from '../../services/usage/ItemUsageService.js';
 import { normalizeTextFormMention } from '../../services/user/textFormKind.js';
+import { convertUserAgent } from '../../services/userAgents/agentConversion.js';
 import { draftAgentSpec } from '../../services/userAgents/agentDraftService.js';
 import {
   createUserAgent,
@@ -358,6 +360,28 @@ export const userAgentsContractRouter = s.router(userAgentsContract, {
     } catch (error) {
       const err = error as Error;
       log.error('[userAgentsContract.remove] Error:', err);
+      return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
+    }
+  },
+
+  convert: async (args) => {
+    try {
+      const user = getAuthedUser(args.req);
+      const outcome = await convertUserAgent({
+        userId: user.id,
+        sharerName: user.display_name || 'Jemand',
+        handle: args.params.identifier,
+        target: args.body.target,
+        dryRun: args.body.dryRun === true,
+        fresh: args.body.fresh === true,
+      });
+      if (!outcome.ok) {
+        return { status: outcome.status, body: { success: false, message: outcome.message } };
+      }
+      return { status: 200 as const, body: outcome.response };
+    } catch (error) {
+      const err = error as Error;
+      log.error('[userAgentsContract.convert] Error:', err);
       return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
     }
   },

@@ -37,6 +37,7 @@ import {
 import { acquireThreadRun, type ThreadRunLease } from '../../../services/chat/threadRunLock.js';
 import { readThreadProjectInstructions } from '../../../services/groups/groupInstructions.js';
 import { getProjectFileSources } from '../../../services/groups/projectFiles.js';
+import { getProjectNotebookIds } from '../../../services/groups/projectNotebooks.js';
 import { getProjectRecipeIds } from '../../../services/groups/projectRecipes.js';
 import { extractLocaleFromRequest } from '../../../services/localization/index.js';
 import {
@@ -1001,6 +1002,23 @@ async function buildStreamContextInner({
     }
   }
 
+  // === Notebooks des Projekts ===
+  // Ins Projekt geteilte Notebooks sind Vorgabe-Suche jedes Turns, wie die
+  // `defaultNotebookIds` eines Agents; gebunden (Tor, Lesezugriff) werden sie
+  // in `initializeChatState`, und eine @notebook-Wahl schlägt sie dort.
+  let projectNotebookIds: string[] = [];
+  if (actualThreadId) {
+    try {
+      projectNotebookIds = await withTimeout(
+        getProjectNotebookIds(actualThreadId, userId),
+        EXTERNAL_CONTEXT_TIMEOUT_MS,
+        'project notebooks'
+      );
+    } catch (err) {
+      log.warn('[StreamContext] Could not load project notebooks (continuing):', err);
+    }
+  }
+
   // === @doc / saved-text / @link picks: carried per thread ===
   // Read again every turn through their own access checks (saved texts and
   // @doc content in enrichContext, links by the crawler), so a stored ref
@@ -1278,6 +1296,7 @@ async function buildStreamContextInner({
     notebookIds: notebookIds.length > 0 ? notebookIds : undefined,
     notebookDocumentIds: notebookDocumentIds.length > 0 ? notebookDocumentIds : undefined,
     defaultNotebookId,
+    projectNotebookIds: projectNotebookIds.length > 0 ? projectNotebookIds : undefined,
     defaultNotebookDocumentIds:
       defaultNotebookDocumentIds.length > 0 ? defaultNotebookDocumentIds : undefined,
     documentNotebookIds:

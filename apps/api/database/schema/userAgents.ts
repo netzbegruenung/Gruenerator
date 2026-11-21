@@ -68,6 +68,12 @@ export const userAgents = pgTable(
       .default(sql`gen_slug_suffix()`),
     // See migrations/zz_20261019_marketplace_moderation.sql.
     moderation: text('moderation').$type<ModerationState>().notNull().default('ok'),
+    // Nachfolger je Ziel nach dem Umwandeln (migrations/zz_20261121b_user_agents_successor.sql).
+    // Kein FK: Rezept und Projekt gehen nur in den Papierkorb, der Dienst
+    // prüft beim nächsten Umwandeln, ob der Nachfolger noch lebt.
+    migrated_recipe_id: uuid('migrated_recipe_id'),
+    migrated_project_id: uuid('migrated_project_id'),
+    migrated_at: timestamp('migrated_at', { withTimezone: true }),
     created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     deleted_at: timestamp('deleted_at', { withTimezone: true }),
