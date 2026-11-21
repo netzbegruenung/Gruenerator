@@ -24,6 +24,7 @@ export interface AutoProcessingResult {
   projectId: string | null;
   segments: SubtitleSegment[] | null;
   subtitles: string | null;
+  notice: string | null;
 }
 
 interface AutoProcessingScreenProps {
@@ -81,6 +82,7 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
           projectId: data.projectId ?? null,
           segments: data.segments ?? null,
           subtitles: data.subtitles ?? null,
+          notice: data.notice ?? null,
         });
         return;
       }

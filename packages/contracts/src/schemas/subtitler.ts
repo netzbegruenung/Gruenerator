@@ -332,6 +332,7 @@ export const autoProcessRequestSchema = z.object({
   uploadId: z.string(),
   locale: localeSchema.optional(),
   maxResolution: z.number().nullable().optional(),
+  enhanceAudio: z.boolean().optional(),
   // F0, ignored server-side like `exportRequestSchema.userId`.
   userId: z.string().nullable().optional(),
 });
@@ -389,6 +390,8 @@ export const autoProgressSchema = z.object({
   retryable: z.boolean().nullish(),
   /** Correlates this message with the backend log line, for support. */
   errorId: z.string().nullish(),
+  /** Non-fatal hint shown with the finished reel (e.g. audio enhancement skipped). */
+  notice: z.string().nullish(),
 });
 
 export type AutoProgress = z.infer<typeof autoProgressSchema>;

@@ -1,8 +1,9 @@
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
-import { Button, UploadZone } from '@gruenerator/ui';
+import { Button, Switch, UploadZone } from '@gruenerator/ui';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { PiVideoCamera } from 'react-icons/pi';
 import { useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
 import * as tus from 'tus-js-client';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
@@ -22,13 +23,13 @@ import AutoProcessingScreen from './AutoProcessingScreen';
 import SubtitleEditor from './SubtitleEditor';
 import VideoSuccessScreen from './VideoSuccessScreen';
 
-import type { AutoProcessingResult } from './AutoProcessingScreen';
 import type {
   SubtitlePreference,
   StylePreference,
   HeightPreference,
   SubtitleSegment,
 } from '../types';
+import type { AutoProcessingResult } from './AutoProcessingScreen';
 import type { AxiosError } from 'axios';
 import type { Accept } from 'react-dropzone';
 
@@ -106,6 +107,7 @@ const SubtitlerPage = (): React.ReactElement => {
   });
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [isUploading, setIsUploading] = useState(false);
+  const [enhanceAudio, setEnhanceAudio] = useState(false);
   const currentUploadRef = useRef<tus.Upload | null>(null);
   const [originalVideoFile, setOriginalVideoFile] = useState<File | null>(null);
   const [uploadInfo, setUploadInfo] = useState<UploadInfo | null>(null);
@@ -262,7 +264,7 @@ const SubtitlerPage = (): React.ReactElement => {
     async (uploadId: string): Promise<void> => {
       try {
         const res = await getContractsClient().subtitler.postProcessAuto({
-          body: { uploadId, locale, userId: user?.id || null },
+          body: { uploadId, locale, userId: user?.id || null, enhanceAudio },
         });
         if (res.status === 202) {
           console.log('[SubtitlerPage] Auto processing started for:', uploadId);
@@ -282,7 +284,7 @@ const SubtitlerPage = (): React.ReactElement => {
         goToStep('upload');
       }
     },
-    [user?.id, locale, goToStep]
+    [user?.id, locale, enhanceAudio, goToStep]
   );
 
   const handleUploadComplete = useCallback(
@@ -511,6 +513,9 @@ const SubtitlerPage = (): React.ReactElement => {
         // array (older auto-processing responses).
         setSegments(parseSubtitleBlocks(result.subtitles));
       }
+      if (result.notice) {
+        toast(result.notice);
+      }
       goToStep('success');
     },
     [goToStep]
@@ -591,6 +596,24 @@ const SubtitlerPage = (): React.ReactElement => {
                         title="Video auswählen oder hierher ziehen"
                         subtitle="MP4, MOV, AVI, MKV, WebM — bis 500 MB"
                       />
+                      <div className="mt-4 flex items-start gap-3">
+                        <Switch
+                          id="subtitler-enhance-audio"
+                          checked={enhanceAudio}
+                          onCheckedChange={setEnhanceAudio}
+                          className="mt-0.5"
+                        />
+                        <label
+                          htmlFor="subtitler-enhance-audio"
+                          className="flex cursor-pointer flex-col"
+                        >
+                          <span className="font-medium">Ton verbessern</span>
+                          <span className="text-sm text-muted-foreground">
+                            Entfernt Hintergrundgeräusche. Musik und Atmo fallen dabei mit weg. Für
+                            Videos bis 5 Minuten.
+                          </span>
+                        </label>
+                      </div>
                     </div>
                   )}
                 </div>
