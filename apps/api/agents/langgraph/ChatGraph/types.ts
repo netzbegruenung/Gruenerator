@@ -642,6 +642,12 @@ export interface ChatGraphInput {
    */
   defaultNotebookId?: string | undefined;
   /**
+   * System-notebook slugs shared into the thread's project (already through the
+   * implicit gate, member-checked in streamContext). Default scoping like an
+   * agent's bound notebooks; an @notebook mention still overrides.
+   */
+  projectNotebookIds?: string[] | undefined;
+  /**
    * Document IDs from a user-owned (UUID) notebook the user picked in the
    * composer, pre-resolved by streamContext (ownership enforced there). Unioned
    * with the agent's own bound user-notebook docs. Scopes search only when the

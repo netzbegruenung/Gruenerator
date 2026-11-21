@@ -105,6 +105,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     ...(input.defaultNotebookId && isNotebookImplicitlySearchable(input.defaultNotebookId)
       ? [input.defaultNotebookId]
       : []),
+    ...(input.projectNotebookIds ?? []),
   ];
   const agentUserNotebookUuids = agentNotebookIds.filter(isUserNotebookId);
   const { documentIds: agentNotebookDocumentIds, documentNotebookIds: agentDocumentNotebookIds } =
