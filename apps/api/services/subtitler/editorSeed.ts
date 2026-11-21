@@ -12,8 +12,9 @@ import path from 'path';
 import {
   type SubtitleSegment,
   type SubtitleWord,
+  type HeightPreference,
+  type SubtitlerEditorCaptionTemplate,
   type SubtitlerEditorSeed,
-  type VideoAiCaptionTemplate,
   type VideoAspectRatio,
 } from '@gruenerator/contracts';
 
@@ -21,16 +22,36 @@ import { getSharedMediaService } from '../sharedMediaService.js';
 
 import { type SubtitlerProjectService } from './ProjectService.js';
 
-/** Subtitler look → the nearest editor caption template. */
-const TEMPLATE_FOR_STYLE: Record<string, VideoAiCaptionTemplate> = {
-  shadow: 'schatten',
-  clean: 'klar',
-  tanne: 'tanne',
-  standard: 'balken-schwarz',
+type EditorLocale = 'de-DE' | 'de-AT';
+
+/** Subtitler look → the editor template that looks like its burned-in version. */
+const TEMPLATE_FOR_STYLE: Record<EditorLocale, Record<string, SubtitlerEditorCaptionTemplate>> = {
+  'de-DE': {
+    shadow: 'schlagschatten',
+    clean: 'weiss',
+    tanne: 'balken-tanne',
+    standard: 'balken-schwarz',
+  },
+  'de-AT': {
+    shadow: 'at-schlagschatten',
+    clean: 'at-weiss',
+    tanne: 'at-balken-gruen',
+    standard: 'at-balken-schwarz',
+  },
 };
 
-export function captionTemplateFor(stylePreference: string | null): VideoAiCaptionTemplate {
-  return TEMPLATE_FOR_STYLE[stylePreference ?? ''] ?? 'schatten';
+export function captionTemplateFor(
+  stylePreference: string | null,
+  locale: EditorLocale = 'de-DE'
+): SubtitlerEditorCaptionTemplate {
+  return (
+    TEMPLATE_FOR_STYLE[locale][stylePreference ?? ''] ??
+    (locale === 'de-AT' ? 'at-schlagschatten' : 'schlagschatten')
+  );
+}
+
+export function heightPreferenceFor(value: string | null | undefined): HeightPreference {
+  return value === 'standard' ? 'standard' : 'tief';
 }
 
 const RATIOS: [VideoAspectRatio, number][] = [
@@ -129,7 +150,8 @@ export type EditorSeedResult =
 export async function buildEditorSeed(
   service: SubtitlerProjectService,
   userId: string,
-  projectId: string
+  projectId: string,
+  locale: EditorLocale = 'de-DE'
 ): Promise<EditorSeedResult> {
   const project = await service.getProjectById(projectId);
   if (!project || project.user_id !== userId) return { status: 'not_found' };
@@ -164,7 +186,8 @@ export async function buildEditorSeed(
         clipStarts: clipStartsFor(meta),
       },
       aspectRatio: aspectRatioFor(size),
-      captionTemplate: captionTemplateFor(project.style_preference),
+      captionTemplate: captionTemplateFor(project.style_preference, locale),
+      heightPreference: heightPreferenceFor(project.height_preference),
       words: wordsForEditor(project.words ?? null, parseSegments(project.subtitles ?? '')),
     },
   };

@@ -970,7 +970,8 @@ Erstelle einen Instagram Reel Beitragstext, der:
       const result = await buildEditorSeed(
         await getProjectService(),
         userId,
-        args.params.projectId
+        args.params.projectId,
+        extractLocaleFromRequest(args.req)
       );
       if (result.status === 'not_found') {
         return { status: 404 as const, body: { success: false, error: 'Projekt nicht gefunden' } };

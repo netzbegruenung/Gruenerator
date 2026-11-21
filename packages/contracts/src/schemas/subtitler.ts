@@ -16,7 +16,6 @@ import { z } from 'zod';
 
 import { jobErrorCodeSchema } from './jobErrors.js';
 import { localeSchema } from './userProfile.js';
-import { videoAiCaptionTemplateSchema } from './videoAi.js';
 import { videoAspectRatioSchema } from './videoProjects.js';
 
 // ── Subtitle preference vocabularies ────────────────────────────────────────
@@ -204,6 +203,23 @@ export type SubtitlerProject = z.infer<typeof subtitlerProjectSchema>;
  * editor splits the words into captions itself, with the same function its
  * own caption button uses.
  */
+/**
+ * The editor caption templates a subtitler look can become. Deliberately not
+ * `videoAiCaptionTemplateSchema`: that enum is what the KI-Schnitt model may
+ * choose. The `at-*` ones use Gotham Narrow Ultra like the burned-in AT looks.
+ */
+export const subtitlerEditorCaptionTemplateSchema = z.enum([
+  'schlagschatten',
+  'weiss',
+  'balken-tanne',
+  'balken-schwarz',
+  'at-schlagschatten',
+  'at-weiss',
+  'at-balken-gruen',
+  'at-balken-schwarz',
+]);
+export type SubtitlerEditorCaptionTemplate = z.infer<typeof subtitlerEditorCaptionTemplateSchema>;
+
 export const subtitlerEditorSeedSchema = z.object({
   title: z.string(),
   video: z.object({
@@ -219,7 +235,9 @@ export const subtitlerEditorSeedSchema = z.object({
     clipStarts: z.array(z.number()),
   }),
   aspectRatio: videoAspectRatioSchema,
-  captionTemplate: videoAiCaptionTemplateSchema,
+  captionTemplate: subtitlerEditorCaptionTemplateSchema,
+  /** Where the burned-in captions sat: `tief` centred at 80 % of the frame, `standard` at 67 %. */
+  heightPreference: heightPreferenceSchema,
   words: z.array(subtitleWordSchema),
 });
 

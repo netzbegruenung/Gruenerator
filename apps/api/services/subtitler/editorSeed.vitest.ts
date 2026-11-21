@@ -7,6 +7,7 @@ import {
   captionTemplateFor,
   clipStartsFor,
   displaySize,
+  heightPreferenceFor,
   wordsForEditor,
 } from './editorSeed.js';
 
@@ -53,12 +54,28 @@ describe('aspectRatioFor / displaySize', () => {
 });
 
 describe('captionTemplateFor', () => {
-  it('maps every subtitler look to an editor template', () => {
-    expect(captionTemplateFor('shadow')).toBe('schatten');
-    expect(captionTemplateFor('clean')).toBe('klar');
-    expect(captionTemplateFor('tanne')).toBe('tanne');
+  it('maps every subtitler look to an editor template (DE)', () => {
+    expect(captionTemplateFor('shadow')).toBe('schlagschatten');
+    expect(captionTemplateFor('clean')).toBe('weiss');
+    expect(captionTemplateFor('tanne')).toBe('balken-tanne');
     expect(captionTemplateFor('standard')).toBe('balken-schwarz');
-    expect(captionTemplateFor(null)).toBe('schatten');
+    expect(captionTemplateFor(null)).toBe('schlagschatten');
+  });
+
+  it('uses the Gotham templates for Austria', () => {
+    expect(captionTemplateFor('shadow', 'de-AT')).toBe('at-schlagschatten');
+    expect(captionTemplateFor('clean', 'de-AT')).toBe('at-weiss');
+    expect(captionTemplateFor('tanne', 'de-AT')).toBe('at-balken-gruen');
+    expect(captionTemplateFor('standard', 'de-AT')).toBe('at-balken-schwarz');
+    expect(captionTemplateFor('unknown', 'de-AT')).toBe('at-schlagschatten');
+  });
+});
+
+describe('heightPreferenceFor', () => {
+  it('defaults to tief', () => {
+    expect(heightPreferenceFor('standard')).toBe('standard');
+    expect(heightPreferenceFor('tief')).toBe('tief');
+    expect(heightPreferenceFor(null)).toBe('tief');
   });
 });
 
