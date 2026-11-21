@@ -383,7 +383,7 @@ const SLIDES: readonly Slide[] = [
           Zahlen, Zitate und Quellen vor dem Veröffentlichen.
         </Lead>
         <Lead>
-          Wenn etwas hakt oder dir etwas fehlt, sag es uns über den Feedback-Button. Jede Meldung
+          Wenn etwas hakt oder dir etwas fehlt, sag es uns über den Support-Button. Jede Meldung
           hilft, die Sharepics besser zu machen.
         </Lead>
         <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
@@ -397,7 +397,7 @@ const SLIDES: readonly Slide[] = [
             </Button>
           ) : (
             <span className="text-xs text-muted-foreground">
-              Den Feedback-Button schaltest du unter Einstellungen → Allgemein ein.
+              Den Support-Button schaltest du unter Einstellungen → Allgemein ein.
             </span>
           )}
         </div>

@@ -97,7 +97,7 @@ const GeneralTab = () => {
 
         <SettingsRow id="allgemein.feedbackButton">
           <SegmentedControl
-            aria-label="Feedback-Button"
+            aria-label="Support-Button"
             value={feedbackButton}
             onChange={(value) => void updateFeedbackButton(value)}
             options={FEEDBACK_BUTTON_OPTIONS.map(({ value, label, icon: Icon }) => ({
