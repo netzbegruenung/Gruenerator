@@ -151,6 +151,7 @@ Eine neue Seite bekommt die sieben Bausteine in heutiger Reihenfolge `hero, abou
 
 ## Generierung und Anlegen
 
+- **Der KI-Builder baut zunächst genau die Seite wie heute** (Vorgabe Moritz, 21.11.): dieselben sieben Bausteine in derselben Reihenfolge, mit denselben Inhalten und Bildern an denselben Stellen. Neue Baustein-Typen setzt die Generierung erst ein, wenn das eigens entschieden ist. Beweis: ein Golden-Test fährt dieselbe `WebsiteContent`-Eingabe durch alten und neuen Weg und vergleicht das gerenderte HTML der veröffentlichten Seite (bis auf `data-block-id`/Anker-Attribute) – vor dem Umbau aufgenommen, danach gleich.
 - Die KI liefert weiter `WebsiteContent` (`schemas/texte.ts`, `prompt.ts` unverändert).
 - `packages/sites/src/generation/transform.ts` baut daraus die Standardseite als `blocks` mit frischen IDs; `CreateFlow` schickt `sections: { blocks }`.
 - `content.ts` (Bildzuordnung, Link-Prüfung) bleibt, es arbeitet auf `WebsiteContent`.
