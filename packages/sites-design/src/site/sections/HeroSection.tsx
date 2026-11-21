@@ -134,9 +134,10 @@ function FullBleedHero({ ctx }: { ctx: SectionContext }) {
             // A portrait cut to a wide frame keeps the face: without a chosen point, aim high.
             className={`site:absolute site:inset-0 site:-z-20 ${focus ? '' : 'site:[&_img]:object-[50%_20%]'}`}
           />
+          {/* Darker where the text sits (left and bottom), lighter where a face usually is. */}
           <div
             aria-hidden="true"
-            className="site:absolute site:inset-0 site:-z-10 site:bg-[linear-gradient(to_top,rgb(0_0_0/0.72),rgb(0_0_0/0.35)_45%,rgb(0_0_0/0.05)_75%)]"
+            className="site:absolute site:inset-0 site:-z-10 site:bg-[linear-gradient(to_right,rgb(0_0_0/0.6),rgb(0_0_0/0.2)_55%,transparent_80%),linear-gradient(to_top,rgb(0_0_0/0.55),transparent_60%)]"
           />
         </>
       ) : (
