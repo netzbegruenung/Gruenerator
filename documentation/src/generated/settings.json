@@ -106,8 +106,8 @@
     },
     "allgemein.feedbackButton": {
       "tab": "allgemein",
-      "title": "Feedback-Button",
-      "description": "Darstellung des schwebenden Feedback-Buttons: mit Text, nur als Icon oder ganz ausgeblendet — er lässt sich in jede Bildschirmecke ziehen"
+      "title": "Support-Button",
+      "description": "Darstellung des schwebenden Support-Buttons: mit Text, nur als Icon oder ganz ausgeblendet — er lässt sich in jede Bildschirmecke ziehen"
     },
     "datenschutz.reichweitenmessung": {
       "tab": "datenschutz",
