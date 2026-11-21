@@ -16,6 +16,8 @@ import * as Y from 'yjs';
  */
 // Duplicated from @gruenerator/contracts `SITE_YDOC_KEYS.meta` (siteYdoc.ts).
 const SITE_META = 'siteMeta';
+// Duplicated from the video editor's Y.Doc root type (videoMeta).
+const VIDEO_META = 'videoMeta';
 const SHEET_META = 'sheetMeta';
 const SHEET_SNAPSHOT = 'snapshot';
 const PRESENTATION_SLIDES = 'slides';
@@ -30,7 +32,7 @@ const MAX_SLIDE_TITLES = 8;
 const MAX_BOARD_COLUMNS = 4;
 const MAX_WHITEBOARD_NOTES = 6;
 
-export type PreviewKind = 'site' | 'sheets' | 'presentations' | 'board' | 'blocknote';
+export type PreviewKind = 'site' | 'sheets' | 'presentations' | 'board' | 'video' | 'blocknote';
 
 /**
  * Detect the document flavor from the Y.Doc's root types. Checked via
@@ -42,6 +44,7 @@ export function detectPreviewKind(ydoc: Y.Doc): PreviewKind {
   if (ydoc.share.has(SHEET_META)) return 'sheets';
   if (ydoc.share.has(PRESENTATION_SLIDES)) return 'presentations';
   if (ydoc.share.has(BOARD_ROWS) || ydoc.share.has(BOARD_ELEMENTS)) return 'board';
+  if (ydoc.share.has(VIDEO_META)) return 'video';
   return 'blocknote';
 }
 
