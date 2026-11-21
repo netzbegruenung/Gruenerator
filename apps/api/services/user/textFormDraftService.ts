@@ -148,7 +148,7 @@ const RANDOM_SUFFIX_ATTEMPTS = 10;
  * every option that check could reject); it exists only so the function is
  * total and typed.
  */
-function resolveMentionCollision(base: string, taken: ReadonlySet<string>): string {
+export function resolveMentionCollision(base: string, taken: ReadonlySet<string>): string {
   if (!taken.has(base) && textFormMentionSchema.safeParse(base).success) return base;
 
   for (let i = 2; i <= 20; i++) {
