@@ -2,10 +2,12 @@ import { emptyRichTextDoc, type RichTextDoc } from './richtext.js';
 import {
   buildSiteSnapshot,
   DEFAULT_SITE_HEADER_STYLE,
+  DEFAULT_SITE_HERO_LAYOUT,
   readSiteVariant,
   type PublishedSiteSnapshot,
   type SiteActionTile,
   type SiteHeaderStyle,
+  type SiteHeroLayout,
   type SiteImageFocus,
   type SiteLegalDraft,
   type SiteOptionalSection,
@@ -30,6 +32,7 @@ export interface SiteDraft {
   profileImageFocus?: SiteImageFocus | undefined;
   variant: SiteVariant;
   header: SiteHeaderStyle;
+  heroLayout: SiteHeroLayout;
   contact_email: string;
   contact_phone: string;
   social_links: Record<string, string>;
@@ -63,6 +66,7 @@ export function siteDraftFromSite(
     ...(sections?.profileImageFocus ? { profileImageFocus: sections.profileImageFocus } : {}),
     variant: readSiteVariant(site.theme),
     header: sections?.header ?? DEFAULT_SITE_HEADER_STYLE,
+    heroLayout: sections?.heroLayout ?? DEFAULT_SITE_HERO_LAYOUT,
     contact_email: site.contact_email ?? '',
     contact_phone: site.contact_phone ?? '',
     social_links: { ...site.social_links },
@@ -121,6 +125,7 @@ export function siteDraftToRowColumns(draft: SiteDraft): {
       hidden: [...draft.hidden],
       // The default is left out, so an untouched site never reads as changed.
       ...(draft.header === DEFAULT_SITE_HEADER_STYLE ? {} : { header: draft.header }),
+      ...(draft.heroLayout === DEFAULT_SITE_HERO_LAYOUT ? {} : { heroLayout: draft.heroLayout }),
       ...withFocus('profileImageFocus', draft.profileImageFocus),
       about: { ...draft.about },
       heroImage: {

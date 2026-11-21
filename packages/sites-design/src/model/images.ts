@@ -2,7 +2,7 @@ import { type SiteImageFocus } from '@gruenerator/contracts';
 
 export const SITE_IMAGE_WIDTHS = [400, 800, 1200, 2160] as const;
 export type SiteImageWidth = (typeof SITE_IMAGE_WIDTHS)[number];
-export type SiteImageSlot = 'portrait' | 'banner' | 'card' | 'tile' | 'backdrop';
+export type SiteImageSlot = 'portrait' | 'heroBackdrop' | 'banner' | 'card' | 'tile' | 'backdrop';
 
 const SIZEABLE_PATH =
   /^(\/api\/share\/[A-Za-z0-9_-]{6,128}\/preview|\/api\/image-picker\/stock-image\/[A-Za-z0-9._-]+)$/;
@@ -39,6 +39,16 @@ const SLOTS: Record<SiteImageSlot, SlotSpec> = {
     sizes: '(min-width: 64rem) 30rem, (min-width: 48rem) 42vw, 100vw',
     width: 800,
     height: 1000,
+    loading: 'eager',
+    fetchPriority: 'high',
+  },
+  // The portrait as the full-bleed hero: the largest image above the fold, so it loads first.
+  heroBackdrop: {
+    widths: [800, 1200, 2160],
+    src: 1200,
+    sizes: '100vw',
+    width: 1200,
+    height: 800,
     loading: 'eager',
     fetchPriority: 'high',
   },

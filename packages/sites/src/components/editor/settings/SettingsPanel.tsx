@@ -8,7 +8,7 @@ import { handleApiError } from '../../../utils/errorHandler';
 import { SectionHeading } from '../common/Field';
 
 import { AddressField } from './AddressField';
-import { HeaderStylePicker } from './HeaderStylePicker';
+import { DesignChoice } from './DesignChoice';
 import { SectionVisibility } from './SectionVisibility';
 import { VariantPicker } from './VariantPicker';
 
@@ -82,7 +82,14 @@ export function SettingsPanel() {
         <h4 id="settings-header" className="mb-sm text-base font-semibold text-foreground">
           Kopfzeile
         </h4>
-        <HeaderStylePicker />
+        <DesignChoice field="header" />
+      </section>
+
+      <section className="mb-xl" aria-labelledby="settings-hero">
+        <h4 id="settings-hero" className="mb-sm text-base font-semibold text-foreground">
+          Kopfbereich
+        </h4>
+        <DesignChoice field="heroLayout" />
       </section>
 
       <section aria-labelledby="settings-sections">

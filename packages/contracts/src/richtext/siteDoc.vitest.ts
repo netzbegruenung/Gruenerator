@@ -412,3 +412,19 @@ describe('header style', () => {
     expect(decodeSiteDraft(ydoc).header).toBe('weiss');
   });
 });
+
+describe('hero layout', () => {
+  it('is the portrait by default, left out of the row, and round-trips the full-bleed layout', () => {
+    const draft = decodeSiteDraft(seeded());
+    expect(draft.heroLayout).toBe('portrait');
+    expect(siteDraftToSnapshotSource(draft, legal).sections).not.toHaveProperty('heroLayout');
+    const ydoc = seeded();
+    setSiteField(ydoc, 'heroLayout', 'vollbild');
+    const full = decodeSiteDraft(ydoc);
+    expect(full.heroLayout).toBe('vollbild');
+    const built = buildSiteSnapshot(siteDraftToSnapshotSource(full, legal), 'de-DE');
+    expect(built.ok && built.snapshot.sections.heroLayout).toBe('vollbild');
+    ydoc.getMap(SITE_YDOC_KEYS.fields).set('heroLayout', 'quer');
+    expect(decodeSiteDraft(ydoc).heroLayout).toBe('portrait');
+  });
+});
