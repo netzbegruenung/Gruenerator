@@ -204,12 +204,21 @@ describe('site ydoc codec', () => {
     expect(decodeSiteDraft(ydoc)).toEqual(siteDraftFromSite(row()));
   });
 
-  it('a doc of schema version 1 counts as not seeded', () => {
+  it('a doc in the old layout counts as not seeded', () => {
     expect(isSiteDocSeeded(new Y.Doc())).toBe(false);
+    expect(isSiteDocSeeded(seeded())).toBe(true);
+    const old = new Y.Doc();
+    old.getMap(SITE_YDOC_KEYS.meta).set(SITE_META_KEYS.schemaVersion, 1);
+    old.getMap(SITE_YDOC_KEYS.meta).set(SITE_META_KEYS.seededAt, SEEDED_AT);
+    old.getMap('siteThemes').set('t1', new Y.Map());
+    expect(isSiteDocSeeded(old)).toBe(false);
+  });
+
+  it('stays seeded when an old editor tab writes its meta back', () => {
+    // The old tab's meta entries are concurrent with the seed's, and Yjs may keep either.
     const ydoc = seeded();
-    expect(isSiteDocSeeded(ydoc)).toBe(true);
     ydoc.getMap(SITE_YDOC_KEYS.meta).set(SITE_META_KEYS.schemaVersion, 1);
-    expect(isSiteDocSeeded(ydoc)).toBe(false);
+    expect(isSiteDocSeeded(ydoc)).toBe(true);
   });
 
   it('page fields round-trip and an unknown header reads as white', () => {

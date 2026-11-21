@@ -332,13 +332,14 @@ export function encodeSiteSeed(draft: SiteDraft, seededAt: string): Uint8Array {
   }
 }
 
-/** Seeded in the current layout; a doc of an older schema version is not read. */
+/**
+ * Seeded in the block layout. The block order is the mark, not the meta: only a seed of this
+ * layout writes it, and it is never empty afterwards (the hero cannot be removed). The meta
+ * would not do: an editor tab of an older layout writes its own meta back, and Yjs settles the
+ * concurrent entries by client id, so the old schema version can win.
+ */
 export function isSiteDocSeeded(ydoc: Y.Doc): boolean {
-  const meta = metaMap(ydoc);
-  return (
-    typeof meta.get(SITE_META_KEYS.seededAt) === 'string' &&
-    meta.get(SITE_META_KEYS.schemaVersion) === SITE_YDOC_SCHEMA_VERSION
-  );
+  return blockOrder(ydoc).length > 0;
 }
 
 /**

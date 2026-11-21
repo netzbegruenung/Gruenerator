@@ -34,18 +34,19 @@ export function persistenceKey(room: string): string {
   return siteIdFromRoom(room) ?? room;
 }
 
-// Duplicated from @gruenerator/contracts `siteYdoc.ts` (SITE_YDOC_KEYS.meta, SITE_META_KEYS,
-// SITE_YDOC_SCHEMA_VERSION): this service keeps no cross-package deps beyond @gruenerator/shared.
+// Duplicated from @gruenerator/contracts `siteYdoc.ts` (SITE_YDOC_KEYS): this service keeps no
+// cross-package deps beyond @gruenerator/shared.
 const SITE_META = 'siteMeta';
 const SITE_FIELDS = 'siteFields';
-const SITE_SCHEMA_VERSION = 2;
+const SITE_BLOCK_ORDER = 'siteBlockOrder';
 
-/** Whether the doc holds a seed of the current layout (contracts `isSiteDocSeeded`). */
+/**
+ * Whether the doc holds a seed of the block layout (contracts `isSiteDocSeeded`): only such a
+ * seed writes the block order, and the hero keeps it from ever being empty again. The meta is
+ * no mark: an old editor tab writes its own meta back, and Yjs may keep the old version.
+ */
 function hasCurrentSeed(doc: Y.Doc): boolean {
-  const meta = doc.getMap(SITE_META);
-  return (
-    typeof meta.get('seededAt') === 'string' && meta.get('schemaVersion') === SITE_SCHEMA_VERSION
-  );
+  return doc.getArray(SITE_BLOCK_ORDER).length > 0;
 }
 
 /**

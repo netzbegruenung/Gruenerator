@@ -50,12 +50,22 @@ describe('persistenceKey', () => {
 });
 
 describe('applySiteSeed', () => {
-  const seededWith = (version: number) => {
+  /** A seed of the block layout: its block order is never empty (the hero cannot go). */
+  const blockSeed = (title: string) => {
     const doc = new Y.Doc();
-    const meta = doc.getMap('siteMeta');
-    meta.set('schemaVersion', version);
-    meta.set('seededAt', '2026-11-21T10:00:00.000Z');
-    meta.set('title', 'Erste');
+    doc.getMap('siteMeta').set('schemaVersion', 2);
+    doc.getMap('siteMeta').set('seededAt', '2026-11-21T12:00:00.000Z');
+    doc.getMap('siteFields').set('site_title', title);
+    doc.getArray('siteBlockOrder').push([`hero-${title}`]);
+    return Y.encodeStateAsUpdate(doc);
+  };
+  /** What an editor tab of the old layout writes: meta and themes, no block order. */
+  const oldLayout = () => {
+    const doc = new Y.Doc();
+    doc.getMap('siteMeta').set('schemaVersion', 1);
+    doc.getMap('siteMeta').set('seededAt', '2026-11-19T10:00:00.000Z');
+    doc.getMap('siteFields').set('site_title', 'Alt');
+    doc.getMap('siteThemes').set('t1', new Y.Map());
     return doc;
   };
 
@@ -65,33 +75,35 @@ describe('applySiteSeed', () => {
     expect(doc.getMap('siteMeta').get('title')).toBe('Erste');
   });
 
-  it('returns false on a doc that already holds a current seed and leaves it alone', () => {
-    const doc = seededWith(2);
-    expect(applySiteSeed(doc, updateWith('Zweite'))).toBe(false);
-    expect(doc.getMap('siteMeta').get('title')).toBe('Erste');
+  it('returns false on a doc that already holds a block seed and leaves it alone', () => {
+    const doc = new Y.Doc();
+    Y.applyUpdate(doc, blockSeed('Erste'));
+    expect(applySiteSeed(doc, blockSeed('Zweite'))).toBe(false);
+    expect(doc.getArray('siteBlockOrder').toArray()).toEqual(['hero-Erste']);
   });
 
-  it('seeds over the state of an older layout, so an old tab cannot lock the draft', () => {
+  it('seeds over the old layout and its values win, so an old tab cannot lock the draft', () => {
     for (let run = 0; run < 20; run += 1) {
       // Client ids are random: over many runs the old entries hold the higher id at least once.
-      const doc = seededWith(1);
-      const seed = new Y.Doc();
-      seed.getMap('siteMeta').set('schemaVersion', 2);
-      seed.getMap('siteMeta').set('seededAt', '2026-11-21T12:00:00.000Z');
-      seed.getMap('siteFields').set('site_title', 'Neu');
-      doc.getMap('siteFields').set('site_title', 'Alt');
-      expect(applySiteSeed(doc, Y.encodeStateAsUpdate(seed))).toBe(true);
+      const doc = oldLayout();
+      expect(applySiteSeed(doc, blockSeed('Neu'))).toBe(true);
       expect(doc.getMap('siteMeta').get('schemaVersion')).toBe(2);
       expect(doc.getMap('siteFields').get('site_title')).toBe('Neu');
-      // Seeded now: a second prepare must not seed again.
-      expect(applySiteSeed(doc, Y.encodeStateAsUpdate(seed))).toBe(false);
     }
+  });
+
+  it('never seeds twice when an old tab writes its meta over a seeded room', () => {
+    const doc = new Y.Doc();
+    Y.applyUpdate(doc, blockSeed('Erste'));
+    Y.applyUpdate(doc, Y.encodeStateAsUpdate(oldLayout()));
+    expect(applySiteSeed(doc, blockSeed('Zweite'))).toBe(false);
+    expect(doc.getArray('siteBlockOrder').toArray()).toEqual(['hero-Erste']);
   });
 
   it('seeds a doc whose state carries no seed at all', () => {
     const doc = new Y.Doc();
     doc.getMap('stray').set('x', 1);
-    expect(applySiteSeed(doc, updateWith('Erste'))).toBe(true);
+    expect(applySiteSeed(doc, blockSeed('Erste'))).toBe(true);
   });
 });
 
