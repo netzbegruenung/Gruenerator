@@ -17,6 +17,7 @@
   --text-display: clamp(2.75rem, 1.75rem + 4.5vw, 5.5rem);
   --text-h2: clamp(2rem, 1.5rem + 2.2vw, 3.25rem);
   --text-h3: clamp(1.375rem, 1.25rem + 0.5vw, 1.625rem);
+  --text-tile: clamp(2rem, 1.5rem + 1.2vw, 2.25rem);
   --text-lead: clamp(1.25rem, 1.1rem + 0.6vw, 1.5rem);
   --text-body: 1.125rem;
   --text-body--line-height: 1.6;
