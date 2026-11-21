@@ -66,6 +66,22 @@ export function useSitesBasePath(): string {
   return useSitesContext().basePath;
 }
 
+/** The overview path (`/sites`), the create path, or one site's editor (`/sites/<handle>`). */
+export function useSitesPaths() {
+  const basePath = useSitesBasePath();
+  return useMemo(
+    () => ({
+      overview: basePath,
+      create: `${basePath}/neu`,
+      site: (handle: string) => `${basePath}/${encodeURIComponent(handle)}`,
+    }),
+    [basePath]
+  );
+}
+
+/** Router state the overview sets, so the way back is a step back instead of a new entry. */
+export const FROM_OVERVIEW_STATE = { fromOverview: true } as const;
+
 export function useSitesCollaboration(): CollaborationConfig {
   return useSitesContext().collaboration;
 }
