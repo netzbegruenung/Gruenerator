@@ -120,7 +120,9 @@ function FullBleedHero({ ctx }: { ctx: SectionContext }) {
       section="hero"
       anchor={anchor}
       ground={hasImage ? 'photo' : 'deep'}
-      className="site:relative site:isolate site:flex site:min-h-[min(88svh,56rem)] site:items-end site:overflow-hidden site:pt-hero site:pb-section"
+      // The photo ground is transparent: while the portrait loads (or fails), the white text
+      // would sit on the page's paper. The deeper green keeps it readable until then.
+      className="site:relative site:isolate site:bg-[var(--site-palette-deeper)] site:flex site:min-h-[min(88svh,56rem)] site:items-end site:overflow-hidden site:pt-hero site:pb-section"
     >
       {hasImage ? (
         <>
