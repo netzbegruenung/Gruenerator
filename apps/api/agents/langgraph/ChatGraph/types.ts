@@ -702,6 +702,8 @@ export interface ChatGraphInput {
   userInstructions?: string | undefined;
   /** Anweisungen des Projekts, in dem der Chat liegt (`group_instructions`). */
   projectInstructions?: { projectName: string; text: string } | null | undefined;
+  /** Ins Projekt des Threads geteilte Rezepte (`user_text_forms`-Ids). Siehe `ChatGraphState.projectRecipeIds`. */
+  projectRecipeIds?: string[] | undefined;
   contextWindowTokens?: number | undefined;
 }
 
@@ -1056,6 +1058,10 @@ export interface ChatGraphState {
 
   // Anweisungen der Projekt-Admins für alle Chats im Projekt (group_instructions).
   projectInstructions: { projectName: string; text: string } | null;
+
+  // Rezepte, die ins Projekt des Threads geteilt sind: der Loop listet sie im
+  // Katalog als eigenen Block vor den übrigen (`renderRecipeCatalog`).
+  projectRecipeIds?: readonly string[];
 
   // The person's explicit memory for this turn (services/memory). `memoryContext`
   // is the rendered, numbered text the prompt shows; `memories` is the same
