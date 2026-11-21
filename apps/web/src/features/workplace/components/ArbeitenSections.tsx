@@ -129,9 +129,12 @@ export function MarketplaceSection() {
   );
 }
 
-interface ToolCard {
+export interface ToolCard {
   id: string;
   title: string;
+  /** One line under the title (the Studio's cards; the Arbeiten cards go without). */
+  description?: string;
+  badge?: string;
   path?: string;
   href?: string;
   icon: IconType;
@@ -172,7 +175,18 @@ const TOOL_CARD =
   'group relative flex h-24 items-center overflow-hidden rounded-2xl px-4 no-underline transition-shadow ' +
   'hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 md:h-28';
 
-function ToolCardLink({ tool }: { tool: ToolCard }) {
+/**
+ * `white`: a white card whose sheets carry a green border; the theme colours title and icon,
+ * for the Studio, where the media grid below is white too. Default: the tinted Arbeiten card.
+ */
+export function ToolCardLink({
+  tool,
+  surface = 'tinted',
+}: {
+  tool: ToolCard;
+  surface?: 'tinted' | 'white';
+}) {
+  const white = surface === 'white';
   const theme = getToolTheme(tool.theme ?? tool.id) ?? getToolTheme('weitere');
   const Icon = tool.icon;
   const preview = TOOL_PREVIEWS[tool.id];
@@ -187,7 +201,19 @@ function ToolCardLink({ tool }: { tool: ToolCard }) {
           preview && 'max-sm:max-w-none max-sm:self-start max-sm:pt-3.5'
         )}
       >
-        {tool.title}
+        <span className="flex items-center gap-2">
+          {tool.title}
+          {tool.badge && (
+            <span className="rounded-full bg-primary-600 px-2 py-0.5 text-[11px] leading-tight font-bold text-white">
+              {tool.badge}
+            </span>
+          )}
+        </span>
+        {tool.description && (
+          <span className={cn('mt-0.5 block text-sm font-normal', theme?.desc)}>
+            {tool.description}
+          </span>
+        )}
       </span>
       {/* Two tilted sheets peeking from the bottom-right corner; the front one lifts on hover. */}
       {/* A preview keeps a fixed, slightly upright sheet; on wide cards a percentage would stretch it. */}
@@ -204,13 +230,18 @@ function ToolCardLink({ tool }: { tool: ToolCard }) {
           className={cn(
             'absolute bottom-0 rounded-lg',
             preview
-              ? 'right-[34%] h-[82%] w-[56%] -rotate-[10deg] bg-background/60'
-              : 'right-[30%] h-[78%] w-[58%] -rotate-[8deg] bg-background/60'
+              ? 'right-[34%] h-[82%] w-[56%] -rotate-[10deg]'
+              : 'right-[30%] h-[78%] w-[58%] -rotate-[8deg]',
+            white
+              ? 'bg-background border border-primary-300 dark:border-primary-700 opacity-70'
+              : 'bg-background/60'
           )}
         />
         <span
           className={cn(
-            'absolute bottom-0 right-[8%] flex h-[90%] w-[62%] -rotate-6 items-center justify-center overflow-hidden rounded-lg bg-background shadow-md',
+            'absolute bottom-0 right-[8%] flex h-[90%] w-[62%] -rotate-6 items-center justify-center overflow-hidden rounded-lg shadow-md',
+            'bg-background',
+            white && 'border border-primary-300 dark:border-primary-700',
             preview && 'h-full w-[66%] -rotate-[5deg] shadow-lg',
             'transition-transform duration-200 group-hover:-translate-y-1 group-hover:-rotate-3 motion-reduce:transition-none',
             theme?.icon
@@ -221,7 +252,12 @@ function ToolCardLink({ tool }: { tool: ToolCard }) {
       </span>
     </>
   );
-  const className = cn(TOOL_CARD, theme?.tile ?? 'bg-grey-50 dark:bg-grey-800/40');
+  const className = cn(
+    TOOL_CARD,
+    white
+      ? 'border border-grey-200 bg-background dark:border-grey-800'
+      : (theme?.tile ?? 'bg-grey-50 dark:bg-grey-800/40')
+  );
   return tool.href ? (
     <a href={tool.href} target="_blank" rel="noopener noreferrer" className={className}>
       {body}

@@ -214,7 +214,7 @@ describe('StudioPage', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Deine Inhalte' })).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: 'Bild a' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Rede' })).toBeInTheDocument();
-    expect(screen.getByText('Video')).toBeInTheDocument();
+    expect(screen.getByText(/^Video · /)).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 
@@ -341,7 +341,7 @@ describe('StudioPage', () => {
 
     expect(await screen.findByRole('button', { name: 'Wahlkampf-Reel' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Plakat' })).toBeInTheDocument();
-    expect(screen.getByText('Reel')).toBeInTheDocument();
+    expect(screen.getByText(/^Reel · /)).toBeInTheDocument();
   });
 
   it('opens Reels only from the address filter', async () => {

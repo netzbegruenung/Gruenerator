@@ -178,24 +178,6 @@ function OfficePillInner({
   );
 }
 
-// Link pill — a tool as a compact pill (title and icon, no description), e.g. the /studio row.
-export function OfficeLinkPill({ tool, themeKey }: { tool: WorkplaceToolItem; themeKey?: string }) {
-  const styleKey = themeKey ?? tool.id;
-  return (
-    <Link
-      to={tool.path ?? '/'}
-      className={`${OFFICE_PILL_BASE} ${getToolTheme(styleKey)?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'}`}
-    >
-      <OfficePillInner styleKey={styleKey} Icon={tool.icon} title={tool.title} />
-      {tool.badge && (
-        <span className="rounded-full bg-primary-600 px-1.5 py-px text-[10px] leading-tight font-bold text-white">
-          {tool.badge}
-        </span>
-      )}
-    </Link>
-  );
-}
-
 // Action pill (a button) — the /office landing strip creates an empty
 // doc/board/sheet/pres (or opens the template gallery) in place. `styleKey`
 // is the tool id (docs/boards/sheets/presentations/vorlagen), each with its

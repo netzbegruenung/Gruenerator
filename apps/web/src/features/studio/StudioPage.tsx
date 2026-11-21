@@ -32,7 +32,7 @@ import { useUploadQueue } from '../media-library/hooks/useUploadQueue';
 import { mediaTitle } from '../media-library/mediaFormat';
 import { useTrashUndoToast } from '../trash/trashUndoToast';
 import { PopularVorlagenRow } from '../vorlagen/components/PopularVorlagenRow';
-import { OfficeLinkPill } from '../workplace/components/ToolsSection';
+import { ToolCardLink } from '../workplace/components/ArbeitenSections';
 
 import { cn } from '@/utils/cn';
 
@@ -75,19 +75,22 @@ function useFileDrop(onFiles: (files: FileList) => void) {
 /** „Deine Inhalte" opens on two rows; „Mehr anzeigen" shows the rest. */
 const COLLAPSED_ROWS = 2;
 
-/** Every Studio tile wears the page's green (`TOOL_THEME.canvas`), not its own hue. */
-const STUDIO_THEME = 'canvas';
 const HERO_DESCRIPTION = 'Videos, Sharepics, KI-Bilder und Uploads an einem Ort.';
 
 const StickerIcon = getIcon('navigation', 'sticker')!;
 
-/** The Studio's video tools as a row of pills (title and icon only). */
+/** The Studio's video tools as action cards — the same card as the Arbeiten tab's „Mach mehr". */
 function StudioTiles(): JSX.Element {
   return (
-    <nav aria-label="Neu erstellen" className="flex flex-wrap gap-2">
-      {filterWorkplaceTools(CANVAS_TOOLS).map((tool) => (
-        <OfficeLinkPill key={tool.id} tool={tool} themeKey={STUDIO_THEME} />
-      ))}
+    <nav aria-label="Neu erstellen">
+      <ul className="m-0 grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-2 lg:gap-4">
+        {filterWorkplaceTools(CANVAS_TOOLS).map((tool) => (
+          <li key={tool.id}>
+            {/* White cards with the Studio's green as accent, not their own tool hue. */}
+            <ToolCardLink tool={{ ...tool, theme: 'canvas' }} surface="white" />
+          </li>
+        ))}
+      </ul>
     </nav>
   );
 }

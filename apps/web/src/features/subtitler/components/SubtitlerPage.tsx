@@ -22,13 +22,13 @@ import AutoProcessingScreen from './AutoProcessingScreen';
 import SubtitleEditor from './SubtitleEditor';
 import VideoSuccessScreen from './VideoSuccessScreen';
 
-import type { AutoProcessingResult } from './AutoProcessingScreen';
 import type {
   SubtitlePreference,
   StylePreference,
   HeightPreference,
   SubtitleSegment,
 } from '../types';
+import type { AutoProcessingResult } from './AutoProcessingScreen';
 import type { AxiosError } from 'axios';
 import type { Accept } from 'react-dropzone';
 
@@ -530,11 +530,12 @@ const SubtitlerPage = (): React.ReactElement => {
     <ErrorBoundary>
       <PageContainer
         gradient={step !== 'edit'}
-        bgClassName={step !== 'edit' ? getToolGradient('reels-untertitel') : undefined}
+        // The Studio's green, like every Studio tool.
+        bgClassName={step !== 'edit' ? getToolGradient('canvas') : undefined}
         className={cn(step === 'edit' && 'max-w-[1600px] 2xl:max-w-[90vw]')}
       >
         {IS_SUBTITLER_UNDER_MAINTENANCE ? (
-          <MaintenanceNotice featureName="Reel" />
+          <MaintenanceNotice featureName="Auto-Untertitel" />
         ) : (
           <>
             {error && (
@@ -551,10 +552,11 @@ const SubtitlerPage = (): React.ReactElement => {
                 <div className="flex flex-col items-center gap-lg pt-xl">
                   <div className="text-center">
                     <h1 className="text-4xl max-md:text-2xl font-semibold text-foreground-heading mb-xs">
-                      Neues Reel
+                      Auto-Untertitel
                     </h1>
                     <p className="text-lg text-grey-500 dark:text-grey-400">
-                      Lade ein Video hoch — Untertitel werden automatisch hinzugefügt.
+                      Lade ein Video hoch. Die Untertitel entstehen automatisch, danach prüfst und
+                      gestaltest du sie.
                     </p>
                   </div>
                   {isUploading ? (
@@ -664,6 +666,6 @@ const SubtitlerPage = (): React.ReactElement => {
 };
 
 export default withAuthRequired(SubtitlerPage, {
-  title: 'Reel',
-  message: 'Anmeldung für Reel erforderlich',
+  title: 'Auto-Untertitel',
+  message: 'Melde dich an, um Videos zu untertiteln.',
 });
