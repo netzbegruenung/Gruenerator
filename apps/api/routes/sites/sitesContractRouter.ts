@@ -2,7 +2,9 @@
  * ts-rest contract router for the /api/sites CRUD surface.
  *
  * Covers (see packages/contracts/src/contracts/sitesContract.ts):
- *   GET    /api/sites/my-site
+ *   GET    /api/sites
+ *   GET    /api/sites/by-handle/:handle
+ *   GET    /api/sites/my-site (deprecated)
  *   POST   /api/sites/create
  *   PUT    /api/sites/:id
  *   POST   /api/sites/:id/publish
@@ -22,6 +24,7 @@ import {
   siteDraftFromSite,
   siteDraftToRowColumns,
   siteDraftToSnapshotSource,
+  SITES_PER_ACCOUNT_MAX,
   sitesContract,
   updateUserSiteBodySchema,
   type SiteDraft,
@@ -38,7 +41,7 @@ import { getPostgresInstance } from '../../database/services/PostgresService.js'
 import { ensureSiteDraft, readSiteDraft, siteRoom } from '../../services/sites/siteDraftDoc.js';
 import { toSite } from '../../services/sites/siteMapper.js';
 import { closeSiteRooms, USER_SITE_TRASH } from '../../services/sites/userSiteTrash.js';
-import { isUniqueViolation, trashOwnedRow } from '../../services/trash/ownedRowTrash.js';
+import { isRowId, isUniqueViolation, trashOwnedRow } from '../../services/trash/ownedRowTrash.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 import { getUserLocale } from '../auth/groups/groupsContract/shared.js';
@@ -53,6 +56,10 @@ const db = getPostgresInstance();
 
 function getUserId(req: Request): string | undefined {
   return (req.user as UserProfile | undefined)?.id;
+}
+
+function publicOrigin(): string | null {
+  return env.SITES_HOST ? siteOrigin(env.SITES_HOST, getServerConfig().port) : null;
 }
 
 const HANDLE_MESSAGES = {
@@ -150,6 +157,79 @@ const s = initServer();
 export const sitesContractRouter = s.router(sitesContract, {
   generateSiteContent: generateSiteContentRoute,
 
+  listSites: async ({ req }) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return { status: 401 as const, body: { error: 'Nicht authentifiziert' } };
+      }
+
+      const rows = await db.query<UserSiteRow>(
+        `SELECT * FROM user_sites WHERE user_id = $1 AND deleted_at IS NULL
+         ORDER BY updated_at DESC, id`,
+        [userId]
+      );
+      const sites = rows.map((row) => {
+        const site = toSite(row);
+        return {
+          id: site.id,
+          subdomain: site.subdomain,
+          site_title: site.site_title,
+          is_published: site.is_published,
+          last_published: site.last_published,
+          moderation: site.moderation,
+          updated_at: site.updated_at,
+          profile_image: site.profile_image,
+          theme: site.theme,
+        };
+      });
+      return {
+        status: 200 as const,
+        body: { sites, public_origin: publicOrigin(), limit: SITES_PER_ACCOUNT_MAX },
+      };
+    } catch (error) {
+      log.error('Error listing user sites:', error);
+      return { status: 500 as const, body: { error: 'Fehler beim Laden der Websites' } };
+    }
+  },
+
+  getSiteByHandle: async ({ req, params }) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return { status: 401 as const, body: { error: 'Nicht authentifiziert' } };
+      }
+
+      // The id is the fallback for an editor that opened under an address renamed since.
+      let rows: UserSiteRow[];
+      if (isRowId(params.handle)) {
+        rows = await db.query<UserSiteRow>(
+          'SELECT * FROM user_sites WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL',
+          [params.handle, userId]
+        );
+      } else {
+        const handle = checkSiteHandle(params.handle);
+        rows = handle.ok
+          ? await db.query<UserSiteRow>(
+              'SELECT * FROM user_sites WHERE subdomain = $1 AND user_id = $2 AND deleted_at IS NULL',
+              [handle.handle, userId]
+            )
+          : [];
+      }
+      const row = rows[0];
+      if (!row) {
+        return { status: 404 as const, body: { error: 'Website nicht gefunden' } };
+      }
+      return {
+        status: 200 as const,
+        body: { site: toSite(row), public_origin: publicOrigin() },
+      };
+    } catch (error) {
+      log.error('Error fetching user site by handle:', error);
+      return { status: 500 as const, body: { error: 'Fehler beim Laden der Website' } };
+    }
+  },
+
   getMySite: async ({ req }) => {
     try {
       const userId = getUserId(req);
@@ -158,17 +238,15 @@ export const sitesContractRouter = s.router(sitesContract, {
       }
 
       const result = await db.query<UserSiteRow>(
-        'SELECT * FROM user_sites WHERE user_id = $1 AND deleted_at IS NULL',
+        `SELECT * FROM user_sites WHERE user_id = $1 AND deleted_at IS NULL
+         ORDER BY updated_at DESC, id LIMIT 1`,
         [userId]
       );
 
       const row = result?.[0];
-      const publicOrigin = env.SITES_HOST
-        ? siteOrigin(env.SITES_HOST, getServerConfig().port)
-        : null;
       return {
         status: 200 as const,
-        body: { site: row ? toSite(row) : null, public_origin: publicOrigin },
+        body: { site: row ? toSite(row) : null, public_origin: publicOrigin() },
       };
     } catch (error) {
       log.error('Error fetching user site:', error);
@@ -202,18 +280,18 @@ export const sitesContractRouter = s.router(sitesContract, {
         return { status: 400 as const, body: { error: HANDLE_MESSAGES[handle.reason] } };
       }
 
-      const existingCheck = await db.query<Pick<UserSiteRow, 'id'>>(
-        'SELECT id FROM user_sites WHERE user_id = $1 AND deleted_at IS NULL',
-        [userId]
-      );
-
-      if (existingCheck && existingCheck.length > 0) {
-        return { status: 400 as const, body: { error: 'Du hast bereits eine Website erstellt' } };
-      }
-
-      // Drizzle, not `db.query`: PostgresService strips the pg code and constraint.
-      const result = await getDrizzleInstance().execute<UserSiteRawRow>(
-        sql`INSERT INTO user_sites (
+      // Drizzle, not `db.query`: PostgresService strips the pg code and constraint. The
+      // per-account lock makes count and insert one step, so a double submit cannot pass
+      // the limit twice.
+      const row = await getDrizzleInstance().transaction(async (tx) => {
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`user_sites:${userId}`}))`);
+        const live = await tx.execute<{ n: number }>(
+          sql`SELECT count(*)::int AS n FROM user_sites
+              WHERE user_id = ${userId} AND deleted_at IS NULL`
+        );
+        if (Number(live.rows[0]?.n ?? 0) >= SITES_PER_ACCOUNT_MAX) return 'limit' as const;
+        const result = await tx.execute<UserSiteRawRow>(
+          sql`INSERT INTO user_sites (
               user_id, subdomain, site_title, tagline, theme, is_published,
               contact_email, contact_phone, social_links, profile_image, background_image,
               sections, legal
@@ -226,21 +304,23 @@ export const sitesContractRouter = s.router(sitesContract, {
               ${legal ? JSON.stringify(legal) : null}
             )
             RETURNING *`
-      );
+        );
+        return result.rows[0];
+      });
 
-      const row = result.rows[0];
+      if (row === 'limit') {
+        return {
+          status: 409 as const,
+          body: { error: `Du hast bereits ${SITES_PER_ACCOUNT_MAX} Websites.` },
+        };
+      }
       if (!row) {
         return { status: 500 as const, body: { error: 'Fehler beim Erstellen der Website' } };
       }
       return { status: 200 as const, body: { site: toSite(row) } };
     } catch (error: unknown) {
       if (isUniqueViolation(error)) {
-        const constraint = (error as { cause?: { constraint?: unknown } }).cause?.constraint;
-        const message =
-          constraint === 'user_sites_one_live_per_user'
-            ? 'Du hast bereits eine Website erstellt'
-            : 'Diese Adresse ist bereits vergeben';
-        return { status: 400 as const, body: { error: message } };
+        return { status: 400 as const, body: { error: 'Diese Adresse ist bereits vergeben' } };
       }
       log.error('Error creating site:', error);
       return { status: 500 as const, body: { error: 'Fehler beim Erstellen der Website' } };

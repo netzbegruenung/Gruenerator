@@ -1,4 +1,9 @@
-import { type GroupFeedItem, addableKey, sharedContentKeys } from '@gruenerator/shared/groups';
+import {
+  type GroupFeedItem,
+  addableKey,
+  canManageShare,
+  sharedContentKeys,
+} from '@gruenerator/shared/groups';
 import {
   Button,
   cn,
@@ -317,8 +322,7 @@ const GroupInfoSection = memo(
     const isAdmin = !!data?.isAdmin;
     const shareActions = useMemo<ShareActions | null>(() => {
       if (!onUnshareContent || !onSetShareWrite) return null;
-      const canManage = (item: GroupFeedItem) =>
-        isAdmin || (!!currentUserId && item.sharedById === String(currentUserId));
+      const canManage = (item: GroupFeedItem) => canManageShare(item, isAdmin, currentUserId);
       return {
         canManage,
         canRemove: canManage,

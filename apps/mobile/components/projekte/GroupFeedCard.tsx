@@ -8,10 +8,11 @@ import {
 import { useAuthStore } from '@gruenerator/shared/stores';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
-import { memo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { canOpenInApp } from '../../hooks/useGroupContent';
+import { type ShareItemActions } from '../../hooks/useShareItemActions';
 import { useTheme } from '../../hooks/useTheme';
 import { resolveWebUrl } from '../../services/webOrigin';
 import { BODY_FONT, borderRadius, colors, spacing, typography } from '../../theme';
@@ -22,7 +23,9 @@ import { ReportSheet } from '../common/ReportSheet';
 import { FEED_KIND_ICONS } from './feedIcons';
 import { GroupPostBody } from './GroupPostBody';
 import { ModerationMenuButton } from './ModerationMenuButton';
+import { ShareReactions } from './ProjectReactions';
 import { useProjekteTone } from './projekteTone';
+import { projectRoleLabel } from './shareMenu';
 
 /** Vorschau je Art — Sharepic als Bild, Text als Blatt, der Rest als Symbol. */
 export function FeedPreview({ item, height }: { item: GroupFeedItem; height: number }) {
@@ -74,6 +77,8 @@ interface GroupFeedCardProps {
   /** Für die Bilder eines Beitrags; die Dateien sind nur für Mitglieder lesbar. */
   token: string | null;
   canComment: boolean;
+  /** Rolle ändern und Entfernen; `null`, wo das Projekt es nicht anbietet. */
+  shareActions?: ShareItemActions | null;
   onOpen: (item: GroupFeedItem) => void;
   onShowComments: (item: GroupFeedItem) => void;
 }
@@ -83,6 +88,7 @@ export const GroupFeedCard = memo(function GroupFeedCard({
   groupId,
   token,
   canComment,
+  shareActions = null,
   onOpen,
   onShowComments,
 }: GroupFeedCardProps) {
@@ -97,6 +103,7 @@ export const GroupFeedCard = memo(function GroupFeedCard({
   const personId = feedItemPersonId(item);
   const reportable = !!(item.post || item.share) && (!personId || personId !== userId);
   const hidable = canHidePerson(personId, userId);
+  const manageActions = useMemo(() => shareActions?.actionsFor(item) ?? [], [shareActions, item]);
 
   return (
     <View
@@ -135,6 +142,8 @@ export const GroupFeedCard = memo(function GroupFeedCard({
           canHide={hidable}
           onReport={() => setReportOpen(true)}
           onHide={() => personId && confirmHidePerson(personId, item.sharedByName)}
+          shareActions={manageActions}
+          onShareAction={(id) => shareActions?.run(item, id)}
         />
       </View>
 
@@ -155,13 +164,21 @@ export const GroupFeedCard = memo(function GroupFeedCard({
           </Pressable>
 
           <View style={styles.titleBlock}>
-            <Text style={[styles.kindLabel, { color: tone.accent }]}>{kind.label}</Text>
+            <Text style={[styles.kindLabel, { color: tone.accent }]}>
+              {[kind.label, projectRoleLabel(item)].filter(Boolean).join(' · ')}
+            </Text>
             <Text style={[styles.title, { color: theme.text }]} numberOfLines={2}>
               {item.title}
             </Text>
           </View>
         </>
       )}
+
+      {canComment && share ? (
+        <View style={styles.reactions}>
+          <ShareReactions groupId={groupId} share={share} />
+        </View>
+      ) : null}
 
       <View style={styles.footer}>
         {canComment && share ? (
@@ -293,6 +310,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   title: { ...typography.h3, fontSize: 17, lineHeight: 22 },
+  reactions: { paddingHorizontal: 14, paddingTop: 12 },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',

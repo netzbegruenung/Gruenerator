@@ -1,4 +1,5 @@
 import { getContractsClient } from '@gruenerator/shared/api';
+import { projectChatThreads } from '@gruenerator/shared/groups';
 import { buildChatThreadSlug } from '@gruenerator/shared/utils';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
@@ -43,9 +44,7 @@ export function SpaceChatsSection({ groupId }: { groupId: string }) {
     queryFn: async () => {
       const res = await getContractsClient().threads.list({ query: {} });
       if (res.status !== 200) return [];
-      return res.body
-        .filter((t) => t.groupId === groupId && t.status !== 'archived')
-        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+      return projectChatThreads(res.body, groupId);
     },
   });
 

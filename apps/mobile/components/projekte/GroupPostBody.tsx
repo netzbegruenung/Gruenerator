@@ -31,7 +31,7 @@ const imageLayout = (count: number) =>
       ? { width: '49.5%' as const, height: 200 }
       : { width: '32.8%' as const, height: 130 };
 
-/** Text, Bilder und Dateien eines eigenen Beitrags — in der App nur zum Lesen. */
+/** Text, Bilder und Dateien eines eigenen Beitrags. */
 export function GroupPostBody({ groupId, postId, post, token }: GroupPostBodyProps) {
   const theme = useTheme();
   const tone = useProjekteTone();
