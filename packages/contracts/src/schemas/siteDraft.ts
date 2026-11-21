@@ -1,9 +1,11 @@
 import { emptyRichTextDoc, type RichTextDoc } from './richtext.js';
 import {
   buildSiteSnapshot,
+  DEFAULT_SITE_HEADER_STYLE,
   readSiteVariant,
   type PublishedSiteSnapshot,
   type SiteActionTile,
+  type SiteHeaderStyle,
   type SiteImageFocus,
   type SiteLegalDraft,
   type SiteOptionalSection,
@@ -27,6 +29,7 @@ export interface SiteDraft {
   profile_image: string;
   profileImageFocus?: SiteImageFocus | undefined;
   variant: SiteVariant;
+  header: SiteHeaderStyle;
   contact_email: string;
   contact_phone: string;
   social_links: Record<string, string>;
@@ -59,6 +62,7 @@ export function siteDraftFromSite(
     profile_image: site.profile_image ?? '',
     ...(sections?.profileImageFocus ? { profileImageFocus: sections.profileImageFocus } : {}),
     variant: readSiteVariant(site.theme),
+    header: sections?.header ?? DEFAULT_SITE_HEADER_STYLE,
     contact_email: site.contact_email ?? '',
     contact_phone: site.contact_phone ?? '',
     social_links: { ...site.social_links },
@@ -115,6 +119,8 @@ export function siteDraftToRowColumns(draft: SiteDraft): {
     social_links: { ...draft.social_links },
     sections: {
       hidden: [...draft.hidden],
+      // The default is left out, so an untouched site never reads as changed.
+      ...(draft.header === DEFAULT_SITE_HEADER_STYLE ? {} : { header: draft.header }),
       ...withFocus('profileImageFocus', draft.profileImageFocus),
       about: { ...draft.about },
       heroImage: {

@@ -33,7 +33,11 @@ export function SiteHeader({
   const targets = NAV_TARGETS.filter(([id]) => visible.includes(id));
   const name = snapshot.site_title.trim();
 
-  const ground = sectionGround(snapshot.variant, 'header', snapshot.locale);
+  // White by default, as on gruene.de; the variant's colour when the site asks for it.
+  const ground =
+    snapshot.sections.header === 'farbig'
+      ? sectionGround(snapshot.variant, 'header', snapshot.locale)
+      : 'paper';
   // As on gruene.de, the sunflower sits in a square flush with the top edge. On the deep header
   // the square turns white so it stays visible. The Austrian party does not use the sunflower.
   const sunflower = snapshot.locale === 'de-DE';

@@ -380,3 +380,35 @@ describe('image focal point', () => {
     expect(preview.sections.themes?.[0]?.title).toBe('Klima');
   });
 });
+
+describe('header style', () => {
+  it('is white by default and left out of the row, so an untouched site does not differ', () => {
+    const source = row();
+    const built = buildSiteSnapshot(source, 'de-DE');
+    expect(built.ok).toBe(true);
+    if (!built.ok) return;
+    const draft = decodeSiteDraft(seeded());
+    expect(draft.header).toBe('weiss');
+    const back = siteDraftToSnapshotSource(draft, legal);
+    expect(back.sections).not.toHaveProperty('header');
+    expect(snapshotDiffers(back, built.snapshot)).toBe(false);
+  });
+
+  it('round-trips the coloured header through the doc into the snapshot', () => {
+    const ydoc = seeded();
+    setSiteField(ydoc, 'header', 'farbig');
+    const draft = decodeSiteDraft(ydoc);
+    expect(draft.header).toBe('farbig');
+    const built = buildSiteSnapshot(siteDraftToSnapshotSource(draft, legal), 'de-DE');
+    expect(built.ok && built.snapshot.sections.header).toBe('farbig');
+    const reseeded = new Y.Doc();
+    seedSiteDoc(reseeded, siteDraftFromSite(siteDraftToSnapshotSource(draft, legal)), 'now');
+    expect(decodeSiteDraft(reseeded).header).toBe('farbig');
+  });
+
+  it('reads an unknown stored value as white', () => {
+    const ydoc = seeded();
+    ydoc.getMap(SITE_YDOC_KEYS.fields).set('header', 'lila');
+    expect(decodeSiteDraft(ydoc).header).toBe('weiss');
+  });
+});
