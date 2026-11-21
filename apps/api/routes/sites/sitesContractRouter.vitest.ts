@@ -146,7 +146,7 @@ describe('sitesContract', () => {
     await publish(true, { locale: 'de-AT' });
     const [sql, params] = queryMock.mock.calls[1];
     expect(sql).toMatch(/published_snapshot = \$9/);
-    expect(JSON.parse(params[8])).toMatchObject({ version: 1, locale: 'de-AT' });
+    expect(JSON.parse(params[8])).toMatchObject({ version: 2, locale: 'de-AT' });
   });
 
   it('unpublish clears the snapshot', async () => {
@@ -235,28 +235,42 @@ describe('sitesContract', () => {
     expect(snapshot.site_title).toBe('Neu');
   });
 
-  it('publish keeps hidden sections from the draft (#5801)', async () => {
-    hocuspocusInternalOrNull.mockResolvedValueOnce(yjsState({ hidden: ['actions', 'socialFeed'] }));
+  it('publish keeps hidden blocks in the row and leaves them out of the snapshot (#5801)', async () => {
+    const blocks = siteDraftFromSite(row() as unknown as Site).blocks.map((block) =>
+      block.type === 'actions' || block.type === 'about' ? { ...block, hidden: true } : block
+    );
+    hocuspocusInternalOrNull.mockResolvedValueOnce(yjsState({ blocks }));
     queryMock.mockResolvedValueOnce([row()]).mockResolvedValueOnce([row()]);
 
     await publish(true);
 
     const params = queryMock.mock.calls[1][1] as unknown[];
-    const sections = JSON.parse(params[7] as string) as { hidden: string[] };
-    expect(sections.hidden).toEqual(['actions', 'socialFeed']);
-    const snapshot = JSON.parse(params[8] as string) as { hidden_sections: string[] };
-    expect(snapshot.hidden_sections).toEqual(expect.arrayContaining(['actions', 'socialFeed']));
+    type Written = { blocks: { type: string; hidden?: boolean }[] };
+    const sections = JSON.parse(params[7] as string) as Written;
+    expect(sections.blocks.filter((b) => b.hidden).map((b) => b.type)).toEqual([
+      'about',
+      'actions',
+    ]);
+    const snapshot = JSON.parse(params[8] as string) as { sections: Written };
+    const published = snapshot.sections.blocks.map((b) => b.type);
+    expect(published).not.toContain('about');
+    expect(published).not.toContain('actions');
+    expect(published).toContain('themes');
   });
 
   it('publish writes no keys a client added to the Y.Doc', async () => {
-    const seeded = yjsState({
-      themes: [{ id: 't1', title: 'Klima', imageUrl: '', content: richTextDocFromPlainText('A') }],
-    });
+    const card = { id: 't1', title: 'Klima', imageUrl: '', content: richTextDocFromPlainText('A') };
+    const blocks = siteDraftFromSite(row() as unknown as Site).blocks.map((block) =>
+      block.type === 'themes' ? { ...block, id: 'th', items: [card] } : block
+    );
+    const seeded = yjsState({ blocks });
     const doc = new Y.Doc();
     Y.applyUpdate(doc, new Uint8Array(Buffer.from(seeded.update, 'base64')));
     doc.getMap('siteFields').set('evil', 'x');
     doc.getMap('siteFields').set('sections', { injected: true });
-    (doc.getMap('siteThemes').get('t1') as Y.Map<unknown>).set('onclick', 'x');
+    const themes = doc.getMap('siteBlocks').get('th') as Y.Map<unknown>;
+    themes.set('injected', 'x');
+    ((themes.get('items') as Y.Map<unknown>).get('t1') as Y.Map<unknown>).set('onclick', 'x');
     hocuspocusInternalOrNull.mockResolvedValueOnce({
       update: Buffer.from(Y.encodeStateAsUpdate(doc)).toString('base64'),
     });
@@ -267,14 +281,14 @@ describe('sitesContract', () => {
     const params = queryMock.mock.calls[1][1] as unknown[];
     const written = JSON.stringify(params.slice(0, 8));
     expect(written).not.toMatch(/evil|injected|onclick/);
-    const sections = JSON.parse(params[7] as string) as Record<string, unknown>;
-    expect(Object.keys(sections).sort()).toEqual(
-      ['about', 'actions', 'contact', 'heroImage', 'hidden', 'socialFeed', 'themes'].sort()
-    );
-    expect((sections.themes as Record<string, unknown>[])[0]).toEqual({
-      title: 'Klima',
-      imageUrl: '',
-      content: richTextDocFromPlainText('A'),
+    const sections = JSON.parse(params[7] as string) as {
+      blocks: { id: string; items?: unknown[] }[];
+    };
+    expect(Object.keys(sections)).toEqual(['blocks']);
+    expect(sections.blocks.find((block) => block.id === 'th')).toEqual({
+      id: 'th',
+      type: 'themes',
+      items: [card],
     });
   });
 

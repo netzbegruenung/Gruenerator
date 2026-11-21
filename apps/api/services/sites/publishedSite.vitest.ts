@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { parsePublishedSnapshot, publishedSiteQuery } from './publishedSite.js';
 
 const MINIMAL = {
-  version: 1,
+  version: 2,
   locale: 'de-DE',
   site_title: 'Anna Beispiel',
   tagline: '',
@@ -12,7 +12,7 @@ const MINIMAL = {
   contact_email: '',
   contact_phone: '',
   social_links: {},
-  sections: {},
+  sections: { blocks: [{ id: 'hero', type: 'hero' }] },
   legal: {
     name: 'Anna Beispiel',
     street: 'Musterstraße 1',

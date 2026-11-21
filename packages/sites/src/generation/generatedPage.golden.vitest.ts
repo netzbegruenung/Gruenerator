@@ -60,7 +60,7 @@ const EDITOR_ATTRIBUTES = /\sdata-(field|section|index|block-id|block-type|item-
 const normaliseHtml = (html: string) => html.replace(EDITOR_ATTRIBUTES, '');
 
 function generatedPage(locale: SupportedLocale): string {
-  const generated = transformAiResponse(FIXTURE);
+  const generated = transformAiResponse(FIXTURE, sequentialIds());
   const source = {
     site_title: generated.site_title,
     tagline: generated.tagline,
@@ -72,7 +72,7 @@ function generatedPage(locale: SupportedLocale): string {
     sections: generated.sections,
     legal: LEGAL,
   };
-  const draft = siteDraftFromSite(source, sequentialIds());
+  const draft = siteDraftFromSite(source);
   const built = buildSiteSnapshot(siteDraftToSnapshotSource(draft, LEGAL), locale);
   if (!built.ok) throw new Error(JSON.stringify(built.issues));
   return renderSitePage({

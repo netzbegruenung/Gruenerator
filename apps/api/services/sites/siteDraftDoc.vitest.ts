@@ -34,8 +34,16 @@ function site(): Site {
     profile_image: null,
     background_image: null,
     sections: {
-      hidden: ['actions'],
-      about: { title: 'Wer ich bin', content: richTextDocFromPlainText('Hallo') },
+      blocks: [
+        { id: 'hero', type: 'hero' },
+        {
+          id: 'about',
+          type: 'about',
+          title: 'Wer ich bin',
+          content: richTextDocFromPlainText('Hallo'),
+          hidden: true,
+        },
+      ],
     },
     legal: null,
     created_at: null,
@@ -80,7 +88,8 @@ describe('siteDraftDoc', () => {
     Y.applyUpdate(doc, new Uint8Array(Buffer.from(body.update, 'base64')));
     const draft = decodeSiteDraft(doc);
     expect(draft.contact_phone).toBe('+49 30 123');
-    expect(draft.hidden).toEqual(['actions']);
+    expect(draft.blocks.map((block) => block.id)).toEqual(['hero', 'about']);
+    expect(draft.blocks[1]).toMatchObject({ hidden: true });
   });
 
   it('ensureSiteDraft does nothing when state exists', async () => {
