@@ -230,7 +230,16 @@ function Studio(): JSX.Element {
           ) : (
             <>
               <div key={gridSize} ref={gridWrapperRef}>
-                <GalleryGrid size={gridSize}>
+                <GalleryGrid
+                  size={gridSize}
+                  // Two columns on a phone, three on a tablet: the shared small grid's
+                  // 165 / 230 px minimums leave one and two there.
+                  className={
+                    gridSize === 'small'
+                      ? 'max-lg:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] max-md:grid-cols-[repeat(auto-fill,minmax(140px,1fr))]'
+                      : undefined
+                  }
+                >
                   {!settled && entries.length === 0 ? (
                     <GallerySkeleton className="aspect-[4/5]" />
                   ) : (

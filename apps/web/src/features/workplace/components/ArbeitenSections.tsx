@@ -198,7 +198,9 @@ export function ToolCardLink({
       <span
         className={cn(
           // Whole words only: a hyphenated „transkribie-ren" reads worse than two balanced lines.
-          'relative z-10 max-w-[56%] text-[17px] font-bold leading-tight text-balance md:text-lg',
+          'relative z-10 text-[17px] font-bold leading-tight text-balance md:text-lg',
+          // Tablet: three white cards in a row are too narrow for the sheets, the text takes the card.
+          white ? 'max-w-[68%] md:max-lg:max-w-none' : 'max-w-[56%]',
           theme?.title,
           // A phone card is ~170 px wide: the title takes the top, the picture the corner below.
           preview && 'max-sm:max-w-none max-sm:self-start max-sm:pt-3.5'
@@ -224,9 +226,12 @@ export function ToolCardLink({
         aria-hidden
         className={cn(
           'absolute -bottom-3 h-20 md:h-24',
+          white && 'md:max-lg:hidden',
           preview
             ? 'right-3 max-sm:-bottom-4 max-sm:h-14 max-sm:w-[4.5rem] sm:right-4 sm:w-28 md:w-32'
-            : 'right-1 w-[44%]'
+            : white
+              ? 'right-1 w-[30%] max-w-32'
+              : 'right-1 w-[44%]'
         )}
       >
         <span
@@ -257,6 +262,8 @@ export function ToolCardLink({
   );
   const className = cn(
     TOOL_CARD,
+    // A white card carries a description: it grows with its text instead of clipping it.
+    white && 'h-full min-h-20 py-4 md:h-full md:min-h-24',
     white
       ? 'border border-grey-200 bg-background dark:border-grey-800'
       : (theme?.tile ?? 'bg-grey-50 dark:bg-grey-800/40')

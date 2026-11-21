@@ -38,7 +38,10 @@ export function PopularVorlagenRow(): JSX.Element | null {
         >
           Beliebte Sharepic-Vorlagen
         </h2>
-        <Link to="/vorlagen" className="text-sm font-semibold text-foreground underline">
+        <Link
+          to="/vorlagen"
+          className="shrink-0 text-sm font-semibold whitespace-nowrap text-foreground underline"
+        >
           Alle Vorlagen
         </Link>
       </div>
