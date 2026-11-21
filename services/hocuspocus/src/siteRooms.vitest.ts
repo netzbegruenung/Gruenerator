@@ -50,17 +50,48 @@ describe('persistenceKey', () => {
 });
 
 describe('applySiteSeed', () => {
+  const seededWith = (version: number) => {
+    const doc = new Y.Doc();
+    const meta = doc.getMap('siteMeta');
+    meta.set('schemaVersion', version);
+    meta.set('seededAt', '2026-11-21T10:00:00.000Z');
+    meta.set('title', 'Erste');
+    return doc;
+  };
+
   it('seeds an empty doc', () => {
     const doc = new Y.Doc();
     expect(applySiteSeed(doc, updateWith('Erste'))).toBe(true);
     expect(doc.getMap('siteMeta').get('title')).toBe('Erste');
   });
 
-  it('returns false on a doc that already has state and leaves it alone', () => {
-    const doc = new Y.Doc();
-    Y.applyUpdate(doc, updateWith('Erste'));
+  it('returns false on a doc that already holds a current seed and leaves it alone', () => {
+    const doc = seededWith(2);
     expect(applySiteSeed(doc, updateWith('Zweite'))).toBe(false);
     expect(doc.getMap('siteMeta').get('title')).toBe('Erste');
+  });
+
+  it('seeds over the state of an older layout, so an old tab cannot lock the draft', () => {
+    for (let run = 0; run < 20; run += 1) {
+      // Client ids are random: over many runs the old entries hold the higher id at least once.
+      const doc = seededWith(1);
+      const seed = new Y.Doc();
+      seed.getMap('siteMeta').set('schemaVersion', 2);
+      seed.getMap('siteMeta').set('seededAt', '2026-11-21T12:00:00.000Z');
+      seed.getMap('siteFields').set('site_title', 'Neu');
+      doc.getMap('siteFields').set('site_title', 'Alt');
+      expect(applySiteSeed(doc, Y.encodeStateAsUpdate(seed))).toBe(true);
+      expect(doc.getMap('siteMeta').get('schemaVersion')).toBe(2);
+      expect(doc.getMap('siteFields').get('site_title')).toBe('Neu');
+      // Seeded now: a second prepare must not seed again.
+      expect(applySiteSeed(doc, Y.encodeStateAsUpdate(seed))).toBe(false);
+    }
+  });
+
+  it('seeds a doc whose state carries no seed at all', () => {
+    const doc = new Y.Doc();
+    doc.getMap('stray').set('x', 1);
+    expect(applySiteSeed(doc, updateWith('Erste'))).toBe(true);
   });
 });
 

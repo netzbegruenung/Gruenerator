@@ -1136,7 +1136,7 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
             seeded = applySiteSeed(doc, update);
           });
           log.info(
-            `Site seed for ${room}: ${seeded ? `applied ${update.byteLength} bytes` : 'skipped, doc has state'}`
+            `Site seed for ${room}: ${seeded ? `applied ${update.byteLength} bytes` : 'skipped, doc holds a current seed'}`
           );
           res.json({ seeded });
         } finally {
