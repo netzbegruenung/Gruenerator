@@ -73,20 +73,11 @@ export function startWorkplaceTour(navigate: NavigateFn): void {
       {
         element: SEL.arbeitenCreate,
         popover: {
-          title: 'Arbeiten: Neues erstellen',
+          title: 'Arbeiten: Alles finden',
           description:
-            'Dokumente, Boards, Tabellen und Präsentationen — beschreib einfach, was du brauchst, oder starte mit einer Vorlage.',
+            'Such hier nach deinen Dokumenten, Boards, Tabellen, Präsentationen und Werkzeugen. Neues legst du über „Neu erstellen“ an.',
           side: 'bottom',
           onPrevClick: crossTab(startTabLink('chat'), SEL.tabs, (drv) => drv.movePrevious()),
-        },
-      },
-      {
-        element: SEL.arbeitenTools,
-        popover: {
-          title: 'Deine Werkzeuge',
-          description:
-            'Die Kacheln führen in alle Bereiche: Marktplatz, Office, Studio, Wissen und Projekte — unter „Weitere“ liegen Extras wie Scanner oder Transkription.',
-          side: 'top',
         },
       },
       {
@@ -95,6 +86,15 @@ export function startWorkplaceTour(navigate: NavigateFn): void {
           title: 'Zuletzt',
           description:
             'Alle deine Inhalte an einem Ort: Dokumente, Tabellen, Präsentationen, Boards, Sharepics, Bilder und Videos.',
+          side: 'top',
+        },
+      },
+      {
+        element: SEL.arbeitenTools,
+        popover: {
+          title: 'Deine Werkzeuge',
+          description:
+            'Unter „Mach mehr mit deinem Grünerator“ liegen Videos, Notebooks, Vorlagen, Profilbild, Vertonen & Transkribieren und der Übersetzer.',
           side: 'top',
           onNextClick: (_el, _step, opts) => {
             expandSidebar(() => opts.driver.moveNext());

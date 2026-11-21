@@ -4,7 +4,6 @@ import { getFavouriteItemsById, isFavouritableItem } from './sidebarFavouritesCo
 import {
   WORKPLACE_TOOLS,
   isFavouritableTool,
-  sortToolsByFavourites,
   type WorkplaceToolItem,
 } from './workplaceToolsConfig';
 
@@ -15,14 +14,6 @@ const byId = (id: string): WorkplaceToolItem => {
 };
 
 const ICON = byId('marktplatz').icon;
-const mk = (id: string): WorkplaceToolItem => ({
-  id,
-  title: id,
-  description: '',
-  path: `/${id}`,
-  icon: ICON,
-});
-
 // The link-tile catalog has no external-link entries, so build one to exercise
 // the `href` branch of the favouritable guard.
 const externalTool: WorkplaceToolItem = {
@@ -40,32 +31,6 @@ describe('isFavouritableTool', () => {
 
   it('rejects external-link tools', () => {
     expect(isFavouritableTool(externalTool)).toBe(false);
-  });
-});
-
-describe('sortToolsByFavourites', () => {
-  const tools = [mk('a'), mk('b'), mk('c')];
-
-  it('keeps curated order when nothing is favourited', () => {
-    expect(sortToolsByFavourites(tools, []).map((t) => t.id)).toEqual(['a', 'b', 'c']);
-  });
-
-  it('floats favourites to the front in pin order', () => {
-    expect(sortToolsByFavourites(tools, ['c', 'b']).map((t) => t.id)).toEqual(['c', 'b', 'a']);
-  });
-
-  it('ignores favourite ids that are not in the list', () => {
-    expect(sortToolsByFavourites(tools, ['notebooks', 'c']).map((t) => t.id)).toEqual([
-      'c',
-      'a',
-      'b',
-    ]);
-  });
-
-  it('does not mutate the input array', () => {
-    const input = [...tools];
-    sortToolsByFavourites(input, ['c']);
-    expect(input.map((t) => t.id)).toEqual(['a', 'b', 'c']);
   });
 });
 

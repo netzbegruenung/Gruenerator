@@ -15,6 +15,8 @@ import { HiCheck, HiClipboardCopy, HiExternalLink } from 'react-icons/hi';
 import { getDocsUrl } from '../../utils/docsUrl';
 import { getVisitorDevice, type VisitorDevice } from '../../utils/platform';
 
+import { PLAY_STORE_URL, STORE_URLS, TESTFLIGHT_URL, type DeviceId } from './storeLinks';
+
 /**
  * Aus dem eigenen Host abgeleitet, damit Beta die Beta-Adresse anzeigt statt
  * Nutzerinnen auf Produktion zu schicken. Alles, was nicht nach einer
@@ -26,16 +28,6 @@ const mcpUrl = (): string => {
   return /(^|\.)gruenerator\.(eu|de|at)$/.test(host)
     ? `https://mcp.${host.replace(/^www\./, '')}`
     : 'https://mcp.gruenerator.eu';
-};
-const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=de.gruenerator.app';
-// Public TestFlight beta link — swap for the App Store URL once the app is public.
-const TESTFLIGHT_URL = 'https://testflight.apple.com/join/WZnQJzvU';
-
-type DeviceId = Exclude<VisitorDevice, null>;
-
-const STORE_URLS: Record<DeviceId, string> = {
-  ios: TESTFLIGHT_URL,
-  android: PLAY_STORE_URL,
 };
 
 const DEVICE_NAMES: Record<DeviceId, string> = {

@@ -22,10 +22,8 @@ import {
   AlertDialogTitle,
   Button,
   CardGrid,
-  DismissableBanner,
 } from '@gruenerator/ui';
-import { useQueryClient } from '@tanstack/react-query';
-import { lazy, Suspense, useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useMemo, useRef, useState } from 'react';
 import { FiChevronDown, FiChevronUp, FiFile, FiPlus, FiUsers } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
@@ -34,10 +32,9 @@ import { SHOW_SHAREPIC_STUDIO } from '../../config/featureFlags';
 import { OFFICE_SUITE_TOOLS, filterWorkplaceTools } from '../../config/workplaceToolsConfig';
 import { useBoardsTyped } from '../../hooks/useBoardsTyped';
 import { useFirstName } from '../../hooks/useFirstName';
-import { useAuthStore } from '../../stores/authStore';
+import { useGridColumns } from '../../hooks/useGridColumns';
 import { boardTemplates, getBoardTemplate } from '../boards/boardTemplates';
 import { useFeatureIndex } from '../global-search/useFeatureIndex';
-import { seedCanvasQuery } from '../image-studio/canvasQuery';
 import { openSharepicCreator } from '../image-studio/freitext/openSharepicCreator';
 import {
   getPresentationTemplate,
@@ -56,7 +53,6 @@ import {
   officeItemTarget,
   renameCanvasDeck,
 } from './canvasDeckActions';
-import { createSlideDeck } from './createSlideDeck';
 import { webAppDocsAdapter } from './docsAdapter';
 import {
   DocsComposer,
@@ -68,6 +64,7 @@ import { subtypeToKind, type DocKind } from './docTypeMeta';
 import { DocumentCard } from './DocumentCard';
 import { OfficeLibrary } from './OfficeLibrary';
 import { OfficeShareDialog, type OfficeShareTarget } from './OfficeShareDialog';
+import { useOfficeCreate } from './useOfficeCreate';
 import { useOfficeLibrary } from './useOfficeLibrary';
 
 const LazyShareBoardDialog = lazy(() =>
@@ -111,30 +108,6 @@ const SCOPE_META: Record<OfficeScope, { heading: string }> = {
 // so the group sections below stay reachable without scrolling past a long grid.
 const COLLAPSED_ROWS = 2;
 
-// Counts the resolved columns of an auto-fill grid so "2 rows" is correct at any
-// viewport width. auto-fill generates the full set of tracks even when empty, so
-// the measurement holds regardless of how many items are currently rendered.
-function useGridColumns(ref: React.RefObject<HTMLDivElement | null>) {
-  const [columns, setColumns] = useState(0);
-
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-
-    const measure = () => {
-      const tracks = getComputedStyle(el).gridTemplateColumns.split(' ').filter(Boolean).length;
-      setColumns(tracks);
-    };
-
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [ref]);
-
-  return columns;
-}
-
 export function DocumentsContent({
   showRecents = true,
   scope,
@@ -143,6 +116,7 @@ export function DocumentsContent({
   heroSubtitle,
   composerPlaceholder,
   composerSubmitIcon,
+  composerCreate = true,
 }: {
   showRecents?: boolean;
   scope?: OfficeScope;
@@ -159,11 +133,11 @@ export function DocumentsContent({
   /** Static composer placeholder instead of the rotating create examples. */
   composerPlaceholder?: string;
   composerSubmitIcon?: 'arrow' | 'search';
+  /** Off: the composer only searches (the Arbeiten tab creates via „Neu erstellen"). */
+  composerCreate?: boolean;
 }) {
   const adapter = useDocsAdapter();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const locale = useAuthStore((s) => s.locale);
   const firstName = useFirstName();
   const featureIndex = useFeatureIndex();
   // A sharepic request goes to the creator, which speaks both corporate designs.
@@ -204,6 +178,12 @@ export function DocumentsContent({
         : legacyBoards,
     [officeToolStrip, office.items, legacyBoards]
   );
+
+  const {
+    createBlankSheet: handleCreateSheet,
+    createBlankPresentation: handleCreatePresentation,
+    createBlankBoard,
+  } = useOfficeCreate();
 
   const [showGallery, setShowGallery] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
@@ -282,8 +262,8 @@ export function DocumentsContent({
     };
   }, [documents, boards, scope]);
 
-  const personalGridRef = useRef<HTMLDivElement>(null);
-  const personalColumns = useGridColumns(personalGridRef);
+  const [personalGrid, setPersonalGrid] = useState<HTMLDivElement | null>(null);
+  const personalColumns = useGridColumns(personalGrid);
   const [showAllPersonal, setShowAllPersonal] = useState(false);
   // Until columns are measured (or with no groups to make room for), show everything.
   const collapsedCount =
@@ -411,18 +391,6 @@ export function DocumentsContent({
     []
   );
 
-  const handleCreateSheet = useCallback(async () => {
-    try {
-      const newDoc = await createDocumentMutation.mutateAsync({
-        title: 'Neue Tabelle',
-        documentSubtype: 'sheets',
-      });
-      adapter.navigateToDocument(newDoc.id);
-    } catch (err) {
-      console.error('Failed to create sheet:', err);
-    }
-  }, [createDocumentMutation, adapter]);
-
   const handleCreateSheetFromTemplate = useCallback(
     async (templateId: string) => {
       const template = getSheetTemplate(templateId);
@@ -443,16 +411,6 @@ export function DocumentsContent({
     [createDocumentMutation, navigate]
   );
 
-  const handleCreatePresentation = useCallback(async () => {
-    try {
-      const deck = await createSlideDeck(locale);
-      seedCanvasQuery(queryClient, deck);
-      void navigate(`/studio/canvas/${deck.id}`);
-    } catch (err) {
-      console.error('Failed to create presentation:', err);
-    }
-  }, [locale, queryClient, navigate]);
-
   const handleCreatePresentationFromTemplate = useCallback(
     async (templateId: string) => {
       const template = getPresentationTemplate(templateId);
@@ -469,16 +427,6 @@ export function DocumentsContent({
       }
     },
     [createDocumentMutation, navigate]
-  );
-
-  const handleCreateBoard = useCallback(
-    (boardType: 'kanban') => {
-      createBoard.mutate(
-        { title: 'Neues Board', boardType },
-        { onSuccess: (board) => navigate(`/boards/${board.id}`) }
-      );
-    },
-    [createBoard, navigate]
   );
 
   const handleCreateBoardFromTemplate = useCallback(
@@ -687,6 +635,7 @@ export function DocumentsContent({
           onImport={handleComposerImport}
           placeholder={composerPlaceholder}
           submitIcon={composerSubmitIcon}
+          create={composerCreate}
         />
       </WorkplaceHero>
 
@@ -701,7 +650,7 @@ export function DocumentsContent({
                 title={tool.title}
                 onClick={() => {
                   if (tool.create === 'gallery') setShowGallery(true);
-                  else if (tool.create === 'board') handleCreateBoard('kanban');
+                  else if (tool.create === 'board') createBlankBoard();
                   else if (tool.create === 'sheet') void handleCreateSheet();
                   else if (tool.create === 'pres') void handleCreatePresentation();
                   else void handleTemplateSelect('blank');
@@ -711,15 +660,6 @@ export function DocumentsContent({
           </div>
         </section>
       )}
-
-      <DismissableBanner
-        storageKey="gruenerator_docs_experimental_warning_dismissed"
-        variant="warning"
-        className="mb-md mt-lg"
-      >
-        <strong>Experimentelles Feature</strong> — Diese Funktion befindet sich noch in der
-        Entwicklung. Bitte behalte eine lokale Sicherungskopie deiner Dateien.
-      </DismissableBanner>
 
       {/* Without `showRecents` this is the Arbeiten tab, where the workplace
           "Zuletzt" feed is THE recents section — the personal grid and the group
@@ -756,7 +696,7 @@ export function DocumentsContent({
               <p className="text-[0.9375rem]">Noch keine Inhalte vorhanden.</p>
               <Button
                 onClick={() => {
-                  if (scope === 'board') handleCreateBoard('kanban');
+                  if (scope === 'board') createBlankBoard();
                   else if (scope === 'sheet') void handleCreateSheet();
                   else if (scope === 'pres') void handleCreatePresentation();
                   else void handleTemplateSelect('blank');
@@ -780,7 +720,7 @@ export function DocumentsContent({
                     <h2 className="text-base font-extrabold text-foreground">Zuletzt bearbeitet</h2>
                   </div>
                   <div
-                    ref={personalGridRef}
+                    ref={setPersonalGrid}
                     className="grid grid-cols-[repeat(auto-fill,minmax(232px,1fr))] gap-md max-md:grid-cols-[repeat(auto-fill,minmax(170px,1fr))]"
                   >
                     {visiblePersonalItems.map((item) => {
@@ -861,7 +801,7 @@ export function DocumentsContent({
             onClose={() => setShowGallery(false)}
             onCreateBlank={(kind) => {
               if (kind === 'doc') void handleTemplateSelect('blank');
-              else if (kind === 'board') handleCreateBoard('kanban');
+              else if (kind === 'board') createBlankBoard();
               else if (kind === 'sheet') void handleCreateSheet();
               else if (kind === 'sharepic') void navigate('/studio');
               else void handleCreatePresentation();
@@ -945,9 +885,10 @@ export const DocsHome = () => (
     <DocsProvider adapter={webAppDocsAdapter}>
       <DocumentsContent
         showRecents={false}
-        heroSubtitle="Hier erstellst und durchsuchst du Inhalte. Zum Chatten wechselst du oben in den Tab „Chat“."
-        composerPlaceholder="Inhalte durchsuchen oder neu erstellen …"
+        heroSubtitle="Hier findest du deine Inhalte und Werkzeuge. Zum Chatten wechselst du oben in den Tab „Chat“."
+        composerPlaceholder="Inhalte und Werkzeuge durchsuchen …"
         composerSubmitIcon="search"
+        composerCreate={false}
       />
     </DocsProvider>
   </ErrorBoundary>

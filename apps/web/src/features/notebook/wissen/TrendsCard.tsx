@@ -52,7 +52,7 @@ export function TrendsCard({ locale, to }: { locale: MonitorLocale; to: string }
               </span>
               <span className="h-1 rounded-full bg-(--dash-mg-tint) md:h-[5px] xl:h-1.5">
                 <span
-                  className="block h-full rounded-full bg-(--dash-mg)"
+                  className="block h-full rounded-full bg-(image:--dash-bar)"
                   style={{ width: `${Math.max(MIN_BAR_PCT, Math.round((k.count / max) * 100))}%` }}
                 />
               </span>
