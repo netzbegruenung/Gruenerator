@@ -10,7 +10,7 @@ const transcribeVideo = vi.fn();
 const generateManualSubtitles = vi.fn();
 
 vi.mock('./transcriptionService.js', () => ({
-  transcribeVideo: (...a: unknown[]) => transcribeVideo(...a),
+  transcribeVideoWithWords: (...a: unknown[]) => transcribeVideo(...a),
 }));
 vi.mock('./manualSubtitleGeneratorService.js', () => ({
   generateManualSubtitles: (...a: unknown[]) => generateManualSubtitles(...a),
@@ -47,7 +47,7 @@ const words = [{ word: 'Hallo', start: 0, end: 0.5 }];
 beforeEach(() => {
   vi.clearAllMocks();
   generateManualSubtitles.mockResolvedValue('00:00.0 - 00:01.0\nHallo');
-  transcribeVideo.mockResolvedValue('00:00.0 - 00:01.0\nASR');
+  transcribeVideo.mockResolvedValue({ subtitles: '00:00.0 - 00:01.0\nASR', words: [] });
 });
 
 describe('processVideoAutomatically precomputed', () => {

@@ -30,7 +30,8 @@ import { ffmpeg } from './ffmpegWrapper.js';
 import { generateManualSubtitles } from './manualSubtitleGeneratorService.js';
 import { autoSaveProject } from './projectSavingService.js';
 import { calculateFontSizing } from './subtitleSizingService.js';
-import { transcribeVideo } from './transcriptionService.js';
+import { transcribeVideoWithWords, type WordTimestamp } from './transcriptionService.js';
+import { concatVideos } from './concatVideos.js';
 import { probeVideoMetadata } from './videoMetadata.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -110,6 +111,8 @@ interface ProcessingResult {
   autoProcessToken: string;
   segments: SubtitleSegment[];
   subtitles: string;
+  /** Word timings in seconds from the start of the input video. */
+  words: WordTimestamp[];
   metadata: VideoMetadata;
 }
 
@@ -289,6 +292,7 @@ async function processVideoAutomatically(
       (metadata.height > TARGET_RESOLUTION && metadata.width >= metadata.height);
 
     let subtitles: string;
+    let words: WordTimestamp[];
 
     try {
       // Stored word timings (parteitag speech) replace the transcription —
@@ -298,14 +302,18 @@ async function processVideoAutomatically(
         // The locale drives both the transcription vocabulary and, further
         // down, the ASS style/font.
         usePrecomputed
-          ? generateManualSubtitles(precomputed.fullText, precomputed.words)
-          : transcribeVideo(inputPath, 'manual', locale),
+          ? generateManualSubtitles(precomputed.fullText, precomputed.words).then((text) => ({
+              subtitles: text,
+              words: precomputed.words,
+            }))
+          : transcribeVideoWithWords(inputPath, 'manual', locale),
         needsPreScale
           ? preScaleVideo(inputPath, metadata, TARGET_RESOLUTION)
           : Promise.resolve(null),
       ]);
 
-      subtitles = transcriptionResult;
+      subtitles = transcriptionResult.subtitles;
+      words = transcriptionResult.words;
       log.info(`Transcription complete: ${subtitles.split('\n\n').length} segments`);
 
       if (scaledPath) {
@@ -399,6 +407,7 @@ async function processVideoAutomatically(
       autoProcessToken,
       segments: subtitleSegments,
       subtitles,
+      words,
       metadata,
     };
   } catch (error: unknown) {
@@ -677,6 +686,13 @@ interface StartAutoProcessingOptions {
    * time pollers see completion). Best-effort — errors are logged, not fatal.
    */
   onProjectSaved?: (projectId: string) => Promise<void>;
+  /**
+   * Further videos, in the order the person sorted them: joined after
+   * `videoPath` into one video before subtitling. The part lengths go into
+   * the project's `video_metadata.parts`, so the video editor can split the
+   * reel back into its clips.
+   */
+  appendPaths?: string[];
 }
 
 /**
@@ -701,6 +717,7 @@ async function startAutoProcessing(options: StartAutoProcessingOptions): Promise
     precomputed = null,
     sourceSystemMediaId = null,
     onProjectSaved,
+    appendPaths = [],
   } = options;
 
   await redisClient.set(
@@ -709,28 +726,53 @@ async function startAutoProcessing(options: StartAutoProcessingOptions): Promise
     { EX: 3600 }
   );
 
-  processVideoAutomatically(videoPath, uploadId, {
-    stylePreference: 'shadow',
-    heightPreference: 'tief',
-    locale,
-    maxResolution,
-    precomputed,
-    trustedSource: sourceSystemMediaId != null,
-    ...(userId != null && { userId }),
-    originalFilename,
-  })
-    .then(async (result: ProcessingResult) => {
+  // Several videos: join them first (in the background, like the rest).
+  const joined: Promise<{ path: string; parts: number[] | null }> =
+    appendPaths.length === 0
+      ? Promise.resolve({ path: videoPath, parts: null })
+      : (async () => {
+          const output = `${videoPath}-reel.mp4`;
+          try {
+            const { partDurations } = await concatVideos([videoPath, ...appendPaths], output);
+            return { path: output, parts: partDurations };
+          } catch (error) {
+            // processVideoAutomatically reports its own failures; this one runs before it.
+            await updateProgress(uploadId, {
+              status: 'error',
+              stage: STAGES.ANALYZING.id,
+              stageName: STAGES.ANALYZING.name,
+              error: 'Die Videos konnten nicht zusammengefügt werden.',
+            });
+            throw error;
+          }
+        })();
+
+  joined
+    .then(({ path: inputPath, parts }) =>
+      processVideoAutomatically(inputPath, uploadId, {
+        stylePreference: 'shadow',
+        heightPreference: 'tief',
+        locale,
+        maxResolution,
+        precomputed,
+        trustedSource: sourceSystemMediaId != null,
+        ...(userId != null && { userId }),
+        originalFilename,
+      }).then((result) => ({ result, inputPath, parts }))
+    )
+    .then(async ({ result, inputPath, parts }) => {
       let savedProjectId: string | null = null;
       if (userId) {
         try {
           const r = await autoSaveProject({
             userId,
             outputPath: result.outputPath,
-            originalVideoPath: videoPath,
+            originalVideoPath: inputPath,
             uploadId,
             originalFilename,
             segments: result.segments,
-            metadata: result.metadata,
+            words: result.words,
+            metadata: parts ? { ...result.metadata, parts } : result.metadata,
             stylePreference: 'shadow',
             heightPreference: 'tief',
             subtitlePreference: 'manual',

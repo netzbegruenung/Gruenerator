@@ -41,6 +41,7 @@ import {
   projectUpdateResponseSchema,
   projectDeleteResponseSchema,
   projectExportTrackResponseSchema,
+  subtitlerEditorSeedSchema,
   subtitlerErrorResponseSchema,
   subtitlerSuccessErrorResponseSchema,
   processRequestSchema,
@@ -214,6 +215,26 @@ export const subtitlerContract = c.router(
         500: subtitlerSuccessErrorResponseSchema,
       },
       summary: 'Track an export for a subtitler project',
+    },
+
+    /**
+     * POST /api/subtitler/projects/:projectId/editor-seed
+     * Prepares a project for the video editor. POST, not GET: the first call
+     * copies the original video into the Mediathek; later calls reuse it.
+     */
+    postEditorSeed: {
+      method: 'POST',
+      path: '/api/subtitler/projects/:projectId/editor-seed',
+      pathParams: z.object({ projectId: z.string() }),
+      body: c.noBody(),
+      responses: {
+        200: subtitlerEditorSeedSchema,
+        401: subtitlerErrorResponseSchema,
+        404: subtitlerSuccessErrorResponseSchema,
+        410: subtitlerSuccessErrorResponseSchema,
+        500: subtitlerSuccessErrorResponseSchema,
+      },
+      summary: 'Prepare a subtitler project for the video editor',
     },
 
     // ── Processing: transcription pipeline ───────────────────────────────────

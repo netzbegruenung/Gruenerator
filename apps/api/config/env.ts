@@ -127,6 +127,20 @@ const envSchema = z.object({
    */
   API_INTERNAL_BASE_URL: z.string().optional(),
   /**
+   * Server render lane of the video editor (`services/videoRender/`): the
+   * render service's base URL (`npm run render-server` in gruenerator-videoeditor).
+   * Development falls back to `http://localhost:3050`; unset elsewhere the lane
+   * answers 503.
+   */
+  VIDEO_RENDER_URL: z.string().optional(),
+  /** Bearer token the render service expects (its `RENDER_SERVER_TOKEN`). */
+  VIDEO_RENDER_TOKEN: z.string().optional(),
+  /**
+   * How the render service reaches this API to fetch the media of a project.
+   * Default `http://127.0.0.1:${PORT}`.
+   */
+  VIDEO_RENDER_MEDIA_BASE_URL: z.string().optional(),
+  /**
    * Where generated thumbnail variants are cached. Defaults to
    * `apps/api/uploads/thumb-cache`. Point it elsewhere to size or wipe the
    * derived-image cache independently of the uploads it is derived from — every
