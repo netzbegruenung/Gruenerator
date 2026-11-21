@@ -48,7 +48,9 @@ export function PageHero({
           {title}
         </h1>
         {toolbar ? (
-          <div className="relative flex shrink-0 items-center gap-1 text-grey-500">{toolbar}</div>
+          <div className="relative flex shrink-0 items-center gap-1 text-grey-500 pointer-coarse:gap-2">
+            {toolbar}
+          </div>
         ) : null}
         {description !== undefined ? (
           <div className={cn('col-span-full max-w-[40rem]', introClassName)}>{description}</div>
@@ -87,7 +89,7 @@ export function PageHeroSearch({
         size="icon"
         aria-label="Suchen"
         title="Suchen"
-        className="text-grey-500"
+        className="touch-target text-grey-500"
         onClick={() => setOpen(true)}
       >
         <HiSearch aria-hidden className="size-[18px]" />
