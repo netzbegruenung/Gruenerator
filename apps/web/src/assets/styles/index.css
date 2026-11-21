@@ -113,6 +113,7 @@
 @source "../../../../../packages/collab/src/**/*.{js,ts,jsx,tsx}";
 @source "../../../../../packages/canvas-editor/src/**/*.{js,ts,jsx,tsx}";
 @source "../../../../../node_modules/@ggraphic/editor/dist/**/*.js";
+@source "../../../../../node_modules/@ggraphic/editor-chrome/dist/**/*.js";
 @source "../../../../../packages/sites/src/**/*.{js,ts,jsx,tsx}";
 @source "../../../../../packages/shared/src/media-library/ui/**/*.{js,ts,jsx,tsx}";
 

@@ -24,6 +24,8 @@
 /* Scan canvas-editor source for Tailwind class usage */
 @source "../**/*.{ts,tsx}";
 @source "../../../../node_modules/@ggraphic/editor/dist/**/*.js";
+/* The sidebar chrome (tab rail, panel, sheet) lives in its own package since #229. */
+@source "../../../../node_modules/@ggraphic/editor-chrome/dist/**/*.js";
 
 /* Trefferfläche auf die 44px aus WCAG 2.2 „Target Size" bringen, ohne die
    Optik anzufassen — ein unsichtbares Pseudo-Element deckt die fehlenden
