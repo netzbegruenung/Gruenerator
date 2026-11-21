@@ -12,7 +12,7 @@ interface BlocksPanelProps {
 /** Adds a block of a type to the page. Types at their limit, and a full page, are greyed out. */
 export function BlocksPanel({ selectedBlockId, onAdded }: BlocksPanelProps) {
   const blocks = useDraft((d) => d.blocks);
-  const { addBlock } = useDraftActions();
+  const { addBlock, setBlockHidden } = useDraftActions();
   const full = blocks.length >= SITE_BLOCKS_MAX;
   const selectedIndex = blocks.findIndex((b) => b.id === selectedBlockId);
   const insertAt = selectedIndex === -1 ? blocks.length : selectedIndex + 1;
@@ -30,14 +30,22 @@ export function BlocksPanel({ selectedBlockId, onAdded }: BlocksPanelProps) {
         {SITE_BLOCK_TYPES.filter((spec) => !spec.pinned).map((spec) => {
           const ui = SITE_BLOCK_UI[spec.type];
           const Icon = ui.icon;
-          const atMax =
-            spec.max !== null && blocks.filter((b) => b.type === spec.type).length >= spec.max;
+          const existing = blocks.filter((b) => b.type === spec.type);
+          const atMax = spec.max !== null && existing.length >= spec.max;
+          // A type that exists once per page and is hidden (Instagram starts that way): the
+          // card shows it again instead of adding a second one.
+          const hiddenSingle =
+            atMax && existing.length === 1 && existing[0]?.hidden === true ? existing[0] : null;
           return (
             <li key={spec.type}>
               <button
                 type="button"
-                disabled={full || atMax}
+                disabled={hiddenSingle === null && (full || atMax)}
                 onClick={() => {
+                  if (hiddenSingle) {
+                    if (setBlockHidden(hiddenSingle.id, false)) onAdded(hiddenSingle.id);
+                    return;
+                  }
                   const id = addBlock(spec.type, insertAt);
                   if (id) onAdded(id);
                 }}
@@ -52,7 +60,11 @@ export function BlocksPanel({ selectedBlockId, onAdded }: BlocksPanelProps) {
                     {ui.label}
                   </span>
                   <span className="text-xs text-[var(--editor-text-secondary)]">
-                    {atMax ? 'Gibt es nur einmal pro Seite' : ui.description}
+                    {hiddenSingle
+                      ? 'Ist ausgeblendet. Wieder einblenden'
+                      : atMax
+                        ? 'Gibt es nur einmal pro Seite'
+                        : ui.description}
                   </span>
                 </span>
               </button>

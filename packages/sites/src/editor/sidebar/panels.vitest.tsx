@@ -28,7 +28,7 @@ describe('PagePanel', () => {
       'Hero-Bild',
       'Themen',
       'Aktionen',
-      'Instagram',
+      'InstagramAusgeblendet',
       'Kontakt',
     ]);
     expect(screen.queryByRole('group', { name: 'Profil: Aktionen' })).toBeNull();
@@ -116,6 +116,21 @@ describe('BlocksPanel', () => {
     renderWithDraft(<BlocksPanel selectedBlockId={null} onAdded={() => {}} />);
     expect(screen.queryByRole('button', { name: /^Profil/ })).toBeNull();
     expect(screen.getByRole('button', { name: /^Kontakt/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^Themen/ })).toBeEnabled();
+  });
+
+  it('shows the hidden Instagram block instead of adding a second one', async () => {
+    const onAdded = vi.fn();
+    const { user, ydoc } = renderWithDraft(
+      <BlocksPanel selectedBlockId={null} onAdded={onAdded} />
+    );
+    const instagram = () => decodeSiteDraft(ydoc).blocks.filter((b) => b.type === 'socialFeed');
+    expect(instagram()).toHaveLength(1);
+    expect(instagram()[0]?.hidden).toBe(true);
+    await user.click(screen.getByRole('button', { name: /^Instagram/ }));
+    expect(instagram()).toHaveLength(1);
+    expect(instagram()[0]?.hidden).toBeUndefined();
+    expect(onAdded).toHaveBeenCalledWith(instagram()[0]?.id);
     expect(screen.getByRole('button', { name: /^Instagram/ })).toBeDisabled();
     expect(screen.getByRole('button', { name: /^Themen/ })).toBeEnabled();
   });
