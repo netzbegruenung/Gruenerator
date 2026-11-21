@@ -3,18 +3,16 @@
  * Loop.
  *
  * EIN Werkzeug mit `action`-Enum wie `recurringTaskTools.ts` (Katalogbudget).
- * Bis 09/2026 konnte der Chat einen eigenen Agenten weder nennen noch anlegen;
- * `draftAgentSpec` (der Entwurf hinter „Agent erstellen" in der Agentura)
- * existierte, war aber nur über HTTP erreichbar. Jetzt entwirft das Werkzeug
- * aus einem Auftragstext die Rolle, zeigt sie als Karte und legt sie nach
- * Zustimmung an — dieselbe Zeile, die der Builder schreibt.
+ *
+ * Agents laufen aus (11/2026): neue lassen sich nicht mehr anlegen, auch
+ * nicht als Kopie — `create` und `duplicate` antworten mit
+ * {@link AGENT_CREATION_CLOSED} und verweisen auf Rezepte. Die Aktionen
+ * bleiben im Enum, damit ein Aufruf den Grund bekommt statt eines
+ * Schemafehlers. Bestehende Agents laufen weiter.
  *
  * Gatter, nach Wirkung sortiert:
- * - Karte (`confirm_action`): Anlegen (der Agent handelt danach in jedem
- *   Chat mit der entworfenen Rolle, und die Rolle ist ein LLM-Entwurf, den die
- *   Person vor dem Speichern sehen soll), Duplizieren (dieselbe Karte — die
- *   Kopie ist ein gewöhnlicher neuer Agent) und Teilen (Fremde sehen ihn).
- *   Ausgeführt in `confirmController.executeAction`.
+ * - Karte (`confirm_action`): Teilen (Fremde sehen ihn). Ausgeführt in
+ *   `confirmController.executeAction`.
  * - `confirm=true` im Werkzeug: Löschen.
  * - direkt: ändern — privat, umkehrbar, Owner-Scope liegt in der
  *   Repository-Query.
@@ -39,24 +37,18 @@ import {
   type Agent,
   type RoleLandesverbandInput,
 } from '@gruenerator/shared/agents';
-import { TEXT_MODEL_BY_ID } from '@gruenerator/shared/models';
-import { generateSlugSuffix, slugifyName } from '@gruenerator/shared/utils';
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
 import { NotebookQdrantHelper } from '../../../database/services/NotebookQdrantHelper.js';
-import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { findGroups } from '../../../services/groups/groupQueries.js';
-import { draftAgentSpec } from '../../../services/userAgents/agentDraftService.js';
 import {
-  createUserAgent,
   deleteUserAgent,
   getAgentSharing,
   getUserAgent,
   listMentionableUserAgents,
   updateUserAgent,
   type MentionableUserAgentRow,
-  type UserAgentInput,
   type UserAgentPatch,
 } from '../../../services/userAgents/userAgentsRepository.js';
 import { emitToolConfirmAction, newActionId } from '../services/confirmActionService.js';
@@ -81,26 +73,15 @@ export interface UserAgentToolDeps {
   deleteUserAgent: typeof deleteUserAgent;
   listMentionableUserAgents: typeof listMentionableUserAgents;
   getAgentSharing: typeof getAgentSharing;
-  draftAgentSpec: typeof draftAgentSpec;
   /** Löst Notebook-IDs zu Zeilen auf — Besitzprüfung UND Name in einem Aufruf. */
   getNotebookCollectionsByIds: (ids: string[]) => Promise<NotebookCollection[]>;
   /** Was das Modell an Rezepten kennen darf — dieselbe Liste wie `rezept_laden`. */
   recipeCatalog: typeof buildRecipeCatalog;
   findGroups: typeof findGroups;
-  /** Anzeigename der Person — wird als Autor*in des neuen Agenten gespeichert. */
-  getAuthorName: (userId: string) => Promise<string | null>;
 }
 
 /** `PersonalToolCtx` plus optionale Fakes — der Katalog reicht den Ctx ohne `deps`. */
 export type UserAgentToolCtx = PersonalToolCtx & { deps?: Partial<UserAgentToolDeps> };
-
-async function getProfileAuthorName(userId: string): Promise<string | null> {
-  const rows = (await getPostgresInstance().query(
-    `SELECT COALESCE(NULLIF(display_name, ''), first_name) AS name FROM profiles WHERE id = $1::uuid`,
-    [userId]
-  )) as Array<{ name: string | null }>;
-  return rows[0]?.name?.trim() || null;
-}
 
 let helperSingleton: NotebookQdrantHelper | null = null;
 
@@ -113,13 +94,11 @@ export function resolveUserAgentDeps(
     deleteUserAgent: partial?.deleteUserAgent ?? deleteUserAgent,
     listMentionableUserAgents: partial?.listMentionableUserAgents ?? listMentionableUserAgents,
     getAgentSharing: partial?.getAgentSharing ?? getAgentSharing,
-    draftAgentSpec: partial?.draftAgentSpec ?? draftAgentSpec,
     getNotebookCollectionsByIds:
       partial?.getNotebookCollectionsByIds ??
       ((ids) => (helperSingleton ??= new NotebookQdrantHelper()).getNotebookCollectionsByIds(ids)),
     recipeCatalog: partial?.recipeCatalog ?? buildRecipeCatalog,
     findGroups: partial?.findGroups ?? findGroups,
-    getAuthorName: partial?.getAuthorName ?? getProfileAuthorName,
   };
 }
 
@@ -129,8 +108,11 @@ const SYSTEM_AGENT =
 const TYPE_LABEL = 'Grünerator-Agent';
 export const GRUENERATOREN_URL = '/grueneratoren';
 
-/** Wie viel von der Rolle die Karte zeigt — und wie viel die Antwort. */
-const ROLE_PREVIEW_CHARS = 140;
+/** Antwort auf jeden Versuch, einen neuen Agent anzulegen — Chat, Karte, MCP. */
+export const AGENT_CREATION_CLOSED =
+  'Neue Grünerator-Agents lassen sich nicht mehr anlegen, auch nicht als Kopie. Lege stattdessen ein Rezept an (Werkzeug recipes) oder ein Projekt. Bestehende Agents laufen weiter und lassen sich in ein Rezept oder Projekt umwandeln.';
+
+/** Wie viel von der Rolle die Antwort zeigt. */
 const ROLE_ANSWER_CHARS = 600;
 
 const SHARE_MODE_LABEL: Record<string, string> = {
@@ -140,13 +122,6 @@ const SHARE_MODE_LABEL: Record<string, string> = {
 };
 
 const TOOL_LABEL = new Map(USER_SELECTABLE_TOOLS.map((t) => [t.key, t.label]));
-
-/** `title` ist im Vertrag auf 100 Zeichen begrenzt — der Zusatz muss hineinpassen. */
-const TITLE_MAX = 100;
-const COPY_SUFFIX = ' (Kopie)';
-
-/** Wie der Web-Builder: der Allrounder des Composers. */
-const DEFAULT_AGENT_MODEL = TEXT_MODEL_BY_ID['gruenerator-ultra'];
 
 /**
  * How the model should name an agent: someone else's by its row uuid, since
@@ -159,30 +134,6 @@ function sharedRef(a: MentionableUserAgentRow): string {
 
 export function userAgentUrl(identifier: string): string {
   return `/agents/${getAgentSlug(identifier)}`;
-}
-
-/**
- * Identifier aus dem Titel, genau wie `AgentEditor.tsx`: Slug plus zufälliges
- * 6-Zeichen-Suffix (kleingeschrieben, wegen `^[a-z0-9-]+$`). Der Suffix macht
- * Kollisionen praktisch unmöglich; `createUserAgentSafely` fängt den Rest.
- */
-export function deriveAgentIdentifier(title: string): string {
-  return `${slugifyName(title, 'agent')}-${generateSlugSuffix().toLowerCase()}`;
-}
-
-/**
- * Anlegen mit EINEM zweiten Versuch bei Identifier-Kollision (Unique-Verstoß
- * aus Postgres) — der HTTP-Router antwortet 409, aber eine bestätigte Karte
- * darf nicht an einem zufälligen Suffix scheitern.
- */
-export async function createUserAgentSafely(userId: string, input: UserAgentInput): Promise<Agent> {
-  try {
-    return await createUserAgent(userId, input);
-  } catch (err) {
-    if (!(err instanceof Error) || !err.message.includes('unique')) throw err;
-    const retitled = { ...input, identifier: deriveAgentIdentifier(input.title) };
-    return createUserAgent(userId, retitled);
-  }
 }
 
 function truncate(text: string, max: number): string {
@@ -209,8 +160,7 @@ function normalizeMention(raw: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Validierung der Felder, die create und update teilen — auch der MCP-Pfad
-// (`mcpMutations.createUserAgentMcp`) läuft hier durch.
+// Validierung der Felder, die update ändern kann.
 // ---------------------------------------------------------------------------
 
 export interface AgentFieldInput {
@@ -287,142 +237,6 @@ export async function validateAgentFields(params: {
 }
 
 // ---------------------------------------------------------------------------
-// create — Entwurf + explizite Felder → fertiger Repository-Input
-// ---------------------------------------------------------------------------
-
-export interface PrepareUserAgentParams {
-  userId: string;
-  userLocale: string | null;
-  roles: readonly RoleLandesverbandInput[] | null;
-  brief: string;
-  title?: string | undefined;
-  systemRole?: string | undefined;
-  fields: AgentFieldInput;
-  deps: UserAgentToolDeps;
-}
-
-export interface PreparedUserAgent {
-  input: UserAgentInput;
-  /** Die Zeilen der Karte — auch der MCP-Rückfragetext liest sie. */
-  preview: Array<{ key: string; value: string }>;
-}
-
-/**
- * Der Entwurf (`draftAgentSpec`) liefert Titel, Rolle, Werkzeuge, Rezepte,
- * Icon und Begrüßung; explizit genannte Felder gewinnen. Geprüft wird VOR dem
- * Modellaufruf — ein falscher Werkzeugschlüssel soll keinen Entwurf kosten.
- * Fällt der Entwurf aus, kommt ein Fehler zurück, den das Modell weitergeben
- * kann, und keine Karte.
- */
-export async function prepareUserAgentInput(
-  params: PrepareUserAgentParams
-): Promise<PreparedUserAgent | { error: string }> {
-  const { userId, deps } = params;
-  const brief = params.brief.trim();
-  if (!brief) return { error: 'create braucht brief — was der Grünerator-Agent tun soll.' };
-
-  const fields = await validateAgentFields({
-    userId,
-    userLocale: params.userLocale,
-    roles: params.roles,
-    fields: params.fields,
-    deps,
-  });
-  if ('error' in fields) return fields;
-
-  let draft: Awaited<ReturnType<typeof draftAgentSpec>>;
-  try {
-    draft = await deps.draftAgentSpec([{ role: 'user', content: brief }]);
-  } catch (err) {
-    const reason = err instanceof Error ? err.message : String(err);
-    return {
-      error: `Der Entwurf für den Grünerator-Agent konnte nicht erstellt werden (${reason}). Später erneut versuchen oder den Agenten unter Grüneratoren (${GRUENERATOREN_URL}) anlegen.`,
-    };
-  }
-
-  const title = (params.title?.trim() || draft.title).slice(0, 100);
-  const systemRole = params.systemRole?.trim() || draft.systemRole;
-  const enabledTools = fields.enabledTools ?? draft.enabledTools;
-  const skillMentions = fields.skillMentions ?? draft.skillMentions;
-  // Profil-Locale schlägt den Entwurf: eine AT-Person bekommt keinen DE-Agenten,
-  // nur weil der Auftrag Österreich nicht erwähnt hat.
-  const locale = params.userLocale === 'de-AT' ? 'de-AT' : draft.locale;
-
-  const input: UserAgentInput = {
-    identifier: deriveAgentIdentifier(title),
-    title,
-    description: draft.description,
-    systemRole,
-    avatar: '✨',
-    iconKey: draft.iconKey,
-    backgroundColor: draft.backgroundColor,
-    tags: [],
-    model: DEFAULT_AGENT_MODEL.model,
-    provider: DEFAULT_AGENT_MODEL.provider,
-    params: { max_tokens: 3000, temperature: 0.5 },
-    openingMessage: draft.openingMessage,
-    openingQuestions: draft.openingQuestions,
-    locale,
-    author: (await deps.getAuthorName(userId)) ?? 'Eigener Grünerator-Agent',
-    enabledTools: enabledTools.length ? enabledTools : [...DEFAULT_USER_AGENT_TOOLS],
-    skillMentions,
-    ...(fields.defaultNotebookIds?.length ? { defaultNotebookIds: fields.defaultNotebookIds } : {}),
-  };
-
-  return {
-    input,
-    preview: [
-      { key: 'Name', value: input.title },
-      { key: 'Rolle', value: truncate(input.systemRole, ROLE_PREVIEW_CHARS) },
-      { key: 'Werkzeuge', value: toolLabels(input.enabledTools ?? []) },
-      { key: 'Rezepte', value: listLabel(skillMentions) },
-      { key: 'Notebooks', value: listLabel(fields.notebookNames) },
-    ],
-  };
-}
-
-/**
- * Die Kopie eines EIGENEN Agenten als Repository-Input — dieselben Felder wie
- * `useDuplicateAgent` in der Agentura, neuer Identifier, Titel mit „(Kopie)".
- * Nur eigene Agenten, wie dort: ein geteilter Agent gibt seine Rolle nicht
- * heraus, und ein System-Grünerator trägt seine aus `INTERN_CONTENT_DIR`.
- */
-export function duplicateUserAgentInput(agent: Agent, title?: string): UserAgentInput {
-  const room = TITLE_MAX - COPY_SUFFIX.length;
-  const copyTitle =
-    title?.trim().slice(0, TITLE_MAX) ||
-    `${agent.title.length > room ? agent.title.slice(0, room).trimEnd() : agent.title}${COPY_SUFFIX}`;
-  return {
-    identifier: deriveAgentIdentifier(copyTitle),
-    title: copyTitle,
-    description: agent.description,
-    systemRole: agent.systemRole,
-    avatar: agent.avatar,
-    ...(agent.iconKey ? { iconKey: agent.iconKey } : {}),
-    backgroundColor: agent.backgroundColor,
-    tags: [...agent.tags],
-    model: agent.model,
-    defaultModel: agent.defaultModel ?? null,
-    provider: agent.provider,
-    params: agent.params,
-    openingMessage: agent.openingMessage,
-    openingQuestions: [...agent.openingQuestions],
-    locale: agent.locale,
-    author: agent.author,
-    defaultNotebookIds: agent.defaultNotebookIds ? [...agent.defaultNotebookIds] : null,
-    ...(agent.plugins ? { plugins: [...agent.plugins] } : {}),
-    ...(agent.enabledTools ? { enabledTools: [...agent.enabledTools] } : {}),
-    ...(agent.skillMentions ? { skillMentions: [...agent.skillMentions] } : {}),
-    ...(agent.fewShotExamples ? { fewShotExamples: [...agent.fewShotExamples] } : {}),
-    ...(agent.inlineSourceLinks !== undefined
-      ? { inlineSourceLinks: agent.inlineSourceLinks }
-      : {}),
-    defaultRecipeMention: agent.defaultRecipeMention ?? null,
-    defaultRecipeId: agent.defaultRecipeId ?? null,
-  };
-}
-
-// ---------------------------------------------------------------------------
 // Das Werkzeug
 // ---------------------------------------------------------------------------
 
@@ -435,11 +249,11 @@ export function makeUserAgentsTool(ctx: UserAgentToolCtx): Tool {
   return tool({
     description: `Zugriff auf die eigenen Grünerator-Agenten der Person: selbst gebaute Assistenten mit eigener Rolle, eigenen Werkzeugen, Rezepten und Notebooks, die unter /agents/<identifier> im Chat laufen.
 
-NUTZE FÜR: die eigenen und die aus Projekten geteilten Grünerator-Agenten auflisten (list), Details eines Agenten ansehen — Rolle, Werkzeuge, Rezepte, Notebooks, Sichtbarkeit (get mit identifier), einen neuen Agenten anlegen — „bau mir einen Agenten, der …" (create mit brief; optional title, systemRole, enabledTools, skillMentions, defaultNotebookIds), einen eigenen Agenten ändern (update mit identifier und den neuen Feldern), einen eigenen Agenten kopieren — „mach mir eine Kopie von X" (duplicate mit identifier; optional title, danach mit update anpassen), mit einem Projekt teilen (share_to_group mit identifier und groupName), löschen (delete mit confirm=true nach Zustimmung).
+NUTZE FÜR: die eigenen und die aus Projekten geteilten Grünerator-Agenten auflisten (list), Details eines Agenten ansehen — Rolle, Werkzeuge, Rezepte, Notebooks, Sichtbarkeit (get mit identifier), einen eigenen Agenten ändern (update mit identifier und den neuen Feldern), mit einem Projekt teilen (share_to_group mit identifier und groupName), löschen (delete mit confirm=true nach Zustimmung).
 
-NICHT für: eine wiederkehrende Aufgabe für einen Agenten einrichten (dafür 'recurring_tasks'), Rezepte anlegen und verwalten (dafür 'recipes'; anwenden mit 'rezept_laden'), das Projekt selbst (dafür 'groups'), die System-Grüneratoren der Plattform (die lassen sich nicht ändern).
+NICHT für: einen neuen Agenten anlegen oder kopieren — das geht nicht mehr; wer so etwas möchte, bekommt ein Rezept (dafür 'recipes'; anwenden mit 'rezept_laden'). Auch nicht für: eine wiederkehrende Aufgabe einrichten (dafür 'recurring_tasks'), das Projekt selbst (dafür 'groups'), die System-Grüneratoren der Plattform (die lassen sich nicht ändern).
 
-Für create genügt brief: eine Beschreibung in ganzen Sätzen, was der Agent tun soll, für wen und in welchem Ton — daraus wird die Systemrolle entworfen; mit update lässt sie sich danach verfeinern. Anlegen, Duplizieren und Teilen werden der Person als Karte zur Bestätigung angezeigt — kündige nichts als angelegt oder geteilt an, was nur angefordert ist. Ein Agent wird über identifier (aus list, Feld ref) benannt; geteilte Agenten sind nur lesbar.`,
+Teilen wird der Person als Karte zur Bestätigung angezeigt — kündige nichts als geteilt an, was nur angefordert ist. Ein Agent wird über identifier (aus list, Feld ref) benannt; geteilte Agenten sind nur lesbar.`,
     inputSchema: z.object({
       action: z.enum(['list', 'get', 'create', 'update', 'duplicate', 'share_to_group', 'delete']),
       identifier: z
@@ -497,7 +311,7 @@ Für create genügt brief: eine Beschreibung in ganzen Sätzen, was der Agent tu
       const { action } = args;
 
       if (action === 'list') return listAgents(userId, args.limit);
-      if (action === 'create') return createCard(userId, args);
+      if (action === 'create' || action === 'duplicate') return { error: AGENT_CREATION_CLOSED };
 
       // Alle weiteren Aktionen zielen auf EINEN Agenten.
       const identifier = args.identifier?.trim();
@@ -515,7 +329,6 @@ Für create genügt brief: eine Beschreibung in ganzen Sätzen, was der Agent tu
       if (!agent) return { error: NOT_FOUND };
 
       if (action === 'update') return updateAgent(userId, agent, args);
-      if (action === 'duplicate') return duplicateCard(userId, agent, args.title);
       if (action === 'share_to_group') return shareCard(userId, agent, args.groupName);
 
       // delete
@@ -542,7 +355,7 @@ Für create genügt brief: eine Beschreibung in ganzen Sätzen, was der Agent tu
   async function listAgents(userId: string, limit: number): Promise<Record<string, unknown>> {
     const rows = (await deps.listMentionableUserAgents(userId)).slice(0, limit);
     if (rows.length === 0) {
-      const note = `Es gibt noch keine eigenen Grünerator-Agenten. Anlegen geht hier mit create oder unter Grüneratoren (${GRUENERATOREN_URL}).`;
+      const note = `Es gibt keine eigenen Grünerator-Agenten. Neue lassen sich nicht mehr anlegen; dafür gibt es Rezepte (Werkzeug recipes).`;
       groundNote(sourceRegistry, 'Grünerator-Agenten', note);
       return { resultCount: 0, results: [], note };
     }
@@ -657,61 +470,6 @@ Für create genügt brief: eine Beschreibung in ganzen Sätzen, was der Agent tu
   }
 
   // -------------------------------------------------------------------------
-  // create — Karte
-  // -------------------------------------------------------------------------
-
-  async function createCard(
-    userId: string,
-    args: {
-      brief?: string | undefined;
-      title?: string | undefined;
-      systemRole?: string | undefined;
-      enabledTools?: string[] | undefined;
-      skillMentions?: string[] | undefined;
-      defaultNotebookIds?: string[] | undefined;
-    }
-  ): Promise<Record<string, unknown>> {
-    if (!threadId) return { error: 'Anlegen ist in diesem Kontext nicht möglich.' };
-    const forbidden = refuseForbiddenAction(state);
-    if (forbidden) return forbidden;
-    if (!args.brief?.trim()) {
-      return { error: 'create braucht brief — was der Grünerator-Agent tun soll.' };
-    }
-
-    const prepared = await prepareUserAgentInput({
-      userId,
-      userLocale,
-      roles,
-      brief: args.brief,
-      title: args.title,
-      systemRole: args.systemRole,
-      fields: {
-        enabledTools: args.enabledTools,
-        skillMentions: args.skillMentions,
-        defaultNotebookIds: args.defaultNotebookIds,
-      },
-      deps,
-    });
-    if ('error' in prepared) return prepared;
-    const { input, preview } = prepared;
-
-    const pending: PendingAction = {
-      actionId: newActionId(),
-      threadId,
-      userId,
-      title: 'Grünerator-Agent anlegen',
-      preview: `„${input.title}" — ${truncate(input.description, 80)}`,
-      createdAt: Date.now(),
-      type: 'create_user_agent',
-      payload: { input },
-    };
-    await emitToolConfirmAction(sse, pending, preview);
-    const note = `Bestätigung angefordert: Grünerator-Agent „${input.title}" anlegen (Werkzeuge: ${toolLabels(input.enabledTools ?? [])}). Die Rolle ist ein Entwurf und lässt sich danach mit update verfeinern.`;
-    groundNote(sourceRegistry, 'Grünerator-Agent anlegen', note);
-    return { ok: true, needsConfirmation: true, note };
-  }
-
-  // -------------------------------------------------------------------------
   // update — direkt
   // -------------------------------------------------------------------------
 
@@ -786,38 +544,6 @@ Für create genügt brief: eine Beschreibung in ganzen Sätzen, was der Agent tu
     const note = `Grünerator-Agent „${agent.title}" — ${changes.join('; ')}. (${userAgentUrl(updated.identifier)})`;
     groundNote(sourceRegistry, 'Grünerator-Agent geändert', note);
     return { ok: true, note, url: userAgentUrl(updated.identifier) };
-  }
-
-  // -------------------------------------------------------------------------
-  // duplicate — dieselbe Karte wie create
-  // -------------------------------------------------------------------------
-
-  async function duplicateCard(
-    userId: string,
-    agent: Agent,
-    title: string | undefined
-  ): Promise<Record<string, unknown>> {
-    if (!threadId) return { error: 'Duplizieren ist in diesem Kontext nicht möglich.' };
-    const input = duplicateUserAgentInput(agent, title);
-    const pending: PendingAction = {
-      actionId: newActionId(),
-      threadId,
-      userId,
-      title: 'Grünerator-Agent duplizieren',
-      preview: `„${input.title}" — Kopie von „${agent.title}"`,
-      createdAt: Date.now(),
-      type: 'create_user_agent',
-      payload: { input },
-    };
-    await emitToolConfirmAction(sse, pending, [
-      { key: 'Name', value: input.title },
-      { key: 'Kopie von', value: agent.title },
-      { key: 'Werkzeuge', value: toolLabels(input.enabledTools ?? [...DEFAULT_USER_AGENT_TOOLS]) },
-      { key: 'Rezepte', value: listLabel(input.skillMentions ?? []) },
-    ]);
-    const note = `Bestätigung angefordert: Kopie „${input.title}" von „${agent.title}" anlegen — Rolle, Werkzeuge, Rezepte und Notebooks werden übernommen und lassen sich danach mit update ändern.`;
-    groundNote(sourceRegistry, 'Grünerator-Agent duplizieren', note);
-    return { ok: true, needsConfirmation: true, note };
   }
 
   // -------------------------------------------------------------------------

@@ -794,10 +794,11 @@ const standardRoutes: RouteConfig[] = [
   { path: '/e/:token', component: PublicExplainablePage, layoutMode: 'noChrome', public: true },
   { path: '/podcast/:slug', component: PodcastPage },
   // Custom generators are removed — prompts were auto-converted to agents.
-  // Keep old links working: create page → agent creator; generator → its agent.
+  // Keep old links working: create page → recipe creator (new agents are
+  // closed); generator → its agent.
   {
     path: '/gruenerator/erstellen',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/agents/new') })),
+    component: lazy(() => Promise.resolve({ default: createRedirect('/agentura/rezept/neu') })),
   },
   { path: '/gruenerator/:slug', component: LegacyGeneratorSlugRedirect },
   // Redirects for removed pages

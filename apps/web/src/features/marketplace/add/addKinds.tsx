@@ -419,7 +419,8 @@ export const ADD_KINDS: readonly AddKind[] = [
     pluralLabel: 'Agents',
     hint: 'Eine KI-Persönlichkeit mit Rolle und Wissen',
     icon: <PiSparkle aria-hidden />,
-    create: { href: '/agents/new', label: 'Agent erstellen' },
+    // Neue Agents gibt es nicht mehr — wer keinen hat, legt ein Rezept an.
+    create: { href: '/agentura/rezept/neu', label: 'Rezept erstellen' },
     useItems: useOwnAgents,
     Visibility: AgentVisibility,
   }),

@@ -1,7 +1,7 @@
 import { MAX_DRAFT_BRIEF_CHARS } from '@gruenerator/contracts';
 import { EMPTY_FORM, type FormState, specToFormState } from '@gruenerator/shared/grueneratoren';
 import { useCallback, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 
 import AgentEditor from './AgentEditor';
 import AgentStartScreen from './AgentStartScreen';
@@ -15,6 +15,9 @@ import { useAuthStore } from '@/stores/authStore';
  * Guided agent creator. A one-shot brief is drafted by the AI, then handed to
  * the same wizard the manual/edit routes use — pre-filled, never persisted
  * until the user saves. No chat (replaces the former conversational creator).
+ *
+ * Neue Agents gibt es nicht mehr: ohne `?mode=recurring` geht es zum
+ * Rezept-Creator. Wiederkehrende Aufgaben legen ihren Agent vorerst weiter an.
  */
 function AgentCreatorPage() {
   const draftMut = useDraftAgent();
@@ -57,6 +60,8 @@ function AgentCreatorPage() {
   const handleBack = useCallback(() => {
     setPhase('start');
   }, []);
+
+  if (variant !== 'recurring') return <Navigate to="/agentura/rezept/neu" replace />;
 
   if (phase === 'build') {
     return (
