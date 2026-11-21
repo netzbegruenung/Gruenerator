@@ -82,6 +82,15 @@ const identifierSchema = z
 export const userAgentShareModeSchema = z.enum(['private', 'groups', 'authenticated']);
 export type UserAgentShareMode = z.infer<typeof userAgentShareModeSchema>;
 
+/**
+ * Agents laufen aus: die Besitzer*in wandelt einen eigenen Agent in ein Rezept
+ * oder ein persönliches Projekt um. Umwandeln kopiert — der Agent bleibt
+ * unverändert und merkt sich nur den Nachfolger (`migratedTo`). Die Werte sind
+ * F0: sie stehen in `user_agents.migrated_to_kind`.
+ */
+export const agentConversionTargetSchema = z.enum(['recipe', 'project']);
+export type AgentConversionTarget = z.infer<typeof agentConversionTargetSchema>;
+
 export const userAgentSchema = z.object({
   id: z.string().guid(),
   identifier: z.string(),
@@ -121,9 +130,72 @@ export const userAgentSchema = z.object({
   /** Share-link key: the link is `<name>-<slugSuffix>` (`agentSharePath`).
    * `identifier` is unique only per owner and cannot name one agent. */
   slugSuffix: z.string().optional(),
+  /** Set once the owner converted the agent (`POST …/:identifier/convert`).
+   * The agent itself stays untouched; this only points at its successor. */
+  migratedTo: z.object({ kind: agentConversionTargetSchema, ref: z.string().guid() }).optional(),
 });
 
 export type UserAgent = z.infer<typeof userAgentSchema>;
+
+// ── Umwandeln in Rezept oder Projekt ──────────────────────────────────────────
+
+export const agentConversionBodySchema = z.object({
+  target: agentConversionTargetSchema,
+  /** `true`: nur berechnen, was mitkommt, nichts anlegen (der Dialog). */
+  dryRun: z.boolean().optional(),
+  /** `true`: auch bei bestehendem Nachfolger desselben Ziels neu anlegen. */
+  fresh: z.boolean().optional(),
+});
+export type AgentConversionBody = z.infer<typeof agentConversionBodySchema>;
+
+/** Welcher Teil eines Agents gemeint ist — der Dialog zeigt je Teil eine Zeile. */
+export const agentConversionPartSchema = z.enum([
+  'role',
+  'examples',
+  'notebooks',
+  'defaultRecipe',
+  'opening',
+  'groupShares',
+  'public',
+  'tools',
+  'model',
+  'recurringTasks',
+]);
+export type AgentConversionPart = z.infer<typeof agentConversionPartSchema>;
+
+/**
+ * `carried`: kommt mit. `dropped`: fällt weg. `later`: bleibt vorerst am Agent
+ * bzw. wirkt im Nachfolger noch nicht — ein Folgeschritt holt es nach.
+ */
+export const agentConversionOutcomeSchema = z.enum(['carried', 'dropped', 'later']);
+export type AgentConversionOutcome = z.infer<typeof agentConversionOutcomeSchema>;
+
+export const agentConversionItemSchema = z.object({
+  part: agentConversionPartSchema,
+  outcome: agentConversionOutcomeSchema,
+  note: z.string(),
+});
+export type AgentConversionItem = z.infer<typeof agentConversionItemSchema>;
+
+export const agentConversionResultSchema = z.object({
+  kind: agentConversionTargetSchema,
+  ref: z.string().guid(),
+  /** Web-Pfad des Nachfolgers (`/agentura/rezept/…`, `/projekte/…`). */
+  path: z.string(),
+});
+
+export const agentConversionResponseSchema = z.object({
+  success: z.literal(true),
+  target: agentConversionTargetSchema,
+  items: z.array(agentConversionItemSchema),
+  /** Gesetzt, wenn die Umwandlung in dieses Ziel nicht geht — mit dem Grund. */
+  blocked: z.string().nullable(),
+  /** Der Nachfolger bestand schon und wurde nicht neu angelegt. */
+  alreadyConverted: z.boolean(),
+  /** Bei `dryRun` der bestehende Nachfolger oder `null`. */
+  result: agentConversionResultSchema.nullable(),
+});
+export type AgentConversionResponse = z.infer<typeof agentConversionResponseSchema>;
 
 /**
  * The lean projection the @-mention picker needs — NOT the full agent.

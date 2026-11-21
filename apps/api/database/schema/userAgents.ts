@@ -1,4 +1,4 @@
-import { type ModerationState } from '@gruenerator/contracts';
+import { type AgentConversionTarget, type ModerationState } from '@gruenerator/contracts';
 import { type InferSelectModel, sql } from 'drizzle-orm';
 import {
   boolean,
@@ -68,6 +68,12 @@ export const userAgents = pgTable(
       .default(sql`gen_slug_suffix()`),
     // See migrations/zz_20261019_marketplace_moderation.sql.
     moderation: text('moderation').$type<ModerationState>().notNull().default('ok'),
+    // Nachfolger nach dem Umwandeln (migrations/zz_20261121_user_agents_migrated_to.sql).
+    // Beide gesetzt oder beide leer; kein FK, `ref` zeigt je nach `kind` auf
+    // user_text_forms oder groups.
+    migrated_to_kind: text('migrated_to_kind').$type<AgentConversionTarget>(),
+    migrated_to_ref: uuid('migrated_to_ref'),
+    migrated_at: timestamp('migrated_at', { withTimezone: true }),
     created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     deleted_at: timestamp('deleted_at', { withTimezone: true }),

@@ -6,7 +6,7 @@
  * at the boundary so the rest of the stack handles a single canonical type.
  */
 
-import { type ModerationState } from '@gruenerator/contracts';
+import { type AgentConversionTarget, type ModerationState } from '@gruenerator/contracts';
 import { type Agent, type AgentProvider } from '@gruenerator/shared/agents';
 import { and, asc, desc, eq, inArray, ne, or, sql } from 'drizzle-orm';
 
@@ -54,7 +54,11 @@ export type UserAgentPatch = Partial<UserAgentInput>;
 // at runtime; Drizzle gives us $type<…> hints but TS treats them as nullable
 // by default for jsonb without a default.
 /** A user agent as it leaves this module: an `Agent` that always carries its row `id`. */
-export type UserAgentRecord = Agent & { id: string };
+export type UserAgentRecord = Agent & {
+  id: string;
+  /** Nachfolger nach dem Umwandeln; der Agent selbst bleibt unverändert. */
+  migratedTo?: { kind: AgentConversionTarget; ref: string };
+};
 
 function rowToAgent(row: UserAgentRow): UserAgentRecord {
   return {
@@ -84,6 +88,9 @@ function rowToAgent(row: UserAgentRow): UserAgentRecord {
     ...(row.default_recipe_mention ? { defaultRecipeMention: row.default_recipe_mention } : {}),
     ...(row.default_recipe_id ? { defaultRecipeId: row.default_recipe_id } : {}),
     ...(row.slug_suffix ? { slugSuffix: row.slug_suffix } : {}),
+    ...(row.migrated_to_kind && row.migrated_to_ref
+      ? { migratedTo: { kind: row.migrated_to_kind, ref: row.migrated_to_ref } }
+      : {}),
   };
 }
 
@@ -213,6 +220,28 @@ export async function updateUserAgent(
     .returning();
   const row = rows[0];
   return row ? rowToAgent(row) : undefined;
+}
+
+/**
+ * Merkt sich den Nachfolger eines umgewandelten Agents. Schreibt nur die drei
+ * `migrated_*`-Spalten — Inhalt, `updated_at` und Freigaben bleiben stehen.
+ */
+export async function setUserAgentSuccessor(
+  userId: string,
+  agentId: string,
+  successor: { kind: AgentConversionTarget; ref: string }
+): Promise<boolean> {
+  const db = getDrizzleInstance();
+  const rows = await db
+    .update(userAgents)
+    .set({
+      migrated_to_kind: successor.kind,
+      migrated_to_ref: successor.ref,
+      migrated_at: new Date(),
+    })
+    .where(and(ownedByHandle(userId, agentId), notTrashed(userAgents)))
+    .returning({ id: userAgents.id });
+  return rows.length > 0;
 }
 
 /**
