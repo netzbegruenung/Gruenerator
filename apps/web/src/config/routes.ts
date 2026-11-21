@@ -957,6 +957,12 @@ const standardRoutes: RouteConfig[] = [
     component: VideoEditorPage,
     layoutMode: 'immersive',
   },
+  {
+    accent: 'studio',
+    path: '/studio/videoeditor/:slug',
+    component: VideoEditorPage,
+    layoutMode: 'immersive',
+  },
   // KI-Schnitt: before /studio/:category, like every literal studio path.
   { accent: 'studio', path: '/studio/ki-schnitt', component: KiSchnittNewPage },
   { accent: 'studio', path: '/studio/ki-schnitt/:slug', component: KiSchnittProjectPage },

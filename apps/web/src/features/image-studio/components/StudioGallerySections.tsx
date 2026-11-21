@@ -38,6 +38,7 @@ import { useRecentGalleryItems, type RecentGalleryItem } from '../hooks/useRecen
 
 import { Lightbox } from './Lightbox';
 import { buildStudioQuickStarts, QuickStartTiles } from './QuickStartTiles';
+import VideoProjectsSection from './VideoProjectsSection';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 
@@ -430,6 +431,7 @@ const StudioGallerySections = () => {
           data and self-hides when the user has no reels. Rendered outside the
           isStudioEmpty gate (that flag only reflects the image buckets) so a
           reel-only user still sees them. */}
+      <VideoProjectsSection />
       <ReelsSection />
 
       {/* Read-only preview for gallery items when the canvas editor is gated off. */}

@@ -101,6 +101,7 @@ import {
   userUsageContract,
   userWebsitesContract,
   videoAiContract,
+  videoProjectsContract,
   wolkePendingContract,
 } from '@gruenerator/contracts';
 
@@ -203,6 +204,7 @@ export type ContractRegistryName =
   | 'userUsageContract'
   | 'userWebsitesContract'
   | 'videoAiContract'
+  | 'videoProjectsContract'
   | 'wolkePendingContract';
 
 export const CONTRACTS: Pick<typeof ContractsModule, ContractRegistryName> = {
@@ -301,5 +303,6 @@ export const CONTRACTS: Pick<typeof ContractsModule, ContractRegistryName> = {
   userUsageContract,
   userWebsitesContract,
   videoAiContract,
+  videoProjectsContract,
   wolkePendingContract,
 };

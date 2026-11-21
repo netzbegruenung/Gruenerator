@@ -94,6 +94,7 @@ const COLLAB_SUBTYPES: Record<string, SubtypeDisplay> = {
   presentations: { label: 'Präsentation', icon: PiPresentation },
   boards: { label: 'Board', icon: PiKanban },
   canvas: { label: 'Sharepic', icon: PiImage },
+  video: { label: 'Videoprojekt', icon: PiFilmSlate },
 };
 
 /** `media_type` of a shared media row. */

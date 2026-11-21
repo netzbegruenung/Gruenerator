@@ -14,7 +14,8 @@
       "boards",
       "canvas",
       "sheets",
-      "presentations"
+      "presentations",
+      "video"
     ],
     "typeLabels": {
       "board": "Board",
