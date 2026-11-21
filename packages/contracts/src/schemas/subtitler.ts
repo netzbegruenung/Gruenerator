@@ -16,6 +16,8 @@ import { z } from 'zod';
 
 import { jobErrorCodeSchema } from './jobErrors.js';
 import { localeSchema } from './userProfile.js';
+import { videoAiCaptionTemplateSchema } from './videoAi.js';
+import { videoAspectRatioSchema } from './videoProjects.js';
 
 // ── Subtitle preference vocabularies ────────────────────────────────────────
 
@@ -191,6 +193,31 @@ export const subtitlerProjectSchema = z.object({
 });
 
 export type SubtitlerProject = z.infer<typeof subtitlerProjectSchema>;
+
+// ── Hand-off to the video editor ────────────────────────────────────────────
+
+/**
+ * What the video editor needs to open a subtitler project as its own project
+ * (`/studio/videoeditor?untertitel=<projectId>`): the original video, copied
+ * once into the Mediathek so the editor project outlives the subtitler
+ * project, and the word timings in seconds from the start of that video. The
+ * editor splits the words into captions itself, with the same function its
+ * own caption button uses.
+ */
+export const subtitlerEditorSeedSchema = z.object({
+  title: z.string(),
+  video: z.object({
+    shareToken: z.string(),
+    duration: z.number(),
+    width: z.number().nullable(),
+    height: z.number().nullable(),
+  }),
+  aspectRatio: videoAspectRatioSchema,
+  captionTemplate: videoAiCaptionTemplateSchema,
+  words: z.array(subtitleWordSchema),
+});
+
+export type SubtitlerEditorSeed = z.infer<typeof subtitlerEditorSeedSchema>;
 
 // ── Processing: cleanup ─────────────────────────────────────────────────────
 

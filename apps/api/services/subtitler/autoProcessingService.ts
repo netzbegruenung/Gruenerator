@@ -30,7 +30,7 @@ import { ffmpeg } from './ffmpegWrapper.js';
 import { generateManualSubtitles } from './manualSubtitleGeneratorService.js';
 import { autoSaveProject } from './projectSavingService.js';
 import { calculateFontSizing } from './subtitleSizingService.js';
-import { transcribeVideo } from './transcriptionService.js';
+import { transcribeVideoWithWords, type WordTimestamp } from './transcriptionService.js';
 import { probeVideoMetadata } from './videoMetadata.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -110,6 +110,8 @@ interface ProcessingResult {
   autoProcessToken: string;
   segments: SubtitleSegment[];
   subtitles: string;
+  /** Word timings in seconds from the start of the input video. */
+  words: WordTimestamp[];
   metadata: VideoMetadata;
 }
 
@@ -289,6 +291,7 @@ async function processVideoAutomatically(
       (metadata.height > TARGET_RESOLUTION && metadata.width >= metadata.height);
 
     let subtitles: string;
+    let words: WordTimestamp[];
 
     try {
       // Stored word timings (parteitag speech) replace the transcription —
@@ -298,14 +301,18 @@ async function processVideoAutomatically(
         // The locale drives both the transcription vocabulary and, further
         // down, the ASS style/font.
         usePrecomputed
-          ? generateManualSubtitles(precomputed.fullText, precomputed.words)
-          : transcribeVideo(inputPath, 'manual', locale),
+          ? generateManualSubtitles(precomputed.fullText, precomputed.words).then((text) => ({
+              subtitles: text,
+              words: precomputed.words,
+            }))
+          : transcribeVideoWithWords(inputPath, 'manual', locale),
         needsPreScale
           ? preScaleVideo(inputPath, metadata, TARGET_RESOLUTION)
           : Promise.resolve(null),
       ]);
 
-      subtitles = transcriptionResult;
+      subtitles = transcriptionResult.subtitles;
+      words = transcriptionResult.words;
       log.info(`Transcription complete: ${subtitles.split('\n\n').length} segments`);
 
       if (scaledPath) {
@@ -399,6 +406,7 @@ async function processVideoAutomatically(
       autoProcessToken,
       segments: subtitleSegments,
       subtitles,
+      words,
       metadata,
     };
   } catch (error: unknown) {
@@ -730,6 +738,7 @@ async function startAutoProcessing(options: StartAutoProcessingOptions): Promise
             uploadId,
             originalFilename,
             segments: result.segments,
+            words: result.words,
             metadata: result.metadata,
             stylePreference: 'shadow',
             heightPreference: 'tief',

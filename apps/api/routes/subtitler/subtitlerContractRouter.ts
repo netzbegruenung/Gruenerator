@@ -953,6 +953,33 @@ Erstelle einen Instagram Reel Beitragstext, der:
     }
   },
 
+  postEditorSeed: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      if (!userId) {
+        return { status: 401 as const, body: { error: 'Nicht authentifiziert' } };
+      }
+      const { buildEditorSeed } = await import('../../services/subtitler/editorSeed.js');
+      const result = await buildEditorSeed(await getProjectService(), userId, args.params.projectId);
+      if (result.status === 'not_found') {
+        return { status: 404 as const, body: { success: false, error: 'Projekt nicht gefunden' } };
+      }
+      if (result.status === 'source_gone') {
+        return {
+          status: 410 as const,
+          body: { success: false, error: 'Das Originalvideo ist nicht mehr verfügbar' },
+        };
+      }
+      return { status: 200 as const, body: result.seed };
+    } catch (error: unknown) {
+      log.error('[subtitlerContract.postEditorSeed] Error:', error);
+      return {
+        status: 500 as const,
+        body: { success: false, error: 'Projekt konnte nicht für den Editor vorbereitet werden' },
+      };
+    }
+  },
+
   trackExport: async (args) => {
     try {
       const userId = getUserId(args.req);

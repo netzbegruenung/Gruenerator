@@ -2,7 +2,7 @@ import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { Button, UploadZone } from '@gruenerator/ui';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { PiVideoCamera } from 'react-icons/pi';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import * as tus from 'tus-js-client';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
@@ -464,13 +464,20 @@ const SubtitlerPage = (): React.ReactElement => {
     }, 300);
   }, [resetSocialText, uploadInfo?.uploadId, resetExport, goToStep]);
 
-  // Function to go back to the editor without resetting everything
+  // „Bearbeiten“ opens the saved project in the video editor, captions already
+  // split there. Without a saved project the in-page editor stays the fallback.
+  const navigate = useNavigate();
+  const editProjectId = loadedProject?.id || autoSavedProjectId;
   const handleEditAgain = useCallback(() => {
+    if (editProjectId) {
+      void navigate(`/studio/videoeditor?untertitel=${encodeURIComponent(editProjectId)}`);
+      return;
+    }
     // Reset export state so user must re-export after making changes
     // This prevents downloading old video after editing
     resetExport();
     goToStep('edit');
-  }, [resetExport, goToStep]);
+  }, [editProjectId, navigate, resetExport, goToStep]);
 
   // New handlers for styling step
   const handleStyleSelect = useCallback((style: string) => {

@@ -15,6 +15,12 @@ describe('editorAppSrc', () => {
     expect(editorAppSrc('?foo=bar', null)).toBe('/videoeditor/app/');
   });
 
+  it('forwards the subtitler project of a „Bearbeiten“ hand-off', () => {
+    expect(editorAppSrc('?untertitel=p1', 's-abc123')).toBe(
+      '/videoeditor/app/?untertitel=p1&projekt=s-abc123'
+    );
+  });
+
   it('returns the bare path without params', () => {
     expect(editorAppSrc('', null)).toBe('/videoeditor/app/');
   });
