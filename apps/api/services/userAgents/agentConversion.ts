@@ -42,7 +42,11 @@ import { createGroupForUser } from '../groups/groupMutations.js';
 import { trashGroup } from '../groups/groupTrash.js';
 import { resolveMentionCollision } from '../user/textFormDraftService.js';
 import { deriveRecipeMention } from '../user/textFormKind.js';
-import { listTextForms, upsertTextForm } from '../user/textFormRepository.js';
+import {
+  getTextFormForInjectionById,
+  listTextForms,
+  upsertTextForm,
+} from '../user/textFormRepository.js';
 
 import {
   getAgentSharing,
@@ -241,6 +245,8 @@ export function planAgentConversion(
 
 export interface AgentConversionDeps {
   getAgent: (userId: string, handle: string) => Promise<UserAgentRecord | undefined>;
+  /** Aktuelle Mention des Rezepts hinter `defaultRecipeId`, sonst `null`. */
+  recipeMentionById: (userId: string, recipeId: string) => Promise<string | null>;
   readFacts: (userId: string, agent: UserAgentRecord) => Promise<AgentConversionFacts>;
   listAgentGroupIds: (agentId: string) => Promise<string[]>;
   /** Pfad des lebenden Nachfolgers, sonst `null`. */
@@ -317,8 +323,14 @@ export async function convertUserAgent(
   deps: AgentConversionDeps = defaultDeps()
 ): Promise<ConvertUserAgentOutcome> {
   const { userId, target } = params;
-  const agent = await deps.getAgent(userId, params.handle);
-  if (!agent) return { ok: false, status: 404, message: 'Agent nicht gefunden.' };
+  const stored = await deps.getAgent(userId, params.handle);
+  if (!stored) return { ok: false, status: 404, message: 'Agent nicht gefunden.' };
+  // Die Id gewinnt wie im Chat: gespeichert kann auch nur sie sein (API, MCP),
+  // und eine umbenannte Mention zeigte sonst auf ein anderes Rezept.
+  const pinnedMention = stored.defaultRecipeId
+    ? await deps.recipeMentionById(userId, stored.defaultRecipeId)
+    : null;
+  const agent = pinnedMention ? { ...stored, defaultRecipeMention: pinnedMention } : stored;
 
   const facts = await deps.readFacts(userId, agent);
   const plan = planAgentConversion(agent, target, facts);
@@ -489,6 +501,8 @@ async function convertToProject(
 function defaultDeps(): AgentConversionDeps {
   return {
     getAgent: getUserAgent,
+    recipeMentionById: async (userId, recipeId) =>
+      (await getTextFormForInjectionById(recipeId, userId))?.mention ?? null,
     readFacts: async (userId, agent) => {
       const postgres = getPostgresInstance();
       const sharing = await getAgentSharing(userId, agent.id);

@@ -44,6 +44,7 @@ const NO_FACTS: AgentConversionFacts = {
 function deps(over: Partial<AgentConversionDeps> = {}) {
   const d: AgentConversionDeps = {
     getAgent: vi.fn(async () => agent()),
+    recipeMentionById: vi.fn(async () => null),
     readFacts: vi.fn(async () => NO_FACTS),
     listAgentGroupIds: vi.fn(async () => []),
     successorPath: vi.fn(async () => null),
@@ -218,6 +219,20 @@ describe('convertUserAgent', () => {
     const types = vi.mocked(d.share).mock.calls.map((c) => c[0].contentType);
     expect(types).toEqual(['system_notebooks', 'notebook_collections']);
     expect(out.ok && out.response.result?.path).toBe('/projekte/pressearbeit-kv-abc234');
+  });
+
+  it('project: a recipe stored by id alone is named by its current mention', async () => {
+    const d = deps({
+      getAgent: vi.fn(async () =>
+        agent({ defaultRecipeId: '55555555-5555-4555-8555-555555555555' })
+      ),
+      recipeMentionById: vi.fn(async () => 'elternbrief-kurz'),
+    });
+    const out = await convertUserAgent({ ...RUN, target: 'project' }, d);
+    expect(d.recipeMentionById).toHaveBeenCalledWith('u1', '55555555-5555-4555-8555-555555555555');
+    expect(vi.mocked(d.setInstructions).mock.calls[0]?.[2]).toContain('@elternbrief-kurz');
+    const item = out.ok ? out.response.items.find((i) => i.part === 'defaultRecipe') : null;
+    expect(item?.outcome).toBe('carried');
   });
 
   it('project: failing instructions put the empty project back in the trash', async () => {
