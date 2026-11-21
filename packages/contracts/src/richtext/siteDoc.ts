@@ -19,6 +19,7 @@ import {
 } from '../schemas/siteDraft.js';
 import {
   readSiteVariant,
+  siteHeaderStyleSchema,
   siteImageFocusSchema,
   SITE_ACTIONS_MAX,
   SITE_THEMES_MAX,
@@ -65,6 +66,7 @@ const defaultFieldValues: SiteFieldValues = {
   profile_image: defaults.profile_image,
   profileImageFocus: null,
   variant: defaults.variant,
+  header: defaults.header,
   contact_email: defaults.contact_email,
   contact_phone: defaults.contact_phone,
   social_links: defaults.social_links,
@@ -159,6 +161,10 @@ function readField(fields: Y.Map<unknown>, key: SiteFieldKey): SiteFieldValues[S
   switch (key) {
     case 'variant':
       return readSiteVariant(typeof value === 'string' ? value : null);
+    case 'header': {
+      const parsed = siteHeaderStyleSchema.safeParse(value);
+      return parsed.success ? parsed.data : defaultFieldValues.header;
+    }
     case 'social_links': {
       if (!value || typeof value !== 'object' || Array.isArray(value)) {
         return defaultFieldValues.social_links;
@@ -189,6 +195,7 @@ function writeSeedFields(ydoc: Y.Doc, draft: SiteDraft): void {
     profile_image: draft.profile_image,
     profileImageFocus: draft.profileImageFocus ?? null,
     variant: draft.variant,
+    header: draft.header,
     contact_email: draft.contact_email,
     contact_phone: draft.contact_phone,
     social_links: draft.social_links,
@@ -307,6 +314,7 @@ export function decodeSiteDraft(ydoc: Y.Doc): SiteDraft {
     profile_image: readField(fields, 'profile_image'),
     ...(profileImageFocus ? { profileImageFocus } : {}),
     variant: readField(fields, 'variant'),
+    header: readField(fields, 'header'),
     contact_email: readField(fields, 'contact_email'),
     contact_phone: readField(fields, 'contact_phone'),
     social_links: readField(fields, 'social_links'),

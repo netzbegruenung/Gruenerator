@@ -153,6 +153,11 @@ export function readSiteVariant(theme: string | null): SiteVariant {
   return parsed.success ? parsed.data : DEFAULT_SITE_VARIANT;
 }
 
+/** Header ground: white as on gruene.de, or the colour of the variant. Absent means white. */
+export const siteHeaderStyleSchema = z.enum(['weiss', 'farbig']);
+export type SiteHeaderStyle = z.infer<typeof siteHeaderStyleSchema>;
+export const DEFAULT_SITE_HEADER_STYLE: SiteHeaderStyle = 'weiss';
+
 export const siteOptionalSectionSchema = z.enum([
   'about',
   'heroImage',
@@ -177,6 +182,7 @@ export type SiteSectionId = (typeof SITE_SECTION_IDS)[number];
 
 export const siteSectionsSchema = z.object({
   hidden: z.array(siteOptionalSectionSchema).max(6).optional(),
+  header: siteHeaderStyleSchema.optional(),
   profileImageFocus: siteImageFocusSchema.optional(),
   heroImage: z
     .object({
@@ -368,6 +374,7 @@ function snapshotSchemaFor(mode: 'publish' | 'preview') {
   const focus = lenient(siteImageFocusSchema.optional(), undefined);
 
   const sections = z.object({
+    header: lenient(siteHeaderStyleSchema.optional(), undefined),
     profileImageFocus: focus,
     heroImage: z
       .object({

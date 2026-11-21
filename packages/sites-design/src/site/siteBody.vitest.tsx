@@ -16,6 +16,15 @@ const sections = (markup: string) =>
   [...markup.matchAll(/data-section="([a-zA-Z]+)"/g)].map((m) => m[1]);
 
 describe('SiteBody', () => {
+  it('paints the header white unless the site asks for the variant colour', () => {
+    const header = (markup: string) => /<header data-ground="([a-z]+)"/.exec(markup)?.[1];
+    const dark = { ...fullSnapshot(), variant: 'dunkel' as const };
+    expect(header(html(dark))).toBe('paper');
+    expect(header(html({ ...dark, sections: { ...dark.sections, header: 'farbig' } }))).toBe(
+      'deep'
+    );
+  });
+
   it('hands every text field to the edit slots and keeps empty ones visible while editing', () => {
     const edit = {
       text: (field: string) => <i data-slot={field} />,
