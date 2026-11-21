@@ -43,7 +43,6 @@ const snapshot = (overrides: Record<string, unknown> = {}): PublishedSiteSnapsho
           type: 'socialFeed',
           title: 'Instagram',
           instagramUsername: 'anna',
-          showFeed: true,
         },
       ],
     },

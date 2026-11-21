@@ -67,8 +67,9 @@ describe('default page', () => {
     expect(defaultSiteBlock('socialFeed', next)).toMatchObject({
       title: 'Instagram',
       instagramUsername: '',
-      showFeed: false,
+      hidden: true,
     });
+    expect(defaultSiteBlock('socialFeed', next)).not.toHaveProperty('showFeed');
   });
 });
 

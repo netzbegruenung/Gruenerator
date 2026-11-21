@@ -42,7 +42,6 @@ const feed = (instagramUsername: string): SiteBlock => ({
   type: 'socialFeed',
   title: 'Feed',
   instagramUsername,
-  showFeed: true,
 });
 
 const validLegal = () => ({

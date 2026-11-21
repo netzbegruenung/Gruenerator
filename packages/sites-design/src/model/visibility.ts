@@ -32,7 +32,7 @@ export function isBlockEmpty(block: SiteBlock, snapshot: PublishedSiteSnapshot):
     case 'actions':
       return block.items.length === 0;
     case 'socialFeed':
-      return !block.showFeed || !block.instagramUsername;
+      return !block.instagramUsername;
     case 'contact':
       return (
         safeHref(`mailto:${snapshot.contact_email.trim()}`) === null &&
@@ -55,7 +55,6 @@ export function visibleBlocks(
   return snapshot.sections.blocks.filter((block) => {
     if (block.type === 'hero') return true;
     if (block.hidden) return editing;
-    if (block.type === 'socialFeed' && !block.showFeed) return false;
     return mode === 'preview' || !isBlockEmpty(block, snapshot);
   });
 }

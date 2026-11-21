@@ -142,7 +142,7 @@ const blocks = (): SiteBlock[] => [
     hidden: true,
     items: [{ id: 'a1', imageUrl: '', text: 'Mitmachen', link: '#kontakt' }],
   },
-  { id: 'feed', type: 'socialFeed', title: 'Instagram', instagramUsername: 'anna', showFeed: true },
+  { id: 'feed', type: 'socialFeed', title: 'Instagram', instagramUsername: 'anna' },
   { id: 'contact', type: 'contact', title: 'Kontakt', backgroundImageUrl: '' },
 ];
 
@@ -204,12 +204,21 @@ describe('site ydoc codec', () => {
     expect(decodeSiteDraft(ydoc)).toEqual(siteDraftFromSite(row()));
   });
 
-  it('a doc of schema version 1 counts as not seeded', () => {
+  it('a doc in the old layout counts as not seeded', () => {
     expect(isSiteDocSeeded(new Y.Doc())).toBe(false);
+    expect(isSiteDocSeeded(seeded())).toBe(true);
+    const old = new Y.Doc();
+    old.getMap(SITE_YDOC_KEYS.meta).set(SITE_META_KEYS.schemaVersion, 1);
+    old.getMap(SITE_YDOC_KEYS.meta).set(SITE_META_KEYS.seededAt, SEEDED_AT);
+    old.getMap('siteThemes').set('t1', new Y.Map());
+    expect(isSiteDocSeeded(old)).toBe(false);
+  });
+
+  it('stays seeded when an old editor tab writes its meta back', () => {
+    // The old tab's meta entries are concurrent with the seed's, and Yjs may keep either.
     const ydoc = seeded();
-    expect(isSiteDocSeeded(ydoc)).toBe(true);
     ydoc.getMap(SITE_YDOC_KEYS.meta).set(SITE_META_KEYS.schemaVersion, 1);
-    expect(isSiteDocSeeded(ydoc)).toBe(false);
+    expect(isSiteDocSeeded(ydoc)).toBe(true);
   });
 
   it('page fields round-trip and an unknown header reads as white', () => {
@@ -397,6 +406,40 @@ describe('concurrency and broken state', () => {
     const order = ydoc.getArray<string>(SITE_YDOC_KEYS.blockOrder);
     order.delete(order.toArray().indexOf('banner'), 1);
     expect(decodeSiteDraft(ydoc).blocks.at(-1)?.id).toBe('banner');
+  });
+
+  it('moves a block that a concurrent move left in the order twice', () => {
+    const a = seeded();
+    const b = new Y.Doc();
+    Y.applyUpdate(b, Y.encodeStateAsUpdate(a));
+    moveSiteBlock(a, 'contact', 1);
+    moveSiteBlock(b, 'contact', 2);
+    sync(a, b);
+    const last = decodeSiteDraft(a).blocks.length - 1;
+    expect(moveSiteBlock(a, 'contact', last)).toBe(true);
+    expect(decodeSiteDraft(a).blocks.at(-1)?.id).toBe('contact');
+  });
+
+  it('moves by page position even with dangling order entries', () => {
+    const ydoc = seeded();
+    ydoc.getArray<string>(SITE_YDOC_KEYS.blockOrder).insert(1, ['gone', 'gone2']);
+    expect(moveSiteBlock(ydoc, 'contact', 2)).toBe(true);
+    expect(decodeSiteDraft(ydoc).blocks[2]?.id).toBe('contact');
+  });
+
+  it('moves a block that lost its order entry', () => {
+    const ydoc = seeded();
+    const order = ydoc.getArray<string>(SITE_YDOC_KEYS.blockOrder);
+    order.delete(order.toArray().indexOf('banner'), 1);
+    expect(moveSiteBlock(ydoc, 'banner', 1)).toBe(true);
+    expect(decodeSiteDraft(ydoc).blocks[1]?.id).toBe('banner');
+  });
+
+  it('counts only live cards against the card limit', () => {
+    const ydoc = seeded();
+    const themes = ydoc.getMap(SITE_YDOC_KEYS.blocks).get('themes') as Y.Map<unknown>;
+    (themes.get('itemOrder') as Y.Array<string>).push(['x1', 'x2', 'x3', 'x4']);
+    expect(addSiteItem(ydoc, 'themes')).not.toBeNull();
   });
 
   it('survives garbage in the maps', () => {

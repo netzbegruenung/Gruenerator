@@ -90,7 +90,7 @@ describe('transformAiResponse', () => {
     expect(t.sections.blocks[4]).toMatchObject({
       items: [{ text: 'Spenden', link: 'https://example.org', imageUrl: '' }],
     });
-    expect(t.sections.blocks[5]).toMatchObject({ type: 'socialFeed', showFeed: false });
+    expect(t.sections.blocks[5]).toMatchObject({ type: 'socialFeed', hidden: true });
     expect(t.sections.blocks[6]).toMatchObject({ title: 'Schreib mir', backgroundImageUrl: '' });
     const ids = t.sections.blocks.flatMap((block) => [
       block.id,

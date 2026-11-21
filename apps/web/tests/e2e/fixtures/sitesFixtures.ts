@@ -131,7 +131,7 @@ export function makeSite(over: Partial<Site> = {}): Site {
           type: 'socialFeed',
           title: 'Instagram',
           instagramUsername: '',
-          showFeed: false,
+          hidden: true,
         },
         {
           id: 'contact',

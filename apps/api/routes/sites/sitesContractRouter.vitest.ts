@@ -250,11 +250,14 @@ describe('sitesContract', () => {
     expect(sections.blocks.filter((b) => b.hidden).map((b) => b.type)).toEqual([
       'about',
       'actions',
+      // The standard Instagram block starts hidden.
+      'socialFeed',
     ]);
     const snapshot = JSON.parse(params[8] as string) as { sections: Written };
     const published = snapshot.sections.blocks.map((b) => b.type);
     expect(published).not.toContain('about');
     expect(published).not.toContain('actions');
+    expect(published).not.toContain('socialFeed');
     expect(published).toContain('themes');
   });
 

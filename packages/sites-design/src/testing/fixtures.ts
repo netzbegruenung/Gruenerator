@@ -128,7 +128,6 @@ export function fullSnapshot(
           type: 'socialFeed',
           title: 'Instagram',
           instagramUsername: 'max.muster',
-          showFeed: true,
         },
         { id: 'contact', type: 'contact', title: 'Kontakt', backgroundImageUrl: IMAGE },
       ],

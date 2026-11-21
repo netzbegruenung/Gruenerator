@@ -105,9 +105,10 @@ describe('visibleBlocks', () => {
       STANDARD.filter((t) => t !== 'socialFeed')
     );
   });
-  it('treats showFeed false as hidden', () => {
-    const off = withBlock(fullSnapshot(), 'socialFeed', { showFeed: false });
-    expect(types(visibleBlocks(off, 'preview'))).not.toContain('socialFeed');
+  it('shows an empty Instagram block as a placeholder in preview', () => {
+    const empty = withBlock(fullSnapshot(), 'socialFeed', { instagramUsername: '' });
+    expect(types(visibleBlocks(empty, 'preview'))).toContain('socialFeed');
+    expect(types(visibleBlocks(empty, 'public'))).not.toContain('socialFeed');
   });
   it('numbers the anchors of repeated types', () => {
     const s = fullSnapshot();
