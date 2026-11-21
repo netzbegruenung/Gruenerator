@@ -96,9 +96,14 @@ function CreateVideoProject() {
     return (
       <div className="flex h-dvh flex-col items-center justify-center gap-4 p-6 text-center">
         <p role="alert">Das Projekt konnte nicht angelegt werden.</p>
-        <Link to="/studio" className="underline">
-          Zurück zum Studio
-        </Link>
+        <div className="flex items-center gap-4">
+          <button type="button" className="underline" onClick={() => create.mutate()}>
+            Erneut versuchen
+          </button>
+          <Link to="/studio" className="underline">
+            Zurück zum Studio
+          </Link>
+        </div>
       </div>
     );
   }

@@ -26,8 +26,8 @@ import type { GetUserActivityResponseDto } from '@gruenerator/contracts';
  */
 const CACHE_TTL_SECONDS = 10 * 60;
 
-/** Boards and canvas share `collaborative_documents` but are not "documents". */
-const NON_DOCUMENT_SUBTYPES = "('canvas', 'boards')";
+/** Boards, canvas and video projects share `collaborative_documents` but are not "documents". */
+const NON_DOCUMENT_SUBTYPES = "('canvas', 'boards', 'video')";
 
 interface TotalsRow {
   member_since: Date | null;
@@ -82,7 +82,7 @@ const HEATMAP_SQL = `
      WHERE t.user_id = $1 AND m.role = 'user' AND m.created_at >= now() - interval '365 days'
     UNION ALL
     SELECT created_at FROM collaborative_documents
-     WHERE created_by = $1 AND created_at >= now() - interval '365 days'
+     WHERE created_by = $1 AND coalesce(document_subtype, 'docs') <> 'video' AND created_at >= now() - interval '365 days'
     UNION ALL
     SELECT created_at FROM shared_media
      WHERE user_id = $1 AND media_type = 'image' AND content_origin = 'ki' AND created_at >= now() - interval '365 days'

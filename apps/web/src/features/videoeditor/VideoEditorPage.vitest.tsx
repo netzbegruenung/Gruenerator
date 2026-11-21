@@ -149,5 +149,23 @@ describe('VideoEditorPage', () => {
       );
       expect(screen.queryByTitle('Grünerator Video-Editor')).toBeNull();
     });
+
+    it('retries creating with one POST per attempt and then moves to the slug route', async () => {
+      let posts = 0;
+      server.use(
+        http.post(CREATE, () => {
+          posts += 1;
+          return posts === 1
+            ? HttpResponse.json({ error: 'x' }, { status: 500 })
+            : HttpResponse.json(project('s-abc123'), { status: 201 });
+        })
+      );
+      render('/studio/videoeditor');
+      await userEvent.click(await screen.findByRole('button', { name: 'Erneut versuchen' }));
+      await waitFor(() =>
+        expect(screen.getByTestId('location')).toHaveTextContent('/studio/videoeditor/s-abc123')
+      );
+      expect(posts).toBe(2);
+    });
   });
 });

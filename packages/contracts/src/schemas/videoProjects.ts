@@ -26,7 +26,7 @@ export const videoProjectListResponseSchema = z.array(videoProjectSchema);
 export const videoProjectSourceRefSchema = z.string().regex(/^ki:[0-9a-f-]{36}:\d+$/);
 
 export const createVideoProjectBodySchema = z.object({
-  title: z.string().nullish(),
+  title: z.string().min(1).max(200).nullish(),
   aspect_ratio: videoAspectRatioSchema.nullish(),
   source_ref: videoProjectSourceRefSchema.nullish(),
 });

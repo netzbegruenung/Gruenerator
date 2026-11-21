@@ -120,7 +120,7 @@ async function loadRecentWork(userId: string): Promise<RecentWorkItem[]> {
       `SELECT cd.id, cd.title, cd.document_subtype, cd.updated_at
        FROM collaborative_documents cd
        WHERE cd.created_by = $1 AND cd.is_deleted = false AND cd.deleted_at IS NULL
-         AND COALESCE(cd.document_subtype, '') <> 'boards'
+         AND COALESCE(cd.document_subtype, '') NOT IN ('boards', 'video')
          AND cd.title IS NOT NULL AND btrim(cd.title) <> ''
          AND cd.updated_at > now() - make_interval(days => $2)
        ORDER BY cd.updated_at DESC

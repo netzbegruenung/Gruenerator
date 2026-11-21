@@ -207,22 +207,23 @@ export async function createVideoProject(
   const title = input.title?.trim() || DEFAULT_TITLE;
   const aspectRatio = input.aspect_ratio ?? DEFAULT_ASPECT_RATIO;
 
+  const suffix = generateSlugSuffix();
+  // One statement: a failing sidecar insert rolls back the document row too.
   const docRows = (await db.query(
-    `INSERT INTO collaborative_documents
-       (title, content, created_by, last_edited_by, document_subtype, is_public)
-     VALUES ($1, '', $2, $2, $3, false)
-     RETURNING id, title, created_by, created_at, updated_at, permissions, is_public, share_mode,
-               share_permission`,
-    [title, userId, VIDEO_SUBTYPE]
+    `WITH doc AS (
+       INSERT INTO collaborative_documents
+         (title, content, created_by, last_edited_by, document_subtype, is_public)
+       VALUES ($1, '', $2, $2, $3, false)
+       RETURNING id, title, created_by, created_at, updated_at, permissions, is_public, share_mode,
+                 share_permission
+     ), sidecar AS (
+       INSERT INTO video_projects (document_id, slug_suffix, aspect_ratio, source_ref)
+       SELECT id, $4, $5, $6 FROM doc
+     )
+     SELECT * FROM doc`,
+    [title, userId, VIDEO_SUBTYPE, suffix, aspectRatio, sourceRef]
   )) as Array<Omit<JoinedRow, 'slug_suffix' | 'aspect_ratio'>>;
   const doc = docRows[0];
-
-  const suffix = generateSlugSuffix();
-  await db.query(
-    `INSERT INTO video_projects (document_id, slug_suffix, aspect_ratio, source_ref)
-     VALUES ($1, $2, $3, $4)`,
-    [doc.id, suffix, aspectRatio, sourceRef]
-  );
 
   return {
     project: toVideoProject({ ...doc, slug_suffix: suffix, aspect_ratio: aspectRatio }, true),
