@@ -158,6 +158,11 @@ export const siteHeaderStyleSchema = z.enum(['weiss', 'farbig']);
 export type SiteHeaderStyle = z.infer<typeof siteHeaderStyleSchema>;
 export const DEFAULT_SITE_HEADER_STYLE: SiteHeaderStyle = 'weiss';
 
+/** Hero layout: portrait beside the text, or the portrait as a full-bleed backdrop. Absent means portrait. */
+export const siteHeroLayoutSchema = z.enum(['portrait', 'vollbild']);
+export type SiteHeroLayout = z.infer<typeof siteHeroLayoutSchema>;
+export const DEFAULT_SITE_HERO_LAYOUT: SiteHeroLayout = 'portrait';
+
 export const siteOptionalSectionSchema = z.enum([
   'about',
   'heroImage',
@@ -183,6 +188,7 @@ export type SiteSectionId = (typeof SITE_SECTION_IDS)[number];
 export const siteSectionsSchema = z.object({
   hidden: z.array(siteOptionalSectionSchema).max(6).optional(),
   header: siteHeaderStyleSchema.optional(),
+  heroLayout: siteHeroLayoutSchema.optional(),
   profileImageFocus: siteImageFocusSchema.optional(),
   heroImage: z
     .object({
@@ -375,6 +381,7 @@ function snapshotSchemaFor(mode: 'publish' | 'preview') {
 
   const sections = z.object({
     header: lenient(siteHeaderStyleSchema.optional(), undefined),
+    heroLayout: lenient(siteHeroLayoutSchema.optional(), undefined),
     profileImageFocus: focus,
     heroImage: z
       .object({

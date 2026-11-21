@@ -16,6 +16,26 @@ const sections = (markup: string) =>
   [...markup.matchAll(/data-section="([a-zA-Z]+)"/g)].map((m) => m[1]);
 
 describe('SiteBody', () => {
+  it('lays the portrait under the hero text in the full-bleed layout', () => {
+    const hero = (markup: string) =>
+      markup.slice(markup.indexOf('data-section="hero"'), markup.indexOf('data-section="about"'));
+    const portrait = hero(html(fullSnapshot()));
+    expect(portrait).not.toContain('data-ground="photo"');
+    const s = fullSnapshot();
+    const full = hero(html({ ...s, sections: { ...s.sections, heroLayout: 'vollbild' } }));
+    expect(full).toContain('data-ground="photo"');
+    expect(full).toContain('fetchPriority="high"');
+    expect(full).toContain('data-field="site_title"');
+    const bare = hero(
+      html(
+        { ...s, profile_image: '', sections: { ...s.sections, heroLayout: 'vollbild' } },
+        'preview'
+      )
+    );
+    expect(bare).toContain('data-ground="deep"');
+    expect(bare).toContain('data-field="profile_image" data-empty=""');
+  });
+
   it('paints the header white unless the site asks for the variant colour', () => {
     const header = (markup: string) => /<header data-ground="([a-z]+)"/.exec(markup)?.[1];
     const dark = { ...fullSnapshot(), variant: 'dunkel' as const };
