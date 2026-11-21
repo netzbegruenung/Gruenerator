@@ -19,6 +19,7 @@ import { type Locale } from '../localization/types.js';
 import { getSharedMediaService } from '../sharedMediaService.js';
 
 import AssSubtitleService from './assSubtitleService.js';
+import { concatVideos } from './concatVideos.js';
 import {
   calculateScaleFilter,
   buildFFmpegOutputOptions,
@@ -31,7 +32,6 @@ import { generateManualSubtitles } from './manualSubtitleGeneratorService.js';
 import { autoSaveProject } from './projectSavingService.js';
 import { calculateFontSizing } from './subtitleSizingService.js';
 import { transcribeVideoWithWords, type WordTimestamp } from './transcriptionService.js';
-import { concatVideos } from './concatVideos.js';
 import { probeVideoMetadata } from './videoMetadata.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -477,7 +477,8 @@ async function exportWithEnhancements(
     styleOptions,
     'manual',
     stylePreference,
-    locale
+    locale,
+    heightPreference
   );
 
   const assFilePath = await assService.createTempAssFile(assResult.content, autoProcessToken);
