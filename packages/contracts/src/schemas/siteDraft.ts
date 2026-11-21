@@ -1,30 +1,23 @@
-import { emptyRichTextDoc, type RichTextDoc } from './richtext.js';
 import {
   buildSiteSnapshot,
   DEFAULT_SITE_HEADER_STYLE,
-  DEFAULT_SITE_HERO_LAYOUT,
+  defaultSiteBlocks,
   readSiteVariant,
   type PublishedSiteSnapshot,
-  type SiteActionTile,
+  type SiteBlock,
   type SiteHeaderStyle,
-  type SiteHeroLayout,
   type SiteImageFocus,
   type SiteLegalDraft,
-  type SiteOptionalSection,
   type SiteSnapshotSource,
-  type SiteThemeCard,
   type SiteVariant,
   type UpdateSiteBody,
 } from './sites.js';
 
-export interface SiteDraftThemeCard extends SiteThemeCard {
-  id: string;
-}
-
-export interface SiteDraftActionTile extends SiteActionTile {
-  id: string;
-}
-
+/**
+ * The editable state of a site: page fields plus the ordered blocks. Block and item ids are
+ * stored with the row, so a copy, a concurrent move and a publish issue all keep pointing at the
+ * same block.
+ */
 export interface SiteDraft {
   site_title: string;
   tagline: string;
@@ -32,26 +25,10 @@ export interface SiteDraft {
   profileImageFocus?: SiteImageFocus | undefined;
   variant: SiteVariant;
   header: SiteHeaderStyle;
-  heroLayout: SiteHeroLayout;
   contact_email: string;
   contact_phone: string;
   social_links: Record<string, string>;
-  hidden: SiteOptionalSection[];
-  about: { title: string; content: RichTextDoc };
-  heroImage: {
-    imageUrl: string;
-    imageFocus?: SiteImageFocus | undefined;
-    title: string;
-    subtitle: string;
-  };
-  themes: SiteDraftThemeCard[];
-  actions: SiteDraftActionTile[];
-  contact: {
-    title: string;
-    backgroundImageUrl: string;
-    backgroundFocus?: SiteImageFocus | undefined;
-  };
-  socialFeed: { title: string; instagramUsername: string; showFeed: boolean };
+  blocks: SiteBlock[];
 }
 
 export function siteDraftFromSite(
@@ -59,6 +36,7 @@ export function siteDraftFromSite(
   newId: () => string = () => crypto.randomUUID()
 ): SiteDraft {
   const sections = site.sections;
+  const blocks = sections?.blocks ?? [];
   return {
     site_title: site.site_title,
     tagline: site.tagline ?? '',
@@ -66,27 +44,11 @@ export function siteDraftFromSite(
     ...(sections?.profileImageFocus ? { profileImageFocus: sections.profileImageFocus } : {}),
     variant: readSiteVariant(site.theme),
     header: sections?.header ?? DEFAULT_SITE_HEADER_STYLE,
-    heroLayout: sections?.heroLayout ?? DEFAULT_SITE_HERO_LAYOUT,
     contact_email: site.contact_email ?? '',
     contact_phone: site.contact_phone ?? '',
     social_links: { ...site.social_links },
-    hidden: [...(sections?.hidden ?? [])],
-    about: sections?.about
-      ? { title: sections.about.title, content: sections.about.content }
-      : { title: 'Wer ich bin', content: emptyRichTextDoc() },
-    heroImage: sections?.heroImage
-      ? { ...sections.heroImage }
-      : { imageUrl: '', title: 'Gemeinsam für eine nachhaltige Zukunft!', subtitle: '' },
-    themes: (sections?.themes ?? []).map((theme) => ({ ...theme, id: newId() })),
-    actions: (sections?.actions ?? []).map((action) => ({ ...action, id: newId() })),
-    contact: sections?.contact
-      ? { ...sections.contact }
-      : { title: 'Kontakt', backgroundImageUrl: '' },
-    socialFeed: {
-      title: sections?.socialFeed?.title ?? 'Instagram',
-      instagramUsername: sections?.socialFeed?.instagramUsername ?? '',
-      showFeed: sections?.socialFeed?.showFeed ?? false,
-    },
+    // A new or reset row has no blocks yet; it starts with the standard page.
+    blocks: blocks.length > 0 ? structuredClone(blocks) : defaultSiteBlocks(newId),
   };
 }
 
@@ -110,6 +72,26 @@ function withFocus<K extends string>(key: K, focus: SiteImageFocus | undefined) 
   return kept ? ({ [key]: kept } as Record<K, SiteImageFocus>) : {};
 }
 
+const FOCUS_KEYS = new Set(['imageFocus', 'backgroundFocus']);
+
+/** One level of a block or item without its defaults: unset, not hidden, a centred focus. */
+function compact<T extends object>(value: T): T {
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      ([key, entry]) =>
+        entry !== undefined &&
+        !(key === 'hidden' && entry === false) &&
+        !(FOCUS_KEYS.has(key) && offCentre(entry as SiteImageFocus) === null)
+    )
+  ) as T;
+}
+
+/** Defaults are left out, so an untouched site never reads as changed. */
+function blockToRow(block: SiteBlock): SiteBlock {
+  const out = compact(block);
+  return 'items' in out ? ({ ...out, items: out.items.map(compact) } as SiteBlock) : out;
+}
+
 export function siteDraftToRowColumns(draft: SiteDraft): {
   [K in SiteDraftColumn]-?: Exclude<UpdateSiteBody[K], undefined>;
 } {
@@ -122,32 +104,9 @@ export function siteDraftToRowColumns(draft: SiteDraft): {
     contact_phone: draft.contact_phone,
     social_links: { ...draft.social_links },
     sections: {
-      hidden: [...draft.hidden],
-      // The default is left out, so an untouched site never reads as changed.
       ...(draft.header === DEFAULT_SITE_HEADER_STYLE ? {} : { header: draft.header }),
-      ...(draft.heroLayout === DEFAULT_SITE_HERO_LAYOUT ? {} : { heroLayout: draft.heroLayout }),
       ...withFocus('profileImageFocus', draft.profileImageFocus),
-      about: { ...draft.about },
-      heroImage: {
-        imageUrl: draft.heroImage.imageUrl,
-        ...withFocus('imageFocus', draft.heroImage.imageFocus),
-        title: draft.heroImage.title,
-        subtitle: draft.heroImage.subtitle,
-      },
-      themes: draft.themes.map(({ id: _id, imageFocus, ...theme }) => ({
-        ...theme,
-        ...withFocus('imageFocus', imageFocus),
-      })),
-      actions: draft.actions.map(({ id: _id, imageFocus, ...action }) => ({
-        ...action,
-        ...withFocus('imageFocus', imageFocus),
-      })),
-      contact: {
-        title: draft.contact.title,
-        backgroundImageUrl: draft.contact.backgroundImageUrl,
-        ...withFocus('backgroundFocus', draft.contact.backgroundFocus),
-      },
-      socialFeed: { ...draft.socialFeed },
+      blocks: draft.blocks.map(blockToRow),
     },
   };
 }

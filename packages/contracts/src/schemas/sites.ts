@@ -700,8 +700,12 @@ export type SiteSnapshotSource = Pick<
   | 'legal'
 >;
 
-const toPreviewUrl = (url: string | null | undefined): string =>
-  (url ?? '').replace(/^(\/api\/share\/[A-Za-z0-9_-]+)\/download$/, '$1/preview');
+// A stored or half-typed value can be anything; the schema blanks a non-string afterwards.
+const toPreviewUrl = (url: unknown): string =>
+  (typeof url === 'string' ? url : '').replace(
+    /^(\/api\/share\/[A-Za-z0-9_-]+)\/download$/,
+    '$1/preview'
+  );
 
 const GREETING_PREFIX =
   /^\s{0,8}(?:(?:hallo|hi|hey|servus|moin|moin moin|grüß gott|grüß dich|grüezi|guten tag|liebe besucher\*?innen)[\s,!.:–-]{0,8})?(?:ich bin|ich heiße|mein name ist|ich heisse)\s{1,8}/i;
