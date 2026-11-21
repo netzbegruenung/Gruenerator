@@ -41,7 +41,9 @@ const RATIOS: [VideoAspectRatio, number][] = [
 ];
 
 /** Displayed size: a 90° rotation tag swaps the stored width and height. */
-export function displaySize(meta: Record<string, unknown>): { width: number; height: number } | null {
+export function displaySize(
+  meta: Record<string, unknown>
+): { width: number; height: number } | null {
   const width = typeof meta.width === 'number' ? meta.width : null;
   const height = typeof meta.height === 'number' ? meta.height : null;
   if (!width || !height) return null;
@@ -114,9 +116,7 @@ function parseSegments(stored: string): SubtitleSegment[] {
 }
 
 export type EditorSeedResult =
-  | { status: 'ok'; seed: SubtitlerEditorSeed }
-  | { status: 'not_found' }
-  | { status: 'source_gone' };
+  { status: 'ok'; seed: SubtitlerEditorSeed } | { status: 'not_found' } | { status: 'source_gone' };
 
 export async function buildEditorSeed(
   service: SubtitlerProjectService,

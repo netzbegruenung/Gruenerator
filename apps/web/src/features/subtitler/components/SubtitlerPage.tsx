@@ -2,7 +2,7 @@ import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { Button, UploadZone } from '@gruenerator/ui';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { PiVideoCamera } from 'react-icons/pi';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import * as tus from 'tus-js-client';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
@@ -14,6 +14,7 @@ import { useAuthStore } from '../../../stores/authStore';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
 import { getPublicAppOrigin } from '../../../utils/platform';
 import { getTusAuthOptions } from '../../../utils/tusAuth';
+import { videoStartFiles } from '../../video/videoStartState';
 import useSocialTextGenerator from '../hooks/useSocialTextGenerator';
 import { parseSubtitleBlocks, formatSubtitleBlocks } from '../utils/subtitleSegmentUtils';
 import { getVideoMetadata, TUS_UPLOAD_ENDPOINT, type VideoMetadata } from '../utils/videoUtils';
@@ -135,6 +136,11 @@ const SubtitlerPage = (): React.ReactElement => {
 
   const { user, locale } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  // Files picked on /video arrive as router state; read once on mount.
+  const [videoStart] = useState(() => videoStartFiles(location.state));
+  const openInEditorRef = useRef(videoStart?.openInEditor === true);
 
   // User-initiated step transitions push a new history entry. The
   // popstate listener below bypasses this helper and calls `setStep`
@@ -378,6 +384,13 @@ const SubtitlerPage = (): React.ReactElement => {
     [handleUploadComplete]
   );
 
+  const videoStartHandledRef = useRef(false);
+  useEffect(() => {
+    if (!videoStart || videoStartHandledRef.current) return;
+    videoStartHandledRef.current = true;
+    void handleFileSelected(videoStart.videoStartFiles[0]);
+  }, [videoStart, handleFileSelected]);
+
   const handleExport = useCallback(
     async (receivedExportToken: string) => {
       console.log('[SubtitlerPage] Export initiated with token:', receivedExportToken);
@@ -466,7 +479,6 @@ const SubtitlerPage = (): React.ReactElement => {
 
   // „Bearbeiten“ opens the saved project in the video editor, captions already
   // split there. Without a saved project the in-page editor stays the fallback.
-  const navigate = useNavigate();
   const editProjectId = loadedProject?.id || autoSavedProjectId;
   const handleEditAgain = useCallback(() => {
     if (editProjectId) {

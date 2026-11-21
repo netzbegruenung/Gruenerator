@@ -960,7 +960,11 @@ Erstelle einen Instagram Reel Beitragstext, der:
         return { status: 401 as const, body: { error: 'Nicht authentifiziert' } };
       }
       const { buildEditorSeed } = await import('../../services/subtitler/editorSeed.js');
-      const result = await buildEditorSeed(await getProjectService(), userId, args.params.projectId);
+      const result = await buildEditorSeed(
+        await getProjectService(),
+        userId,
+        args.params.projectId
+      );
       if (result.status === 'not_found') {
         return { status: 404 as const, body: { success: false, error: 'Projekt nicht gefunden' } };
       }

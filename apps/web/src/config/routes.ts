@@ -323,6 +323,7 @@ const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPa
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
 const VideoEditorPage = lazy(() => import('../features/videoeditor/VideoEditorPage'));
 // KI-Schnitt and Parteitage are admin only for now — see adminToolsGate.
+const VideoStartPage = lazy(() => import('../features/video/VideoStartPage'));
 const KiSchnittNewPage = lazy(async () => {
   const { default: Page } = await import('../features/video-ai/KiSchnittNewPage');
   return { default: withAdminToolGate(Page) };
@@ -951,6 +952,8 @@ const standardRoutes: RouteConfig[] = [
   { path: '/studio/ki', component: ImageStudioKiRedirect },
   { path: '/studio/ki/:type', component: ImageStudioKiTypeRedirect },
   { path: '/studio/video', component: GrueneratorenBundle.Reel },
+  // One start page for Untertitel, KI-Schnitt and the Video Editor.
+  { accent: 'studio', path: '/video', component: VideoStartPage },
   {
     accent: 'studio',
     path: '/studio/videoeditor',
