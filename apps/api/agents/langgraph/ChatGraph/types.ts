@@ -1700,10 +1700,9 @@ export interface SetGroupVisibilityPayload {
 export type CreateRecurringTaskPayload = CreateRecurringTaskBody & { agentTitle: string | null };
 
 /**
- * Einen eigenen Grünerator-Agent anlegen — `input` geht unverändert an
- * `createUserAgent`. Eine Karte, weil die Rolle ein LLM-Entwurf ist, den die
- * Person vor dem Speichern sehen soll, und der Agent danach in jedem Chat mit
- * dieser Rolle handelt.
+ * Einen eigenen Grünerator-Agent anlegen. Seit 11/2026 entsteht diese Karte
+ * nicht mehr (neue Agents sind geschlossen); der Typ bleibt, damit eine noch
+ * offene, gespeicherte Karte gelesen und beim Bestätigen abgelehnt wird.
  */
 export interface CreateUserAgentPayload {
   input: UserAgentInput;

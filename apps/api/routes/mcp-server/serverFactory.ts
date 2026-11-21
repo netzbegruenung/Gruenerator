@@ -681,7 +681,7 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
   if (contentRead) {
     registerAiTool(server, 'user_agents', makeUserAgentsTool(ctx), {
       description: contentWrite
-        ? `Zugriff auf die eigenen Grünerator-Agenten der Person (Agentura): auflisten (list — der identifier steht im ref, geteilte Agenten sind markiert), Details mit Rolle, Werkzeugen, Rezepten, Notebooks und Sichtbarkeit (get), aus einer Beschreibung neu anlegen (create mit brief; optional title, systemRole, enabledTools, skillMentions, defaultNotebookIds — die Rolle wird entworfen), ändern (update), mit einem Projekt teilen (share_to_group mit groupName), löschen (delete). create, share_to_group und delete verlangen das zweistufige confirm-Protokoll. System-Grüneratoren (gruenerator-…) sind hier nicht erreichbar.`
+        ? `Zugriff auf die eigenen Grünerator-Agenten der Person (Agentura): auflisten (list — der identifier steht im ref, geteilte Agenten sind markiert), Details mit Rolle, Werkzeugen, Rezepten, Notebooks und Sichtbarkeit (get), ändern (update), mit einem Projekt teilen (share_to_group mit groupName), löschen (delete). Neue Agents lassen sich nicht mehr anlegen (create nennt den Grund) — dafür gibt es Rezepte (recipes). share_to_group und delete verlangen das zweistufige confirm-Protokoll. System-Grüneratoren (gruenerator-…) sind hier nicht erreichbar.`
         : `Die eigenen und die aus Projekten geteilten Grünerator-Agenten der Person auflisten (list — der identifier steht im ref) oder Details ansehen (get).`,
       actions: contentWrite
         ? ['list', 'get', 'create', 'update', 'share_to_group', 'delete']
@@ -689,7 +689,7 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
       ...(contentWrite
         ? {
             overrides: {
-              create: (args) => createUserAgentMcp(userId, args),
+              create: () => createUserAgentMcp(),
               share_to_group: (args) => shareUserAgentMcp(userId, args),
             },
           }

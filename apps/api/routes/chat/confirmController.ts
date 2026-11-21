@@ -376,16 +376,10 @@ export async function executeAction(
     }
 
     case 'create_user_agent': {
-      const { createUserAgentSafely, userAgentUrl } = await import('./agents/userAgentTools.js');
-      const agent = await createUserAgentSafely(action.userId, action.payload.input);
-      log.info(
-        `[ConfirmController] User agent created: "${agent.title}" (${agent.identifier}) — ` +
-          `tools=[${(agent.enabledTools ?? []).join(',')}] notebooks=${agent.defaultNotebookIds?.length ?? 0}`
-      );
-      return {
-        message: `Grünerator-Agent **„${agent.title}"** angelegt — die Rolle lässt sich jederzeit in den Einstellungen des Agenten oder im Chat verfeinern.`,
-        url: userAgentUrl(agent.identifier),
-      };
+      // Agents laufen aus: eine Karte, die vor dem Stopp entstand und noch offen
+      // im Chat steht, legt keinen Agent mehr an.
+      const { AGENT_CREATION_CLOSED } = await import('./agents/userAgentTools.js');
+      throw new ConfirmActionRefusal(AGENT_CREATION_CLOSED);
     }
 
     case 'share_user_agent': {
