@@ -55,7 +55,7 @@ const upload = multer({
 export function receiveFile(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
   upload.single('file')(req, res, (err: unknown) => {
     if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
-      res.status(413).json({ error: 'Das Video ist zu groß für die Untertitelung (max. 500 MB).' });
+      res.status(413).json({ error: 'Das Video ist zu groß (max. 500 MB).' });
       return;
     }
     if (err) {
