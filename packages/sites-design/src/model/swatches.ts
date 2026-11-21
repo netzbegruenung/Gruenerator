@@ -66,14 +66,17 @@ function swatch(palette: Palette, ground: SiteGround): SiteSwatch {
   }
 }
 
-/** Leading ground and accent of the hero, and the same for the themes band, as the page paints them. */
+/**
+ * Leading ground and accent of the page top (the header: the hero is neutral in every variant),
+ * and the same for the themes band, as the page paints them.
+ */
 export function variantSwatches(
   variant: SiteVariant,
   locale: SupportedLocale
 ): { hero: SiteSwatch; band: SiteSwatch } {
   const palette = PALETTES[locale];
   return {
-    hero: swatch(palette, sectionGround(variant, 'hero', locale)),
+    hero: swatch(palette, sectionGround(variant, 'header', locale)),
     band: swatch(palette, sectionGround(variant, 'themes', locale)),
   };
 }

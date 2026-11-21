@@ -36,7 +36,6 @@ vi.mock('../hooks/useSiteGeneration', () => ({
 vi.mock('../hooks/useToast', () => ({
   useToast: () => ({ success: vi.fn(), error: m.toastError }),
 }));
-vi.mock('../preview/SitePreviewFrame', () => ({ SitePreviewFrame: () => <div /> }));
 vi.mock('../components/CreateSiteScreen', () => ({
   CreateSiteScreen: (p: {
     description: string;
@@ -85,11 +84,10 @@ describe('CreateFlow', () => {
     m.gen.isFlyer = false;
   });
 
-  it('creates the site from the generated content', async () => {
+  it('creates the site right after generating, without a review step', async () => {
     m.generate.mockResolvedValue(generated);
-    const user = await fillAndGenerate();
-    await user.click(await screen.findByRole('button', { name: 'Seite erstellen' }));
-    expect(m.createSite).toHaveBeenCalledTimes(1);
+    await fillAndGenerate();
+    await waitFor(() => expect(m.createSite).toHaveBeenCalledTimes(1));
     expect(m.createSite).toHaveBeenCalledWith(
       expect.objectContaining({
         sections: SECTIONS,
@@ -105,7 +103,7 @@ describe('CreateFlow', () => {
     m.gen.steps = ['extract', 'analyze'];
     m.gen.current = 'extract';
     render(<CreateFlow />);
-    expect(screen.getByRole('dialog', { name: 'Flyer wird analysiert...' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Flyer wird analysiert …' })).toBeInTheDocument();
     expect(screen.getAllByRole('listitem')[0]).toHaveTextContent('Text wird aus dem Flyer gelesen');
   });
 
@@ -126,7 +124,20 @@ describe('CreateFlow', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Die Verbindung ist abgebrochen.');
     await user.click(screen.getByRole('button', { name: 'Noch einmal versuchen' }));
     expect(m.generate).toHaveBeenCalledTimes(2);
-    expect(await screen.findByRole('button', { name: 'Seite erstellen' })).toBeInTheDocument();
+    await waitFor(() => expect(m.createSite).toHaveBeenCalledTimes(1));
+  });
+
+  it('retries a failed create with the same content instead of generating again', async () => {
+    m.generate.mockResolvedValue(generated);
+    m.createSite.mockRejectedValueOnce(new Error('network')).mockResolvedValueOnce({});
+    const user = await fillAndGenerate();
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Die Seite konnte nicht angelegt werden.'
+    );
+    await user.click(screen.getByRole('button', { name: 'Noch einmal versuchen' }));
+    await waitFor(() => expect(m.createSite).toHaveBeenCalledTimes(2));
+    expect(m.createSite).toHaveBeenLastCalledWith(expect.objectContaining({ sections: SECTIONS }));
+    expect(m.generate).toHaveBeenCalledTimes(1);
   });
 
   it('offers no retry for a final error', async () => {
@@ -154,8 +165,7 @@ describe('CreateFlow', () => {
   it('shows the server message and reloads the site when it already exists', async () => {
     m.generate.mockResolvedValue(generated);
     m.createSite.mockRejectedValue(new SitesApiError(400, 'Du hast bereits eine Website erstellt'));
-    const user = await fillAndGenerate();
-    await user.click(await screen.findByRole('button', { name: 'Seite erstellen' }));
+    await fillAndGenerate();
     await waitFor(() =>
       expect(m.toastError).toHaveBeenCalledWith(
         'Eingabefehler',
@@ -163,5 +173,6 @@ describe('CreateFlow', () => {
       )
     );
     expect(m.refetch).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: 'Noch einmal versuchen' })).toBeNull();
   });
 });

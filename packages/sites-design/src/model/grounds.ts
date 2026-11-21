@@ -5,7 +5,7 @@ export type SitePart = 'header' | SiteSectionId | 'footer';
 
 const GROUNDS: Record<SitePart, Record<SiteVariant, SiteGround>> = {
   header: { dunkel: 'deep', hell: 'surface', leuchtend: 'vivid' },
-  hero: { dunkel: 'deep', hell: 'surface', leuchtend: 'vivid' },
+  hero: { dunkel: 'surface', hell: 'surface', leuchtend: 'surface' },
   about: { dunkel: 'paper', hell: 'paper', leuchtend: 'paper' },
   heroImage: { dunkel: 'photo', hell: 'photo', leuchtend: 'photo' },
   themes: { dunkel: 'surface', hell: 'paper', leuchtend: 'deep' },

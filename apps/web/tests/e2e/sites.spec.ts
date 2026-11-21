@@ -88,14 +88,12 @@ test.describe('Sites: Zugang und Anlegen', () => {
     await page.locator('[data-tour="arbeiten-tools"]').getByRole('link', { name: /Sites/ }).click();
     await expect(page).toHaveURL(/\/sites$/);
 
-    // Create: address, description, generated preview, create.
+    // Create: address, description, generate. The site is created right away, no review step.
     await page.getByLabel('Adresse').fill(HANDLE);
-    await expect(page.getByText('Diese Adresse ist frei')).toBeVisible();
+    await expect(page.getByRole('button', { name: /Weiter/ })).toBeEnabled();
     await page.getByRole('button', { name: /Weiter/ }).click();
     await page.locator('#description').fill(DESCRIPTION);
     await page.getByRole('button', { name: /Seite generieren/ }).click();
-    await expect(page.getByText(GENERATED.hero.heading).first()).toBeVisible();
-    await page.getByRole('button', { name: 'Seite erstellen' }).click();
     await expect.poll(() => state.site?.subdomain ?? null).toBe(HANDLE);
     expect(state.createBodies[0]).toMatchObject({
       subdomain: HANDLE,

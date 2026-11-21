@@ -66,6 +66,8 @@ export function AddressField({
   const message = locked ? ADDRESS_LOCKED_MESSAGE : HANDLE_CHECK_MESSAGES[state];
   const messageId = `${id}-status`;
   const failed = !locked && (state === 'taken' || state === 'invalid' || state === 'reserved');
+  // A free address shows as a green border; its message stays for screen readers only.
+  const available = !locked && state === 'available';
 
   return (
     <div>
@@ -75,7 +77,9 @@ export function AddressField({
       <div
         className={cn(
           'flex items-center rounded-lg border border-grey-200 dark:border-grey-700 bg-card transition-all focus-within:border-primary-500 focus-within:ring-[3px] focus-within:ring-ring/50',
-          locked && 'bg-grey-50 dark:bg-grey-900'
+          locked && 'bg-grey-50 dark:bg-grey-900',
+          available && 'border-primary-500 dark:border-primary-500',
+          failed && 'border-red-600 dark:border-red-400'
         )}
       >
         <span
@@ -112,11 +116,8 @@ export function AddressField({
         role="status"
         className={cn(
           'mt-2 min-h-5 text-sm',
-          failed
-            ? 'text-red-700 dark:text-red-400'
-            : state === 'available' && !locked
-              ? 'text-primary-700 dark:text-primary-400'
-              : 'text-grey-600 dark:text-grey-400'
+          available && 'sr-only',
+          failed ? 'text-red-700 dark:text-red-400' : 'text-grey-600 dark:text-grey-400'
         )}
       >
         {message}
