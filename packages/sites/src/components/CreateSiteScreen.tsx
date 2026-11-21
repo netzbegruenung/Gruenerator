@@ -156,9 +156,6 @@ export function CreateSiteScreen({
                 large
               />
             </div>
-            <p className="text-sm text-grey-400 dark:text-grey-500 mt-1">
-              Kleinbuchstaben, Zahlen und Bindestriche · 3–30 Zeichen
-            </p>
           </div>
 
           <div className="mt-12">
@@ -308,10 +305,11 @@ export function CreateSiteScreen({
           <div className="mt-8 flex justify-end">
             <Button size="lg" onClick={handleGenerateClick} disabled={isProcessing || !canGenerate}>
               {isProcessing ? (
-                <>
-                  <span className="size-5 border-2 border-white/30 border-t-white rounded-full animate-[spin_1s_linear_infinite]" />
-                  {isGenerating || isGeneratingFromFlyer ? 'KI generiert...' : 'Wird erstellt...'}
-                </>
+                isGenerating || isGeneratingFromFlyer ? (
+                  'KI generiert...'
+                ) : (
+                  'Wird erstellt...'
+                )
               ) : (
                 <>
                   {hasFile ? 'Seite aus Datei generieren' : 'Seite generieren'}
