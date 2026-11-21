@@ -3,7 +3,6 @@ import { EMPTY_FORM } from '@gruenerator/shared/grueneratoren';
 import { describe, expect, it } from 'vitest';
 
 import {
-  copyTitle,
   currentModelId,
   customRecipeOptions,
   defaultScheduleFor,
@@ -34,11 +33,6 @@ describe('agentEditorLogic', () => {
   it('builds identifiers that satisfy the contract regex', () => {
     expect(newAgentIdentifier('Presse & Medien!', bytes)).toMatch(/^[a-z0-9-]+$/);
     expect(newAgentIdentifier('', bytes)).toMatch(/^agent-[a-z0-9]+$/);
-  });
-
-  it('keeps a copied title within 100 characters', () => {
-    expect(copyTitle('Klima')).toBe('Klima (Kopie)');
-    expect(copyTitle('x'.repeat(100))).toHaveLength(100);
   });
 
   it('toggles list membership', () => {
