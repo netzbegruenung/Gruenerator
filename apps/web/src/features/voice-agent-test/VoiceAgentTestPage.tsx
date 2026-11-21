@@ -3,6 +3,8 @@ import { FluidVoiceClient, GrueneratorRealtimeVoiceAdapter } from '@gruenerator/
 import { Loader2, Mic, Square } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
+import RequireAdmin from '../admin/components/RequireAdmin';
+
 import {
   markLatestUser,
   type Status,
@@ -399,23 +401,27 @@ function FluidPanel() {
   );
 }
 
+// Admin-only: panel A talks to Mistral's global session endpoint and D bills
+// KugelAudio per second. The backends gate too; this keeps the page itself shut.
 const VoiceAgentTestPage = () => (
-  <main className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8">
-    <header className="flex flex-col gap-1">
-      <h1 className="text-2xl font-semibold">Sprachagent im Vergleich</h1>
-      <p className="text-sm text-muted-foreground">
-        Interne Testseite. Die Zahl hinter jeder Antwort ist die Zeit vom Ende deines Satzes, bis
-        der Agent hörbar wird. Kopfhörer benutzen. Ins Wort fallen kann man A, C und D — Pipeline B
-        hört nicht zu, solange sie spricht.
-      </p>
-    </header>
-    <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-      <PipelinePanel />
-      <HostedPanel variant="tools" />
-      <HostedPanel variant="notebook" />
-      <FluidPanel />
-    </div>
-  </main>
+  <RequireAdmin type="instanceAdmin">
+    <main className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8">
+      <header className="flex flex-col gap-1">
+        <h1 className="text-2xl font-semibold">Sprachagent im Vergleich</h1>
+        <p className="text-sm text-muted-foreground">
+          Interne Testseite. Die Zahl hinter jeder Antwort ist die Zeit vom Ende deines Satzes, bis
+          der Agent hörbar wird. Kopfhörer benutzen. Ins Wort fallen kann man A, C und D — Pipeline
+          B hört nicht zu, solange sie spricht.
+        </p>
+      </header>
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        <PipelinePanel />
+        <HostedPanel variant="tools" />
+        <HostedPanel variant="notebook" />
+        <FluidPanel />
+      </div>
+    </main>
+  </RequireAdmin>
 );
 
 export default VoiceAgentTestPage;
