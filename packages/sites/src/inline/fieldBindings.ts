@@ -7,16 +7,14 @@ import {
   SITE_TAGLINE_MAX,
   SITE_THEME_CONTENT_MAX_LENGTH,
   SITE_TITLE_MAX,
+  type SiteBlock,
+  type SiteBlockType,
   type SiteDraft,
 } from '@gruenerator/contracts';
-import {
-  getAboutFragment,
-  getThemeFragment,
-  type SiteFieldKey,
-  type SiteFieldValues,
-} from '@gruenerator/contracts/site-ydoc';
+import { getBlockFragment, getItemFragment } from '@gruenerator/contracts/site-ydoc';
 
 import { type SiteDraftActions } from '../draft/SiteDraftContext';
+import { parseFieldPath } from '../preview/fieldPaths';
 
 import type * as Y from 'yjs';
 
@@ -32,88 +30,109 @@ export interface RichTextBinding {
   maxLength: number;
 }
 
-type StringFieldKey = {
-  [K in SiteFieldKey]: SiteFieldValues[K] extends string ? K : never;
-}[SiteFieldKey];
-
 // Same limits as the former sidebar inputs.
 const BANNER_TITLE_MAX = 60;
 const BANNER_SUBTITLE_MAX = 200;
 
-const field = (
-  key: StringFieldKey,
-  read: (draft: SiteDraft) => string,
-  maxLength: number
-): TextBinding => ({
-  read,
-  write: (actions, _draft, value) => actions.setField(key, value),
-  maxLength,
-});
+const SITE_TEXT = {
+  site_title: SITE_TITLE_MAX,
+  tagline: SITE_TAGLINE_MAX,
+  contact_email: LEGAL_EMAIL_MAX,
+  contact_phone: SITE_PHONE_MAX,
+} as const;
+type SiteTextKey = keyof typeof SITE_TEXT;
+const isSiteText = (key: string): key is SiteTextKey => key in SITE_TEXT;
 
-/** `data-field` path of a plain top-level or section field → its binding. */
-const FIELDS: Record<string, TextBinding> = {
-  site_title: field('site_title', (d) => d.site_title, SITE_TITLE_MAX),
-  tagline: field('tagline', (d) => d.tagline, SITE_TAGLINE_MAX),
-  contact_email: field('contact_email', (d) => d.contact_email, LEGAL_EMAIL_MAX),
-  contact_phone: field('contact_phone', (d) => d.contact_phone, SITE_PHONE_MAX),
-  'sections.about.title': field('about.title', (d) => d.about.title, SITE_SECTION_TITLE_MAX),
-  'sections.heroImage.title': field('heroImage.title', (d) => d.heroImage.title, BANNER_TITLE_MAX),
-  'sections.heroImage.subtitle': field(
-    'heroImage.subtitle',
-    (d) => d.heroImage.subtitle,
-    BANNER_SUBTITLE_MAX
-  ),
-  'sections.contact.title': field('contact.title', (d) => d.contact.title, SITE_SECTION_TITLE_MAX),
-  'sections.socialFeed.title': field(
-    'socialFeed.title',
-    (d) => d.socialFeed.title,
-    SITE_SECTION_TITLE_MAX
-  ),
+/** Text leaves each block type renders in place, with their limits. */
+const BLOCK_TEXT: Partial<Record<SiteBlockType, Record<string, number>>> = {
+  about: { title: SITE_SECTION_TITLE_MAX },
+  heroImage: { title: BANNER_TITLE_MAX, subtitle: BANNER_SUBTITLE_MAX },
+  contact: { title: SITE_SECTION_TITLE_MAX },
+  socialFeed: { title: SITE_SECTION_TITLE_MAX },
+};
+const ITEM_TEXT: Partial<Record<SiteBlockType, { leaf: 'title' | 'text'; max: number }>> = {
+  themes: { leaf: 'title', max: SITE_SECTION_TITLE_MAX },
+  actions: { leaf: 'text', max: SITE_ACTION_TEXT_MAX },
 };
 
-const ITEM_PATH = /^sections\.(themes|actions)\.(\d+)\.(\w+)$/;
+const findBlock = (draft: SiteDraft, id: string): SiteBlock | undefined =>
+  draft.blocks.find((block) => block.id === id);
 
-export function textBinding(path: string): TextBinding | null {
-  const plain = FIELDS[path];
-  if (plain) return plain;
-  const match = ITEM_PATH.exec(path);
-  if (!match) return null;
-  const [, list, rawIndex, leaf] = match;
-  const index = Number(rawIndex);
-  if (list === 'themes' && leaf === 'title') {
+/** The type of the block a path points into, for picking its binding. */
+export function blockTypeForPath(path: string, draft: SiteDraft): SiteBlockType | null {
+  const address = parseFieldPath(path);
+  if (!address || (address.kind !== 'block' && address.kind !== 'item')) return null;
+  return findBlock(draft, address.blockId)?.type ?? null;
+}
+
+/** The binding of a text field; `type` is the type of the block the path points into. */
+export function textBinding(path: string, type: SiteBlockType | null): TextBinding | null {
+  const address = parseFieldPath(path);
+  if (!address) return null;
+  if (address.kind === 'site') {
+    const key = address.key;
+    if (!isSiteText(key)) return null;
     return {
-      read: (d) => d.themes[index]?.title ?? '',
-      write: (actions, d, value) => {
-        const id = d.themes[index]?.id;
-        if (id) actions.updateTheme(id, { title: value });
-      },
-      maxLength: SITE_SECTION_TITLE_MAX,
+      read: (d) => d[key],
+      write: (actions, _d, value) => actions.setField(key, value),
+      maxLength: SITE_TEXT[key],
     };
   }
-  if (list === 'actions' && leaf === 'text') {
+  if (address.kind === 'block' && type !== null && address.leaf !== null) {
+    const leaf = address.leaf;
+    const max = BLOCK_TEXT[type]?.[leaf];
+    if (max === undefined) return null;
     return {
-      read: (d) => d.actions[index]?.text ?? '',
-      write: (actions, d, value) => {
-        const id = d.actions[index]?.id;
-        if (id) actions.updateAction(id, { text: value });
+      read: (d) => {
+        const block = findBlock(d, address.blockId);
+        const value = block ? (block as Record<string, unknown>)[leaf] : '';
+        return typeof value === 'string' ? value : '';
       },
-      maxLength: SITE_ACTION_TEXT_MAX,
+      // Boundary cast: `leaf` is one of the type's text fields listed in BLOCK_TEXT.
+      write: (actions, _d, value) =>
+        actions.setBlockField(address.blockId, type, { [leaf]: value } as never),
+      maxLength: max,
+    };
+  }
+  if (address.kind === 'item' && type !== null) {
+    const text = ITEM_TEXT[type];
+    if (!text || text.leaf !== address.leaf) return null;
+    return {
+      read: (d) => {
+        const block = findBlock(d, address.blockId);
+        const item =
+          block && 'items' in block
+            ? block.items.find((entry) => entry.id === address.itemId)
+            : undefined;
+        const value = item ? (item as Record<string, unknown>)[text.leaf] : '';
+        return typeof value === 'string' ? value : '';
+      },
+      write: (actions, _d, value) =>
+        actions.updateItem(address.blockId, address.itemId, { [text.leaf]: value }),
+      maxLength: text.max,
     };
   }
   return null;
 }
 
 export function richTextBinding(path: string): RichTextBinding | null {
-  if (path === 'sections.about.content') {
-    return { fragment: (ydoc) => getAboutFragment(ydoc), maxLength: SITE_ABOUT_MAX_LENGTH };
+  const address = parseFieldPath(path);
+  if (address?.kind === 'block' && address.leaf === 'content') {
+    return {
+      fragment: (ydoc, d) =>
+        findBlock(d, address.blockId)?.type === 'about'
+          ? getBlockFragment(ydoc, address.blockId)
+          : null,
+      maxLength: SITE_ABOUT_MAX_LENGTH,
+    };
   }
-  const match = ITEM_PATH.exec(path);
-  if (match?.[1] === 'themes' && match[3] === 'content') {
-    const index = Number(match[2]);
+  if (address?.kind === 'item' && address.leaf === 'content') {
     return {
       fragment: (ydoc, d) => {
-        const id = d.themes[index]?.id;
-        return id ? getThemeFragment(ydoc, id) : null;
+        const block = findBlock(d, address.blockId);
+        return block?.type === 'themes' && block.items.some((item) => item.id === address.itemId)
+          ? getItemFragment(ydoc, address.itemId)
+          : null;
       },
       maxLength: SITE_THEME_CONTENT_MAX_LENGTH,
     };

@@ -1,7 +1,7 @@
 import { publishedSiteSnapshotSchema } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { fullSnapshot } from '../testing/fixtures.js';
+import { fullSnapshot, withBlock, withoutBlock } from '../testing/fixtures.js';
 
 import { renderSitePage, type RenderSitePageInput } from '../server.js';
 
@@ -73,22 +73,13 @@ describe('renderSitePage', () => {
   it('references only the consent script, and only with a feed', () => {
     expect(page().match(/<script/g)).toEqual(['<script']);
     expect(page()).toContain('<script type="module" src="/_site/consent.abc.js"></script>');
-    expect(page({ snapshot: fullSnapshot({ hidden_sections: ['socialFeed'] }) })).not.toContain(
-      '<script'
-    );
+    expect(page({ snapshot: withoutBlock(fullSnapshot(), 'socialFeed') })).not.toContain('<script');
   });
 
   it('a hidden feed leaves no script and no Instagram URL', () => {
-    const s = fullSnapshot();
     for (const snap of [
-      fullSnapshot({ hidden_sections: ['socialFeed'] }),
-      {
-        ...s,
-        sections: {
-          ...s.sections,
-          socialFeed: { title: 'x', instagramUsername: 'max.muster', showFeed: false },
-        },
-      },
+      withoutBlock(fullSnapshot(), 'socialFeed'),
+      withBlock(fullSnapshot(), 'socialFeed', { instagramUsername: '' }),
     ]) {
       const out = page({ snapshot: snap });
       expect(out).not.toContain('<script');
@@ -96,9 +87,9 @@ describe('renderSitePage', () => {
     }
   });
 
-  it('leaves out hidden sections', () =>
-    expect(page({ snapshot: fullSnapshot({ hidden_sections: ['about'] }) })).not.toContain(
-      'data-section="about"'
+  it('leaves out a block the snapshot does not carry', () =>
+    expect(page({ snapshot: withoutBlock(fullSnapshot(), 'about') })).not.toContain(
+      'data-block-type="about"'
     ));
 
   it('renders the legal documents with their canonical URL and no script', () => {
@@ -114,11 +105,11 @@ describe('renderSitePage', () => {
     expect(out).not.toMatch(/PTSans|GrueneType/);
   });
 
-  it('renders a phase-1 snapshot', () => {
-    const { variant: _v, hidden_sections: _h, ...old } = fullSnapshot();
+  it('renders a snapshot stored without a variant', () => {
+    const { variant: _v, ...old } = fullSnapshot();
     const out = page({ snapshot: publishedSiteSnapshotSchema.parse(old) });
     expect(out).toContain('data-site-variant="dunkel"');
-    expect(out).toContain('data-section="themes"');
+    expect(out).toContain('data-block-type="themes"');
   });
 
   it('links the report address with the page URL', () =>
@@ -137,13 +128,10 @@ describe('renderSitePage', () => {
 
   describe('public mode hides editor placeholders', () => {
     it('renders an about block with only a title without the placeholder', () => {
-      const snapshot = fullSnapshot();
       const out = page({
-        snapshot: fullSnapshot({
-          sections: {
-            ...snapshot.sections,
-            about: { title: 'Wer ich bin', content: { type: 'doc', content: [] } },
-          },
+        snapshot: withBlock(fullSnapshot(), 'about', {
+          title: 'Wer ich bin',
+          content: { type: 'doc', content: [] },
         }),
       });
       expect(out).toContain('Wer ich bin');
@@ -157,7 +145,6 @@ describe('renderSitePage', () => {
           contact_email: '',
           contact_phone: '--',
           social_links: {},
-          hidden_sections: [],
         }),
       });
       expect(out).not.toContain('data-empty');
@@ -168,7 +155,7 @@ describe('renderSitePage', () => {
     it('drops an action tile link to a section that is not on the page', () => {
       const withContact = page();
       expect(withContact).toContain('href="#kontakt"');
-      const out = page({ snapshot: fullSnapshot({ hidden_sections: ['contact'] }) });
+      const out = page({ snapshot: withoutBlock(fullSnapshot(), 'contact') });
       expect(out).not.toContain('id="kontakt"');
       expect(out).not.toContain('href="#kontakt"');
       expect(out).toContain('Kontakt aufnehmen');
@@ -176,10 +163,17 @@ describe('renderSitePage', () => {
   });
 
   it('renders a focal point as a class and never as a style attribute', () => {
-    const snapshot = fullSnapshot();
+    let snapshot = withBlock(fullSnapshot(), 'heroImage', { imageFocus: { x: 100, y: 0 } });
+    const themes = snapshot.sections.blocks.find((b) => b.type === 'themes');
+    snapshot = withBlock(snapshot, 'themes', {
+      items:
+        themes?.type === 'themes'
+          ? themes.items.map((item, i) =>
+              i === 0 ? { ...item, imageFocus: { x: 0, y: 50 } } : item
+            )
+          : [],
+    });
     snapshot.sections.profileImageFocus = { x: 25, y: 75 };
-    snapshot.sections.heroImage!.imageFocus = { x: 100, y: 0 };
-    snapshot.sections.themes![0]!.imageFocus = { x: 0, y: 50 };
     const out = page({ snapshot });
     expect(out).toMatch(/<img[^>]+class="[^"]*site-focus-25-75/);
     expect(out).toMatch(/<img[^>]+class="[^"]*site-focus-100-0/);

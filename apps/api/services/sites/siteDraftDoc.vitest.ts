@@ -34,8 +34,16 @@ function site(): Site {
     profile_image: null,
     background_image: null,
     sections: {
-      hidden: ['actions'],
-      about: { title: 'Wer ich bin', content: richTextDocFromPlainText('Hallo') },
+      blocks: [
+        { id: 'hero', type: 'hero' },
+        {
+          id: 'about',
+          type: 'about',
+          title: 'Wer ich bin',
+          content: richTextDocFromPlainText('Hallo'),
+          hidden: true,
+        },
+      ],
     },
     legal: null,
     created_at: null,
@@ -80,7 +88,8 @@ describe('siteDraftDoc', () => {
     Y.applyUpdate(doc, new Uint8Array(Buffer.from(body.update, 'base64')));
     const draft = decodeSiteDraft(doc);
     expect(draft.contact_phone).toBe('+49 30 123');
-    expect(draft.hidden).toEqual(['actions']);
+    expect(draft.blocks.map((block) => block.id)).toEqual(['hero', 'about']);
+    expect(draft.blocks[1]).toMatchObject({ hidden: true });
   });
 
   it('ensureSiteDraft does nothing when state exists', async () => {
@@ -106,13 +115,22 @@ describe('siteDraftDoc', () => {
     await expect(ensureSiteDraft(site())).rejects.toThrow(/413/);
   });
 
-  it('ensureSiteDraft throws for state that was never seeded', async () => {
+  it('ensureSiteDraft seeds a room whose state carries no current seed', async () => {
+    // An old editor tab wrote the previous layout back after the reset (#blocks): the room has
+    // state, but no seed of this schema version. Hocuspocus decides atomically whether to seed.
     const doc = new Y.Doc();
-    doc.getMap('stray').set('x', 1);
+    doc.getMap('siteMeta').set('schemaVersion', 1);
+    doc.getMap('siteMeta').set('seededAt', '2026-11-19T10:00:00Z');
+    doc.getMap('siteThemes').set('t1', new Y.Map());
     hocuspocusInternalOrNull.mockResolvedValueOnce(yjsAnswer(Y.encodeStateAsUpdate(doc)));
+    hocuspocusInternal.mockResolvedValueOnce({ seeded: true });
 
-    await expect(ensureSiteDraft(site())).rejects.toBeInstanceOf(UnseededSiteDraftError);
-    expect(hocuspocusInternal).not.toHaveBeenCalled();
+    expect(await ensureSiteDraft(site())).toEqual({ seeded: true });
+    expect(hocuspocusInternal).toHaveBeenCalledWith(
+      'POST',
+      `/internal/site/${SITE_ID}/seed`,
+      expect.objectContaining({ update: expect.any(String) })
+    );
   });
 
   it('readSiteDraft returns null on 404 and throws on 500', async () => {

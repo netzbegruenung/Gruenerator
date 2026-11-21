@@ -91,14 +91,55 @@ export function makeSite(over: Partial<Site> = {}): Site {
     profile_image: null,
     background_image: null,
     sections: {
-      about: { title: GENERATED.about.title, content: doc(GENERATED.about.content) },
-      themes: GENERATED.themes.map((t) => ({
-        imageUrl: '',
-        title: t.title,
-        content: doc(t.content),
-      })),
-      actions: GENERATED.actions.map((a) => ({ imageUrl: '', text: a.text, link: a.link })),
-      contact: { title: GENERATED.contact.title, backgroundImageUrl: '' },
+      blocks: [
+        { id: 'hero', type: 'hero' },
+        {
+          id: 'about',
+          type: 'about',
+          title: GENERATED.about.title,
+          content: doc(GENERATED.about.content),
+        },
+        {
+          id: 'banner',
+          type: 'heroImage',
+          imageUrl: '',
+          title: 'Gemeinsam für eine nachhaltige Zukunft!',
+          subtitle: '',
+        },
+        {
+          id: 'themes',
+          type: 'themes',
+          items: GENERATED.themes.map((t, i) => ({
+            id: `theme-${i + 1}`,
+            imageUrl: '',
+            title: t.title,
+            content: doc(t.content),
+          })),
+        },
+        {
+          id: 'actions',
+          type: 'actions',
+          items: GENERATED.actions.map((a, i) => ({
+            id: `action-${i + 1}`,
+            imageUrl: '',
+            text: a.text,
+            link: a.link,
+          })),
+        },
+        {
+          id: 'feed',
+          type: 'socialFeed',
+          title: 'Instagram',
+          instagramUsername: '',
+          hidden: true,
+        },
+        {
+          id: 'contact',
+          type: 'contact',
+          title: GENERATED.contact.title,
+          backgroundImageUrl: '',
+        },
+      ],
     },
     created_at: ZEITPUNKT,
     updated_at: ZEITPUNKT,

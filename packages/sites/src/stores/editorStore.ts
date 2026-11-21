@@ -1,21 +1,20 @@
-import { type SiteSectionId } from '@gruenerator/contracts';
 import { create } from 'zustand';
 
-export type SectionType = SiteSectionId;
-export type EditorPanel = SiteSectionId | 'settings' | 'legal';
+/** A block's form (by block id), or the settings and Impressum outside the page. */
+export type EditorPanel = 'settings' | 'legal' | (string & {});
 
 export interface FocusedField {
   panel: EditorPanel;
   path: string;
 }
 
-/** What the person clicked on the page: a section, and inside it a field and/or a card. */
+/** What the person clicked on the page: a block, and inside it a field and/or a card. */
 export interface EditorSelection {
-  section: SectionType;
-  /** `data-field` path under the click, null on the section background. */
+  blockId: string;
+  /** Id of the theme card or action tile under the click. */
+  itemId: string | null;
+  /** `data-field` path under the click, null on the block background. */
   path: string | null;
-  /** Index of the theme or action card under the click. */
-  index: number | null;
 }
 
 /** The floating panel next to the page: a section's details or its image. */
@@ -40,9 +39,16 @@ interface EditorState {
   clearFocus: () => void;
 }
 
+const ITEM_ID = /^blocks\.[^.]+\.items\.([^.]+)\./;
+const itemIdOf = (path: string): string | null => ITEM_ID.exec(path)?.[1] ?? null;
+
 const sameSelection = (a: EditorSelection | null, b: EditorSelection | null): boolean =>
   a === b ||
-  (a !== null && b !== null && a.section === b.section && a.path === b.path && a.index === b.index);
+  (a !== null &&
+    b !== null &&
+    a.blockId === b.blockId &&
+    a.path === b.path &&
+    a.itemId === b.itemId);
 
 export const useEditorStore = create<EditorState>((set) => ({
   selection: null,
@@ -54,8 +60,8 @@ export const useEditorStore = create<EditorState>((set) => ({
   select: (selection) =>
     set((state) => {
       if (sameSelection(state.selection, selection)) return state;
-      // A panel belongs to the section it was opened for.
-      const keepPanel = selection !== null && state.selection?.section === selection.section;
+      // A panel belongs to the block it was opened for.
+      const keepPanel = selection !== null && state.selection?.blockId === selection.blockId;
       return { selection, elementPanel: keepPanel ? state.elementPanel : null };
     }),
 
@@ -67,12 +73,12 @@ export const useEditorStore = create<EditorState>((set) => ({
     set(
       panel === 'settings' || panel === 'legal'
         ? {
-            dialog: panel,
+            dialog: panel === 'settings' ? 'settings' : 'legal',
             focusedField: { panel, path },
             highlightedElement: { panel, path },
           }
         : {
-            selection: { section: panel, path, index: null },
+            selection: { blockId: panel, itemId: itemIdOf(path), path },
             elementPanel: 'details',
             dialog: null,
             focusedField: { panel, path },
@@ -84,23 +90,3 @@ export const useEditorStore = create<EditorState>((set) => ({
 
   clearFocus: () => set({ focusedField: null, highlightedElement: null }),
 }));
-
-export const SECTION_ORDER: SectionType[] = [
-  'hero',
-  'about',
-  'heroImage',
-  'themes',
-  'actions',
-  'socialFeed',
-  'contact',
-];
-
-export const SECTION_LABELS: Record<SectionType, string> = {
-  hero: 'Profil',
-  about: 'Über mich',
-  heroImage: 'Hero-Bild',
-  themes: 'Themen',
-  actions: 'Aktionen',
-  socialFeed: 'Instagram',
-  contact: 'Kontakt',
-};

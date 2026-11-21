@@ -10,17 +10,19 @@ import { type SiteImageFocus } from './schemas/sites.js';
 export const SITE_YDOC_KEYS = {
   /** Y.Map: seed guard and schema version. */
   meta: 'siteMeta',
-  /** Y.Map of plain values, last writer wins per key. */
+  /** Y.Map of plain page values, last writer wins per key. */
   fields: 'siteFields',
-  /** Y.Map<id, Y.Map>: theme cards (title, imageUrl, imageFocus). */
-  themes: 'siteThemes',
-  /** Y.Array<string>: theme ids in display order. */
-  themeOrder: 'siteThemeOrder',
-  /** Y.Map<id, Y.Map>: action tiles (text, link, imageUrl, imageFocus). */
-  actions: 'siteActions',
-  /** Y.Array<string>: action ids in display order. */
-  actionOrder: 'siteActionOrder',
+  /**
+   * Y.Map<blockId, Y.Map>: one map per block holding `type`, `hidden` and its scalar fields, and
+   * for card lists `items` (Y.Map<itemId, Y.Map>) plus `itemOrder` (Y.Array<string>).
+   */
+  blocks: 'siteBlocks',
+  /** Y.Array<string>: block ids in page order. */
+  blockOrder: 'siteBlockOrder',
 } as const;
+
+/** Keys inside a block's Y.Map that hold its card list. */
+export const SITE_BLOCK_ITEM_KEYS = { items: 'items', order: 'itemOrder' } as const;
 
 export const SITE_META_KEYS = {
   schemaVersion: 'schemaVersion',
@@ -28,7 +30,8 @@ export const SITE_META_KEYS = {
   seededAt: 'seededAt',
 } as const;
 
-export const SITE_YDOC_SCHEMA_VERSION = 1;
+/** 2: the page as a block list (21.11.2026). A doc of an older version is not read. */
+export const SITE_YDOC_SCHEMA_VERSION = 2;
 
 export const SITE_FIELD_KEYS = [
   'site_title',
@@ -40,18 +43,6 @@ export const SITE_FIELD_KEYS = [
   'contact_email',
   'contact_phone',
   'social_links',
-  'hidden',
-  'about.title',
-  'heroImage.imageUrl',
-  'heroImage.imageFocus',
-  'heroImage.title',
-  'heroImage.subtitle',
-  'contact.title',
-  'contact.backgroundImageUrl',
-  'contact.backgroundFocus',
-  'socialFeed.title',
-  'socialFeed.instagramUsername',
-  'socialFeed.showFeed',
 ] as const;
 
 export type SiteFieldKey = (typeof SITE_FIELD_KEYS)[number];
@@ -66,20 +57,10 @@ export type SiteFieldValues = {
   contact_email: SiteDraft['contact_email'];
   contact_phone: SiteDraft['contact_phone'];
   social_links: SiteDraft['social_links'];
-  hidden: SiteDraft['hidden'];
-  'about.title': SiteDraft['about']['title'];
-  'heroImage.imageUrl': SiteDraft['heroImage']['imageUrl'];
-  'heroImage.imageFocus': SiteImageFocus | null;
-  'heroImage.title': SiteDraft['heroImage']['title'];
-  'heroImage.subtitle': SiteDraft['heroImage']['subtitle'];
-  'contact.title': SiteDraft['contact']['title'];
-  'contact.backgroundImageUrl': SiteDraft['contact']['backgroundImageUrl'];
-  'contact.backgroundFocus': SiteImageFocus | null;
-  'socialFeed.title': SiteDraft['socialFeed']['title'];
-  'socialFeed.instagramUsername': SiteDraft['socialFeed']['instagramUsername'];
-  'socialFeed.showFeed': SiteDraft['socialFeed']['showFeed'];
 };
 
-export const SITE_ABOUT_FRAGMENT = 'rt:about';
+/** The about text of a block. */
+export const siteBlockFragmentKey = (blockId: string): string => `rt:block:${blockId}`;
 
-export const siteThemeFragmentKey = (id: string): string => `rt:theme:${id}`;
+/** The text of a theme card. */
+export const siteItemFragmentKey = (itemId: string): string => `rt:item:${itemId}`;

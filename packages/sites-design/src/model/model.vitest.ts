@@ -1,7 +1,12 @@
-import { SITE_SECTION_IDS } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { fullSnapshot, maxSnapshot, minimalSnapshot } from '../testing/fixtures.js';
+import {
+  fullSnapshot,
+  maxSnapshot,
+  minimalSnapshot,
+  withBlock,
+  withBlocks,
+} from '../testing/fixtures.js';
 
 import { siteCopy } from './copy.js';
 import { sectionGround } from './grounds.js';
@@ -10,7 +15,7 @@ import { reportHref, safeHref, telHref } from './links.js';
 import { siteMeta } from './meta.js';
 import { sitePaths } from './paths.js';
 import { siteRootAttributes } from './root.js';
-import { visibleSections } from './visibility.js';
+import { blockAnchors, visibleBlocks } from './visibility.js';
 
 describe('safeHref', () => {
   it.each([
@@ -73,35 +78,48 @@ describe('images', () => {
   it('has no attributes for an empty image', () => expect(siteImageAttrs('', 'tile')).toBeNull());
 });
 
-describe('visibleSections', () => {
-  it('shows every filled section in page order', () =>
-    expect(visibleSections(fullSnapshot(), 'public')).toEqual([...SITE_SECTION_IDS]));
-  it('drops hidden sections in both modes', () => {
-    const s = fullSnapshot({ hidden_sections: ['themes', 'contact'] });
-    expect(visibleSections(s, 'public')).not.toContain('themes');
-    expect(visibleSections(s, 'preview')).not.toContain('contact');
-  });
-  it('drops empty sections in public and keeps them in preview', () => {
-    expect(visibleSections(minimalSnapshot(), 'public')).toEqual(['hero']);
-    expect(visibleSections(minimalSnapshot(), 'preview')).toEqual([
-      'hero',
-      'about',
-      'heroImage',
-      'themes',
-      'actions',
-      'contact',
+describe('visibleBlocks', () => {
+  const types = (blocks: { type: string }[]) => blocks.map((block) => block.type);
+  const STANDARD = ['hero', 'about', 'heroImage', 'themes', 'actions', 'socialFeed', 'contact'];
+  const empties = () =>
+    withBlocks(minimalSnapshot(), [
+      { id: 'hero', type: 'hero' },
+      { id: 'ab', type: 'about', title: '', content: { type: 'doc' } },
+      { id: 'bn', type: 'heroImage', imageUrl: '', title: '', subtitle: '' },
+      { id: 'th', type: 'themes', items: [] },
+      { id: 'ac', type: 'actions', items: [] },
+      { id: 'co', type: 'contact', title: '', backgroundImageUrl: '' },
     ]);
+
+  it('shows every filled block in list order', () =>
+    expect(types(visibleBlocks(fullSnapshot(), 'public'))).toEqual(STANDARD));
+  it('keeps a hidden block only on the editor canvas', () => {
+    const s = withBlock(fullSnapshot(), 'themes', { hidden: true });
+    expect(types(visibleBlocks(s, 'public'))).not.toContain('themes');
+    expect(types(visibleBlocks(s, 'preview'))).not.toContain('themes');
+    expect(types(visibleBlocks(s, 'preview', true))).toContain('themes');
   });
-  it('treats showFeed false as hidden', () => {
+  it('drops empty blocks in public and keeps them in preview', () => {
+    expect(types(visibleBlocks(empties(), 'public'))).toEqual(['hero']);
+    expect(types(visibleBlocks(empties(), 'preview'))).toEqual(
+      STANDARD.filter((t) => t !== 'socialFeed')
+    );
+  });
+  it('shows an empty Instagram block as a placeholder in preview', () => {
+    const empty = withBlock(fullSnapshot(), 'socialFeed', { instagramUsername: '' });
+    expect(types(visibleBlocks(empty, 'preview'))).toContain('socialFeed');
+    expect(types(visibleBlocks(empty, 'public'))).not.toContain('socialFeed');
+  });
+  it('numbers the anchors of repeated types', () => {
     const s = fullSnapshot();
-    const off = {
-      ...s,
-      sections: {
-        ...s.sections,
-        socialFeed: { title: 'Insta', instagramUsername: 'max.muster', showFeed: false },
-      },
-    };
-    expect(visibleSections(off, 'preview')).not.toContain('socialFeed');
+    const anchors = blockAnchors([
+      ...s.sections.blocks,
+      { id: 'more', type: 'themes', items: [] },
+      { id: 'evenmore', type: 'themes', items: [] },
+    ]);
+    expect(anchors.get('themes')).toBe('themen');
+    expect(anchors.get('more')).toBe('themen-2');
+    expect(anchors.get('evenmore')).toBe('themen-3');
   });
 });
 

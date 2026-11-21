@@ -1,9 +1,10 @@
 import {
+  type SiteDraft,
   SITE_SECTION_TITLE_MAX,
   SITE_THEME_CONTENT_MAX_LENGTH,
   SITE_THEMES_MAX,
 } from '@gruenerator/contracts';
-import { getThemeFragment } from '@gruenerator/contracts/site-ydoc';
+import { getItemFragment } from '@gruenerator/contracts/site-ydoc';
 import { cn } from '@gruenerator/shared/utils';
 import { Input } from '@gruenerator/ui';
 import { useMemo } from 'react';
@@ -19,25 +20,30 @@ import { ItemControls } from '../common/ItemControls';
 import { RichTextEditor } from '../common/RichTextEditorLazy';
 
 interface ThemeCardEditorProps {
+  blockId: string;
   id: string;
   index: number;
   count: number;
 }
 
-function ThemeCardEditor({ id, index, count }: ThemeCardEditorProps) {
+function themeCard(d: SiteDraft, blockId: string, id: string) {
+  const block = d.blocks.find((entry) => entry.id === blockId);
+  return block?.type === 'themes' ? block.items.find((item) => item.id === id) : undefined;
+}
+
+function ThemeCardEditor({ blockId, id, index, count }: ThemeCardEditorProps) {
   const { registerField, handleFieldFocus, handleFieldBlur } = useFieldRegistry();
   const ydoc = useSiteYdoc();
-  const { updateTheme, removeTheme, moveTheme } = useDraftActions();
-  const title = useDraft((d) => d.themes.find((theme) => theme.id === id)?.title ?? '');
-  const imageUrl = useDraft((d) => d.themes.find((theme) => theme.id === id)?.imageUrl ?? '');
-  const imageFocus = useDraft((d) => d.themes.find((theme) => theme.id === id)?.imageFocus ?? null);
+  const { updateItem, removeItem, moveItem } = useDraftActions();
+  const title = useDraft((d) => themeCard(d, blockId, id)?.title ?? '');
+  const imageUrl = useDraft((d) => themeCard(d, blockId, id)?.imageUrl ?? '');
+  const imageFocus = useDraft((d) => themeCard(d, blockId, id)?.imageFocus ?? null);
+  const base = `blocks.${blockId}.items.${id}`;
   const highlighted = useEditorStore(
     (s) =>
-      s.highlightedElement?.panel === 'themes' &&
-      s.highlightedElement.path.startsWith(`sections.themes.${index}.`)
+      s.highlightedElement?.panel === blockId && s.highlightedElement.path.startsWith(`${base}.`)
   );
-  const fragment = useMemo(() => getThemeFragment(ydoc, id), [ydoc, id]);
-  const base = `sections.themes.${index}`;
+  const fragment = useMemo(() => getItemFragment(ydoc, id), [ydoc, id]);
   const name = title || `Thema ${index + 1}`;
 
   return (
@@ -57,19 +63,19 @@ function ThemeCardEditor({ id, index, count }: ThemeCardEditorProps) {
           canMoveUp={index > 0}
           canMoveDown={index < count - 1}
           canRemove={count > 1}
-          onMoveUp={() => moveTheme(id, index - 1)}
-          onMoveDown={() => moveTheme(id, index + 1)}
-          onRemove={() => removeTheme(id)}
+          onMoveUp={() => moveItem(blockId, id, index - 1)}
+          onMoveDown={() => moveItem(blockId, id, index + 1)}
+          onRemove={() => removeItem(blockId, id)}
         />
       </div>
 
-      <Field panel="themes" path={`${base}.title`} htmlFor={`theme-${id}-title`} label="Titel">
+      <Field panel={blockId} path={`${base}.title`} htmlFor={`theme-${id}-title`} label="Titel">
         <Input
           ref={(el) => registerField(`${base}.title`, el)}
           id={`theme-${id}-title`}
           value={title}
-          onChange={(e) => updateTheme(id, { title: e.target.value })}
-          onFocus={() => handleFieldFocus('themes', `${base}.title`)}
+          onChange={(e) => updateItem(blockId, id, { title: e.target.value })}
+          onFocus={() => handleFieldFocus(blockId, `${base}.title`)}
           onBlur={handleFieldBlur}
           placeholder="z.B. Klimaschutz"
           maxLength={SITE_SECTION_TITLE_MAX}
@@ -77,7 +83,7 @@ function ThemeCardEditor({ id, index, count }: ThemeCardEditorProps) {
       </Field>
 
       <Field
-        panel="themes"
+        panel={blockId}
         path={`${base}.content`}
         htmlFor={`theme-${id}-content`}
         label="Beschreibung"
@@ -85,7 +91,7 @@ function ThemeCardEditor({ id, index, count }: ThemeCardEditorProps) {
         <RichTextEditor
           id={`theme-${id}-content`}
           fragment={fragment}
-          onFocus={() => handleFieldFocus('themes', `${base}.content`)}
+          onFocus={() => handleFieldFocus(blockId, `${base}.content`)}
           onBlur={handleFieldBlur}
           placeholder="Beschreibe dein Engagement für dieses Thema..."
           maxLength={SITE_THEME_CONTENT_MAX_LENGTH}
@@ -94,7 +100,7 @@ function ThemeCardEditor({ id, index, count }: ThemeCardEditorProps) {
       </Field>
 
       <Field
-        panel="themes"
+        panel={blockId}
         path={`${base}.imageUrl`}
         labelId={`theme-${id}-image-label`}
         label="Bild"
@@ -102,7 +108,7 @@ function ThemeCardEditor({ id, index, count }: ThemeCardEditorProps) {
         <ImageUpload
           labelledBy={`theme-${id}-image-label`}
           value={imageUrl}
-          onChange={(url) => updateTheme(id, { imageUrl: url })}
+          onChange={(url) => updateItem(blockId, id, { imageUrl: url })}
           aspectRatio="4/3"
           placeholder="Themenbild"
         />
@@ -110,7 +116,7 @@ function ThemeCardEditor({ id, index, count }: ThemeCardEditorProps) {
           <FocalPointPicker
             src={imageUrl}
             value={imageFocus}
-            onChange={(focus) => updateTheme(id, { imageFocus: focus })}
+            onChange={(focus) => updateItem(blockId, id, { imageFocus: focus })}
           />
         )}
       </Field>
@@ -118,9 +124,12 @@ function ThemeCardEditor({ id, index, count }: ThemeCardEditorProps) {
   );
 }
 
-export function ThemesSectionEditor() {
-  const { addTheme } = useDraftActions();
-  const ids = useDraft((d) => d.themes.map((theme) => theme.id));
+export function ThemesSectionEditor({ blockId }: { blockId: string }) {
+  const { addItem } = useDraftActions();
+  const ids = useDraft((d) => {
+    const block = d.blocks.find((entry) => entry.id === blockId);
+    return block?.type === 'themes' ? block.items.map((item) => item.id) : [];
+  });
 
   return (
     <div>
@@ -132,14 +141,14 @@ export function ThemesSectionEditor() {
 
       <div className="flex flex-col gap-md mb-md">
         {ids.map((id, index) => (
-          <ThemeCardEditor key={id} id={id} index={index} count={ids.length} />
+          <ThemeCardEditor key={id} blockId={blockId} id={id} index={index} count={ids.length} />
         ))}
       </div>
 
       <AddItemButton
         label="Thema"
         disabled={ids.length >= SITE_THEMES_MAX}
-        onAdd={() => addTheme()}
+        onAdd={() => addItem(blockId)}
       />
     </div>
   );
