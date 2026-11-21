@@ -1,5 +1,5 @@
 import { Badge, Button } from '@gruenerator/ui';
-import { GrueneratorRealtimeVoiceAdapter } from '@gruenerator/voice';
+import { FluidVoiceClient, GrueneratorRealtimeVoiceAdapter } from '@gruenerator/voice';
 import { Loader2, Mic, Square } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -304,13 +304,108 @@ function HostedPanel({ variant }: { variant: 'tools' | 'notebook' }) {
   );
 }
 
+/**
+ * KugelAudio Fluid 1 (speech to speech) through our server, EU host, with the
+ * same lookup tools as panel A. Fluid speaks, Mistral Medium 3.5 in Paris
+ * decides on tool calls, our server runs them.
+ */
+function FluidPanel() {
+  const [status, setStatus] = useState<Status>('idle');
+  const [turns, setTurns] = useState<Turn[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [seconds, setSeconds] = useState<number | null>(null);
+  const clientRef = useRef<FluidVoiceClient | null>(null);
+  const clock = useResponseClock();
+
+  useEffect(() => () => clientRef.current?.stop(), []);
+
+  const start = () => {
+    setTurns([]);
+    setError(null);
+    setSeconds(null);
+    setStatus('starting');
+    const client = new FluidVoiceClient();
+    clientRef.current = client;
+    // Deltas of one speaker form a line until the other speaks.
+    let turnNo = 0;
+    let lastRole: Turn['role'] | null = null;
+    let text = '';
+    client
+      .start({
+        onReady: () => setStatus('running'),
+        onTranscript: (role, delta) => {
+          if (role !== lastRole) {
+            turnNo++;
+            lastRole = role;
+            text = '';
+          }
+          text += delta;
+          // The last word of the caller is the nearest we get to "turn over".
+          if (role === 'user') clock.userDone();
+          const turn: Turn = { id: `f${turnNo}`, role, text };
+          setTurns((prev) => upsertTurn(prev, turn));
+        },
+        onAgentAudio: () => {
+          const sec = clock.agentAudible();
+          if (sec !== undefined) setTurns((prev) => markLatestUser(prev, sec));
+        },
+        onTool: (name, ms, ok) => {
+          turnNo++;
+          lastRole = 'tool';
+          const turn: Turn = {
+            id: `f${turnNo}`,
+            role: 'tool',
+            text: `${name} · ${(ms / 1000).toFixed(1).replace('.', ',')} s${ok ? '' : ' · Fehler'}`,
+          };
+          setTurns((prev) => upsertTurn(prev, turn));
+        },
+        onError: (message) => setError(message),
+        onClosed: (s) => {
+          if (s !== null) setSeconds(s);
+          setStatus('idle');
+          clientRef.current = null;
+        },
+      })
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : String(err));
+        setStatus('idle');
+        clientRef.current = null;
+      });
+  };
+
+  const stop = () => clientRef.current?.stop();
+
+  return (
+    <section className="flex flex-col gap-4 rounded-lg border border-grey-200 p-4 dark:border-grey-700">
+      <header className="flex flex-col gap-1">
+        <h2 className="text-lg font-semibold">D · KugelAudio Fluid 1</h2>
+        <p className="text-sm text-muted-foreground">
+          Speech to speech mit Stimme 1887 und unseren Werkzeugen aus A. Das Back Office ist Mistral
+          Medium 3.5 bei Scaleway in Paris. EU-Endpunkt.
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Die Antwortzeit zählt ab dem letzten erkannten Wort, nicht ab dem Ende des Satzes.
+        </p>
+      </header>
+      <div className="flex items-center gap-3">
+        <StartStop status={status} onStart={start} onStop={stop} />
+        {seconds !== null ? (
+          <span className="text-xs text-muted-foreground">{Math.ceil(seconds)} s abgerechnet</span>
+        ) : null}
+      </div>
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      <TranscriptList turns={turns} />
+    </section>
+  );
+}
+
 const VoiceAgentTestPage = () => (
   <main className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8">
     <header className="flex flex-col gap-1">
       <h1 className="text-2xl font-semibold">Sprachagent im Vergleich</h1>
       <p className="text-sm text-muted-foreground">
         Interne Testseite. Die Zahl hinter jeder Antwort ist die Zeit vom Ende deines Satzes, bis
-        der Agent hörbar wird. Kopfhörer benutzen. Ins Wort fallen kann man A und C — Pipeline B
+        der Agent hörbar wird. Kopfhörer benutzen. Ins Wort fallen kann man A, C und D — Pipeline B
         hört nicht zu, solange sie spricht.
       </p>
     </header>
@@ -318,6 +413,7 @@ const VoiceAgentTestPage = () => (
       <PipelinePanel />
       <HostedPanel variant="tools" />
       <HostedPanel variant="notebook" />
+      <FluidPanel />
     </div>
   </main>
 );
