@@ -1,5 +1,8 @@
 import { hasNativeHost } from '@gruenerator/shared';
-import { useEffect, useState } from 'react';
+import { getContractsClient } from '@gruenerator/shared/api';
+import { useMutation } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { useHostAwareBack } from '../../hooks/useHostAwareBack';
 import { downloadBlob } from '../../utils/downloadFile';
@@ -50,9 +53,66 @@ function betaNoticeSeen(): boolean {
   }
 }
 
+/** `ki:<id>:<version>` only for a KI-Schnitt hand-off that names both; it dedupes the project. */
+function sourceRefFor(search: string): string | null {
+  const params = new URLSearchParams(search);
+  const ki = params.get('ki');
+  const v = params.get('v');
+  return ki && v ? `ki:${ki}:${v}` : null;
+}
+
 export default function VideoEditorPage() {
+  const { slug } = useParams<{ slug: string }>();
+  return slug ? <VideoEditorFrame slug={slug} /> : <CreateVideoProject />;
+}
+
+/** No slug in the route: make (or find, via source_ref) the server project, then move to its URL. */
+function CreateVideoProject() {
+  const { search } = useLocation();
+  const navigate = useNavigate();
+  const started = useRef(false);
+  const create = useMutation({
+    mutationFn: async () => {
+      const sourceRef = sourceRefFor(search);
+      const result = await getContractsClient().videoProjects.create({
+        body: sourceRef ? { source_ref: sourceRef } : {},
+      });
+      if (result.status !== 201) throw new Error('create video project failed');
+      return result.body.project;
+    },
+    onSuccess: (project) => {
+      void navigate(`/studio/videoeditor/${project.slug}${search}`, { replace: true });
+    },
+  });
+
+  useEffect(() => {
+    // StrictMode runs effects twice in dev; one project per visit.
+    if (started.current) return;
+    started.current = true;
+    create.mutate();
+  }, [create]);
+
+  if (create.isError) {
+    return (
+      <div className="flex h-dvh flex-col items-center justify-center gap-4 p-6 text-center">
+        <p role="alert">Das Projekt konnte nicht angelegt werden.</p>
+        <Link to="/studio" className="underline">
+          Zurück zum Studio
+        </Link>
+      </div>
+    );
+  }
+  return (
+    <div className="flex h-dvh items-center justify-center p-6">
+      <p role="status">Projekt wird angelegt …</p>
+    </div>
+  );
+}
+
+function VideoEditorFrame({ slug }: { slug: string }) {
+  const { search } = useLocation();
   // Read once: the frame keeps its document; changing src later would reload the editor.
-  const [src] = useState(() => editorAppSrc(window.location.search));
+  const [src] = useState(() => editorAppSrc(search, slug));
   const [betaNoticeOpen, setBetaNoticeOpen] = useState(() => !betaNoticeSeen());
   const close = useHostAwareBack('/studio');
 
