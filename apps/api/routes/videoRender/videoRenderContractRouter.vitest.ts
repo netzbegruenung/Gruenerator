@@ -80,6 +80,20 @@ describe('videoRenderBodySchema', () => {
 });
 
 describe('videoRender contract router', () => {
+  it('availability says whether a render service is configured', async () => {
+    const { env } = (await import('../../config/env.js')) as unknown as {
+      env: { VIDEO_RENDER_URL: string | null };
+    };
+    expect((await call('availability', 'u1')).body).toEqual({ available: true });
+    const configured = env.VIDEO_RENDER_URL;
+    env.VIDEO_RENDER_URL = null;
+    try {
+      expect((await call('availability', 'u1')).body).toEqual({ available: false });
+    } finally {
+      env.VIDEO_RENDER_URL = configured;
+    }
+  });
+
   it('start forwards the project with the media base URL and the token', async () => {
     fetchMock.mockResolvedValue(jsonRes(202, { jobId: 'up-1' }));
     const res = await call('start', 'u1', { body: BODY });

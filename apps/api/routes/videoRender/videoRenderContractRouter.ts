@@ -15,6 +15,7 @@ import {
   VIDEO_RENDER_UNAVAILABLE,
   VideoRenderUnavailableError,
   getRenderStatus,
+  isVideoRenderAvailable,
   openRenderFile,
   startRender,
 } from '../../services/videoRender/videoRenderService.js';
@@ -35,6 +36,10 @@ const BUSY = { message: 'Es laufen bereits mehrere Exporte. Bitte warte, bis ein
 const s = initServer();
 
 export const videoRenderContractRouter = s.router(videoRenderContract, {
+  availability: async () => ({
+    status: 200 as const,
+    body: { available: isVideoRenderAvailable() },
+  }),
   start: async (args) => {
     try {
       const jobId = await startRender(getAuthedUser(args.req).id, args.body);
