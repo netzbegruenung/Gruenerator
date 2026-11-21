@@ -46,6 +46,7 @@ export {
   buildNotebookSlug,
   buildGroupSlug,
   buildChatThreadSlug,
+  buildVideoProjectSlug,
   extractSlugSuffix,
   shareLinkKey,
 } from './slug.js';
