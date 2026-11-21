@@ -8,11 +8,9 @@
 
 import crypto from 'crypto';
 import fs from 'fs';
-import path from 'path';
 import { pipeline } from 'stream/promises';
 
-import { Router, type NextFunction, type Response } from 'express';
-import multer from 'multer';
+import { Router, type Response } from 'express';
 import { z } from 'zod';
 
 import { type AuthenticatedRequest } from '../../middleware/types.js';
@@ -22,26 +20,10 @@ import { transcribeWithProvider } from '../../services/subtitler/transcriptionSe
 import { createLogger } from '../../utils/logger.js';
 import { safeFetch } from '../../utils/validation/urlSecurity.js';
 
+import { cleanupTempFile, ensureTempDir, receiveFile, tempFilePath } from './tempUpload.js';
+
 const log = createLogger('video-transcribe');
 const router = Router();
-
-const TEMP_DIR = '/tmp/video-transcribe';
-const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
-
-/** A file in TEMP_DIR by name; anything resolving outside it is refused. */
-function tempFilePath(name: string): string {
-  const resolved = path.resolve(TEMP_DIR, name);
-  if (!resolved.startsWith(TEMP_DIR + path.sep)) throw new Error('Invalid temp file name');
-  return resolved;
-}
-
-async function ensureTempDir(): Promise<void> {
-  try {
-    await fs.promises.mkdir(TEMP_DIR, { recursive: true });
-  } catch {
-    // directory already exists
-  }
-}
 
 async function downloadToTempFile(url: string): Promise<string> {
   await ensureTempDir();
@@ -65,14 +47,6 @@ async function downloadToTempFile(url: string): Promise<string> {
   await pipeline(response.body!, fileStream);
 
   return tempPath;
-}
-
-async function cleanupTempFile(filePath: string): Promise<void> {
-  try {
-    await fs.promises.unlink(filePath);
-  } catch {
-    log.warn(`Failed to cleanup temp file: ${filePath}`);
-  }
 }
 
 const transcribeSchema = z.object({
@@ -134,31 +108,6 @@ router.post(
     await respondWithTranscription(res, tempPath, req.user?.locale ?? 'de-DE');
   }
 );
-
-const upload = multer({
-  defParamCharset: 'utf8',
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => {
-      void ensureTempDir().then(() => cb(null, TEMP_DIR));
-    },
-    filename: (_req, _file, cb) => cb(null, crypto.randomUUID()),
-  }),
-  limits: { fileSize: MAX_FILE_SIZE },
-});
-
-function receiveFile(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
-  upload.single('file')(req, res, (err: unknown) => {
-    if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
-      res.status(413).json({ error: 'Das Video ist zu groß für die Untertitelung (max. 500 MB).' });
-      return;
-    }
-    if (err) {
-      next(err);
-      return;
-    }
-    next();
-  });
-}
 
 /**
  * POST /api/video/transcribe/file

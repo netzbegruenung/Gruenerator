@@ -17,8 +17,10 @@ import { redisClient } from '../../utils/redis/index.js';
 import { reportBackgroundError } from '../../utils/reportBackgroundError.js';
 import { type Locale } from '../localization/types.js';
 import { getSharedMediaService } from '../sharedMediaService.js';
+import { AudioEnhanceError } from '../voice/enhanceService.js';
 
 import AssSubtitleService from './assSubtitleService.js';
+import { enhanceVideoAudio } from './audioEnhance.js';
 import {
   calculateScaleFilter,
   buildFFmpegOutputOptions,
@@ -78,6 +80,7 @@ interface ProgressData {
   errorId?: string | null;
   outputPath?: string | null;
   duration?: number | null;
+  notice?: string | null;
 }
 
 interface TrimPoints {
@@ -102,6 +105,7 @@ interface ProcessingOptions {
   maxResolution?: number | null;
   userId?: string;
   originalFilename?: string;
+  enhanceAudio?: boolean;
 }
 
 interface ProcessingResult {
@@ -111,7 +115,18 @@ interface ProcessingResult {
   segments: SubtitleSegment[];
   subtitles: string;
   metadata: VideoMetadata;
+  /** The file the result was built from: the enhanced copy when enhancement ran, else the input. */
+  sourcePath: string;
+  notice: string | null;
 }
+
+/** Notice per running job; every progress write of that job carries it. */
+const jobNotices = new Map<string, string>();
+
+const ENHANCE_FAILED_NOTICE =
+  'Der Ton konnte nicht verbessert werden – dein Reel nutzt den Originalton.';
+const ENHANCE_TOO_LONG_NOTICE =
+  'Ton verbessern geht bei Videos bis 5 Minuten – dein Reel nutzt den Originalton.';
 
 async function updateProgress(uploadId: string, progressData: ProgressData): Promise<void> {
   const data = {
@@ -126,6 +141,7 @@ async function updateProgress(uploadId: string, progressData: ProgressData): Pro
     errorId: progressData.errorId || null,
     outputPath: progressData.outputPath || null,
     duration: progressData.duration || null,
+    notice: progressData.notice ?? jobNotices.get(uploadId) ?? null,
   };
 
   await redisClient.set(`auto:${uploadId}`, JSON.stringify(data), { EX: 60 * 60 });
@@ -218,6 +234,10 @@ async function processVideoAutomatically(
   log.info(`Starting automatic processing for: ${uploadId}, token: ${autoProcessToken}`);
 
   let preScaledTempPath: string | null = null;
+  // Rebinding inputPath (not a copy) lets transcription, pre-scale and export
+  // pick up the enhanced file without touching each call site.
+  let sourcePath = inputPath;
+  jobNotices.delete(uploadId);
 
   try {
     await updateProgress(uploadId, {
@@ -261,7 +281,34 @@ async function processVideoAutomatically(
       overallProgress: calculateOverallProgress(STAGES.TRIMMING.id, 0),
     });
 
-    let workingVideoPath = inputPath;
+    if (options.enhanceAudio === true && !options.trustedSource) {
+      try {
+        // Next to the upload (tus-temp is a flat dir, so the name carries the id);
+        // the tus cleanup ages it out like any other leftover file.
+        const enhancedPath = path.join(path.dirname(inputPath), `${uploadId}-enhanced.mp4`);
+        await updateProgress(uploadId, {
+          stage: STAGES.TRIMMING.id,
+          stageName: 'Ton wird verbessert...',
+          stageProgress: 50,
+          overallProgress: calculateOverallProgress(STAGES.TRIMMING.id, 50),
+        });
+        validateVideoPath(enhancedPath);
+        await enhanceVideoAudio(inputPath, enhancedPath);
+        sourcePath = enhancedPath;
+      } catch (enhanceError: unknown) {
+        // Enhancement is an extra: the reel continues with the original audio.
+        const code = enhanceError instanceof AudioEnhanceError ? enhanceError.code : 'unknown';
+        log.warn(
+          `Audio enhancement skipped for ${uploadId} (${code}): ${enhanceError instanceof Error ? enhanceError.message : String(enhanceError)}`
+        );
+        jobNotices.set(
+          uploadId,
+          code === 'too_long' ? ENHANCE_TOO_LONG_NOTICE : ENHANCE_FAILED_NOTICE
+        );
+      }
+    }
+
+    let workingVideoPath = sourcePath;
     const trimmedDuration = trimPoints.trimEnd - trimPoints.trimStart;
 
     if (trimPoints.hasTrimming) {
@@ -299,9 +346,9 @@ async function processVideoAutomatically(
         // down, the ASS style/font.
         usePrecomputed
           ? generateManualSubtitles(precomputed.fullText, precomputed.words)
-          : transcribeVideo(inputPath, 'manual', locale),
+          : transcribeVideo(sourcePath, 'manual', locale),
         needsPreScale
-          ? preScaleVideo(inputPath, metadata, TARGET_RESOLUTION)
+          ? preScaleVideo(sourcePath, metadata, TARGET_RESOLUTION)
           : Promise.resolve(null),
       ]);
 
@@ -400,6 +447,8 @@ async function processVideoAutomatically(
       segments: subtitleSegments,
       subtitles,
       metadata,
+      sourcePath,
+      notice: jobNotices.get(uploadId) ?? null,
     };
   } catch (error: unknown) {
     const jobError = toJobError(error, {
@@ -667,6 +716,7 @@ interface StartAutoProcessingOptions {
   userId?: string | null;
   locale?: Locale;
   maxResolution?: number | null;
+  enhanceAudio?: boolean;
   /** Stored transcript/word timings; with words, transcription is skipped. */
   precomputed?: PrecomputedTranscript | null;
   /** Set when `videoPath` is a system_media file; the project references it instead of copying. */
@@ -698,6 +748,7 @@ async function startAutoProcessing(options: StartAutoProcessingOptions): Promise
     userId = null,
     locale = 'de-DE',
     maxResolution = null,
+    enhanceAudio = false,
     precomputed = null,
     sourceSystemMediaId = null,
     onProjectSaved,
@@ -716,6 +767,7 @@ async function startAutoProcessing(options: StartAutoProcessingOptions): Promise
     maxResolution,
     precomputed,
     trustedSource: sourceSystemMediaId != null,
+    enhanceAudio,
     ...(userId != null && { userId }),
     originalFilename,
   })
@@ -726,7 +778,8 @@ async function startAutoProcessing(options: StartAutoProcessingOptions): Promise
           const r = await autoSaveProject({
             userId,
             outputPath: result.outputPath,
-            originalVideoPath: videoPath,
+            // The enhanced copy when enhancement ran, so a re-export keeps the clean audio.
+            originalVideoPath: result.sourcePath,
             uploadId,
             originalFilename,
             segments: result.segments,
@@ -788,11 +841,15 @@ async function startAutoProcessing(options: StartAutoProcessingOptions): Promise
           // typed `SubtitleSegment[]` (canonicalized 2026-04-13).
           segments: result.segments,
           subtitles: result.subtitles,
+          notice: result.notice,
         }),
         { EX: 3600 }
       );
     })
-    .catch((e: Error) => reportBackgroundError(e, { job: 'subtitler-auto-process', uploadId }));
+    .catch((e: Error) => reportBackgroundError(e, { job: 'subtitler-auto-process', uploadId }))
+    .finally(() => {
+      jobNotices.delete(uploadId);
+    });
 }
 
 export { processVideoAutomatically, startAutoProcessing, getAutoProgress, STAGES };

@@ -49,6 +49,7 @@ export interface RateLimitConfig {
     browser_agent: ResourceConfig;
     bundestag_qa: ResourceConfig;
     bundestag_plan: ResourceConfig;
+    audio_enhance: ResourceConfig;
   };
   anonymousIdentifierStrategy: ('sessionID' | 'ip')[];
   enableAnalytics: boolean;
@@ -121,6 +122,13 @@ const rateLimitConfig: RateLimitConfig = {
       anonymous: { limit: 0, window: 'daily' },
       authenticated: { limit: 120, window: 'daily' },
       premium: { limit: 300, window: 'daily' },
+    },
+
+    // "Ton verbessern": every call is paid per second of audio at KugelAudio.
+    audio_enhance: {
+      anonymous: { limit: 0, window: 'daily' },
+      authenticated: { limit: 20, window: 'daily' },
+      premium: { limit: 20, window: 'daily' },
     },
   },
 

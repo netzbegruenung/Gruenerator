@@ -4,17 +4,11 @@ import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 import { recordOperation } from '../usage/UsageTrackingService.js';
 
+import { kugelaudioApiKey, kugelaudioBaseUrl } from './kugelaudioConfig.js';
 import { Pcm16ToFloat32Stream, pcm16ToWav } from './pcmCodec.js';
 
 const log = createLogger('tts');
 
-/**
- * The vendor default host `api.kugelaudio.com` is geo-routed and may serve a
- * request from outside the EU. The EU host is therefore the default here, so
- * that leaving the EU takes a deliberate `KUGELAUDIO_BASE_URL` override rather
- * than a forgotten one.
- */
-const EU_BASE_URL = 'https://api.eu.kugelaudio.com';
 const DEFAULT_MODEL = 'kugel-3';
 const SAMPLE_RATE = 24000;
 /** PCM16 signed LE @ 24 kHz mono — what `pcm_24000` means on the wire. */
@@ -72,18 +66,6 @@ const VOICES_PAGE_SIZE = 100;
 interface Model {
   id: string;
   name: string;
-}
-
-function baseUrl(): string {
-  return env.KUGELAUDIO_BASE_URL || EU_BASE_URL;
-}
-
-function apiKey(): string {
-  const key = env.KUGELAUDIO_API_KEY;
-  if (!key) {
-    throw new Error('Die Sprachausgabe ist nicht konfiguriert (KUGELAUDIO_API_KEY fehlt).');
-  }
-  return key;
 }
 
 /**
@@ -176,10 +158,10 @@ async function postGenerate(text: string, options: TTSOptions): Promise<Response
     );
 
     try {
-      const response = await fetch(`${baseUrl()}/v1/tts/generate`, {
+      const response = await fetch(`${kugelaudioBaseUrl()}/v1/tts/generate`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${apiKey()}`,
+          Authorization: `Bearer ${kugelaudioApiKey('Die Sprachausgabe')}`,
           'Content-Type': 'application/json',
         },
         body,
@@ -343,11 +325,13 @@ class TTSService {
     // Advance by what a page actually held, not by what was asked for: a
     // provider that clamps the page size would otherwise leave gaps.
     for (let total = Infinity; voices.length < total;) {
-      const url = new URL('/v1/voices', baseUrl());
+      const url = new URL('/v1/voices', kugelaudioBaseUrl());
       url.searchParams.set('limit', String(VOICES_PAGE_SIZE));
       url.searchParams.set('offset', String(voices.length));
 
-      const response = await fetch(url, { headers: { Authorization: `Bearer ${apiKey()}` } });
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${kugelaudioApiKey('Die Sprachausgabe')}` },
+      });
       if (!response.ok) {
         throw await providerError(response);
       }

@@ -36,6 +36,11 @@
  * Länderliste: KugelAudio führt Scaleway mit den Standorten FR/NL/PL als
  * Unterauftragnehmer.
  *
+ * Seit 11/2026 auch „Ton verbessern“ (Clarity, `clarity-1`). Die Zusagen zu
+ * Speicherung und Training oben sind für die Sprachausgabe belegt; für Clarity
+ * nennt KugelAudios Doku sie nicht (geprüft 21.11.2026), deshalb stehen sie
+ * hier nicht für „Ton verbessern“.
+ *
  * Am 23.09.2026 an den Code angeglichen (#3517): Cortecs fehlte, obwohl es seit
  * August die meisten Antworten schreibt (`GEMMA_31B_PRIMARY` in
  * `services/ai/gemmaHosts.ts`); Scaleway rechnet Mistral Medium 3.5 nur noch
@@ -242,7 +247,8 @@ const Datenschutz = () => {
             <td>Deutschland (Sitz), EU (Verarbeitung)</td>
             <td>
               Sprachausgabe (Vorlesen von Antworten, Echtzeit-Sprachdialog); keine dauerhafte
-              Speicherung der Inhalte, kein KI-Training
+              Speicherung der Inhalte, kein KI-Training. Auf Wunsch außerdem „Ton verbessern“:
+              Entfernen von Hintergrundgeräuschen aus der Tonspur eines Videos
             </td>
           </tr>
           <tr>

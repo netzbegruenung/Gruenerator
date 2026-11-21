@@ -334,7 +334,7 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
   // ── Processing: auto pipeline ─────────────────────────────────────────────
 
   postProcessAuto: async (args) => {
-    const { uploadId, maxResolution = null } = args.body;
+    const { uploadId, maxResolution = null, enhanceAudio = false } = args.body;
     const userId = getUserId(args.req) ?? null;
     // requireAuth runs on this prefix (see routes.ts), so req.user exists and
     // tryResolveUser has already overlaid req.user.locale with the fresh,
@@ -361,6 +361,7 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
         userId,
         locale,
         maxResolution,
+        enhanceAudio,
       });
       return { status: 202 as const, body: { status: 'processing' as const } };
     } catch (e: unknown) {

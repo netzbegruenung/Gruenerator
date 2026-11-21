@@ -153,15 +153,18 @@ export interface UpdateImageShareParams {
 /**
  * Parameters for uploading a media file
  */
-export interface UploadMediaFileParams {
-  fileBuffer: Buffer;
+export type UploadMediaFileParams = (
+  | { fileBuffer: Buffer; filePath?: never }
+  // A file already on disk (e.g. a processed video) is copied, not buffered.
+  | { filePath: string; fileBuffer?: never }
+) & {
   originalFilename: string;
   mimeType: string;
   title?: string | null | undefined;
   altText?: string | null | undefined;
   // See SharedMediaRow.upload_source — validated at the HTTP boundary.
   uploadSource?: string | undefined;
-}
+};
 
 /**
  * Parameters for updating media metadata
