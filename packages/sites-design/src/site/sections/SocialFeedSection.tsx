@@ -4,7 +4,13 @@ import { type ReactNode } from 'react';
 import { sectionGround } from '../../model/grounds.js';
 import { SECTION_ANCHORS } from '../../model/visibility.js';
 import { InstagramConsent } from '../InstagramConsent.js';
-import { CONTAINER, Section, type SectionContext, SectionHeading } from '../layout.js';
+import {
+  CONTAINER,
+  editableText,
+  Section,
+  type SectionContext,
+  SectionHeading,
+} from '../layout.js';
 import { Placeholder } from '../Placeholder.js';
 
 export function SocialFeedSection({
@@ -30,7 +36,7 @@ export function SocialFeedSection({
       <div className={CONTAINER}>
         <div className="site:mb-8">
           <SectionHeading id={`${anchor}-titel`} field="sections.socialFeed.title">
-            {title}
+            {editableText(ctx, 'sections.socialFeed.title', copy.socialFeedDefault, title)}
           </SectionHeading>
         </div>
         {username === '' ? (

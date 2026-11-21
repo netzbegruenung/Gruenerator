@@ -1,5 +1,5 @@
 import { type SiteSummary } from '@gruenerator/contracts';
-import { Badge, Button } from '@gruenerator/ui';
+import { Badge, Button, Skeleton } from '@gruenerator/ui';
 import { useEffect } from 'react';
 import { FiPlus } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
@@ -10,7 +10,29 @@ import { useSiteList } from '../hooks/useSite';
 import { FROM_OVERVIEW_STATE, useSitesPaths } from '../SitesContext';
 import { formatAddress } from '../utils/siteAddress';
 
-import { PageSpinner } from './PageSpinner';
+/** Shaped like the card grid below, so the list lands in place. */
+function OverviewSkeleton() {
+  return (
+    <div
+      role="status"
+      aria-label="Websites werden geladen"
+      aria-busy="true"
+      className="min-h-full px-md py-xl lg:px-xl"
+    >
+      <div className="mx-auto w-full max-w-[960px]">
+        <div className="mb-lg flex items-center gap-sm">
+          <Skeleton className="h-8 flex-1 max-w-56 bg-grey-200 dark:bg-grey-700" />
+          <Skeleton className="ml-auto h-9 w-36 bg-grey-200 dark:bg-grey-700" />
+        </div>
+        <div className="grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-28 rounded-lg bg-grey-200 dark:bg-grey-700" />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function statusLabel(site: SiteSummary): string {
   if (site.moderation !== 'ok') return 'Ausgeblendet';
@@ -39,7 +61,7 @@ export function SitesOverviewPage({ onBack }: { onBack?: () => void }) {
     if (empty) void navigate(paths.create, { replace: true });
   }, [empty, navigate, paths]);
 
-  if (isLoading || empty) return <PageSpinner label="Websites werden geladen..." />;
+  if (isLoading || empty) return <OverviewSkeleton />;
   if (error || !sites) {
     return (
       <LoadErrorState

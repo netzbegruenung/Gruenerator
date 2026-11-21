@@ -7,7 +7,7 @@ import { siteCopy } from '../model/copy.js';
 import { type SiteLinks } from '../model/paths.js';
 import { type SiteRenderMode, visibleSections } from '../model/visibility.js';
 
-import { type SectionContext } from './layout.js';
+import { type SectionContext, type SiteEditSlots } from './layout.js';
 import { AboutSection } from './sections/AboutSection.js';
 import { ActionsSection } from './sections/ActionsSection.js';
 import { ContactSection } from './sections/ContactSection.js';
@@ -54,14 +54,22 @@ export function SiteBody({
   links,
   mode,
   renderInstagram,
+  edit,
 }: {
   snapshot: PublishedSiteSnapshot;
   links: SiteLinks;
   mode: SiteRenderMode;
   renderInstagram?: (username: string) => ReactNode;
+  edit?: SiteEditSlots;
 }) {
   const visible = visibleSections(snapshot, mode);
-  const ctx: SectionContext = { snapshot, mode, copy: siteCopy(snapshot.locale), visible };
+  const ctx: SectionContext = {
+    snapshot,
+    mode,
+    copy: siteCopy(snapshot.locale),
+    visible,
+    edit: edit ?? null,
+  };
   const render: Record<SiteSectionId, () => ReactNode> = {
     hero: () => <HeroSection ctx={ctx} />,
     about: () => <AboutSection ctx={ctx} />,

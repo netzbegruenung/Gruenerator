@@ -1,6 +1,12 @@
 /** @jsxRuntime automatic @jsxImportSource react */
 import { SECTION_ANCHORS } from '../../model/visibility.js';
-import { CONTAINER, Section, type SectionContext, SectionHeading } from '../layout.js';
+import {
+  CONTAINER,
+  editableText,
+  Section,
+  type SectionContext,
+  SectionHeading,
+} from '../layout.js';
 import { Placeholder } from '../Placeholder.js';
 import { SiteImage } from '../SiteImage.js';
 
@@ -36,29 +42,29 @@ export function HeroImageSection({ ctx }: { ctx: SectionContext }) {
         </>
       )}
       <div className={`${CONTAINER} site:text-center`}>
-        {title !== '' ? (
+        {title !== '' || ctx.edit ? (
           <SectionHeading
             id={`${anchor}-titel`}
             field="sections.heroImage.title"
             center
             className="site:mx-auto site:max-w-[20ch] site:text-banner"
           >
-            {title}
+            {editableText(ctx, 'sections.heroImage.title', copy.editBannerTitle, title)}
           </SectionHeading>
         ) : (
           <h2 id={`${anchor}-titel`} className="site:sr-only">
             {mode === 'preview' && !hasImage ? copy.emptyHeroImage : snapshot.site_title}
           </h2>
         )}
-        {subtitle !== '' && (
+        {(subtitle !== '' || ctx.edit) && (
           <p
             data-field="sections.heroImage.subtitle"
             className="site:mx-auto site:mt-6 site:max-w-[40ch] site:text-lead"
           >
-            {subtitle}
+            {editableText(ctx, 'sections.heroImage.subtitle', copy.editBannerSubtitle, subtitle)}
           </p>
         )}
-        {!hasImage && title === '' && (
+        {!hasImage && title === '' && !ctx.edit && (
           <Placeholder
             field="sections.heroImage.imageUrl"
             text={copy.emptyHeroImage}

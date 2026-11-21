@@ -45,7 +45,6 @@ vi.mock('../hooks/useSiteGeneration', () => ({
 vi.mock('../hooks/useToast', () => ({
   useToast: () => ({ success: vi.fn(), error: m.toastError }),
 }));
-vi.mock('../preview/SitePreviewFrame', () => ({ SitePreviewFrame: () => <div /> }));
 vi.mock('../components/CreateSiteScreen', () => ({
   CreateSiteScreen: (p: {
     description: string;
@@ -109,11 +108,10 @@ describe('CreateFlow', () => {
     m.gen.isFlyer = false;
   });
 
-  it('creates the site from the generated content', async () => {
+  it('creates the site right after generating, without a review step', async () => {
     m.generate.mockResolvedValue(generated);
-    const user = await fillAndGenerate();
-    await user.click(await screen.findByRole('button', { name: 'Seite erstellen' }));
-    expect(m.createSite).toHaveBeenCalledTimes(1);
+    await fillAndGenerate();
+    await waitFor(() => expect(m.createSite).toHaveBeenCalledTimes(1));
     expect(m.createSite).toHaveBeenCalledWith(
       expect.objectContaining({
         sections: SECTIONS,
@@ -130,7 +128,7 @@ describe('CreateFlow', () => {
     m.gen.steps = ['extract', 'analyze'];
     m.gen.current = 'extract';
     render(<CreateFlow />);
-    expect(screen.getByRole('dialog', { name: 'Flyer wird analysiert...' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Flyer wird analysiert …' })).toBeInTheDocument();
     expect(screen.getAllByRole('listitem')[0]).toHaveTextContent('Text wird aus dem Flyer gelesen');
   });
 
@@ -151,7 +149,22 @@ describe('CreateFlow', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Die Verbindung ist abgebrochen.');
     await user.click(screen.getByRole('button', { name: 'Noch einmal versuchen' }));
     expect(m.generate).toHaveBeenCalledTimes(2);
-    expect(await screen.findByRole('button', { name: 'Seite erstellen' })).toBeInTheDocument();
+    await waitFor(() => expect(m.createSite).toHaveBeenCalledTimes(1));
+  });
+
+  it('retries a failed create with the same content instead of generating again', async () => {
+    m.generate.mockResolvedValue(generated);
+    m.createSite
+      .mockRejectedValueOnce(new Error('network'))
+      .mockResolvedValueOnce({ subdomain: 'anna' });
+    const user = await fillAndGenerate();
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Die Seite konnte nicht angelegt werden.'
+    );
+    await user.click(screen.getByRole('button', { name: 'Noch einmal versuchen' }));
+    await waitFor(() => expect(m.createSite).toHaveBeenCalledTimes(2));
+    expect(m.createSite).toHaveBeenLastCalledWith(expect.objectContaining({ sections: SECTIONS }));
+    expect(m.generate).toHaveBeenCalledTimes(1);
   });
 
   it('offers no retry for a final error', async () => {
@@ -176,11 +189,19 @@ describe('CreateFlow', () => {
     );
   });
 
+  it('opens the editor when an earlier attempt already stored the site', async () => {
+    m.generate.mockResolvedValue(generated);
+    m.createSite.mockRejectedValue(new SitesApiError(400, 'Diese Adresse ist bereits vergeben'));
+    m.getSiteByHandle.mockResolvedValue({ status: 200, body: {} });
+    await fillAndGenerate();
+    expect(await screen.findByTestId('pfad')).toHaveTextContent('/sites/anna');
+    expect(m.toastError).not.toHaveBeenCalled();
+  });
+
   it('shows the server message when the address belongs to someone else', async () => {
     m.generate.mockResolvedValue(generated);
     m.createSite.mockRejectedValue(new SitesApiError(400, 'Diese Adresse ist bereits vergeben'));
-    const user = await fillAndGenerate();
-    await user.click(await screen.findByRole('button', { name: 'Seite erstellen' }));
+    await fillAndGenerate();
     await waitFor(() =>
       expect(m.toastError).toHaveBeenCalledWith(
         'Eingabefehler',
@@ -190,21 +211,10 @@ describe('CreateFlow', () => {
     expect(screen.queryByTestId('pfad')).toBeNull();
   });
 
-  it('opens the editor when an earlier attempt already stored the site', async () => {
-    m.generate.mockResolvedValue(generated);
-    m.createSite.mockRejectedValue(new SitesApiError(400, 'Diese Adresse ist bereits vergeben'));
-    m.getSiteByHandle.mockResolvedValue({ status: 200, body: {} });
-    const user = await fillAndGenerate();
-    await user.click(await screen.findByRole('button', { name: 'Seite erstellen' }));
-    expect(await screen.findByTestId('pfad')).toHaveTextContent('/sites/anna');
-    expect(m.toastError).not.toHaveBeenCalled();
-  });
-
   it('names the limit when the account is full', async () => {
     m.generate.mockResolvedValue(generated);
     m.createSite.mockRejectedValue(new SitesApiError(409, 'Du hast bereits 25 Websites.'));
-    const user = await fillAndGenerate();
-    await user.click(await screen.findByRole('button', { name: 'Seite erstellen' }));
+    await fillAndGenerate();
     await waitFor(() =>
       expect(m.toastError).toHaveBeenCalledWith('Fehler', 'Du hast bereits 25 Websites.')
     );

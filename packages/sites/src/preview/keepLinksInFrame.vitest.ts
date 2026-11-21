@@ -31,6 +31,17 @@ describe('keepLinksInFrame', () => {
     expect(target.scrollIntoView).not.toHaveBeenCalled();
   });
 
+  it('follows no link from inside a field edited in place, and does not navigate', () => {
+    const target = setup();
+    const label = document.getElementById('label') as HTMLElement;
+    label.setAttribute('data-inline-edit', '');
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+    Object.defineProperty(event, 'target', { value: label });
+    keepLinksInFrame(document, event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(target.scrollIntoView).not.toHaveBeenCalled();
+  });
+
   it('leaves clicks outside links alone', () => {
     setup();
     const event = new MouseEvent('click', { bubbles: true, cancelable: true });

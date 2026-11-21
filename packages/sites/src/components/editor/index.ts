@@ -1,8 +1,3 @@
-export { EditorLayout } from './EditorLayout';
-export { EditorSidebar } from './EditorSidebar';
-export { SectionNavigation } from './SectionNavigation';
-export { SectionEditorContainer } from './SectionEditorContainer';
-
 export * from './sections/HeroSectionEditor';
 export * from './sections/AboutSectionEditor';
 export * from './sections/HeroImageSectionEditor';

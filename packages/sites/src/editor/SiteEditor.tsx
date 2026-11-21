@@ -4,23 +4,25 @@ import {
   type SupportedLocale,
 } from '@gruenerator/contracts';
 import { ToggleGroup, ToggleGroupItem } from '@gruenerator/ui';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { LoadErrorState } from '../components/common/LoadErrorState';
-import { EditorLayout, EditorSidebar } from '../components/editor';
 import { SiteDraftProvider, useDraft } from '../draft/SiteDraftContext';
 import { useSiteDraftSession } from '../draft/useSiteDraftSession';
 import { useLeaveWarning } from '../hooks/useLeaveWarning';
 import { type SiteData } from '../hooks/useSite';
+import { SITE_EDIT_SLOTS } from '../inline/editSlots';
 import { SitePreviewFrame } from '../preview/SitePreviewFrame';
-import {
-  usePreviewClickToEdit,
-  usePreviewHighlight,
-  usePreviewScrollSync,
-} from '../preview/usePreviewInteractions';
+import { usePreviewHighlight, usePreviewSelection } from '../preview/usePreviewInteractions';
 import { useAuth } from '../SitesContext';
+import { useEditorStore } from '../stores/editorStore';
 
+import { CanvasToolbar } from './canvas/CanvasToolbar';
+import { ElementPanel } from './canvas/ElementPanel';
+import { useAnchorRect } from './canvas/useAnchorRect';
+import { EditorDialogs } from './EditorDialogs';
 import { EditorHeader } from './EditorHeader';
+import { EditorSkeleton } from './EditorSkeleton';
 import { PreviewDialog } from './PreviewDialog';
 import { PublishControls } from './publish/PublishControls';
 
@@ -34,7 +36,7 @@ function DraftPreview({ site, editable }: { site: SiteData; editable: boolean })
     [draft, site.legal, locale]
   );
   return (
-    <>
+    <div className="relative h-full w-full">
       {editable && <PreviewInteractions doc={frameDoc} />}
       <SitePreviewFrame
         snapshot={snapshot}
@@ -42,8 +44,30 @@ function DraftPreview({ site, editable }: { site: SiteData; editable: boolean })
         title="Vorschau der Website"
         className="block h-full w-full border-0"
         editable={editable}
+        edit={editable ? SITE_EDIT_SLOTS : undefined}
         onFrameDocument={setFrameDoc}
       />
+      {editable && <CanvasOverlay doc={frameDoc} />}
+    </div>
+  );
+}
+
+/** Toolbar and panel over the page, for whatever is selected in it. */
+function CanvasOverlay({ doc }: { doc: Document | null }) {
+  const selection = useEditorStore((s) => s.selection);
+  const anchor = useAnchorRect(doc, selection);
+  if (!selection) return null;
+  return (
+    <>
+      {anchor && (
+        <CanvasToolbar
+          selection={selection}
+          anchor={anchor}
+          canvasWidth={doc?.defaultView?.innerWidth ?? 0}
+          canvasHeight={doc?.defaultView?.innerHeight ?? 0}
+        />
+      )}
+      <ElementPanel selection={selection} />
     </>
   );
 }
@@ -89,8 +113,7 @@ export function PreviewPane({ site }: { site: SiteData }) {
 }
 
 function PreviewInteractions({ doc }: { doc: Document | null }) {
-  usePreviewClickToEdit(doc);
-  usePreviewScrollSync(doc);
+  usePreviewSelection(doc);
   usePreviewHighlight(doc);
   return null;
 }
@@ -100,16 +123,16 @@ export function SiteEditor({ site, onBack }: { site: SiteData; onBack?: () => vo
   const [previewOpen, setPreviewOpen] = useState(false);
   const previewButtonRef = useRef<HTMLButtonElement>(null);
   useLeaveWarning(session.state === 'ready' && session.save !== 'saved');
+  // The editor store is module state: leave no selection or open dialog behind for the next visit.
+  useEffect(
+    () => () => useEditorStore.setState({ selection: null, elementPanel: null, dialog: null }),
+    []
+  );
 
   switch (session.state) {
     case 'preparing':
     case 'connecting':
-      return (
-        <div className="flex flex-col items-center justify-center min-h-full gap-4 text-grey-600 dark:text-grey-400">
-          <div className="w-10 h-10 border-[3px] border-grey-200 dark:border-grey-700 border-t-primary-600 rounded-full animate-spin" />
-          <p>Entwurf wird geöffnet …</p>
-        </div>
-      );
+      return <EditorSkeleton label="Entwurf wird geöffnet" />;
     case 'unavailable':
       return (
         <LoadErrorState title="Der Entwurf ist gerade nicht erreichbar" onRetry={session.retry} />
@@ -135,7 +158,10 @@ export function SiteEditor({ site, onBack }: { site: SiteData; onBack?: () => vo
             >
               <PublishControls site={site} provider={session.provider} />
             </EditorHeader>
-            <EditorLayout sidebar={<EditorSidebar />} preview={<PreviewPane site={site} />} />
+            <div className="h-[calc(100dvh-57px)] min-h-0">
+              <PreviewPane site={site} />
+            </div>
+            <EditorDialogs />
             <PreviewDialog
               open={previewOpen}
               onOpenChange={setPreviewOpen}

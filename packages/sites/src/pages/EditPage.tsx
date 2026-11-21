@@ -3,11 +3,11 @@ import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { LoadErrorState } from '../components/common/LoadErrorState';
+import { EditorSkeleton } from '../editor/EditorSkeleton';
 import { SiteEditor } from '../editor/SiteEditor';
 import { CurrentSiteProvider, useSiteByHandle } from '../hooks/useSite';
 import { useSitesPaths } from '../SitesContext';
 
-import { PageSpinner } from './PageSpinner';
 import { useBackToOverview } from './useBackToOverview';
 
 interface EditPageProps {
@@ -28,7 +28,7 @@ export function EditPage({ handle }: EditPageProps) {
     if (canonical) void navigate(paths.site(canonical), { replace: true, state: routeState });
   }, [canonical, navigate, paths, routeState]);
 
-  if (isLoading) return <PageSpinner label="Seite wird geladen..." />;
+  if (isLoading) return <EditorSkeleton label="Seite wird geladen" />;
 
   if (error) {
     return <LoadErrorState onRetry={() => void refetch()} />;
