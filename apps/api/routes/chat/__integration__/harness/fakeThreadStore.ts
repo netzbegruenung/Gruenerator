@@ -21,6 +21,7 @@ import { type ThreadToolHistory } from '../../services/threadPersistenceService.
 import {
   type ArtifactMetadataShape,
   toArtifacts,
+  toRecipesUsed,
   toSources,
   toToolSteps,
   type ToolStepRow,
@@ -487,6 +488,8 @@ export async function readThreadToolHistory(threadId: string): Promise<ThreadToo
       newestIsLastTurn
         ? parseRecordedOffer((rows[0] as { offer?: unknown } | undefined)?.offer)
         : null,
+    lastTurnRecipes: () =>
+      newestIsLastTurn ? toRecipesUsed(rows[0] as { recipesUsed?: unknown } | undefined) : [],
     sources: (limit = 10) => toSources(rows, limit),
     lastGeneratedImageUrl: () => null,
   };

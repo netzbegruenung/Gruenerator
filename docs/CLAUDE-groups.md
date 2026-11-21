@@ -33,6 +33,10 @@ Limits aus `packages/contracts/src/schemas/groups.ts`: 3 Anheftungen (die ältes
 
 Kommentare in `group_share_comments` werden chronologisch als flache Liste geliefert und im UI zu Threads aufgebaut. `parent_id` erlaubt genau eine Antwortebene: Antworten auf Antworten hängen am obersten Kommentar. Beim Löschen eines Elternkommentars bleiben Antworten erhalten (`ON DELETE SET NULL`) und werden zu Kommentaren oberster Ebene.
 
+## Rezepte eines Projekts im Chat
+
+Ins Projekt geteilte Rezepte (`user_text_forms`) stehen im Loop-Katalog als eigener Block „REZEPTE DIESES PROJEKTS“ vor allen übrigen, mit der Regel „im Zweifel laden“ (`renderRecipeCatalog`, Ids aus `services/groups/projectRecipes.ts`, Zugriff über `projectThreadScopeSql`). Hat der vorige Turn ein Projekt-Rezept geladen, lädt ein Schreib-Turn es vorab (`carriedProjectRecipes`, `preloaded`, weicht also einer anderen gewählten Textsorte). Gelesen wird das aus `recipesUsed` der letzten Assistant-Nachricht; dort steht deshalb die Zeilen-id (`RecipeSummary.id`). Ohne Vorab-Laden lud das Modell Folgeaufträge („noch einer“, „kürzer“) gemessen fast nie neu, auch mit ausdrücklichem Hinweis im Katalog nicht. Die Messung steht im PR. „Skill“ versteht der Chat als „Rezept“ (`productGlossary.ts`).
+
 ## API und zuständige Dateien
 
 - Contract und Zod: `packages/contracts/src/contracts/groupsContract.ts`, `packages/contracts/src/schemas/groups.ts`.

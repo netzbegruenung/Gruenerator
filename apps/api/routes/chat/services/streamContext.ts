@@ -38,6 +38,7 @@ import { acquireThreadRun, type ThreadRunLease } from '../../../services/chat/th
 import { readThreadProjectInstructions } from '../../../services/groups/groupInstructions.js';
 import { getProjectFileSources } from '../../../services/groups/projectFiles.js';
 import { getProjectNotebookIds } from '../../../services/groups/projectNotebooks.js';
+import { getProjectRecipeIds } from '../../../services/groups/projectRecipes.js';
 import { extractLocaleFromRequest } from '../../../services/localization/index.js';
 import {
   loadTurnMemories,
@@ -1203,6 +1204,18 @@ async function buildStreamContextInner({
       })
     : null;
 
+  // Rezepte des Projekts — der Katalog listet sie als eigenen Block.
+  const projectRecipeIds = actualThreadId
+    ? await withTimeout(
+        getProjectRecipeIds(actualThreadId, userId),
+        EXTERNAL_CONTEXT_TIMEOUT_MS,
+        'project recipes'
+      ).catch((err: unknown) => {
+        log.warn('[StreamContext] Could not load project recipes (continuing):', err);
+        return [];
+      })
+    : [];
+
   // Leeres Profil (Land noch nicht gewählt) heißt nicht Deutschland: dann
   // entscheidet, was der Client mitschickt (X-User-Locale, Accept-Language).
   // Gilt für den Rollen-Baustein ({{partyName}}) wie für den Graph-Zustand.
@@ -1369,6 +1382,7 @@ async function buildStreamContextInner({
       ) ?? undefined,
     userInstructions,
     projectInstructions,
+    ...(projectRecipeIds.length > 0 && { projectRecipeIds }),
     contextWindowTokens,
   });
 
