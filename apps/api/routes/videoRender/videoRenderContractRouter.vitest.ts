@@ -62,6 +62,15 @@ describe('videoRenderBodySchema', () => {
         false
       );
     }
+    for (const backgroundImage of ['url(http://169.254.169.254/x)', '\\75 rl(//evil.example)']) {
+      const styled = { ...BODY, overlays: [{ src: '/a', styles: { backgroundImage } }] };
+      expect(videoRenderBodySchema.safeParse(styled).success, backgroundImage).toBe(false);
+    }
+    const plain = {
+      ...BODY,
+      overlays: [{ src: '/a', styles: { color: '#fff', fontFamily: 'GothamNarrowUltra' } }],
+    };
+    expect(videoRenderBodySchema.safeParse(plain).success).toBe(true);
     const unsplash = { ...BODY, overlays: [{ src: 'https://images.unsplash.com/p.jpg' }] };
     expect(videoRenderBodySchema.safeParse(unsplash).success).toBe(true);
     expect(videoRenderBodySchema.safeParse({ ...BODY, durationInFrames: 10_000_000 }).success).toBe(

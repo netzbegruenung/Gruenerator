@@ -40,7 +40,23 @@ export function isAllowedMediaUrl(value: string): boolean {
   return url.protocol === 'https:' && ALLOWED_EXTERNAL_HOSTS.has(url.hostname);
 }
 
-/** First disallowed media address in the tree, or null. */
+/**
+ * Style values are spread into inline CSS, where `url(...)` would load from any
+ * host. Refused, as is a backslash (CSS escapes can spell `url`).
+ */
+const CSS_LOADER = /\\|url\s*\(|image-set|image\s*\(|@import/i;
+function findForbiddenStyle(value: unknown): string | null {
+  if (typeof value === 'string') return CSS_LOADER.test(value) ? value : null;
+  if (typeof value === 'object' && value !== null) {
+    for (const item of Object.values(value)) {
+      const found = findForbiddenStyle(item);
+      if (found !== null) return found;
+    }
+  }
+  return null;
+}
+
+/** First disallowed media address or style value in the tree, or null. */
 export function findForbiddenMediaUrl(value: unknown): string | null {
   if (Array.isArray(value)) {
     for (const item of value) {
@@ -49,6 +65,10 @@ export function findForbiddenMediaUrl(value: unknown): string | null {
     }
   } else if (typeof value === 'object' && value !== null) {
     for (const [key, item] of Object.entries(value)) {
+      if (key === 'styles') {
+        const found = findForbiddenStyle(item);
+        if (found !== null) return found;
+      }
       if (MEDIA_URL_KEYS.has(key) && typeof item === 'string') {
         if (!isAllowedMediaUrl(item)) return item;
       } else {
