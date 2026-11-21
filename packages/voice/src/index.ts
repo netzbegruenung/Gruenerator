@@ -10,6 +10,8 @@ export { float32ToWavBlob, base64PCM16ToFloat32, base64Float32LEToFloat32 } from
 export { VoxtralDictationAdapter } from './adapters/VoxtralDictationAdapter';
 export type { VoxtralErrorReason } from './adapters/VoxtralDictationAdapter';
 export { GrueneratorRealtimeVoiceAdapter } from './adapters/GrueneratorRealtimeVoiceAdapter';
+export { FluidVoiceClient } from './kugel/FluidVoiceClient';
+export type { FluidVoiceCallbacks } from './kugel/FluidVoiceClient';
 export type {
   GrueneratorRealtimeVoiceConfig,
   RealtimeVoiceErrorReason,
