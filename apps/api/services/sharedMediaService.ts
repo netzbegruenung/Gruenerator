@@ -559,6 +559,27 @@ class SharedMediaService {
     return parseInt(result?.count ?? '0', 10);
   }
 
+  /**
+   * The Mediathek copy of a subtitler project's video named `fileName`, if one
+   * exists. The video editor hand-off copies the original once and reuses it;
+   * the rendered export of the same project carries another file name.
+   */
+  async findProjectVideoShare(
+    userId: string,
+    projectId: string,
+    fileName: string
+  ): Promise<string | null> {
+    await this.ensureInitialized();
+    const row = await this.postgres!.queryOne<{ share_token: string }>(
+      `SELECT share_token FROM shared_media
+        WHERE user_id = $1 AND project_id = $2 AND file_name = $3
+          AND media_type = 'video' AND deleted_at IS NULL
+        ORDER BY created_at DESC LIMIT 1`,
+      [userId, projectId, fileName]
+    );
+    return row?.share_token ?? null;
+  }
+
   async createVideoShare(userId: string, params: CreateVideoShareParams): Promise<ShareResult> {
     await this.ensureInitialized();
 

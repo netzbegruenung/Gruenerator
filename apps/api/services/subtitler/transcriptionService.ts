@@ -26,9 +26,15 @@ const __dirname = dirname(__filename);
 
 const log = createLogger('transcription');
 
+interface WordTimestamp {
+  word: string;
+  start: number;
+  end: number;
+}
+
 interface TranscriptionResult {
   text: string;
-  words?: Array<{ word: string; start: number; end: number }>;
+  words?: WordTimestamp[];
 }
 
 /** What each provider needs and how it is billed, so the loop below stays flat. */
@@ -110,11 +116,26 @@ async function transcribeWithProvider(
   );
 }
 
+interface VideoTranscription {
+  /** Segment text block `MM:SS.F - MM:SS.F\nText\n\n…`. */
+  subtitles: string;
+  /** Provider word timings in seconds; empty when the provider gave none. */
+  words: WordTimestamp[];
+}
+
 async function transcribeVideo(
   videoPath: string,
   subtitlePreference: string = 'manual',
   locale: Locale = 'de-DE'
 ): Promise<string> {
+  return (await transcribeVideoWithWords(videoPath, subtitlePreference, locale)).subtitles;
+}
+
+async function transcribeVideoWithWords(
+  videoPath: string,
+  subtitlePreference: string = 'manual',
+  locale: Locale = 'de-DE'
+): Promise<VideoTranscription> {
   try {
     log.debug(`Transkription Start - Modus: ${subtitlePreference}`);
 
@@ -166,7 +187,7 @@ async function transcribeVideo(
     const segments = finalTranscription.split('\n\n');
     log.info(`Finale Segmente: ${segments.length}`);
 
-    return finalTranscription;
+    return { subtitles: finalTranscription, words: transcriptionResult.words || [] };
   } catch (error: unknown) {
     log.error(
       `Fehler (Modus: ${subtitlePreference}): ${error instanceof Error ? error.message : String(error)}`
@@ -175,5 +196,6 @@ async function transcribeVideo(
   }
 }
 
-export { transcribeVideo, transcribeWithProvider };
+export { transcribeVideo, transcribeVideoWithWords, transcribeWithProvider };
+export type { WordTimestamp };
 export type { TranscriptionResult };

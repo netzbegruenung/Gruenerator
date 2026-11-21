@@ -5,7 +5,7 @@
  * wirksamen Werts aus Entscheidung und Instanz-Standard, und dass niemand sich
  * selbst aussperrt.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const requireInstanceAdmin = vi.fn();
 const query = vi.fn();
@@ -43,6 +43,12 @@ async function loadRouter() {
   const mod = await import('./instanceAdminOverviewContractRouter.js');
   return mod.instanceAdminOverviewContractRouter;
 }
+
+// The first import pulls the whole contracts graph; on a busy CI runner that
+// alone ran past the 5 s test timeout of whichever test came first.
+beforeAll(async () => {
+  await loadRouter();
+}, 30_000);
 
 beforeEach(() => {
   requireInstanceAdmin.mockReset().mockResolvedValue(true);

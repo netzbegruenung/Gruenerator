@@ -139,6 +139,23 @@ describe('VideoEditorPage', () => {
       expect(body).toEqual({ source_ref: 'ki:k:3' });
     });
 
+    it('sends source_ref for a subtitler hand-off', async () => {
+      let body: unknown = null;
+      server.use(
+        http.post(CREATE, async ({ request }) => {
+          body = await request.json();
+          return HttpResponse.json(project('s-abc123'), { status: 201 });
+        })
+      );
+      render('/studio/videoeditor?untertitel=p1');
+      await waitFor(() =>
+        expect(screen.getByTestId('location')).toHaveTextContent(
+          '/studio/videoeditor/s-abc123?untertitel=p1'
+        )
+      );
+      expect(body).toEqual({ source_ref: 'sub:p1' });
+    });
+
     it('shows an error with a way back and no frame when creating fails', async () => {
       server.use(http.post(CREATE, () => HttpResponse.json({ error: 'x' }, { status: 500 })));
       render('/studio/videoeditor');

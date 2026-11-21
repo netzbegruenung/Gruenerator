@@ -171,6 +171,7 @@ import v1CollectionsRouter from './routes/v1/collectionsRouter.js';
 import v1NotebooksRouter from './routes/v1/notebooksRouter.js';
 import { mountVideoAiContractRouter } from './routes/videoAi/videoAiContractRouter.js';
 import { mountVideoProjectsContractRouter } from './routes/videoProjects/videoProjectsContractRouter.js';
+import { mountVideoRenderContractRouter } from './routes/videoRender/videoRenderContractRouter.js';
 import agentSessionRouter from './routes/voice/agentSessionController.js';
 import { mountSpeechContractRouter } from './routes/voice/speechContractRouter.js';
 import ttsRouter from './routes/voice/ttsController.js';
@@ -731,6 +732,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Video editor projects (collaborative documents, subtype 'video').
   app.use('/api/video-projects', requireAuth, authenticatedReadLimiter);
   mountVideoProjectsContractRouter(app);
+
+  // Server render lane of the video editor: a render is minutes of CPU on the
+  // render service, so starting one takes the mutation limiter, not the read one.
+  app.use('/api/video-render', requireAuth, standardMutationLimiter);
+  mountVideoRenderContractRouter(app);
 
   // ts-rest contract router — mount before legacy campaignCanvasRoute.
   // requireAuth läuft auf dem Prefix, weil createExpressEndpoints die Handler
