@@ -37,11 +37,7 @@ import {
 import { acquireThreadRun, type ThreadRunLease } from '../../../services/chat/threadRunLock.js';
 import { readThreadProjectInstructions } from '../../../services/groups/groupInstructions.js';
 import { getProjectFileSources } from '../../../services/groups/projectFiles.js';
-import {
-  EMPTY_PROJECT_NOTEBOOK_SCOPE,
-  getProjectNotebookScope,
-  resolveProjectUserNotebookDocs,
-} from '../../../services/groups/projectNotebooks.js';
+import { getProjectNotebookIds } from '../../../services/groups/projectNotebooks.js';
 import { extractLocaleFromRequest } from '../../../services/localization/index.js';
 import {
   loadTurnMemories,
@@ -1007,23 +1003,15 @@ async function buildStreamContextInner({
 
   // === Notebooks des Projekts ===
   // Ins Projekt geteilte Notebooks sind Vorgabe-Suche jedes Turns, wie die
-  // `defaultNotebookIds` eines Agents; eine @notebook-Wahl schlägt sie im Graph.
-  let projectNotebookScope = EMPTY_PROJECT_NOTEBOOK_SCOPE;
-  let projectNotebookDocs: Awaited<ReturnType<typeof resolveProjectUserNotebookDocs>> = {
-    documentIds: [],
-    documentNotebookIds: {},
-  };
+  // `defaultNotebookIds` eines Agents; gebunden (Tor, Lesezugriff) werden sie
+  // in `initializeChatState`, und eine @notebook-Wahl schlägt sie dort.
+  let projectNotebookIds: string[] = [];
   if (actualThreadId) {
     try {
-      projectNotebookScope = await withTimeout(
-        getProjectNotebookScope(actualThreadId, userId),
+      projectNotebookIds = await withTimeout(
+        getProjectNotebookIds(actualThreadId, userId),
         EXTERNAL_CONTEXT_TIMEOUT_MS,
         'project notebooks'
-      );
-      projectNotebookDocs = await withTimeout(
-        resolveProjectUserNotebookDocs(projectNotebookScope.userNotebookIds),
-        EXTERNAL_CONTEXT_TIMEOUT_MS,
-        'project notebook documents'
       );
     } catch (err) {
       log.warn('[StreamContext] Could not load project notebooks (continuing):', err);
@@ -1295,17 +1283,11 @@ async function buildStreamContextInner({
     notebookIds: notebookIds.length > 0 ? notebookIds : undefined,
     notebookDocumentIds: notebookDocumentIds.length > 0 ? notebookDocumentIds : undefined,
     defaultNotebookId,
-    ...(projectNotebookScope.systemSlugs.length > 0 && {
-      projectNotebookIds: projectNotebookScope.systemSlugs,
-    }),
-    defaultNotebookDocumentIds: (() => {
-      const all = [...new Set([...defaultNotebookDocumentIds, ...projectNotebookDocs.documentIds])];
-      return all.length > 0 ? all : undefined;
-    })(),
-    documentNotebookIds: (() => {
-      const all = { ...projectNotebookDocs.documentNotebookIds, ...documentNotebookIds };
-      return Object.keys(all).length > 0 ? all : undefined;
-    })(),
+    projectNotebookIds: projectNotebookIds.length > 0 ? projectNotebookIds : undefined,
+    defaultNotebookDocumentIds:
+      defaultNotebookDocumentIds.length > 0 ? defaultNotebookDocumentIds : undefined,
+    documentNotebookIds:
+      Object.keys(documentNotebookIds).length > 0 ? documentNotebookIds : undefined,
     documentIds: authorizedDocumentIds.length ? authorizedDocumentIds : undefined,
     documentChatIds: mergedDocumentChatIds.length
       ? mergedDocumentChatIds

@@ -4,23 +4,23 @@
  * Ein Notebook, das ins Projekt geteilt ist (`group_content_shares`,
  * `content_type` `system_notebooks` = Slug bzw. `notebook_collections` =
  * Nutzer-Notebook-UUID), wird in Chats des Projekts ohne @-Erwähnung
- * durchsucht — derselbe Weg wie `defaultNotebookIds` eines Agents
- * (`ChatGraph.ts`): System-Slugs über das implizite Tor, Nutzer-Notebooks als
- * Dokument-IDs. Eine ausdrückliche @notebook-Wahl des Turns schlägt die
- * Vorgabe weiterhin (dieselbe Regel wie beim Agenten, weiter unten im Graph).
+ * durchsucht. Gebunden wird es genau wie die `defaultNotebookIds` eines Agents
+ * (`initializeChatState` in `ChatGraph.ts`): System-Slugs über das implizite
+ * Tor, Nutzer-Notebooks über `resolveUserNotebookDocumentIds`, also mit
+ * `checkNotebookAccess`. Dieses Modul entscheidet deshalb nur, WELCHE Ids ein
+ * Projekt-Thread mitbringt; ob die Person ein Nutzer-Notebook lesen darf (es
+ * liegt nicht im Papierkorb, ist nicht wieder privat, nicht entfernt), prüft
+ * dieselbe Stelle wie beim Agent. Eine ausdrückliche @notebook-Wahl des Turns
+ * schlägt die Vorgabe weiterhin.
  *
- * Zugriff wie bei den Projektdateien: aktive Mitgliedschaft im Projekt des
- * Threads, Thread gehört der Person oder ist Team-Chat (`projectThreadScopeSql`).
- * Das Projekt-Share IST der Lesegrant für Mitglieder; ein Nicht-Mitglied
- * bekommt über die Thread-ID nichts.
+ * Zugriff auf die Liste wie bei den Projektdateien: aktive Mitgliedschaft im
+ * Projekt des Threads, Thread gehört der Person oder ist Team-Chat
+ * (`projectThreadScopeSql`).
  */
 import { isNotebookImplicitlySearchable } from '../../config/notebookCollectionMap.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
-import { createLogger } from '../../utils/logger.js';
 
 import { projectThreadScopeSql } from './projectThreadScope.js';
-
-const log = createLogger('projectNotebooks');
 
 /**
  * Obergrenze je Turn (System- und Nutzer-Notebooks zusammen, die zuletzt
@@ -34,41 +34,27 @@ export interface ProjectNotebookShare {
   contentId: string;
 }
 
-export interface ProjectNotebookScope {
-  /** System-Notebook-Slugs, durch das implizite Tor gelassen. */
-  systemSlugs: string[];
-  /** Nutzer-Notebook-UUIDs. */
-  userNotebookIds: string[];
-}
-
-export const EMPTY_PROJECT_NOTEBOOK_SCOPE: ProjectNotebookScope = {
-  systemSlugs: [],
-  userNotebookIds: [],
-};
-
 /**
- * Rein: aus den Shares (neueste zuerst) die Vorgabe dieses Turns. Ein auf dieser
- * Instanz verborgenes System-Notebook wird nie zur Vorgabe, zählt aber auch
- * nicht gegen die Obergrenze.
+ * Rein: aus den Shares (neueste zuerst) die Notebook-Ids dieses Turns. Ein auf
+ * dieser Instanz verborgenes System-Notebook fällt schon hier heraus, damit es
+ * keinen Platz unter der Obergrenze belegt (gebunden würde es ohnehin nicht).
  */
 export function selectProjectNotebooks(
   shares: readonly ProjectNotebookShare[],
   limit = PROJECT_NOTEBOOKS_PER_TURN
-): ProjectNotebookScope {
-  const systemSlugs: string[] = [];
-  const userNotebookIds: string[] = [];
-  const seen = new Set<string>();
+): string[] {
+  const ids: string[] = [];
   for (const share of shares) {
-    if (systemSlugs.length + userNotebookIds.length >= limit) break;
-    if (seen.has(share.contentId)) continue;
-    seen.add(share.contentId);
-    if (share.contentType === 'system_notebooks') {
-      if (isNotebookImplicitlySearchable(share.contentId)) systemSlugs.push(share.contentId);
-    } else {
-      userNotebookIds.push(share.contentId);
-    }
+    if (ids.length >= limit) break;
+    if (ids.includes(share.contentId)) continue;
+    if (
+      share.contentType === 'system_notebooks' &&
+      !isNotebookImplicitlySearchable(share.contentId)
+    )
+      continue;
+    ids.push(share.contentId);
   }
-  return { systemSlugs, userNotebookIds };
+  return ids;
 }
 
 interface ShareRow {
@@ -76,10 +62,7 @@ interface ShareRow {
   content_id: string;
 }
 
-export async function getProjectNotebookScope(
-  threadId: string,
-  userId: string
-): Promise<ProjectNotebookScope> {
+export async function getProjectNotebookIds(threadId: string, userId: string): Promise<string[]> {
   // Mehr holen als die Obergrenze: verborgene System-Notebooks fallen danach weg.
   const rows = (await getPostgresInstance().query(
     `SELECT gcs.content_type, gcs.content_id
@@ -94,27 +77,4 @@ export async function getProjectNotebookScope(
   return selectProjectNotebooks(
     rows.map((r) => ({ contentType: r.content_type, contentId: r.content_id }))
   );
-}
-
-/**
- * Dokument-IDs der geteilten Nutzer-Notebooks. Der Zugriff ist durch den
- * Projekt-Share und die Mitgliedschaft bereits entschieden (siehe oben).
- */
-export async function resolveProjectUserNotebookDocs(
-  notebookIds: readonly string[]
-): Promise<{ documentIds: string[]; documentNotebookIds: Record<string, string> }> {
-  const documentNotebookIds: Record<string, string> = {};
-  if (notebookIds.length === 0) return { documentIds: [], documentNotebookIds };
-  const { NotebookQdrantHelper } = await import('../../database/services/NotebookQdrantHelper.js');
-  const helper = new NotebookQdrantHelper();
-  for (const id of notebookIds) {
-    try {
-      for (const d of await helper.getCollectionDocuments(id)) {
-        if (d.document_id) documentNotebookIds[d.document_id] ??= id;
-      }
-    } catch (err) {
-      log.warn(`Could not read project notebook ${id} (skipped):`, err);
-    }
-  }
-  return { documentIds: Object.keys(documentNotebookIds), documentNotebookIds };
 }

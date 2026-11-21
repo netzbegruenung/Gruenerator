@@ -99,13 +99,16 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
   // having asked, so they go through the implicit gate. A notebook this instance
   // hides therefore never becomes an ambient source — only an explicit @mention
   // (see `streamContext.ts`) can still reach it.
-  const agentNotebookIds = agentConfig.defaultNotebookIds ?? [];
+  // The notebooks shared into the thread's project are bound the same way as an
+  // agent's: same gate for system slugs, same access check for user notebooks.
+  const agentNotebookIds = [
+    ...new Set([...(agentConfig.defaultNotebookIds ?? []), ...(input.projectNotebookIds ?? [])]),
+  ];
   const defaultNotebookSlugs = [
     ...agentNotebookIds.filter(isNotebookImplicitlySearchable),
     ...(input.defaultNotebookId && isNotebookImplicitlySearchable(input.defaultNotebookId)
       ? [input.defaultNotebookId]
       : []),
-    ...(input.projectNotebookIds ?? []),
   ];
   const agentUserNotebookUuids = agentNotebookIds.filter(isUserNotebookId);
   const { documentIds: agentNotebookDocumentIds, documentNotebookIds: agentDocumentNotebookIds } =
