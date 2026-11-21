@@ -144,7 +144,8 @@ Eine neue Seite bekommt die sieben Bausteine in heutiger Reihenfolge `hero, abou
 ## Editor (`packages/sites`)
 
 - Auswahl im `editorStore` hält `blockId` (plus optional `itemId`), nicht mehr `SectionType`.
-- `ElementPanel` wählt das Formular über `FORMS[block.type]`, die Formulare bekommen `blockId`.
+- `BlockForm({ blockId })` (neu, `editor/canvas/`) wählt das Formular über `FORMS[block.type]` und rendert nur den Inhalt, ohne Rahmen; die Seitenleiste (Teil 3) setzt es in ihr Panel. `ElementPanel` bleibt bis dahin eine dünne Hülle darum. Die Formulare bekommen `blockId`.
+- `editorStore.selection` hat die Form `{ blockId, itemId? } | null`. `dialog`/`openDialog` bleiben in diesem Teil stehen; Teil 3 entfernt sie mit EditorDialogs (abgestimmt mit der Seitenleisten-Sitzung, 21.11.).
 - `CanvasToolbar`: für den ausgewählten Baustein nach oben/unten, doppeln, ausblenden, löschen (Hero: nichts davon). Listen-Operationen wie heute, aber mit `blockId`.
 - `SectionVisibility` in den Einstellungen entfällt; Ein-/Ausblenden und Reihenfolge wandern in die Seitenleiste (Teil 3). Bis Teil 3 steht, reicht die Toolbar.
 - „Baustein hinzufügen“ gibt es in diesem Teil nur als Draft-Operation, ohne eigenes UI – das UI dafür ist Teil 3.
