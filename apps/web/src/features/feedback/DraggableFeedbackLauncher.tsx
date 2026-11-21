@@ -112,7 +112,7 @@ function LauncherButton({
           onArrowKey(e.key);
         }
       }}
-      aria-label={variant === 'icon' ? 'Feedback geben' : undefined}
+      aria-label={variant === 'icon' ? 'Support öffnen' : undefined}
       // Sprechblase und Wort „Feedback" allein lasen sich wie ein zweites
       // Chatfenster; Megafon und Titel sagen schon vor dem Klick, wohin der
       // Text geht.
@@ -138,7 +138,7 @@ function LauncherButton({
         variant === 'icon' ? 'size-12' : 'px-5 py-3 text-sm font-semibold'
       )}
     >
-      {variant === 'icon' ? <Megaphone className="size-5" aria-hidden="true" /> : 'Feedback'}
+      {variant === 'icon' ? <Megaphone className="size-5" aria-hidden="true" /> : 'Support'}
     </button>
   );
 }
@@ -158,7 +158,7 @@ export default function DraggableFeedbackLauncher({
 
   const moveToCorner = useCallback((next: LauncherCorner) => {
     setCorner(next);
-    setAnnouncement(`Feedback-Button verschoben nach ${cornerLabels[next]}.`);
+    setAnnouncement(`Support-Button verschoben nach ${cornerLabels[next]}.`);
     try {
       localStorage.setItem(STORAGE_KEY, next);
     } catch {
@@ -170,7 +170,7 @@ export default function DraggableFeedbackLauncher({
     setCorner((current) => {
       const next = cornerAfterArrow(current, key);
       if (!next || next === current) return current;
-      setAnnouncement(`Feedback-Button verschoben nach ${cornerLabels[next]}.`);
+      setAnnouncement(`Support-Button verschoben nach ${cornerLabels[next]}.`);
       try {
         localStorage.setItem(STORAGE_KEY, next);
       } catch {

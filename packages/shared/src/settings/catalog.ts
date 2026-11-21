@@ -142,9 +142,9 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
   {
     id: 'allgemein.feedbackButton',
     tab: 'allgemein',
-    title: 'Feedback-Button',
+    title: 'Support-Button',
     description:
-      'Darstellung des schwebenden Feedback-Buttons: mit Text, nur als Icon oder ganz ausgeblendet — er lässt sich in jede Bildschirmecke ziehen',
+      'Darstellung des schwebenden Support-Buttons: mit Text, nur als Icon oder ganz ausgeblendet — er lässt sich in jede Bildschirmecke ziehen',
   },
   {
     // Web-only: beide Schalter schreiben in den localStorage bzw. das Profil des
