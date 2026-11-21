@@ -144,8 +144,8 @@ export function planAgentConversion(
           }
         : {
             part: 'notebooks',
-            outcome: 'later',
-            note: `${count(notebooks, 'Notebook wird', 'Notebooks werden')} ins Projekt geteilt. Automatisch durchsucht werden sie im Projekt-Chat noch nicht; bis dahin erwähnst du sie mit @.`,
+            outcome: 'carried',
+            note: `${count(notebooks, 'Notebook wird', 'Notebooks werden')} ins Projekt geteilt; Chats im Projekt durchsuchen sie von selbst.`,
           }
     );
   }
@@ -472,11 +472,12 @@ async function convertToProject(
     items = withNote(
       items,
       'notebooks',
-      `${count(shared, 'Notebook ist', 'Notebooks sind')} ins Projekt geteilt${
+      `${count(shared, 'Notebook ist', 'Notebooks sind')} ins Projekt geteilt; Chats im Projekt durchsuchen sie von selbst.${
         missing > 0
-          ? `; ${count(missing, 'Notebook', 'Notebooks')} ließ sich nicht teilen (gehört dir nicht oder gibt es nicht mehr)`
+          ? ` ${count(missing, 'Notebook ließ', 'Notebooks ließen')} sich nicht teilen (gehört dir nicht oder gibt es nicht mehr).`
           : ''
-      }. Automatisch durchsucht werden sie im Projekt-Chat noch nicht; bis dahin erwähnst du sie mit @.`
+      }`,
+      missing === 0 ? 'carried' : 'later'
     );
   }
 

@@ -118,9 +118,11 @@ describe('planAgentConversion', () => {
       part: 'notebooks',
       outcome: 'later',
     });
-    expect(planAgentConversion(nb, 'project', NO_FACTS).items[1]?.note).toMatch(
-      /ins Projekt geteilt/
-    );
+    expect(planAgentConversion(nb, 'project', NO_FACTS).items[1]).toMatchObject({
+      part: 'notebooks',
+      outcome: 'carried',
+      note: '1 Notebook wird ins Projekt geteilt; Chats im Projekt durchsuchen sie von selbst.',
+    });
   });
 });
 
