@@ -468,13 +468,29 @@ export function removeSiteBlock(ydoc: Y.Doc, id: string): boolean {
   return true;
 }
 
-function moveInOrder(ydoc: Y.Doc, order: Y.Array<string>, id: string, target: number): boolean {
-  const from = order.toArray().indexOf(id);
-  if (from === -1) return false;
-  if (target === from) return true;
+/**
+ * Moves `id` to `target` in page coordinates. `live` is the list as decoded (deduped, orphans
+ * appended, dangling ids gone); the order array is rewritten from it, so a move also heals what
+ * concurrent edits left behind. A concurrent add elsewhere survives, a concurrent remove leaves a
+ * dangling id that decode skips.
+ */
+function moveInOrder(
+  ydoc: Y.Doc,
+  order: Y.Array<string>,
+  live: string[],
+  id: string,
+  target: number
+): boolean {
+  if (!live.includes(id)) return false;
+  const next = live.filter((entry) => entry !== id);
+  next.splice(target, 0, id);
+  const current = order.toArray();
+  if (current.length === next.length && current.every((entry, i) => entry === next[i])) {
+    return true;
+  }
   ydoc.transact(() => {
-    order.delete(from, 1);
-    order.insert(target, [id]);
+    order.delete(0, order.length);
+    order.insert(0, next);
   }, SITE_LOCAL_ORIGIN);
   return true;
 }
@@ -482,8 +498,14 @@ function moveInOrder(ydoc: Y.Doc, order: Y.Array<string>, id: string, target: nu
 export function moveSiteBlock(ydoc: Y.Doc, id: string, toIndex: number): boolean {
   const live = liveBlock(ydoc, id);
   if (!live || siteBlockSpec(live.type).pinned) return false;
-  const order = blockOrder(ydoc);
-  return moveInOrder(ydoc, order, id, Math.max(1, Math.min(toIndex, order.length - 1)));
+  const ids = decodeSiteDraft(ydoc).blocks.map((block) => block.id);
+  return moveInOrder(
+    ydoc,
+    blockOrder(ydoc),
+    ids,
+    id,
+    Math.max(1, Math.min(toIndex, ids.length - 1))
+  );
 }
 
 export function setSiteBlockHidden(ydoc: Y.Doc, id: string, hidden: boolean): boolean {
@@ -517,10 +539,16 @@ function liveList(ydoc: Y.Doc, blockId: string) {
   return lists ? { ...lists, type: live.type } : null;
 }
 
+/** The card ids of a block as decoded: deduped, without dangling ids, capped at the limit. */
+function liveItemIds(ydoc: Y.Doc, blockId: string): string[] {
+  const block = decodeSiteDraft(ydoc).blocks.find((entry) => entry.id === blockId);
+  return block && 'items' in block ? block.items.map((item) => item.id) : [];
+}
+
 /** Adds an empty card at `index` (default: the end); null at the type's card limit. */
 export function addSiteItem(ydoc: Y.Doc, blockId: string, index?: number): string | null {
   const list = liveList(ydoc, blockId);
-  if (!list || uniqueIds(list.order).length >= siteBlockSpec(list.type).itemMax) return null;
+  if (!list || liveItemIds(ydoc, blockId).length >= siteBlockSpec(list.type).itemMax) return null;
   const id = newId();
   ydoc.transact(() => {
     const item = new Y.Map<unknown>();
@@ -567,10 +595,6 @@ export function moveSiteItem(
 ): boolean {
   const list = liveList(ydoc, blockId);
   if (!list) return false;
-  return moveInOrder(
-    ydoc,
-    list.order,
-    itemId,
-    Math.max(0, Math.min(toIndex, list.order.length - 1))
-  );
+  const ids = liveItemIds(ydoc, blockId);
+  return moveInOrder(ydoc, list.order, ids, itemId, Math.max(0, Math.min(toIndex, ids.length - 1)));
 }

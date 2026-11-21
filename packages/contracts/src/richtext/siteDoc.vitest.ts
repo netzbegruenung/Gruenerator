@@ -408,6 +408,40 @@ describe('concurrency and broken state', () => {
     expect(decodeSiteDraft(ydoc).blocks.at(-1)?.id).toBe('banner');
   });
 
+  it('moves a block that a concurrent move left in the order twice', () => {
+    const a = seeded();
+    const b = new Y.Doc();
+    Y.applyUpdate(b, Y.encodeStateAsUpdate(a));
+    moveSiteBlock(a, 'contact', 1);
+    moveSiteBlock(b, 'contact', 2);
+    sync(a, b);
+    const last = decodeSiteDraft(a).blocks.length - 1;
+    expect(moveSiteBlock(a, 'contact', last)).toBe(true);
+    expect(decodeSiteDraft(a).blocks.at(-1)?.id).toBe('contact');
+  });
+
+  it('moves by page position even with dangling order entries', () => {
+    const ydoc = seeded();
+    ydoc.getArray<string>(SITE_YDOC_KEYS.blockOrder).insert(1, ['gone', 'gone2']);
+    expect(moveSiteBlock(ydoc, 'contact', 2)).toBe(true);
+    expect(decodeSiteDraft(ydoc).blocks[2]?.id).toBe('contact');
+  });
+
+  it('moves a block that lost its order entry', () => {
+    const ydoc = seeded();
+    const order = ydoc.getArray<string>(SITE_YDOC_KEYS.blockOrder);
+    order.delete(order.toArray().indexOf('banner'), 1);
+    expect(moveSiteBlock(ydoc, 'banner', 1)).toBe(true);
+    expect(decodeSiteDraft(ydoc).blocks[1]?.id).toBe('banner');
+  });
+
+  it('counts only live cards against the card limit', () => {
+    const ydoc = seeded();
+    const themes = ydoc.getMap(SITE_YDOC_KEYS.blocks).get('themes') as Y.Map<unknown>;
+    (themes.get('itemOrder') as Y.Array<string>).push(['x1', 'x2', 'x3', 'x4']);
+    expect(addSiteItem(ydoc, 'themes')).not.toBeNull();
+  });
+
   it('survives garbage in the maps', () => {
     const ydoc = seeded();
     ydoc.getMap(SITE_YDOC_KEYS.blocks).set('junk', 'not a map');
