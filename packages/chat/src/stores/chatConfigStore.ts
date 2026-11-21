@@ -111,6 +111,11 @@ export interface ChatConfig {
   /** Opens a single sharepic variant in the canvas editor for editing. */
   onEditSharepic?: (variant: SharepicVariant, opts?: { threadId: string | null }) => void;
   /**
+   * Opens a chat-made KI-Bild in the canvas editor as the background of a new
+   * canvas (cut-outs and text happen there). Web only.
+   */
+  onEditImage?: (image: { src: string; title: string }) => void;
+  /**
    * Renders a sharepic to a base64 PNG using the canvas editor.
    *
    * `quality: 'preview'` (the default) renders at display size — what the
@@ -346,6 +351,7 @@ interface ChatConfigStore extends ResolvedChatConfig {
   onExportPdfLetterhead?: ChatConfig['onExportPdfLetterhead'];
   getPodcastUrl?: ChatConfig['getPodcastUrl'];
   onEditSharepic?: (variant: SharepicVariant, opts?: { threadId: string | null }) => void;
+  onEditImage?: ChatConfig['onEditImage'];
   renderSharepic?: ChatConfig['renderSharepic'];
   renderSharepicSheet?: ChatConfig['renderSharepicSheet'];
   reviewSharepic?: ChatConfig['reviewSharepic'];
@@ -487,6 +493,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       onExportPdfLetterhead: config?.onExportPdfLetterhead,
       getPodcastUrl: config?.getPodcastUrl,
       onEditSharepic: config?.onEditSharepic,
+      onEditImage: config?.onEditImage,
       renderSharepic: config?.renderSharepic,
       renderSharepicSheet: config?.renderSharepicSheet,
       reviewSharepic: config?.reviewSharepic,

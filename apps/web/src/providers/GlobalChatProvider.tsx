@@ -293,6 +293,24 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
             );
           });
       },
+      onEditImage: ({ src, title }: { src: string; title: string }) => {
+        // Same popup rule as onEditSharepic: open the tab inside the click.
+        const tab = window.open('about:blank', '_blank');
+        void import('../features/image-studio/bild-editor-v2/canvasHandoff')
+          .then(({ mintCanvasFromImage }) => mintCanvasFromImage(src, title.slice(0, 120)))
+          .then((canvas) => {
+            const url = `/studio/canvas/${canvas.id}`;
+            if (tab) tab.location.href = url;
+            else window.location.assign(url);
+          })
+          .catch((err: unknown) => {
+            console.error('[GeneratedImage] open in editor failed:', err);
+            tab?.close();
+            void import('sonner').then(({ toast }) =>
+              toast.error('Das Bild konnte nicht im Editor geöffnet werden.')
+            );
+          });
+      },
       saveSharepic: (variant: SharepicVariant, threadId: string) =>
         mintChatSharepic(variant, threadId).catch((err: unknown) => {
           // swallow-ok: the sharepic stays in the chat; „Im Studio öffnen" saves it later
