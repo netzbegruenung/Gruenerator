@@ -46,7 +46,7 @@ export function Field({
 
 export function SectionHeading({ children }: { children: ReactNode }) {
   return (
-    <h3 className="flex items-center gap-2 m-0 mb-md text-lg font-semibold text-foreground">
+    <h3 className="section-heading flex items-center gap-2 m-0 mb-md text-lg font-semibold text-foreground">
       {children}
     </h3>
   );

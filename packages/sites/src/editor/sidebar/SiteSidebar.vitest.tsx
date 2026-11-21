@@ -20,6 +20,8 @@ vi.mock('../canvas/SelectionForm', () => ({
   ),
 }));
 
+import { removeSiteBlock } from '@gruenerator/contracts/site-ydoc';
+
 import { BASE_DRAFT } from '../../draft/testDoc';
 import { useEditorStore } from '../../stores/editorStore';
 import { renderWithDraft } from '../../test/renderWithDraft';
@@ -120,6 +122,19 @@ describe('site sidebar', () => {
     expect(screen.getByRole('region', { name: 'Themen' })).toHaveTextContent(
       `Formular details ${selection?.blockId}`
     );
+  });
+
+  it('drops a selection whose block was deleted', () => {
+    const { ydoc } = renderSidebar();
+    act(() => {
+      useEditorStore.getState().select({ blockId: about?.id ?? '', itemId: null, path: null });
+      useEditorStore.getState().openElementPanel('details');
+    });
+    act(() => {
+      removeSiteBlock(ydoc, about?.id ?? '');
+    });
+    expect(useEditorStore.getState().selection).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Über mich' })).toBeNull();
   });
 
   it('is a bottom bar with a sheet on a phone', async () => {

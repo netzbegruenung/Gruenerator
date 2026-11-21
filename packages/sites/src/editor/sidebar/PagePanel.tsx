@@ -1,6 +1,6 @@
 import { SITE_BLOCKS_MAX, siteBlockSpec } from '@gruenerator/contracts';
 import { Button, cn } from '@gruenerator/ui';
-import { useRef, useState, type ReactNode } from 'react';
+import { useId, useRef, useState, type ReactNode } from 'react';
 import { FiArrowDown, FiArrowUp, FiCopy, FiEye, FiEyeOff, FiTrash2 } from 'react-icons/fi';
 
 import { useDraft, useDraftActions } from '../../draft/SiteDraftContext';
@@ -14,32 +14,49 @@ interface PagePanelProps {
   onSelectBlock: (blockId: string) => void;
 }
 
+/**
+ * A row action. An unavailable action stays focusable (`aria-disabled`) instead of `disabled`:
+ * a move button at the end of the list would otherwise lose focus right after the move that
+ * took it there. `reason` says why it is unavailable.
+ */
 function RowButton({
   label,
   onClick,
-  disabled,
-  pressed,
+  unavailable,
+  reason,
   children,
 }: {
   label: string;
   onClick: () => void;
-  disabled?: boolean;
-  pressed?: boolean;
+  unavailable?: boolean;
+  reason?: string;
   children: ReactNode;
 }) {
+  const reasonId = useId();
+  const showReason = unavailable === true && reason !== undefined;
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon-sm"
-      aria-label={label}
-      title={label}
-      aria-pressed={pressed}
-      disabled={disabled}
-      onClick={onClick}
-    >
-      {children}
-    </Button>
+    <>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        aria-label={label}
+        title={showReason ? `${label}: ${reason}` : label}
+        aria-disabled={unavailable || undefined}
+        aria-describedby={showReason ? reasonId : undefined}
+        className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+        onClick={() => {
+          if (!unavailable) onClick();
+        }}
+      >
+        {children}
+      </Button>
+      {showReason && (
+        <span id={reasonId} className="sr-only">
+          {reason}
+        </span>
+      )}
+    </>
   );
 }
 
@@ -49,6 +66,8 @@ export function PagePanel({ selectedBlockId, onSelectBlock }: PagePanelProps) {
   const actions = useDraftActions();
   const labels = blockLabels(blocks);
   const listRef = useRef<HTMLOListElement>(null);
+  // Where focus goes once a deleted row is gone: the next row, else the previous, else the list.
+  const returnFocusRef = useRef<HTMLElement | null>(null);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const full = blocks.length >= SITE_BLOCKS_MAX;
 
@@ -83,6 +102,7 @@ export function PagePanel({ selectedBlockId, onSelectBlock }: PagePanelProps) {
             >
               <button
                 type="button"
+                data-block-row={block.id}
                 onClick={() => onSelectBlock(block.id)}
                 aria-current={selectedBlockId === block.id ? 'true' : undefined}
                 className={cn(
@@ -102,28 +122,34 @@ export function PagePanel({ selectedBlockId, onSelectBlock }: PagePanelProps) {
                 <div role="group" aria-label={`${label}: Aktionen`} className="flex shrink-0">
                   <RowButton
                     label={`${label} nach oben`}
-                    disabled={cannotMoveUp}
+                    unavailable={cannotMoveUp}
+                    reason={index === 1 ? 'Das Profil bleibt oben' : undefined}
                     onClick={() => actions.moveBlock(block.id, index - 1)}
                   >
                     <FiArrowUp />
                   </RowButton>
                   <RowButton
                     label={`${label} nach unten`}
-                    disabled={index === blocks.length - 1}
+                    unavailable={index === blocks.length - 1}
+                    reason="Steht schon unten"
                     onClick={() => actions.moveBlock(block.id, index + 1)}
                   >
                     <FiArrowDown />
                   </RowButton>
                   <RowButton
-                    label={`${label} ausblenden`}
-                    pressed={hidden}
+                    label={hidden ? `${label} einblenden` : `${label} ausblenden`}
                     onClick={() => actions.setBlockHidden(block.id, !hidden)}
                   >
                     {hidden ? <FiEyeOff /> : <FiEye />}
                   </RowButton>
                   <RowButton
                     label={`${label} doppeln`}
-                    disabled={full || atTypeMax}
+                    unavailable={full || atTypeMax}
+                    reason={
+                      atTypeMax
+                        ? 'Gibt es nur einmal pro Seite'
+                        : `Die Seite hat schon ${SITE_BLOCKS_MAX} Bausteine`
+                    }
                     onClick={() => {
                       const id = actions.duplicateBlock(block.id);
                       if (id) onSelectBlock(id);
@@ -131,7 +157,19 @@ export function PagePanel({ selectedBlockId, onSelectBlock }: PagePanelProps) {
                   >
                     <FiCopy />
                   </RowButton>
-                  <RowButton label={`${label} löschen`} onClick={() => setPendingDelete(block.id)}>
+                  <RowButton
+                    label={`${label} löschen`}
+                    onClick={() => {
+                      const neighbour = blocks[index + 1] ?? blocks[index - 1];
+                      returnFocusRef.current =
+                        (neighbour &&
+                          listRef.current?.querySelector<HTMLElement>(
+                            `[data-block-row="${CSS.escape(neighbour.id)}"]`
+                          )) ||
+                        listRef.current;
+                      setPendingDelete(block.id);
+                    }}
+                  >
                     <FiTrash2 />
                   </RowButton>
                 </div>
@@ -148,7 +186,7 @@ export function PagePanel({ selectedBlockId, onSelectBlock }: PagePanelProps) {
         title={`${labels.get(pendingDelete ?? '') ?? 'Baustein'} löschen?`}
         description="Der Baustein und sein Inhalt verschwinden von der Seite."
         confirmLabel="Löschen"
-        returnFocusRef={listRef}
+        returnFocusRef={returnFocusRef}
         onConfirm={() => {
           if (pendingDelete) actions.removeBlock(pendingDelete);
           setPendingDelete(null);

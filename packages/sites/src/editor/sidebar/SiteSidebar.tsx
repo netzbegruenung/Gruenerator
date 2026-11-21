@@ -1,7 +1,7 @@
 import '@ggraphic/editor-chrome/styles.css';
 
 import { SidebarPanel, SidebarTabBar } from '@ggraphic/editor-chrome';
-import { type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 
 import { LegalPanel } from '../../components/editor/legal/LegalPanel';
 import { DesignPanel } from '../../components/editor/settings/DesignPanel';
@@ -13,6 +13,7 @@ import { SelectionForm } from '../canvas/SelectionForm';
 
 import { BlocksPanel } from './BlocksPanel';
 import { PagePanel } from './PagePanel';
+import { revealBlock } from './revealBlock';
 import { SIDEBAR_TABS, type SidebarTabId } from './tabs';
 
 const TABS = [...SIDEBAR_TABS];
@@ -46,7 +47,17 @@ export function SiteSidebarPanel() {
     selection ? (d.blocks.find((b) => b.id === selection.blockId)?.type ?? null) : null
   );
 
-  const selectBlock = (blockId: string) => select({ blockId, itemId: null, path: null });
+  // A selected block that is gone (deleted here, from the toolbar or by someone else) leaves
+  // no selection behind: the toolbar would anchor to nothing and the form would stay empty.
+  const selectionGone = selection !== null && blockType === null;
+  useEffect(() => {
+    if (selectionGone) select(null);
+  }, [selectionGone, select]);
+
+  const selectBlock = (blockId: string) => {
+    select({ blockId, itemId: null, path: null });
+    revealBlock(blockId);
+  };
   const selectedBlockId = selection?.blockId ?? null;
 
   let title: string | undefined;
@@ -83,7 +94,10 @@ export function SiteSidebarPanel() {
       }}
     >
       {/* `.section-editor-panel`: focus inside keeps the field highlight (useFieldRegistry). */}
-      <div className="section-editor-panel">{content}</div>
+      {/* On a phone the sheet titles itself; the panel's own first heading would repeat it. */}
+      <div className="section-editor-panel max-canvas-mobile:[&_.section-heading]:hidden">
+        {content}
+      </div>
     </SidebarPanel>
   );
 }

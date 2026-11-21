@@ -32,7 +32,9 @@ describe('PagePanel', () => {
       'Kontakt',
     ]);
     expect(screen.queryByRole('group', { name: 'Profil: Aktionen' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Über mich nach oben' })).toBeDisabled();
+    const up = screen.getByRole('button', { name: 'Über mich nach oben' });
+    expect(up).toHaveAttribute('aria-disabled', 'true');
+    expect(up).toHaveAccessibleDescription('Das Profil bleibt oben');
   });
 
   it('moves, hides and duplicates through the draft operations', async () => {
@@ -47,17 +49,18 @@ describe('PagePanel', () => {
 
     await user.click(screen.getByRole('button', { name: 'Themen ausblenden' }));
     expect(decodeSiteDraft(ydoc).blocks.find((b) => b.type === 'themes')?.hidden).toBe(true);
-    expect(screen.getByRole('button', { name: 'Themen ausblenden' })).toHaveAttribute(
-      'aria-pressed',
-      'true'
-    );
+    expect(screen.getByRole('button', { name: 'Themen einblenden' })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Themen doppeln' }));
     expect(types(ydoc).filter((t) => t === 'themes')).toHaveLength(2);
     expect(onSelect).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('group', { name: 'Themen 2: Aktionen' })).toBeInTheDocument();
-    // Contact exists once per page: no second one.
-    expect(screen.getByRole('button', { name: 'Kontakt doppeln' })).toBeDisabled();
+    // Contact exists once per page: no second one, and the button says why.
+    const dup = screen.getByRole('button', { name: 'Kontakt doppeln' });
+    expect(dup).toHaveAttribute('aria-disabled', 'true');
+    expect(dup).toHaveAccessibleDescription('Gibt es nur einmal pro Seite');
+    await user.click(dup);
+    expect(types(ydoc).filter((t) => t === 'contact')).toHaveLength(1);
   });
 
   it('deletes only after the confirmation', async () => {
@@ -69,6 +72,32 @@ describe('PagePanel', () => {
     expect(types(ydoc)).toContain('heroImage');
     await user.click(within(dialog).getByRole('button', { name: 'Löschen' }));
     expect(types(ydoc)).not.toContain('heroImage');
+  });
+
+  it('keeps focus on a move button that reaches the end of the list', async () => {
+    const { user, ydoc } = renderWithDraft(
+      <PagePanel selectedBlockId={null} onSelectBlock={() => {}} />
+    );
+    const last = decodeSiteDraft(ydoc).blocks.at(-2);
+    const label = last?.type === 'socialFeed' ? 'Instagram' : '';
+    const down = screen.getByRole('button', { name: `${label} nach unten` });
+    await user.click(down);
+    expect(screen.getByRole('button', { name: `${label} nach unten` })).toHaveFocus();
+    expect(screen.getByRole('button', { name: `${label} nach unten` })).toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
+  });
+
+  it('moves focus to the next row after a delete', async () => {
+    const { user } = renderWithDraft(<PagePanel selectedBlockId={null} onSelectBlock={() => {}} />);
+    await user.click(screen.getByRole('button', { name: 'Hero-Bild löschen' }));
+    await user.click(
+      within(screen.getByRole('alertdialog', { name: 'Hero-Bild löschen?' })).getByRole('button', {
+        name: 'Löschen',
+      })
+    );
+    expect(screen.getByRole('button', { name: 'Themen' })).toHaveFocus();
   });
 
   it('selects a block from the list', async () => {
