@@ -628,7 +628,8 @@ const standardRoutes: RouteConfig[] = [
   { path: '/icon-test', component: IconAnimationTestPage, channel: 'internal' },
   { path: '/kugel-test', component: KugelVoiceTestPage, channel: 'internal' },
   { path: '/labor/bundestag', component: BundestagQaPage, channel: 'internal' },
-  { path: '/voice-agent-test', component: VoiceAgentTestPage, channel: 'internal' },
+  // Admin-only on every instance: the gate sits in the page (RequireAdmin).
+  { path: '/voice-agent-test', component: VoiceAgentTestPage },
   {
     path: '/voice-agent-test/mobil',
     component: MobileVoiceAgentPage,
