@@ -1,13 +1,14 @@
 /** @jsxRuntime automatic @jsxImportSource react */
 import { Fragment, type ReactNode } from 'react';
 
-import { type PublishedSiteSnapshot, type SiteSectionId } from '@gruenerator/contracts';
+import { type PublishedSiteSnapshot, type SiteBlock } from '@gruenerator/contracts';
 
 import { siteCopy } from '../model/copy.js';
 import { type SiteLinks } from '../model/paths.js';
-import { type SiteRenderMode, visibleSections } from '../model/visibility.js';
+import { blockGrounds } from '../model/grounds.js';
+import { blockAnchors, type SiteRenderMode, visibleBlocks } from '../model/visibility.js';
 
-import { type SectionContext, type SiteEditSlots } from './layout.js';
+import { type Placement, type SectionContext, type SiteEditSlots } from './layout.js';
 import { AboutSection } from './sections/AboutSection.js';
 import { ActionsSection } from './sections/ActionsSection.js';
 import { ContactSection } from './sections/ContactSection.js';
@@ -30,7 +31,7 @@ export function SiteShell({
 }: {
   snapshot: PublishedSiteSnapshot;
   links: SiteLinks;
-  visible: readonly SiteSectionId[];
+  visible: readonly SiteBlock[];
   backHome: string | null;
   children: ReactNode;
 }) {
@@ -62,29 +63,67 @@ export function SiteBody({
   renderInstagram?: (username: string) => ReactNode;
   edit?: SiteEditSlots;
 }) {
-  const visible = visibleSections(snapshot, mode);
+  const blocks = visibleBlocks(snapshot, mode, Boolean(edit));
+  const shown = blocks.filter((block) => !block.hidden);
+  const anchors = blockAnchors(blocks);
+  const grounds = blockGrounds(blocks, snapshot.variant, snapshot.locale);
   const ctx: SectionContext = {
     snapshot,
     mode,
     copy: siteCopy(snapshot.locale),
-    visible,
+    blocks,
+    liveAnchors: shown.map((block) => `#${anchors.get(block.id)}`),
     edit: edit ?? null,
   };
-  const render: Record<SiteSectionId, () => ReactNode> = {
-    hero: () => <HeroSection ctx={ctx} />,
-    about: () => <AboutSection ctx={ctx} />,
-    heroImage: () => <HeroImageSection ctx={ctx} />,
-    themes: () => <ThemesSection ctx={ctx} />,
-    actions: () => <ActionsSection ctx={ctx} />,
-    socialFeed: () => <SocialFeedSection ctx={ctx} renderInstagram={renderInstagram ?? null} />,
-    contact: () => <ContactSection ctx={ctx} />,
+  const seen = new Set<string>();
+  const place = (block: SiteBlock): Placement => {
+    const first = !seen.has(block.type);
+    seen.add(block.type);
+    return {
+      block,
+      anchor: anchors.get(block.id) ?? block.id,
+      ground: grounds.get(block.id) ?? 'paper',
+      first,
+    };
   };
 
   return (
-    <SiteShell snapshot={snapshot} links={links} visible={visible} backHome={null}>
-      {visible.map((id) => (
-        <Fragment key={id}>{render[id]()}</Fragment>
+    <SiteShell snapshot={snapshot} links={links} visible={shown} backHome={null}>
+      {blocks.map((block) => (
+        <Fragment key={block.id}>
+          {renderBlock(ctx, place(block), renderInstagram ?? null)}
+        </Fragment>
       ))}
     </SiteShell>
   );
+}
+
+function renderBlock(
+  ctx: SectionContext,
+  place: Placement,
+  renderInstagram: ((username: string) => ReactNode) | null
+): ReactNode {
+  // Narrowed per type; each section takes the placement of its own block type.
+  switch (place.block.type) {
+    case 'hero':
+      return <HeroSection ctx={ctx} place={place as Placement<'hero'>} />;
+    case 'about':
+      return <AboutSection ctx={ctx} place={place as Placement<'about'>} />;
+    case 'heroImage':
+      return <HeroImageSection ctx={ctx} place={place as Placement<'heroImage'>} />;
+    case 'themes':
+      return <ThemesSection ctx={ctx} place={place as Placement<'themes'>} />;
+    case 'actions':
+      return <ActionsSection ctx={ctx} place={place as Placement<'actions'>} />;
+    case 'socialFeed':
+      return (
+        <SocialFeedSection
+          ctx={ctx}
+          place={place as Placement<'socialFeed'>}
+          renderInstagram={renderInstagram}
+        />
+      );
+    case 'contact':
+      return <ContactSection ctx={ctx} place={place as Placement<'contact'>} />;
+  }
 }

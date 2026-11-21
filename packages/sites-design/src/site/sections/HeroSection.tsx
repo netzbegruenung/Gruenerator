@@ -1,19 +1,23 @@
 /** @jsxRuntime automatic @jsxImportSource react */
 import { stripGreeting } from '@gruenerator/contracts';
 
-import { sectionGround } from '../../model/grounds.js';
-import { SECTION_ANCHORS } from '../../model/visibility.js';
-import { CONTAINER, editableText, Section, type SectionContext } from '../layout.js';
+import {
+  CONTAINER,
+  editableText,
+  type Placement,
+  Section,
+  type SectionContext,
+} from '../layout.js';
 import { PortraitPlaceholder } from '../PortraitPlaceholder.js';
 import { SiteImage } from '../SiteImage.js';
 import { SocialLinks } from '../SocialLinks.js';
 
-const anchor = SECTION_ANCHORS.hero;
-const headingId = `${anchor}-titel`;
+type HeroProps = { ctx: SectionContext; place: Placement<'hero'> };
 
 /** Party line, greeting with the name, tagline and social links: the same in both layouts. */
-function HeroText({ ctx }: { ctx: SectionContext }) {
+function HeroText({ ctx, place }: HeroProps) {
   const { snapshot, mode, copy } = ctx;
+  const headingId = `${place.anchor}-titel`;
   // Legacy rows may already store the greeting in the title: never greet twice.
   const name = stripGreeting(snapshot.site_title.trim());
   const tagline = snapshot.tagline.trim();
@@ -57,29 +61,24 @@ function HeroText({ ctx }: { ctx: SectionContext }) {
   );
 }
 
-export function HeroSection({ ctx }: { ctx: SectionContext }) {
-  return ctx.snapshot.sections.heroLayout === 'vollbild' ? (
-    <FullBleedHero ctx={ctx} />
+export function HeroSection(props: HeroProps) {
+  return props.place.block.layout === 'vollbild' ? (
+    <FullBleedHero {...props} />
   ) : (
-    <PortraitHero ctx={ctx} />
+    <PortraitHero {...props} />
   );
 }
 
-function PortraitHero({ ctx }: { ctx: SectionContext }) {
+function PortraitHero({ ctx, place }: HeroProps) {
   const { snapshot, mode } = ctx;
 
   return (
-    <Section
-      section="hero"
-      anchor={anchor}
-      ground={sectionGround(snapshot.variant, 'hero', snapshot.locale)}
-      className="site:pt-hero site:pb-section"
-    >
+    <Section ctx={ctx} place={place} className="site:pt-hero site:pb-section">
       <div
         className={`${CONTAINER} site:grid site:items-center site:gap-x-12 site:gap-y-10 site:md:grid-cols-[7fr_5fr]`}
       >
         <div className="site:min-w-0 site:md:col-start-1 site:md:row-start-1">
-          <HeroText ctx={ctx} />
+          <HeroText ctx={ctx} place={place} />
         </div>
 
         <div className="site:relative site:order-first site:md:order-none site:md:col-start-2 site:md:row-start-1">
@@ -110,15 +109,15 @@ function PortraitHero({ ctx }: { ctx: SectionContext }) {
  * Variant 2: the portrait fills the hero, the text sits on a dark gradient at the bottom left.
  * Without a portrait the hero is the deep green ground.
  */
-function FullBleedHero({ ctx }: { ctx: SectionContext }) {
+function FullBleedHero({ ctx, place }: HeroProps) {
   const { snapshot, mode } = ctx;
   const hasImage = snapshot.profile_image !== '';
   const focus = snapshot.sections.profileImageFocus;
 
   return (
     <Section
-      section="hero"
-      anchor={anchor}
+      ctx={ctx}
+      place={place}
       ground={hasImage ? 'photo' : 'deep'}
       // The photo ground is transparent: while the portrait loads (or fails), the white text
       // would sit on the page's paper. The deeper green keeps it readable until then.
@@ -149,7 +148,7 @@ function FullBleedHero({ ctx }: { ctx: SectionContext }) {
       )}
       <div className={`${CONTAINER} site:w-full`}>
         <div className="site:max-w-[40rem] site:min-w-0">
-          <HeroText ctx={ctx} />
+          <HeroText ctx={ctx} place={place} />
         </div>
       </div>
     </Section>

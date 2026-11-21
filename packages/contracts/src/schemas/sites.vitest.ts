@@ -5,13 +5,44 @@ import {
   buildSiteSnapshot,
   buildSitePreviewSnapshot,
   checkSiteHandle,
-  publishedSiteSnapshotSchema,
   readSiteVariant,
   updateUserSiteBodySchema,
+  type SiteBlock,
   type SiteSnapshotSource,
 } from './sites.js';
 
-const card = () => ({ imageUrl: '', title: 'Klima', content: emptyRichTextDoc() });
+let cardCount = 0;
+const card = () => ({
+  id: `card-${(cardCount += 1)}`,
+  imageUrl: '',
+  title: 'Klima',
+  content: emptyRichTextDoc(),
+});
+const hero: SiteBlock = { id: 'hero', type: 'hero' };
+const page = (...blocks: SiteBlock[]) => ({ blocks: [hero, ...blocks] });
+const about = (content: unknown): SiteBlock => ({
+  id: 'about',
+  type: 'about',
+  title: 'Über mich',
+  content: content as never,
+});
+const themes = (...items: ReturnType<typeof card>[]): SiteBlock => ({
+  id: 'themes',
+  type: 'themes',
+  items,
+});
+const action = (link: string) => ({ id: 'tile', imageUrl: '', text: 'Mitmachen', link });
+const actions = (...items: ReturnType<typeof action>[]): SiteBlock => ({
+  id: 'actions',
+  type: 'actions',
+  items,
+});
+const feed = (instagramUsername: string): SiteBlock => ({
+  id: 'feed',
+  type: 'socialFeed',
+  title: 'Feed',
+  instagramUsername,
+});
 
 const validLegal = () => ({
   name: 'Max Mustermann',
@@ -29,18 +60,19 @@ const validSource = (): SiteSnapshotSource => ({
   contact_email: 'max@example.org',
   contact_phone: null,
   social_links: null,
-  sections: {
-    about: { title: 'Über mich', content: emptyRichTextDoc() },
-    themes: [card()],
-    actions: [],
-  },
+  sections: page(about(emptyRichTextDoc()), themes({ ...card(), id: 'klima' }), actions()),
   legal: validLegal(),
 });
 
 const withActionLink = (link: string): SiteSnapshotSource => ({
   ...validSource(),
-  sections: { actions: [{ imageUrl: '', text: 'Mitmachen', link }] },
+  sections: page(actions(action(link))),
 });
+
+const actionLink = (snapshot: { sections: { blocks: readonly SiteBlock[] } }) => {
+  const block = snapshot.sections.blocks.find((b) => b.type === 'actions');
+  return block?.type === 'actions' ? block.items[0]?.link : undefined;
+};
 
 const issuePaths = (source: SiteSnapshotSource): string[] => {
   const result = buildSiteSnapshot(source, 'de-DE');
@@ -66,25 +98,26 @@ describe('draft bounds', () => {
     ));
   it('rejects a seventh theme card', () =>
     expect(
-      updateUserSiteBodySchema.safeParse({ sections: { themes: Array.from({ length: 7 }, card) } })
-        .success
+      updateUserSiteBodySchema.safeParse({
+        sections: page(themes(...Array.from({ length: 7 }, card))),
+      }).success
     ).toBe(false));
   it('accepts a half-typed link in a draft', () =>
     expect(
       updateUserSiteBodySchema.safeParse({
-        sections: { actions: [{ imageUrl: '', text: 'Mitmachen', link: 'www.example' }] },
+        sections: page(actions(action('www.example'))),
       }).success
     ).toBe(true));
 });
 
 describe('buildSiteSnapshot', () => {
-  it('builds version 1 with the locale', () => {
+  it('builds version 2 with the locale', () => {
     const result = buildSiteSnapshot(validSource(), 'de-AT');
-    expect(result.ok && result.snapshot).toMatchObject({ version: 1, locale: 'de-AT' });
+    expect(result.ok && result.snapshot).toMatchObject({ version: 2, locale: 'de-AT' });
   });
   it.each(['javascript:alert(1)', 'data:text/html,x', 'www.example.org', '//evil.example'])(
     'reports the action link %s',
-    (link) => expect(issuePaths(withActionLink(link))).toContain('sections.actions.0.link')
+    (link) => expect(issuePaths(withActionLink(link))).toContain('blocks.actions.items.tile.link')
   );
   it.each(['https://gruene.de/mitmachen', 'mailto:hallo@example.org', '#kontakt'])(
     'accepts the action link %s',
@@ -96,13 +129,13 @@ describe('buildSiteSnapshot', () => {
     ['de-AT', 'https://gruene.de/mitglied-werden/', 'https://www.gruene.at/mitmachen'],
   ] as const)('swaps the known member URL for %s (%s)', (locale, link, expected) => {
     const result = buildSiteSnapshot(withActionLink(link), locale);
-    expect(result.ok && result.snapshot.sections.actions?.[0]?.link).toBe(expected);
+    expect(result.ok && actionLink(result.snapshot)).toBe(expected);
   });
   it.each(['https://gruene.de/mitmachen', 'https://example.org/mitglied-werden', '#kontakt'])(
     'keeps the other action link %s untouched under de-AT',
     (link) => {
       const result = buildSiteSnapshot(withActionLink(link), 'de-AT');
-      expect(result.ok && result.snapshot.sections.actions?.[0]?.link).toBe(link);
+      expect(result.ok && actionLink(result.snapshot)).toBe(link);
     }
   );
   it('reports an image from a foreign origin', () =>
@@ -147,7 +180,7 @@ describe('buildSiteSnapshot', () => {
 describe('snapshot rich text', () => {
   const aboutDoc = (content: unknown): SiteSnapshotSource => ({
     ...validSource(),
-    sections: { about: { title: 'Über mich', content: content as never } },
+    sections: page(about(content)),
   });
   const para = (text: string, marks?: unknown[]) => ({
     type: 'paragraph',
@@ -166,16 +199,16 @@ describe('snapshot rich text', () => {
           content: [{ ...para('x'), attrs: { style: 'x', onclick: 'alert(1)' } }],
         })
       )
-    ).toContain('sections.about.content'));
+    ).toContain('blocks.about.content'));
   it('reports text carried by a non-text node', () =>
     expect(
       issuePaths(
         aboutDoc({ type: 'doc', content: [{ type: 'paragraph', text: 'x'.repeat(5000) }] })
       )
-    ).toContain('sections.about.content'));
+    ).toContain('blocks.about.content'));
   it('reports a doc nested seven levels deep', () =>
     expect(issuePaths(aboutDoc({ type: 'doc', content: [nested(3)] }))).toContain(
-      'sections.about.content'
+      'blocks.about.content'
     ));
   it('accepts a doc nested at the depth limit', () =>
     expect(buildSiteSnapshot(aboutDoc({ type: 'doc', content: [nested(2)] }), 'de-DE').ok).toBe(
@@ -184,13 +217,13 @@ describe('snapshot rich text', () => {
   it('reports an unknown node type', () =>
     expect(
       issuePaths(aboutDoc({ type: 'doc', content: [{ type: 'image', attrs: { src: 'x' } }] }))
-    ).toContain('sections.about.content'));
+    ).toContain('blocks.about.content'));
   it('reports a mark with attrs', () =>
     expect(
       issuePaths(
         aboutDoc({ type: 'doc', content: [para('x', [{ type: 'bold', attrs: { a: 1 } }])] })
       )
-    ).toContain('sections.about.content'));
+    ).toContain('blocks.about.content'));
   it('reports a heading level the editor does not offer', () =>
     expect(
       issuePaths(
@@ -201,26 +234,24 @@ describe('snapshot rich text', () => {
           ],
         })
       )
-    ).toContain('sections.about.content'));
+    ).toContain('blocks.about.content'));
   it('reports text above the length limit', () =>
     expect(issuePaths(aboutDoc({ type: 'doc', content: [para('x'.repeat(1001))] }))).toContain(
-      'sections.about.content'
+      'blocks.about.content'
     ));
   it('reports a theme card with foreign attrs', () =>
     expect(
       issuePaths({
         ...validSource(),
-        sections: {
-          themes: [
-            {
-              imageUrl: '',
-              title: 'Klima',
-              content: { type: 'doc', content: [{ ...para('x'), attrs: { id: 'a' } }] } as never,
-            },
-          ],
-        },
+        sections: page(
+          themes({
+            ...card(),
+            id: 'klima',
+            content: { type: 'doc', content: [{ ...para('x'), attrs: { id: 'a' } }] } as never,
+          })
+        ),
       })
-    ).toContain('sections.themes.0.content'));
+    ).toContain('blocks.themes.items.klima.content'));
   it('accepts bold text, a heading, a bullet list and an ordered list', () => {
     const doc = {
       type: 'doc',
@@ -264,17 +295,15 @@ describe('snapshot charsets and links', () => {
     expect(
       issuePaths({
         ...validSource(),
-        sections: { socialFeed: { title: 'Feed', instagramUsername: 'x/../evil', showFeed: true } },
+        sections: page(feed('x/../evil')),
       })
-    ).toContain('sections.socialFeed.instagramUsername'));
+    ).toContain('blocks.feed.instagramUsername'));
   it('accepts an instagram name', () =>
     expect(
       buildSiteSnapshot(
         {
           ...validSource(),
-          sections: {
-            socialFeed: { title: 'Feed', instagramUsername: 'anna.b_1', showFeed: true },
-          },
+          sections: page(feed('anna.b_1')),
         },
         'de-DE'
       ).ok
@@ -299,7 +328,7 @@ describe('snapshot charsets and links', () => {
     'mailto:a@b.de?bcc=x@evil.example',
     'mailto:a b@c.de',
   ])('reports the action link %s', (link) =>
-    expect(issuePaths(withActionLink(link))).toContain('sections.actions.0.link')
+    expect(issuePaths(withActionLink(link))).toContain('blocks.actions.items.tile.link')
   );
   it('reports credentials in a social link', () =>
     expect(
@@ -332,39 +361,87 @@ describe('site variant', () => {
   });
 });
 
-describe('hidden sections', () => {
-  it('a draft accepts optional section ids', () =>
+describe('page rules and hidden blocks', () => {
+  it('a draft accepts a hidden block', () =>
     expect(
-      updateUserSiteBodySchema.safeParse({ sections: { hidden: ['themes', 'socialFeed'] } }).success
+      updateUserSiteBodySchema.safeParse({
+        sections: page({ ...about(emptyRichTextDoc()), hidden: true }),
+      }).success
     ).toBe(true));
-  it('a draft cannot hide the hero', () =>
-    expect(updateUserSiteBodySchema.safeParse({ sections: { hidden: ['hero'] } }).success).toBe(
-      false
-    ));
-  it('the snapshot lists them once, in page order, outside sections', () => {
+  it('a draft needs the hero on top', () =>
+    expect(
+      updateUserSiteBodySchema.safeParse({
+        sections: { blocks: [about(emptyRichTextDoc()), hero] },
+      }).success
+    ).toBe(false));
+  it('leaves a hidden block out of the published snapshot', () => {
     const src = validSource();
     const r = buildSiteSnapshot(
-      { ...src, sections: { ...src.sections, hidden: ['contact', 'themes', 'contact'] } },
+      { ...src, sections: page({ ...about(emptyRichTextDoc()), hidden: true }, themes(card())) },
       'de-DE'
     );
-    expect(r.ok && r.snapshot.hidden_sections).toEqual(['themes', 'contact']);
-    expect(r.ok && 'hidden' in r.snapshot.sections).toBe(false);
+    expect(r.ok && r.snapshot.sections.blocks.map((b) => b.type)).toEqual(['hero', 'themes']);
   });
-  it('a snapshot stored before this change parses with defaults', () => {
-    const r = buildSiteSnapshot(validSource(), 'de-DE');
-    if (!r.ok) throw new Error('fixture');
-    const { variant: _v, hidden_sections: _h, ...stored } = r.snapshot;
-    expect(publishedSiteSnapshotSchema.parse(stored)).toMatchObject({
-      variant: 'dunkel',
-      hidden_sections: [],
-    });
+  it('keeps a hidden block in the editor preview when asked', () => {
+    const src = {
+      ...validSource(),
+      sections: page({ ...about(emptyRichTextDoc()), hidden: true }),
+    };
+    expect(buildSitePreviewSnapshot(src, 'de-DE').sections.blocks.map((b) => b.type)).toEqual([
+      'hero',
+    ]);
+    const kept = buildSitePreviewSnapshot(src, 'de-DE', { includeHidden: true });
+    expect(kept.sections.blocks[1]).toMatchObject({ type: 'about', hidden: true });
+  });
+  it('reports a broken item link by block and item id, not by index', () => {
+    const second: SiteBlock = {
+      id: 'more',
+      type: 'actions',
+      items: [action('#a'), { ...action('javascript:x'), id: 'bad' }],
+    };
+    expect(issuePaths({ ...validSource(), sections: page(actions(), second) })).toContain(
+      'blocks.more.items.bad.link'
+    );
+  });
+});
+
+describe('preview of a broken page', () => {
+  it('blanks a broken field and keeps its block', () => {
+    const broken = { id: 'x', type: 'heroImage', imageUrl: 5 } as unknown as SiteBlock;
+    const s = buildSitePreviewSnapshot(
+      { ...validSource(), sections: page(broken, about(emptyRichTextDoc())) },
+      'de-DE'
+    );
+    expect(s.sections.blocks.map((b) => b.type)).toEqual(['hero', 'heroImage', 'about']);
+    expect(s.sections.blocks[1]).toMatchObject({ imageUrl: '', title: '' });
+  });
+  it('drops a block with an unknown type or a bad id and keeps the others', () => {
+    const unknown = { id: 'u', type: 'karussell' } as unknown as SiteBlock;
+    const badId = { ...about(emptyRichTextDoc()), id: 'a b' };
+    const s = buildSitePreviewSnapshot(
+      { ...validSource(), sections: page(unknown, badId, about(emptyRichTextDoc())) },
+      'de-DE'
+    );
+    expect(s.sections.blocks.map((b) => b.id)).toEqual(['hero', 'about']);
+  });
+  it('puts the hero on top or adds one', () => {
+    const misplaced = { blocks: [about(emptyRichTextDoc()), hero] };
+    expect(
+      buildSitePreviewSnapshot({ ...validSource(), sections: misplaced }, 'de-DE').sections
+        .blocks[0]
+    ).toMatchObject({ id: 'hero', type: 'hero' });
+    const none = { blocks: [about(emptyRichTextDoc())] };
+    expect(
+      buildSitePreviewSnapshot({ ...validSource(), sections: none }, 'de-DE').sections.blocks[0]
+        ?.type
+    ).toBe('hero');
   });
 });
 
 describe('buildSitePreviewSnapshot', () => {
   const aboutDoc = (content: unknown): SiteSnapshotSource => ({
     ...validSource(),
-    sections: { about: { title: 'Über mich', content: content as never } },
+    sections: page(about(content)),
   });
   it('equals the published snapshot for a valid draft', () => {
     const r = buildSiteSnapshot(validSource(), 'de-AT');
@@ -372,7 +449,7 @@ describe('buildSitePreviewSnapshot', () => {
   });
   it.each(['javascript:alert(1)', 'www.example.org'])('blanks the action link %s', (link) => {
     const s = buildSitePreviewSnapshot(withActionLink(link), 'de-DE');
-    expect(s.sections.actions?.[0]).toMatchObject({ text: 'Mitmachen', link: '' });
+    expect(actionLink(s)).toBe('');
   });
   it('blanks a foreign image', () =>
     expect(
@@ -409,9 +486,11 @@ describe('buildSitePreviewSnapshot', () => {
     ));
   it('replaces rich text with an unsupported node by an empty doc', () =>
     expect(
-      buildSitePreviewSnapshot(aboutDoc({ type: 'doc', content: [{ type: 'image' }] }), 'de-DE')
-        .sections.about?.content
-    ).toEqual(emptyRichTextDoc()));
+      buildSitePreviewSnapshot(
+        aboutDoc({ type: 'doc', content: [{ type: 'image' }] }),
+        'de-DE'
+      ).sections.blocks.find((b) => b.type === 'about')
+    ).toHaveProperty('content', emptyRichTextDoc()));
   it('falls back to the default variant for an unknown theme', () =>
     expect(buildSitePreviewSnapshot({ ...validSource(), theme: 'pink' }, 'de-DE').variant).toBe(
       'dunkel'

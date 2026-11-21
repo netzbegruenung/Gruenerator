@@ -17,31 +17,23 @@ const fontUrl = (file: SiteFontFile) =>
 function withImage(s: PublishedSiteSnapshot): PublishedSiteSnapshot {
   if (IMAGE === '') return s;
   const img = (url: string) => (url === '' ? url : IMAGE);
-  const { sections } = s;
-  return {
-    ...s,
-    profile_image: img(s.profile_image),
-    sections: {
-      ...sections,
-      ...(sections.heroImage
-        ? { heroImage: { ...sections.heroImage, imageUrl: img(sections.heroImage.imageUrl) } }
-        : {}),
-      ...(sections.themes
-        ? { themes: sections.themes.map((t) => ({ ...t, imageUrl: img(t.imageUrl) })) }
-        : {}),
-      ...(sections.actions
-        ? { actions: sections.actions.map((a) => ({ ...a, imageUrl: img(a.imageUrl) })) }
-        : {}),
-      ...(sections.contact
-        ? {
-            contact: {
-              ...sections.contact,
-              backgroundImageUrl: img(sections.contact.backgroundImageUrl),
-            },
-          }
-        : {}),
-    },
-  };
+  const blocks = s.sections.blocks.map((block) => {
+    switch (block.type) {
+      case 'heroImage':
+        return { ...block, imageUrl: img(block.imageUrl) };
+      case 'themes':
+      case 'actions':
+        return {
+          ...block,
+          items: block.items.map((item) => ({ ...item, imageUrl: img(item.imageUrl) })),
+        } as typeof block;
+      case 'contact':
+        return { ...block, backgroundImageUrl: img(block.backgroundImageUrl) };
+      default:
+        return block;
+    }
+  });
+  return { ...s, profile_image: img(s.profile_image), sections: { ...s.sections, blocks } };
 }
 
 function page(s: PublishedSiteSnapshot, document: SiteDocumentKind): string {

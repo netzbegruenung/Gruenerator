@@ -1,9 +1,14 @@
-import { SITE_TAGLINE_MAX, SITE_TITLE_MAX, SITE_URL_MAX } from '@gruenerator/contracts';
-import { Button, Input, Label, Textarea } from '@gruenerator/ui';
+import {
+  SITE_TAGLINE_MAX,
+  SITE_TITLE_MAX,
+  SITE_URL_MAX,
+  siteHeroLayoutSchema,
+} from '@gruenerator/contracts';
+import { Button, Input, Label, Textarea, ToggleGroup, ToggleGroupItem } from '@gruenerator/ui';
 import { useState } from 'react';
 import { FiX } from 'react-icons/fi';
 
-import { useDraft, useDraftActions } from '../../../draft/SiteDraftContext';
+import { useDraft, useDraftActions, useDraftBlock } from '../../../draft/SiteDraftContext';
 import { useFieldRegistry } from '../../../hooks/useFieldRegistry';
 import { Field, SectionHeading } from '../common/Field';
 import { FocalPointPicker } from '../common/FocalPointPicker';
@@ -20,9 +25,12 @@ const ALL_PLATFORMS = [
   { key: 'youtube', label: 'YouTube', placeholder: 'https://youtube.com/...' },
 ] as const;
 
-export function HeroSectionEditor() {
+const LAYOUT_LABELS = { portrait: 'Porträt', vollbild: 'Vollbild' } as const;
+
+export function HeroSectionEditor({ blockId }: { blockId: string }) {
   const { registerField, handleFieldFocus, handleFieldBlur } = useFieldRegistry();
-  const { setField } = useDraftActions();
+  const { setField, setBlockField } = useDraftActions();
+  const layout = useDraftBlock(blockId, 'hero')?.layout ?? 'portrait';
   const name = useDraft((d) => d.site_title);
   const tagline = useDraft((d) => d.tagline);
   const profileImage = useDraft((d) => d.profile_image);
@@ -52,6 +60,29 @@ export function HeroSectionEditor() {
     <div>
       <SectionHeading>Profil</SectionHeading>
 
+      <div className="mb-md">
+        <p id={`${blockId}-layout`} className="mb-1.5 block text-sm font-medium text-foreground">
+          Kopfbereich
+        </p>
+        <ToggleGroup
+          type="single"
+          value={layout}
+          onValueChange={(next) => {
+            const parsed = siteHeroLayoutSchema.safeParse(next);
+            if (parsed.success) setBlockField(blockId, 'hero', { layout: parsed.data });
+          }}
+          variant="outline"
+          aria-labelledby={`${blockId}-layout`}
+          className="flex-wrap justify-start"
+        >
+          {siteHeroLayoutSchema.options.map((option) => (
+            <ToggleGroupItem key={option} value={option} className="h-auto px-3 py-2">
+              {LAYOUT_LABELS[option]}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+      </div>
+
       <div className="flex gap-6 items-stretch mb-5 max-[600px]:flex-col max-[600px]:items-center">
         <div className="shrink-0 basis-[120px] w-[120px] min-w-[120px] flex flex-col max-[600px]:w-[100px]">
           <ImageUpload
@@ -70,26 +101,26 @@ export function HeroSectionEditor() {
         </div>
 
         <div className="flex-1 min-w-0 flex flex-col">
-          <Field panel="hero" path="site_title" htmlFor="hero-name" label="Name">
+          <Field panel={blockId} path="site_title" htmlFor="hero-name" label="Name">
             <Input
               ref={(el) => registerField('site_title', el)}
               id="hero-name"
               value={name}
               onChange={(e) => setField('site_title', e.target.value)}
-              onFocus={() => handleFieldFocus('hero', 'site_title')}
+              onFocus={() => handleFieldFocus(blockId, 'site_title')}
               onBlur={handleFieldBlur}
               placeholder="Max Mustermann"
               maxLength={SITE_TITLE_MAX}
             />
           </Field>
 
-          <Field panel="hero" path="tagline" htmlFor="hero-tagline" label="Tagline / Slogan">
+          <Field panel={blockId} path="tagline" htmlFor="hero-tagline" label="Tagline / Slogan">
             <Textarea
               ref={(el) => registerField('tagline', el)}
               id="hero-tagline"
               value={tagline}
               onChange={(e) => setField('tagline', e.target.value)}
-              onFocus={() => handleFieldFocus('hero', 'tagline')}
+              onFocus={() => handleFieldFocus(blockId, 'tagline')}
               onBlur={handleFieldBlur}
               placeholder="Kandidat*in für..."
               rows={2}
@@ -129,7 +160,7 @@ export function HeroSectionEditor() {
                   type="url"
                   value={socialLinks[key] ?? ''}
                   onChange={(e) => updateSocialLink(key, e.target.value)}
-                  onFocus={() => handleFieldFocus('hero', `social_links.${key}`)}
+                  onFocus={() => handleFieldFocus(blockId, `social_links.${key}`)}
                   onBlur={handleFieldBlur}
                   placeholder={placeholder}
                   maxLength={SITE_URL_MAX}

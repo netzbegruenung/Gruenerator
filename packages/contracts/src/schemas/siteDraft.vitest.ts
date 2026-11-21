@@ -11,6 +11,7 @@ import {
   buildSiteSnapshot,
   buildSitePreviewSnapshot,
   type PublishedSiteSnapshot,
+  type SiteBlock,
   type SiteSnapshotSource,
 } from './sites.js';
 
@@ -22,6 +23,28 @@ const legal = {
   email: 'anna@example.org',
 };
 
+const blocks = (): SiteBlock[] => [
+  { id: 'hero', type: 'hero', layout: 'vollbild' },
+  { id: 'about', type: 'about', title: 'Wer ich bin', content: richTextDocFromPlainText('Hallo') },
+  { id: 'banner', type: 'heroImage', imageUrl: '', title: 'Gemeinsam', subtitle: 'Sub' },
+  {
+    id: 'themes',
+    type: 'themes',
+    items: [
+      { id: 't1', imageUrl: '', title: 'Klima', content: richTextDocFromPlainText('Text') },
+      { id: 't2', imageUrl: '', title: 'Verkehr', content: richTextDocFromPlainText('Mehr') },
+    ],
+  },
+  {
+    id: 'actions',
+    type: 'actions',
+    hidden: true,
+    items: [{ id: 'a1', imageUrl: '', text: 'Mitmachen', link: '#kontakt' }],
+  },
+  { id: 'contact', type: 'contact', title: 'Kontakt', backgroundImageUrl: '' },
+  { id: 'feed', type: 'socialFeed', title: 'Instagram', instagramUsername: 'anna' },
+];
+
 const row = (): SiteSnapshotSource => ({
   site_title: 'Anna Beispiel',
   tagline: 'Für eine lebenswerte Stadt',
@@ -31,26 +54,25 @@ const row = (): SiteSnapshotSource => ({
   contact_phone: '+49 30 123',
   social_links: { mastodon: 'https://gruene.social/@a' },
   legal,
+  sections: { header: 'farbig', blocks: blocks() },
+});
+
+const withBlock = (source: SiteSnapshotSource, id: string, patch: Partial<SiteBlock>) => ({
+  ...source,
   sections: {
-    hidden: ['actions'],
-    about: { title: 'Wer ich bin', content: richTextDocFromPlainText('Hallo') },
-    heroImage: { imageUrl: '', title: 'Gemeinsam', subtitle: 'Sub' },
-    themes: [
-      { imageUrl: '', title: 'Klima', content: richTextDocFromPlainText('Text') },
-      { imageUrl: '', title: 'Verkehr', content: richTextDocFromPlainText('Mehr') },
-    ],
-    actions: [{ imageUrl: '', text: 'Mitmachen', link: '#kontakt' }],
-    contact: { title: 'Kontakt', backgroundImageUrl: '' },
-    socialFeed: { title: 'Instagram', instagramUsername: 'anna', showFeed: true },
+    blocks: (source.sections?.blocks ?? []).map((block) =>
+      block.id === id ? ({ ...block, ...patch } as SiteBlock) : block
+    ),
   },
 });
 
 describe('site draft', () => {
-  it('keeps the phone and the hidden sections of the row (#5801)', () => {
+  it('keeps the phone, the header and the block list of the row (#5801)', () => {
     const draft = siteDraftFromSite(row());
     expect(draft.contact_phone).toBe('+49 30 123');
-    expect(draft.hidden).toEqual(['actions']);
-    expect(siteDraftToRowColumns(draft).sections.hidden).toEqual(['actions']);
+    expect(draft.header).toBe('farbig');
+    expect(draft.blocks).toEqual(blocks());
+    expect(siteDraftToRowColumns(draft).sections).toEqual({ header: 'farbig', blocks: blocks() });
   });
 
   it('round-trips row → draft → source without changing the snapshot', () => {
@@ -59,25 +81,33 @@ describe('site draft', () => {
     expect(buildSiteSnapshot(back, 'de-AT')).toEqual(buildSiteSnapshot(source, 'de-AT'));
   });
 
-  it('gives every theme and action a distinct id and drops it on the way out', () => {
-    const draft = siteDraftFromSite(row());
-    const ids = [...draft.themes, ...draft.actions].map((item) => item.id);
-    expect(new Set(ids).size).toBe(ids.length);
-    expect(siteDraftToRowColumns(draft).sections.themes?.[0]).not.toHaveProperty('id');
-    expect(siteDraftToRowColumns(draft).sections.actions?.[0]).not.toHaveProperty('id');
+  it('keeps block and item ids from the row through the round trip', () => {
+    const columns = siteDraftToRowColumns(siteDraftFromSite(row()));
+    expect(siteDraftFromSite({ ...row(), sections: columns.sections }).blocks).toEqual(blocks());
+  });
+
+  it('leaves defaults out of the row', () => {
+    const source = withBlock(row(), 'actions', { hidden: false });
+    const out = siteDraftToRowColumns(
+      siteDraftFromSite({ ...source, sections: { blocks: source.sections.blocks } })
+    );
+    expect(out.sections).not.toHaveProperty('header');
+    expect(out.sections.blocks.find((b) => b.id === 'actions')).not.toHaveProperty('hidden');
   });
 
   it('fills the defaults of a row without sections', () => {
     const draft = siteDraftFromSite({ ...row(), sections: null, theme: null, contact_phone: null });
-    expect(draft).toMatchObject({
-      variant: 'dunkel',
-      contact_phone: '',
-      hidden: [],
-      about: { title: 'Wer ich bin' },
-      heroImage: { title: 'Gemeinsam für eine nachhaltige Zukunft!' },
-      contact: { title: 'Kontakt' },
-      socialFeed: { title: 'Instagram', instagramUsername: '', showFeed: false },
-    });
+    expect(draft).toMatchObject({ variant: 'dunkel', contact_phone: '', header: 'weiss' });
+    expect(draft.blocks.map((b) => b.type)).toEqual([
+      'hero',
+      'about',
+      'heroImage',
+      'themes',
+      'actions',
+      'socialFeed',
+      'contact',
+    ]);
+    expect(siteDraftFromSite({ ...row(), sections: { blocks: [] } }).blocks).toHaveLength(7);
   });
 
   it('snapshotDiffers is false for the same source, true after a title change', () => {
@@ -116,27 +146,17 @@ describe('site draft', () => {
     it('still detects a text change and a list order change', () => {
       const source = row();
       const published = reorder(build(source)) as PublishedSiteSnapshot;
-      const changed = row();
-      changed.sections = {
-        ...changed.sections,
-        about: { title: 'Wer ich bin', content: richTextDocFromPlainText('Anders') },
-      };
+      const changed = withBlock(row(), 'about', { content: richTextDocFromPlainText('Anders') });
       expect(snapshotDiffers(changed, published)).toBe(true);
       const swapped = row();
-      swapped.sections = {
-        ...swapped.sections,
-        themes: [...(swapped.sections?.themes ?? [])].reverse(),
-      };
-      expect(snapshotDiffers(swapped, published)).toBe(true);
+      const list = [...(swapped.sections?.blocks ?? [])];
+      [list[1], list[2]] = [list[2] as SiteBlock, list[1] as SiteBlock];
+      expect(snapshotDiffers({ ...swapped, sections: { blocks: list } }, published)).toBe(true);
     });
   });
 
   it('treats every spelling of an empty rich text as unchanged', () => {
-    const source = row();
-    source.sections = {
-      ...source.sections,
-      about: { title: 'Wer ich bin', content: emptyRichTextDoc() },
-    };
+    const source = withBlock(row(), 'about', { content: emptyRichTextDoc() });
     const built = buildSiteSnapshot(source, 'de-DE');
     if (!built.ok) throw new Error('fixture must be valid');
     const withAbout = (content: unknown): PublishedSiteSnapshot =>
@@ -145,7 +165,9 @@ describe('site draft', () => {
           ...built.snapshot,
           sections: {
             ...built.snapshot.sections,
-            about: { title: 'Wer ich bin', content },
+            blocks: built.snapshot.sections.blocks.map((b) =>
+              b.id === 'about' ? { ...b, content } : b
+            ),
           },
         })
       );
@@ -169,12 +191,15 @@ describe('site draft', () => {
   });
 
   it('previews a half-finished draft without throwing', () => {
-    const draft = siteDraftFromSite(row());
-    draft.actions = [{ id: 'a', imageUrl: '', text: 'Los', link: 'www.halb' }];
-    expect(
-      buildSitePreviewSnapshot(siteDraftToSnapshotSource(draft, legal), 'de-AT').sections
-        .actions?.[0]?.link
-    ).toBe('');
+    const draft = siteDraftFromSite(
+      withBlock(row(), 'actions', {
+        hidden: false,
+        items: [{ id: 'a', imageUrl: '', text: 'Los', link: 'www.halb' }],
+      } as Partial<SiteBlock>)
+    );
+    const preview = buildSitePreviewSnapshot(siteDraftToSnapshotSource(draft, legal), 'de-AT');
+    const tiles = preview.sections.blocks.find((b) => b.type === 'actions');
+    expect(tiles?.type === 'actions' && tiles.items[0]?.link).toBe('');
   });
 
   it('drops empty social links in the snapshot', () => {

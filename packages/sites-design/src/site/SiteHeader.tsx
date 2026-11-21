@@ -1,5 +1,9 @@
 /** @jsxRuntime automatic @jsxImportSource react */
-import { type PublishedSiteSnapshot, type SiteSectionId } from '@gruenerator/contracts';
+import {
+  type PublishedSiteSnapshot,
+  type SiteBlock,
+  type SiteBlockType,
+} from '@gruenerator/contracts';
 
 import { siteCopy } from '../model/copy.js';
 import { sectionGround } from '../model/grounds.js';
@@ -13,7 +17,7 @@ const NAV_TARGETS = [
   ['themes', 'navThemes'],
   ['actions', 'navActions'],
   ['contact', 'navContact'],
-] as const satisfies readonly (readonly [SiteSectionId, string])[];
+] as const satisfies readonly (readonly [SiteBlockType, string])[];
 
 const NAV_LINK =
   'site:inline-flex site:min-h-11 site:items-center site:px-3 site:text-[1.125rem] site:font-[700] site:text-heading site:underline-offset-4 site:hover:underline';
@@ -26,11 +30,12 @@ export function SiteHeader({
   backHome,
 }: {
   snapshot: PublishedSiteSnapshot;
-  visible: readonly SiteSectionId[];
+  visible: readonly SiteBlock[];
   backHome: string | null;
 }) {
   const copy = siteCopy(snapshot.locale);
-  const targets = NAV_TARGETS.filter(([id]) => visible.includes(id));
+  // The first block of each type is the one its anchor names.
+  const targets = NAV_TARGETS.filter(([type]) => visible.some((block) => block.type === type));
   const name = snapshot.site_title.trim();
 
   // White by default, as on gruene.de; the variant's colour when the site asks for it.

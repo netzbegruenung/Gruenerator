@@ -30,8 +30,16 @@ const EDITOR_FRAME_CSS = `
 [data-field] { cursor: pointer; }
 [data-field]:hover { outline: 2px dashed #46962b; outline-offset: 2px; }
 [data-editor-active] { outline: 2px solid #46962b; outline-offset: 2px; }
-[data-section][data-editor-selected] { outline: 2px solid #46962b; outline-offset: -2px; }
-[data-index][data-editor-selected] { outline: 3px solid #46962b; outline-offset: 3px; }
+[data-block-id][data-editor-selected] { outline: 2px solid #46962b; outline-offset: -2px; }
+[data-item-id][data-editor-selected] { outline: 3px solid #46962b; outline-offset: 3px; }
+/* A hidden block stays on the canvas so it can be shown again: its content dimmed, the note not. */
+[data-editor-hidden] { position: relative; }
+[data-editor-hidden] > * { opacity: 0.4; }
+[data-editor-hidden]::before {
+  content: 'Ausgeblendet'; position: absolute; top: 12px; left: 12px; z-index: 30;
+  padding: 4px 10px; border-radius: 999px; background: #ffffff; color: #1f1f1f;
+  font: 600 14px/1.4 system-ui, sans-serif; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
 @media (prefers-reduced-motion: no-preference) {
   [data-field] { transition: outline-color 0.15s ease; }
 }

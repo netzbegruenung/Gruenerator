@@ -1,7 +1,7 @@
 import { cn } from '@gruenerator/shared/utils';
 import { Input, Textarea } from '@gruenerator/ui';
 
-import { useDraft, useDraftActions } from '../../../draft/SiteDraftContext';
+import { useDraftActions, useDraftBlock } from '../../../draft/SiteDraftContext';
 import { useFieldRegistry } from '../../../hooks/useFieldRegistry';
 import { Field, SectionHeading } from '../common/Field';
 import { FocalPointPicker } from '../common/FocalPointPicker';
@@ -23,13 +23,17 @@ function Counter({ length, max }: { length: number; max: number }) {
   );
 }
 
-export function HeroImageSectionEditor() {
+export function HeroImageSectionEditor({ blockId }: { blockId: string }) {
   const { registerField, handleFieldFocus, handleFieldBlur } = useFieldRegistry();
-  const { setField } = useDraftActions();
-  const imageUrl = useDraft((d) => d.heroImage.imageUrl);
-  const imageFocus = useDraft((d) => d.heroImage.imageFocus ?? null);
-  const title = useDraft((d) => d.heroImage.title);
-  const subtitle = useDraft((d) => d.heroImage.subtitle);
+  const { setBlockField } = useDraftActions();
+  const block = useDraftBlock(blockId, 'heroImage');
+  if (!block) return null;
+  const { imageUrl, title, subtitle } = block;
+  const imageFocus = block.imageFocus ?? null;
+  const set = (patch: Parameters<typeof setBlockField<'heroImage'>>[2]) =>
+    setBlockField(blockId, 'heroImage', patch);
+  const titlePath = `blocks.${blockId}.title`;
+  const subtitlePath = `blocks.${blockId}.subtitle`;
 
   return (
     <div>
@@ -39,7 +43,7 @@ export function HeroImageSectionEditor() {
         <div className="shrink-0 basis-[120px] w-[120px] min-w-[120px] flex flex-col max-[600px]:w-[100px]">
           <ImageUpload
             value={imageUrl}
-            onChange={(url) => setField('heroImage.imageUrl', url)}
+            onChange={(url) => set({ imageUrl: url })}
             placeholder="Bild"
             size="fill"
           />
@@ -47,24 +51,24 @@ export function HeroImageSectionEditor() {
             <FocalPointPicker
               src={imageUrl}
               value={imageFocus}
-              onChange={(focus) => setField('heroImage.imageFocus', focus)}
+              onChange={(focus) => set({ imageFocus: focus })}
             />
           )}
         </div>
 
         <div className="flex-1 min-w-0 flex flex-col">
           <Field
-            panel="heroImage"
-            path="sections.heroImage.title"
-            htmlFor="heroimage-title"
+            panel={blockId}
+            path={titlePath}
+            htmlFor={`${blockId}-title`}
             label="Hauptbotschaft"
           >
             <Input
-              ref={(el) => registerField('sections.heroImage.title', el)}
-              id="heroimage-title"
+              ref={(el) => registerField(titlePath, el)}
+              id={`${blockId}-title`}
               value={title}
-              onChange={(e) => setField('heroImage.title', e.target.value)}
-              onFocus={() => handleFieldFocus('heroImage', 'sections.heroImage.title')}
+              onChange={(e) => set({ title: e.target.value })}
+              onFocus={() => handleFieldFocus(blockId, titlePath)}
               onBlur={handleFieldBlur}
               placeholder="Gemeinsam für eine nachhaltige Zukunft!"
               maxLength={MAX_TITLE_LENGTH}
@@ -73,17 +77,17 @@ export function HeroImageSectionEditor() {
           </Field>
 
           <Field
-            panel="heroImage"
-            path="sections.heroImage.subtitle"
-            htmlFor="heroimage-subtitle"
+            panel={blockId}
+            path={subtitlePath}
+            htmlFor={`${blockId}-subtitle`}
             label="Untertitel"
           >
             <Textarea
-              ref={(el) => registerField('sections.heroImage.subtitle', el)}
-              id="heroimage-subtitle"
+              ref={(el) => registerField(subtitlePath, el)}
+              id={`${blockId}-subtitle`}
               value={subtitle}
-              onChange={(e) => setField('heroImage.subtitle', e.target.value)}
-              onFocus={() => handleFieldFocus('heroImage', 'sections.heroImage.subtitle')}
+              onChange={(e) => set({ subtitle: e.target.value })}
+              onFocus={() => handleFieldFocus(blockId, subtitlePath)}
               onBlur={handleFieldBlur}
               placeholder="Ein unterstützender Satz zu deiner Hauptbotschaft..."
               rows={2}

@@ -2,7 +2,7 @@ import { useLayoutEffect, useMemo, useRef, type FormEvent, type KeyboardEvent } 
 
 import { useDraft, useDraftActions, useDraftReader } from '../draft/SiteDraftContext';
 
-import { textBinding } from './fieldBindings';
+import { blockTypeForPath, textBinding } from './fieldBindings';
 
 /**
  * A plain-text field edited in place on the page. React never renders its text: the DOM holds
@@ -10,7 +10,8 @@ import { textBinding } from './fieldBindings';
  * written in only while the field is not focused, so typing never fights the reconciler.
  */
 export function InlineText({ path, placeholder }: { path: string; placeholder: string }) {
-  const binding = useMemo(() => textBinding(path), [path]);
+  const blockType = useDraft((d) => blockTypeForPath(path, d));
+  const binding = useMemo(() => textBinding(path, blockType), [path, blockType]);
   const value = useDraft((d) => binding?.read(d) ?? '');
   const actions = useDraftActions();
   const readDraft = useDraftReader();

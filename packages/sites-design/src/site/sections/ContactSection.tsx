@@ -1,12 +1,12 @@
 /** @jsxRuntime automatic @jsxImportSource react */
 import { FaEnvelope, FaPhone } from 'react-icons/fa6';
 
-import { sectionGround } from '../../model/grounds.js';
 import { safeHref, telHref } from '../../model/links.js';
-import { SECTION_ANCHORS } from '../../model/visibility.js';
 import {
+  blockField,
   CONTAINER,
   editableText,
+  type Placement,
   Section,
   type SectionContext,
   SectionHeading,
@@ -20,12 +20,18 @@ const ROW_LINK =
 const ROW_VALUE =
   'site:block site:text-lead site:underline site:decoration-1 site:underline-offset-[0.2em] site:group-hover:decoration-2';
 
-export function ContactSection({ ctx }: { ctx: SectionContext }) {
+export function ContactSection({
+  ctx,
+  place,
+}: {
+  ctx: SectionContext;
+  place: Placement<'contact'>;
+}) {
   const { snapshot, copy } = ctx;
-  const anchor = SECTION_ANCHORS.contact;
-  const contact = snapshot.sections.contact;
-  const backdrop = contact?.backgroundImageUrl ?? '';
-  const title = contact?.title.trim() || copy.contactDefault;
+  const { anchor, block: contact } = place;
+  const backdrop = contact.backgroundImageUrl;
+  const title = contact.title.trim() || copy.contactDefault;
+  const titleField = blockField(contact, 'title');
   const email = snapshot.contact_email.trim();
   const mailHref = email === '' ? null : safeHref(`mailto:${email}`);
   const phone = snapshot.contact_phone.trim();
@@ -36,11 +42,8 @@ export function ContactSection({ ctx }: { ctx: SectionContext }) {
 
   return (
     <Section
-      section="contact"
-      anchor={anchor}
-      ground={
-        backdrop !== '' ? 'photo' : sectionGround(snapshot.variant, 'contact', snapshot.locale)
-      }
+      ctx={ctx}
+      place={place}
       className="site:relative site:isolate site:overflow-hidden site:py-section"
     >
       {backdrop !== '' && (
@@ -48,8 +51,8 @@ export function ContactSection({ ctx }: { ctx: SectionContext }) {
           <SiteImage
             url={backdrop}
             slot="backdrop"
-            field="sections.contact.backgroundImageUrl"
-            focus={contact?.backgroundFocus}
+            field={blockField(contact, 'backgroundImageUrl')}
+            focus={contact.backgroundFocus}
             className="site:absolute site:inset-0 site:-z-20"
           />
           <div
@@ -60,8 +63,8 @@ export function ContactSection({ ctx }: { ctx: SectionContext }) {
       )}
       <div className={CONTAINER}>
         <div className="site:mb-8">
-          <SectionHeading id={`${anchor}-titel`} field="sections.contact.title">
-            {editableText(ctx, 'sections.contact.title', copy.contactDefault, title)}
+          <SectionHeading id={`${anchor}-titel`} field={titleField}>
+            {editableText(ctx, titleField, copy.contactDefault, title)}
           </SectionHeading>
         </div>
         {hasRows && (

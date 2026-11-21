@@ -21,7 +21,7 @@ function row(overrides: Partial<UserSiteRow> = {}): UserSiteRow {
     accent_color: '#46962b',
     profile_image: null,
     background_image: null,
-    sections: {},
+    sections: { blocks: [{ id: 'hero', type: 'hero' }] },
     created_at: new Date('2026-11-19T10:00:00Z'),
     updated_at: new Date('2026-11-19T11:00:00Z'),
     deleted_at: null,

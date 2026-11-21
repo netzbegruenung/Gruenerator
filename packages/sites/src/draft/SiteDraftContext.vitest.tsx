@@ -52,10 +52,35 @@ describe('SiteDraftProvider', () => {
     expect(observers()).toBe(0);
   });
 
-  it('does not re-render a themes slice when only site_title changes', () => {
+  it('adds and duplicates blocks through the actions', async () => {
+    function Blocks() {
+      const types = useDraft((draft) => draft.blocks.map((block) => block.type).join(','));
+      const { addBlock, duplicateBlock } = useDraftActions();
+      const firstAbout = useDraft((draft) => draft.blocks.find((b) => b.type === 'about')?.id);
+      return (
+        <>
+          <output>{types}</output>
+          <button type="button" onClick={() => addBlock('themes', 1)}>
+            add
+          </button>
+          <button type="button" onClick={() => firstAbout && duplicateBlock(firstAbout)}>
+            copy
+          </button>
+        </>
+      );
+    }
+    const { user } = renderWithDraft(<Blocks />);
+    await user.click(screen.getByRole('button', { name: 'add' }));
+    await user.click(screen.getByRole('button', { name: 'copy' }));
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'hero,themes,about,about,heroImage,themes,actions,socialFeed,contact'
+    );
+  });
+
+  it('does not re-render a blocks slice when only site_title changes', () => {
     let renders = 0;
     function Themes() {
-      useDraft((draft) => draft.themes);
+      useDraft((draft) => draft.blocks);
       renders += 1;
       return null;
     }

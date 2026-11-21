@@ -57,4 +57,45 @@ describe('transformAiResponse', () => {
     expect(result.error?.issues ?? []).toEqual([]);
     expect(result.success).toBe(true);
   });
+
+  it('builds the standard page of seven blocks from the content, in order', () => {
+    let n = 0;
+    const t = transformAiResponse(
+      {
+        hero: { heading: 'Anna', text: 'Für Musterstadt' },
+        about: { title: '', content: 'Hallo' },
+        hero_image: { title: 'Gemeinsam', subtitle: 'Sub', imageUrl: '/api/share/x/preview' },
+        themes: [{ title: 'Klima', content: 'Solar', imageUrl: '' }],
+        actions: [{ text: 'Spenden', link: 'https://example.org' }],
+        contact: { title: 'Schreib mir', email: 'a@b.de' },
+      },
+      () => `id-${(n += 1)}`
+    );
+    expect(t.sections.blocks.map((block) => block.type)).toEqual([
+      'hero',
+      'about',
+      'heroImage',
+      'themes',
+      'actions',
+      'socialFeed',
+      'contact',
+    ]);
+    expect(t.sections.blocks[1]).toMatchObject({ type: 'about', title: 'Wer ich bin' });
+    expect(t.sections.blocks[2]).toMatchObject({
+      title: 'Gemeinsam',
+      subtitle: 'Sub',
+      imageUrl: '/api/share/x/preview',
+    });
+    expect(t.sections.blocks[3]).toMatchObject({ items: [{ title: 'Klima', imageUrl: '' }] });
+    expect(t.sections.blocks[4]).toMatchObject({
+      items: [{ text: 'Spenden', link: 'https://example.org', imageUrl: '' }],
+    });
+    expect(t.sections.blocks[5]).toMatchObject({ type: 'socialFeed', hidden: true });
+    expect(t.sections.blocks[6]).toMatchObject({ title: 'Schreib mir', backgroundImageUrl: '' });
+    const ids = t.sections.blocks.flatMap((block) => [
+      block.id,
+      ...('items' in block ? block.items.map((item) => item.id) : []),
+    ]);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
 });

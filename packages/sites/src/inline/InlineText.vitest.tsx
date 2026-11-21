@@ -1,4 +1,4 @@
-import { SITE_TITLE_MAX } from '@gruenerator/contracts';
+import { SITE_TITLE_MAX, type SiteBlock, type SiteDraft } from '@gruenerator/contracts';
 import { decodeSiteDraft, setSiteField } from '@gruenerator/contracts/site-ydoc';
 import { act, fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
@@ -13,11 +13,21 @@ function type(el: HTMLElement, text: string) {
   fireEvent.input(el);
 }
 
-const theme = (title: string) => ({
+const theme = (id: string, title: string) => ({
+  id,
   title,
   imageUrl: '',
   content: { type: 'doc' as const, content: [] },
 });
+const themesPage = (...items: ReturnType<typeof theme>[]): SiteBlock[] => [
+  { id: 'hero', type: 'hero' },
+  { id: 'th', type: 'themes', items },
+  { id: 'about', type: 'about', title: 'Wer ich bin', content: { type: 'doc' } },
+];
+const titles = (draft: SiteDraft) => {
+  const block = draft.blocks.find((b) => b.id === 'th');
+  return block?.type === 'themes' ? block.items.map((t) => t.title) : [];
+};
 
 describe('InlineText', () => {
   it('shows the draft value and writes what is typed back to the draft', () => {
@@ -54,20 +64,25 @@ describe('InlineText', () => {
     expect(field).toHaveTextContent('Getippt');
   });
 
-  it('writes a theme title to the theme at that index', () => {
+  it('writes a theme title to the card with that id', () => {
     const { ydoc } = renderWithDraft(
-      <InlineText path="sections.themes.1.title" placeholder="Thema" />,
-      {
-        themes: [
-          { ...theme('Eins'), id: 't1' },
-          { ...theme('Zwei'), id: 't2' },
-        ],
-      }
+      <InlineText path="blocks.th.items.t2.title" placeholder="Thema" />,
+      { blocks: themesPage(theme('t1', 'Eins'), theme('t2', 'Zwei')) }
     );
     const field = screen.getByRole('textbox', { name: 'Thema' });
     expect(field).toHaveTextContent('Zwei');
     type(field, 'Wohnen');
-    expect(decodeSiteDraft(ydoc).themes.map((t) => t.title)).toEqual(['Eins', 'Wohnen']);
+    expect(titles(decodeSiteDraft(ydoc))).toEqual(['Eins', 'Wohnen']);
+  });
+
+  it('writes a block title through its block', () => {
+    const { ydoc } = renderWithDraft(<InlineText path="blocks.about.title" placeholder="Titel" />, {
+      blocks: themesPage(),
+    });
+    type(screen.getByRole('textbox', { name: 'Titel' }), 'Über mich');
+    expect(decodeSiteDraft(ydoc).blocks.find((b) => b.id === 'about')).toMatchObject({
+      title: 'Über mich',
+    });
   });
 
   it('trims on blur and leaves the field on Enter', () => {
@@ -83,12 +98,15 @@ describe('InlineText', () => {
 
 describe('field bindings', () => {
   it('resolves only the paths the page renders as text', () => {
-    expect(textBinding('sections.about.title')).not.toBeNull();
-    expect(textBinding('sections.actions.0.text')).not.toBeNull();
-    expect(textBinding('sections.actions.0.link')).toBeNull();
-    expect(textBinding('profile_image')).toBeNull();
-    expect(richTextBinding('sections.about.content')).not.toBeNull();
-    expect(richTextBinding('sections.themes.2.content')).not.toBeNull();
-    expect(richTextBinding('sections.themes.2.title')).toBeNull();
+    expect(textBinding('blocks.a.title', 'about')).not.toBeNull();
+    expect(textBinding('blocks.a.items.x.text', 'actions')).not.toBeNull();
+    expect(textBinding('blocks.a.items.x.link', 'actions')).toBeNull();
+    expect(textBinding('blocks.a.title', null)).toBeNull();
+    expect(textBinding('sections.about.title', 'about')).toBeNull();
+    expect(textBinding('profile_image', null)).toBeNull();
+    expect(textBinding('tagline', null)).not.toBeNull();
+    expect(richTextBinding('blocks.a.content')).not.toBeNull();
+    expect(richTextBinding('blocks.a.items.t.content')).not.toBeNull();
+    expect(richTextBinding('blocks.a.items.t.title')).toBeNull();
   });
 });
