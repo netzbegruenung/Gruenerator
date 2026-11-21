@@ -253,7 +253,6 @@ export function siteBlockObjects(f: SiteBlockFields) {
       type: z.literal('socialFeed'),
       title: f.sectionTitle,
       instagramUsername: f.instagram,
-      showFeed: z.boolean(),
     }),
     contact: z.object({
       ...base,
@@ -357,7 +356,8 @@ export function defaultSiteBlock<T extends SiteBlockType>(
       type: 'socialFeed',
       title: 'Instagram',
       instagramUsername: '',
-      showFeed: false,
+      // Starts hidden: a feed needs a username first; the toolbar shows it.
+      hidden: true,
     }),
     contact: () => ({ id, type: 'contact', title: 'Kontakt', backgroundImageUrl: '' }),
   };

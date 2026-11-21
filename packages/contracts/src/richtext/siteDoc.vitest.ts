@@ -142,7 +142,7 @@ const blocks = (): SiteBlock[] => [
     hidden: true,
     items: [{ id: 'a1', imageUrl: '', text: 'Mitmachen', link: '#kontakt' }],
   },
-  { id: 'feed', type: 'socialFeed', title: 'Instagram', instagramUsername: 'anna', showFeed: true },
+  { id: 'feed', type: 'socialFeed', title: 'Instagram', instagramUsername: 'anna' },
   { id: 'contact', type: 'contact', title: 'Kontakt', backgroundImageUrl: '' },
 ];
 

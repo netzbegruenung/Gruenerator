@@ -166,7 +166,7 @@ const BLOCK_SCALARS: { [T in SiteBlockType]: readonly string[] } = {
   heroImage: ['imageUrl', 'imageFocus', 'title', 'subtitle'],
   themes: [],
   actions: [],
-  socialFeed: ['title', 'instagramUsername', 'showFeed'],
+  socialFeed: ['title', 'instagramUsername'],
   contact: ['title', 'backgroundImageUrl', 'backgroundFocus'],
 };
 
@@ -245,6 +245,8 @@ function decodeBlock(ydoc: Y.Doc, id: string, map: YBlock): SiteBlock | null {
   if (!type) return null;
   const block = defaultSiteBlock(type, () => id) as Record<string, unknown>;
   readScalars(block, map, BLOCK_SCALARS[type]);
+  // `hidden` comes from the doc only, never from the type's defaults.
+  delete block['hidden'];
   if (map.get('hidden') === true && !siteBlockSpec(type).pinned) block['hidden'] = true;
   if (type === 'about') block['content'] = fragmentToRichText(getBlockFragment(ydoc, id));
   if (isListType(type)) {

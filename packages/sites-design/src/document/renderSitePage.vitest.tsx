@@ -79,7 +79,7 @@ describe('renderSitePage', () => {
   it('a hidden feed leaves no script and no Instagram URL', () => {
     for (const snap of [
       withoutBlock(fullSnapshot(), 'socialFeed'),
-      withBlock(fullSnapshot(), 'socialFeed', { showFeed: false }),
+      withBlock(fullSnapshot(), 'socialFeed', { instagramUsername: '' }),
     ]) {
       const out = page({ snapshot: snap });
       expect(out).not.toContain('<script');

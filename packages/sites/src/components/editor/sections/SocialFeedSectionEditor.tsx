@@ -1,5 +1,5 @@
 import { SITE_SECTION_TITLE_MAX } from '@gruenerator/contracts';
-import { Input, Label, Switch } from '@gruenerator/ui';
+import { Input } from '@gruenerator/ui';
 import { FaInstagram } from 'react-icons/fa';
 
 import { useDraftActions, useDraftBlock } from '../../../draft/SiteDraftContext';
@@ -13,7 +13,7 @@ export function SocialFeedSectionEditor({ blockId }: { blockId: string }) {
   const { setBlockField } = useDraftActions();
   const block = useDraftBlock(blockId, 'socialFeed');
   if (!block) return null;
-  const { showFeed, title } = block;
+  const { title } = block;
   const username = block.instagramUsername ?? '';
   const set = (patch: Parameters<typeof setBlockField<'socialFeed'>>[2]) =>
     setBlockField(blockId, 'socialFeed', patch);
@@ -27,70 +27,50 @@ export function SocialFeedSectionEditor({ blockId }: { blockId: string }) {
         Instagram Feed
       </SectionHeading>
 
-      <div className="mb-md flex items-center gap-sm">
-        <Switch
-          id="socialfeed-show"
-          checked={showFeed}
-          onCheckedChange={(checked) => set({ showFeed: checked })}
+      <Field panel={blockId} path={titlePath} htmlFor="socialfeed-title" label="Abschnittstitel">
+        <Input
+          ref={(el) => registerField(titlePath, el)}
+          id="socialfeed-title"
+          value={title}
+          onChange={(e) => set({ title: e.target.value })}
+          onFocus={() => handleFieldFocus(blockId, titlePath)}
+          onBlur={handleFieldBlur}
+          placeholder="Instagram"
+          maxLength={SITE_SECTION_TITLE_MAX}
         />
-        <Label htmlFor="socialfeed-show" className="text-base text-foreground">
-          Instagram-Feed anzeigen
-        </Label>
+      </Field>
+
+      <Field
+        panel={blockId}
+        path={userPath}
+        htmlFor="socialfeed-username"
+        label="Instagram-Benutzername"
+        hint="Der Benutzername deines öffentlichen Instagram-Profils"
+      >
+        <div className="flex items-center gap-2">
+          <span aria-hidden="true" className="text-sm text-grey-600 dark:text-grey-400">
+            @
+          </span>
+          <Input
+            ref={(el) => registerField(userPath, el)}
+            id="socialfeed-username"
+            value={username}
+            onChange={(e) => set({ instagramUsername: cleanUsername(e.target.value) })}
+            onFocus={() => handleFieldFocus(blockId, userPath)}
+            onBlur={handleFieldBlur}
+            placeholder="benutzername"
+            maxLength={30}
+          />
+        </div>
+      </Field>
+
+      <div className="p-md bg-primary-100 dark:bg-primary-900 rounded-sm mt-md">
+        <p className="m-0 text-sm text-primary-800 dark:text-primary-300 leading-relaxed">
+          <strong className="font-semibold">Datenschutz-Hinweis:</strong> Der Instagram-Feed wird
+          erst geladen, nachdem Besucher*innen der Datenübertragung an Meta zugestimmt haben
+          (DSGVO-konforme Zwei-Klick-Lösung).
+        </p>
       </div>
-
-      {showFeed && (
-        <>
-          <Field
-            panel={blockId}
-            path={titlePath}
-            htmlFor="socialfeed-title"
-            label="Abschnittstitel"
-          >
-            <Input
-              ref={(el) => registerField(titlePath, el)}
-              id="socialfeed-title"
-              value={title}
-              onChange={(e) => set({ title: e.target.value })}
-              onFocus={() => handleFieldFocus(blockId, titlePath)}
-              onBlur={handleFieldBlur}
-              placeholder="Instagram"
-              maxLength={SITE_SECTION_TITLE_MAX}
-            />
-          </Field>
-
-          <Field
-            panel={blockId}
-            path={userPath}
-            htmlFor="socialfeed-username"
-            label="Instagram-Benutzername"
-            hint="Der Benutzername deines öffentlichen Instagram-Profils"
-          >
-            <div className="flex items-center gap-2">
-              <span aria-hidden="true" className="text-sm text-grey-600 dark:text-grey-400">
-                @
-              </span>
-              <Input
-                ref={(el) => registerField(userPath, el)}
-                id="socialfeed-username"
-                value={username}
-                onChange={(e) => set({ instagramUsername: cleanUsername(e.target.value) })}
-                onFocus={() => handleFieldFocus(blockId, userPath)}
-                onBlur={handleFieldBlur}
-                placeholder="benutzername"
-                maxLength={30}
-              />
-            </div>
-          </Field>
-
-          <div className="p-md bg-primary-100 dark:bg-primary-900 rounded-sm mt-md">
-            <p className="m-0 text-sm text-primary-800 dark:text-primary-300 leading-relaxed">
-              <strong className="font-semibold">Datenschutz-Hinweis:</strong> Der Instagram-Feed
-              wird erst geladen, nachdem Besucher*innen der Datenübertragung an Meta zugestimmt
-              haben (DSGVO-konforme Zwei-Klick-Lösung).
-            </p>
-          </div>
-        </>
-      )}
     </div>
   );
 }

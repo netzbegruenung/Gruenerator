@@ -42,7 +42,7 @@ const blocks = (): SiteBlock[] => [
     items: [{ id: 'a1', imageUrl: '', text: 'Mitmachen', link: '#kontakt' }],
   },
   { id: 'contact', type: 'contact', title: 'Kontakt', backgroundImageUrl: '' },
-  { id: 'feed', type: 'socialFeed', title: 'Instagram', instagramUsername: 'anna', showFeed: true },
+  { id: 'feed', type: 'socialFeed', title: 'Instagram', instagramUsername: 'anna' },
 ];
 
 const row = (): SiteSnapshotSource => ({
