@@ -157,7 +157,8 @@ export const MEDIA_GRID = 'grid grid-cols-2 gap-3 md:grid-cols-3 lg:gap-4';
 
 // Every card says what the tool does.
 export const MEDIA_TOOLS = pickTools([
-  { id: 'reels-untertitel', theme: 'mediathek', title: 'Videos bearbeiten' },
+  // The Studio: video tools and the Mediathek with every Sharepic, KI-Bild and video.
+  { id: 'canvas', theme: 'canvas', title: 'Videos & Sharepics' },
   // The Notebooks live on /wissen (/notebooks redirects there).
   { id: 'wissen', theme: 'wissen', title: 'Notebooks durchsuchen' },
   { id: 'canvas-vorlagen', theme: 'canvas-vorlagen', title: 'Vorlagen durchsuchen' },
