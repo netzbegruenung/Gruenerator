@@ -32,7 +32,7 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
     readMore: { label: 'Office', href: '/docs/features/office' },
   },
   canvas: {
-    note: 'Alles Visuelle: KI-Bilder, Sharepics aus Vorlagen und untertitelte Reels. Nimm den Bereich, wenn am Ende ein Bild oder ein Video herauskommen soll — für Text und Zahlen ist Office richtig.',
+    note: 'Alles Visuelle auf einer Seite: oben die Werkzeuge, darunter deine Mediathek mit allen Videos, Sharepics, KI-Bildern, Uploads und Audios — hochladen, filtern, durchsuchen, Titel und Alt-Text pflegen, teilen oder in den Papierkorb legen. Sharepics und KI-Bilder entstehen im Chat und landen von selbst hier.',
     platform: ['web', 'desktop', 'mobile'],
   },
   wissen: {
@@ -72,7 +72,7 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
     platform: ['web', 'desktop', 'mobile'],
   },
   'canvas-ki': {
-    note: 'Bilder mit KI erzeugen und bearbeiten. Gut für Motive, für die es kein passendes Foto gibt.',
+    note: 'Öffnet den Chat: Dort beschreibst du ein Sharepic oder ein KI-Bild, und der Grünerator erstellt es. Feinschliff, auch Freistellen, machst du danach im Editor.',
     platform: ['web', 'desktop', 'mobile'],
   },
   'reels-untertitel': {
@@ -108,14 +108,6 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
   },
   'bild-erweitern': {
     note: 'Erweitert ein Bild per KI auf ein anderes Format, zum Beispiel von Quer- auf Hochformat. Eine Vorschau zeigt vorab, welche Flächen die KI ergänzt.',
-    platform: ['web'],
-  },
-  freisteller: {
-    note: 'Entfernt den Hintergrund eines Bildes und liefert die Person oder das Motiv als PNG mit transparentem Hintergrund.',
-    platform: ['web'],
-  },
-  mediathek: {
-    note: 'Alle deine Bilder, Sharepics, KI-Bilder, Videos und Audios an einem Ort: hochladen (auch per Drag & Drop), nach Art filtern, durchsuchen, Titel und Alt-Text pflegen, herunterladen, teilen oder in den Papierkorb legen — ohne Obergrenze.',
     platform: ['web'],
   },
   'bildgenerator-at': {

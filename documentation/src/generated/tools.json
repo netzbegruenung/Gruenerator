@@ -13,7 +13,7 @@
         {
           "id": "canvas",
           "title": "Studio",
-          "description": "KI-Bilder, Sharepics & Reels",
+          "description": "Videos, Sharepics, KI-Bilder & Uploads",
           "path": "/studio"
         },
         {
@@ -65,29 +65,47 @@
       "title": "Studio — Bilder, Sharepics, Reels",
       "tools": [
         {
-          "id": "canvas-vorlagen",
-          "title": "Vorlagen",
-          "description": "Sharepics & Designs",
-          "path": "/vorlagen"
-        },
-        {
           "id": "canvas-ki",
-          "title": "KI-Bilder",
-          "description": "Erstellen & bearbeiten",
-          "path": "/studio"
-        },
-        {
-          "id": "reels-untertitel",
-          "title": "Untertitel",
-          "description": "Untertitel für Clips",
-          "path": "/studio/video"
+          "title": "Chat",
+          "description": "Sharepics & KI-Bilder per Beschreibung",
+          "path": "/chat"
         },
         {
           "id": "studio-videoeditor",
           "title": "Video-Editor",
-          "description": "Clips schneiden & gestalten",
+          "description": "Reels mit Schnitt, Text & Musik",
           "path": "/studio/videoeditor"
         },
+        {
+          "id": "reels-untertitel",
+          "title": "Auto-Untertitel",
+          "description": "Videos automatisch untertiteln",
+          "path": "/studio/video"
+        },
+        {
+          "id": "canvas-vorlagen",
+          "title": "Vorlagen",
+          "description": "Sharepics aus beliebten Vorlagen",
+          "path": "/vorlagen"
+        },
+        {
+          "id": "profilbild",
+          "title": "Profilbild",
+          "description": "Freistellen & Hintergrund wechseln",
+          "path": "/studio/profilbild"
+        },
+        {
+          "id": "sticker",
+          "title": "Sticker & Hintergründe",
+          "description": "Sticker & Hintergründe entdecken",
+          "path": "/studio/sticker"
+        }
+      ]
+    },
+    {
+      "id": "studio-werkzeuge",
+      "title": "Studio — Weitere Tools",
+      "tools": [
         {
           "id": "studio-ki-schnitt",
           "title": "KI-Schnitt",
@@ -105,42 +123,12 @@
           "title": "Voice",
           "description": "Text vertonen",
           "path": "/voice"
-        }
-      ]
-    },
-    {
-      "id": "studio-werkzeuge",
-      "title": "Studio — Weitere Tools",
-      "tools": [
-        {
-          "id": "profilbild",
-          "title": "Profilbild",
-          "description": "Freistellen & Hintergrund wechseln",
-          "path": "/studio/profilbild"
-        },
-        {
-          "id": "sticker",
-          "title": "Sticker & Hintergründe",
-          "description": "Sticker erstellen, teilen & entdecken",
-          "path": "/studio/sticker"
         },
         {
           "id": "bild-erweitern",
           "title": "Bild erweitern",
           "description": "Auf ein neues Format ergänzen",
           "path": "/studio/erweitern"
-        },
-        {
-          "id": "freisteller",
-          "title": "Hintergrund entfernen",
-          "description": "Person oder Motiv freistellen",
-          "path": "/studio/freistellen"
-        },
-        {
-          "id": "mediathek",
-          "title": "Mediathek",
-          "description": "Deine Bilder, Videos & Audios",
-          "path": "/studio/mediathek"
         },
         {
           "id": "bildgenerator-at",
@@ -243,15 +231,10 @@
       "path": "/chat",
       "subtitle": "KI-Assistent"
     },
-    "tool-freisteller": {
-      "title": "Hintergrund entfernen",
-      "path": "/studio/freistellen",
-      "subtitle": "Person oder Motiv in Sekunden freistellen"
-    },
     "tool-imagine": {
       "title": "KI-Bild erstellen",
-      "path": "/studio",
-      "subtitle": "Bilder mit KI erstellen & bearbeiten"
+      "path": "/chat",
+      "subtitle": "Bilder mit KI im Chat erstellen & bearbeiten"
     },
     "tool-ki-schnitt": {
       "title": "KI-Schnitt",
@@ -265,7 +248,7 @@
     },
     "tool-mediathek": {
       "title": "Mediathek",
-      "path": "/studio/mediathek",
+      "path": "/studio",
       "subtitle": "Alle deine Bilder, Sharepics, KI-Bilder, Videos und Audios"
     },
     "tool-notebooks": {

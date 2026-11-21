@@ -1,3 +1,4 @@
+import { useAgentStore } from '@gruenerator/chat/stores';
 import {
   DocsProvider,
   useDocsAdapter,
@@ -38,7 +39,6 @@ import { useAuthStore } from '../../stores/authStore';
 import { boardTemplates, getBoardTemplate } from '../boards/boardTemplates';
 import { useFeatureIndex } from '../global-search/useFeatureIndex';
 import { seedCanvasQuery } from '../image-studio/canvasQuery';
-import { openSharepicCreator } from '../image-studio/freitext/openSharepicCreator';
 import {
   getPresentationTemplate,
   presentationTemplates,
@@ -531,7 +531,9 @@ export function DocumentsContent({
       setCreating(true);
       try {
         if (kind === 'sharepic') {
-          openSharepicCreator(navigate, description);
+          // Sharepics are made in the chat; the request goes there as the first message.
+          useAgentStore.getState().setPendingMessage(description);
+          void navigate('/chat');
         } else if (kind === 'doc') {
           const doc = await generateDocumentMutation.mutateAsync(description);
           void navigate(`/office/${doc.id}`);

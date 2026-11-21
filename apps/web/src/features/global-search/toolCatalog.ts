@@ -87,9 +87,9 @@ export const CATALOG: ToolCatalogEntry[] = [
   {
     id: 'tool-imagine',
     title: 'KI-Bild erstellen',
-    subtitle: 'Bilder mit KI erstellen & bearbeiten',
-    path: '/studio',
-    icon: nav('imagine'),
+    subtitle: 'Bilder mit KI im Chat erstellen & bearbeiten',
+    path: '/chat',
+    icon: nav('messenger'),
     keywords: ['imagine', 'ki-bild', 'bild', 'image', 'foto', 'generieren', 'flux', 'ai', 'editor'],
   },
   {
@@ -125,26 +125,10 @@ export const CATALOG: ToolCatalogEntry[] = [
     ],
   },
   {
-    id: 'tool-freisteller',
-    title: 'Hintergrund entfernen',
-    subtitle: 'Person oder Motiv in Sekunden freistellen',
-    path: '/studio/freistellen',
-    icon: nav('freisteller'),
-    keywords: [
-      'freistellen',
-      'freisteller',
-      'hintergrund',
-      'entfernen',
-      'transparent',
-      'ausschneiden',
-      'bild',
-    ],
-  },
-  {
     id: 'tool-mediathek',
     title: 'Mediathek',
     subtitle: 'Alle deine Bilder, Sharepics, KI-Bilder, Videos und Audios',
-    path: '/studio/mediathek',
+    path: '/studio',
     icon: nav('mediathek'),
     keywords: [
       'mediathek',

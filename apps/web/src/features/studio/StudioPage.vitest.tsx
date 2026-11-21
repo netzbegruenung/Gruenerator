@@ -12,7 +12,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { server } from '../../test/msw-server';
 
-import MediaLibraryPage from './MediaLibraryPage';
+import StudioPage from './StudioPage';
 
 import { axe, renderWithProviders, userEvent } from '@/test-utils';
 
@@ -99,6 +99,7 @@ function serve(
   deletes = [];
   uploads = 0;
   server.use(
+    http.get(`${API}/auth/templates/popular`, () => HttpResponse.json({ items: [] })),
     http.get(`${API}/content/mediathek`, ({ request }) => {
       const params = new URL(request.url).searchParams;
       listQueries.push(params);
@@ -165,14 +166,14 @@ function Where() {
   return <output aria-label="Adresse">{useLocation().search}</output>;
 }
 
-function renderPage(route = '/studio/mediathek') {
+function renderPage(route = '/studio') {
   return renderWithProviders(
     <Routes>
       <Route
-        path="/studio/mediathek"
+        path="/studio"
         element={
           <>
-            <MediaLibraryPage />
+            <StudioPage />
             <Where />
           </>
         }
@@ -191,12 +192,23 @@ beforeEach(() => {
   localStorage.clear();
 });
 
-describe('MediaLibraryPage', () => {
-  it('lists the library as cards under one page heading', async () => {
+describe('StudioPage', () => {
+  it('shows the creation tiles and the library under one page heading', async () => {
     serve();
     const { container } = renderPage();
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Mediathek' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Dein Studio' })).toBeInTheDocument();
+    const tiles = within(screen.getByRole('region', { name: 'Neu erstellen' }));
+    expect(tiles.getByRole('link', { name: /Chat/ })).toHaveAttribute('href', '/chat');
+    expect(tiles.getByRole('link', { name: /Video-Editor/ })).toHaveAttribute(
+      'href',
+      '/studio/videoeditor'
+    );
+    expect(tiles.getByRole('link', { name: /Auto-Untertitel/ })).toBeInTheDocument();
+    expect(tiles.getByRole('link', { name: /Vorlagen/ })).toBeInTheDocument();
+    expect(tiles.getByRole('link', { name: /Profilbild/ })).toBeInTheDocument();
+    expect(tiles.getByRole('link', { name: /Sticker/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Deine Inhalte' })).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: 'Bild a' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Rede' })).toBeInTheDocument();
     expect(screen.getByText('2 Medien')).toBeInTheDocument();
@@ -204,26 +216,26 @@ describe('MediaLibraryPage', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('filters by type through the filter menu and keeps it in the address', async () => {
+  it('filters by type through the tabs and keeps it in the address', async () => {
     serve();
     const user = userEvent.setup();
     renderPage();
     await screen.findByRole('button', { name: 'Bild a' });
 
-    await user.click(screen.getByRole('button', { name: 'Filter' }));
-    await user.click(await screen.findByRole('menuitemradio', { name: 'Videos' }));
+    await user.click(screen.getByRole('tab', { name: 'Videos' }));
 
     expect(screen.getByLabelText('Adresse')).toHaveTextContent('?typ=video');
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Bild a' })).toBeNull());
     expect(listQueries.at(-1)?.get('typ')).toBe('video');
+    expect(screen.getByRole('tab', { name: 'Videos' })).toHaveAttribute('aria-selected', 'true');
 
-    await user.click(screen.getByRole('button', { name: 'Filter „Videos“ entfernen' }));
+    await user.click(screen.getByRole('tab', { name: 'Alle' }));
     expect(await screen.findByRole('button', { name: 'Bild a' })).toBeInTheDocument();
   });
 
   it('opens a type filter from the address', async () => {
     serve();
-    renderPage('/studio/mediathek?typ=video');
+    renderPage('/studio?typ=video');
     expect(await screen.findByRole('button', { name: 'Rede' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Bild a' })).toBeNull();
     expect(listQueries[0]?.get('typ')).toBe('video');
@@ -246,7 +258,7 @@ describe('MediaLibraryPage', () => {
   it('says so and offers the way back when a filter finds nothing', async () => {
     serve([mediaItem('a')]);
     const user = userEvent.setup();
-    renderPage('/studio/mediathek?typ=audio');
+    renderPage('/studio?typ=audio');
 
     expect(await screen.findByText('Keine Medien gefunden')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Alle Medien anzeigen' }));
@@ -327,7 +339,7 @@ describe('MediaLibraryPage', () => {
 
   it('opens Reels only from the address filter', async () => {
     serve([mediaItem('a'), reel('r1', 'Wahlkampf-Reel')]);
-    renderPage('/studio/mediathek?typ=reel');
+    renderPage('/studio?typ=reel');
 
     expect(await screen.findByRole('button', { name: 'Wahlkampf-Reel' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Bild a' })).toBeNull();

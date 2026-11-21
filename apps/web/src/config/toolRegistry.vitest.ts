@@ -71,9 +71,9 @@ describe('toolRegistry invariants', () => {
     }
   });
 
-  it('studio offers two video paths: Untertitel and the full video editor', () => {
+  it('studio offers two video paths: Auto-Untertitel and the full video editor', () => {
     const simple = tools.find((t) => t.id === 'reels-untertitel');
-    expect(simple?.title).toBe('Untertitel');
+    expect(simple?.title).toBe('Auto-Untertitel');
     expect(simple?.path).toBe('/studio/video');
     expect(simple?.search?.id).toBe('tool-reel');
 

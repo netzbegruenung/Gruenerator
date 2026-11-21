@@ -205,15 +205,10 @@
     "subtitle": "KI-Assistent",
     "path": "/chat"
   },
-  "catalog.tool-freisteller": {
-    "title": "Hintergrund entfernen",
-    "subtitle": "Person oder Motiv in Sekunden freistellen",
-    "path": "/studio/freistellen"
-  },
   "catalog.tool-imagine": {
     "title": "KI-Bild erstellen",
-    "subtitle": "Bilder mit KI erstellen & bearbeiten",
-    "path": "/studio"
+    "subtitle": "Bilder mit KI im Chat erstellen & bearbeiten",
+    "path": "/chat"
   },
   "catalog.tool-ki-schnitt": {
     "title": "KI-Schnitt",
@@ -228,7 +223,7 @@
   "catalog.tool-mediathek": {
     "title": "Mediathek",
     "subtitle": "Alle deine Bilder, Sharepics, KI-Bilder, Videos und Audios",
-    "path": "/studio/mediathek"
+    "path": "/studio"
   },
   "catalog.tool-notebooks": {
     "title": "Notebooks",
@@ -415,27 +410,22 @@
   },
   "workplace.canvas": {
     "title": "Studio",
-    "subtitle": "KI-Bilder, Sharepics & Reels",
+    "subtitle": "Videos, Sharepics, KI-Bilder & Uploads",
     "path": "/studio"
   },
   "workplace.canvas-ki": {
-    "title": "KI-Bilder",
-    "subtitle": "Erstellen & bearbeiten",
-    "path": "/studio"
+    "title": "Chat",
+    "subtitle": "Sharepics & KI-Bilder per Beschreibung",
+    "path": "/chat"
   },
   "workplace.canvas-vorlagen": {
     "title": "Vorlagen",
-    "subtitle": "Sharepics & Designs",
+    "subtitle": "Sharepics aus beliebten Vorlagen",
     "path": "/vorlagen"
   },
   "workplace.docs": {
     "title": "Leeres Dokument",
     "subtitle": "Leeres Textdokument"
-  },
-  "workplace.freisteller": {
-    "title": "Hintergrund entfernen",
-    "subtitle": "Person oder Motiv freistellen",
-    "path": "/studio/freistellen"
   },
   "workplace.marktplatz": {
     "title": "Marktplatz",
@@ -446,11 +436,6 @@
     "title": "Apps & MCP",
     "subtitle": "ChatGPT & Co verbinden",
     "path": "/apps"
-  },
-  "workplace.mediathek": {
-    "title": "Mediathek",
-    "subtitle": "Deine Bilder, Videos & Audios",
-    "path": "/studio/mediathek"
   },
   "workplace.newsletter": {
     "title": "Newsletter",
@@ -481,8 +466,8 @@
     "path": "/projekte"
   },
   "workplace.reels-untertitel": {
-    "title": "Untertitel",
-    "subtitle": "Untertitel für Clips",
+    "title": "Auto-Untertitel",
+    "subtitle": "Videos automatisch untertiteln",
     "path": "/studio/video"
   },
   "workplace.scanner": {
@@ -501,7 +486,7 @@
   },
   "workplace.sticker": {
     "title": "Sticker & Hintergründe",
-    "subtitle": "Sticker erstellen, teilen & entdecken",
+    "subtitle": "Sticker & Hintergründe entdecken",
     "path": "/studio/sticker"
   },
   "workplace.studio-ki-schnitt": {
@@ -511,7 +496,7 @@
   },
   "workplace.studio-videoeditor": {
     "title": "Video-Editor",
-    "subtitle": "Clips schneiden & gestalten",
+    "subtitle": "Reels mit Schnitt, Text & Musik",
     "path": "/studio/videoeditor"
   },
   "workplace.studio-voice": {

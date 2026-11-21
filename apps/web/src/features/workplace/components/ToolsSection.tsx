@@ -294,34 +294,6 @@ function OfficePillInner({
   );
 }
 
-// Navigation pill (a Link) — the /studio landing strip. `themeKey` overrides
-// the colour source same as `OfficeTile`; left unset it reads `tool.id` so
-// each tool (canvas-vorlagen, canvas-ki, reels-untertitel …)
-// keeps its own hue. Favouritable tools keep the same pin-to-sidebar star
-// `OfficeTile` has — the Link becomes a stretched overlay (`absolute inset-0`)
-// so the star (a <button>, invalid nested inside an <a>) stays a sibling,
-// independently clickable/focusable, same idiom `FavouriteStar` documents.
-export function OfficeTilePill({ tool, themeKey }: { tool: WorkplaceToolItem; themeKey?: string }) {
-  const favouritable = isFavouritableTool(tool);
-  const styleKey = themeKey ?? tool.id;
-  return (
-    <div
-      className={`group relative ${OFFICE_PILL_BASE} ${getToolTheme(styleKey)?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'}`}
-    >
-      <Link
-        to={tool.path ?? '/'}
-        className="absolute inset-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-600"
-      >
-        <span className="sr-only">{tool.title}</span>
-      </Link>
-      <span className="pointer-events-none flex items-center gap-2">
-        <OfficePillInner styleKey={styleKey} Icon={tool.icon} title={tool.title} />
-      </span>
-      {favouritable && <FavouriteStar id={tool.id} size={14} />}
-    </div>
-  );
-}
-
 // Action pill (a button) — the /office landing strip creates an empty
 // doc/board/sheet/pres (or opens the template gallery) in place. `styleKey`
 // is the tool id (docs/boards/sheets/presentations/vorlagen), each with its
