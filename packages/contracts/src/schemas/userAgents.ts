@@ -85,8 +85,9 @@ export type UserAgentShareMode = z.infer<typeof userAgentShareModeSchema>;
 /**
  * Agents laufen aus: die Besitzer*in wandelt einen eigenen Agent in ein Rezept
  * oder ein persönliches Projekt um. Umwandeln kopiert — der Agent bleibt
- * unverändert und merkt sich nur den Nachfolger (`migratedTo`). Die Werte sind
- * F0: sie stehen in `user_agents.migrated_to_kind`.
+ * unverändert und merkt sich je Ziel seinen Nachfolger (`migratedTo.recipe`,
+ * `migratedTo.project`; Spalten `user_agents.migrated_recipe_id` und
+ * `migrated_project_id`). Die Werte sind F0.
  */
 export const agentConversionTargetSchema = z.enum(['recipe', 'project']);
 export type AgentConversionTarget = z.infer<typeof agentConversionTargetSchema>;
@@ -132,7 +133,9 @@ export const userAgentSchema = z.object({
   slugSuffix: z.string().optional(),
   /** Set once the owner converted the agent (`POST …/:identifier/convert`).
    * The agent itself stays untouched; this only points at its successor. */
-  migratedTo: z.object({ kind: agentConversionTargetSchema, ref: z.string().guid() }).optional(),
+  migratedTo: z
+    .object({ recipe: z.string().guid().optional(), project: z.string().guid().optional() })
+    .optional(),
 });
 
 export type UserAgent = z.infer<typeof userAgentSchema>;

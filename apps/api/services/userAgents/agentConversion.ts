@@ -35,6 +35,7 @@ import { buildGroupSlug } from '@gruenerator/shared/utils';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { collectTakenMentions } from '../../routes/userTextForms/textFormRouterHelpers.js';
+import { createLogger } from '../../utils/logger.js';
 import { shareContentToGroup, type ShareContentOutcome } from '../groups/groupContent.js';
 import { setProjectInstructions } from '../groups/groupInstructions.js';
 import { createGroupForUser } from '../groups/groupMutations.js';
@@ -49,6 +50,8 @@ import {
   setUserAgentSuccessor,
   type UserAgentRecord,
 } from './userAgentsRepository.js';
+
+const log = createLogger('agentConversion');
 
 /** Was der Plan über den Agent hinaus wissen muss — vom Aufrufer gelesen. */
 export interface AgentConversionFacts {
@@ -73,6 +76,11 @@ export function projectInstructionsFor(agent: UserAgentRecord): string {
 
 function count(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`;
+}
+
+/** „in dasselbe Projekt" / „in dieselben 3 Projekte". */
+function sameProjects(n: number): string {
+  return n === 1 ? 'in dasselbe Projekt' : `in dieselben ${n} Projekte`;
 }
 
 export function planAgentConversion(
@@ -181,7 +189,7 @@ export function planAgentConversion(
         ? {
             part: 'groupShares',
             outcome: 'carried',
-            note: `Das Rezept wird in dieselben ${count(facts.groupShareCount, 'Projekt', 'Projekte')} geteilt.`,
+            note: `Das Rezept wird ${sameProjects(facts.groupShareCount)} geteilt.`,
           }
         : {
             part: 'groupShares',
@@ -315,12 +323,12 @@ export async function convertUserAgent(
   const facts = await deps.readFacts(userId, agent);
   const plan = planAgentConversion(agent, target, facts);
 
-  const existing =
-    agent.migratedTo?.kind === target ? await deps.successorPath(userId, agent.migratedTo) : null;
+  const existingRef = agent.migratedTo?.[target] ?? null;
+  const existingPath = existingRef
+    ? await deps.successorPath(userId, { kind: target, ref: existingRef })
+    : null;
   const existingResult =
-    existing && agent.migratedTo
-      ? { kind: target, ref: agent.migratedTo.ref, path: existing }
-      : null;
+    existingRef && existingPath ? { kind: target, ref: existingRef, path: existingPath } : null;
 
   const base = { success: true as const, target, items: plan.items, blocked: plan.blocked };
 
@@ -366,7 +374,10 @@ async function convertToRecipe(
 ): Promise<StepResult> {
   const { userId } = params;
   const taken = await deps.takenMentions(userId);
-  const base = deriveRecipeMention(agent.title) || deriveRecipeMention(agent.identifier);
+  // Der Bezeichner ist der kurze Name, unter dem die Person den Agent kennt
+  // (`@pressearbeit-kv`); der Titel kann länger als eine Mention sein und
+  // würde mitten im Wort abgeschnitten.
+  const base = deriveRecipeMention(agent.identifier) || deriveRecipeMention(agent.title);
   const mention = resolveMentionCollision(base || 'rezept', taken);
 
   const recipe = await deps.createRecipe(userId, {
@@ -394,9 +405,11 @@ async function convertToRecipe(
           sharerName: params.sharerName,
         });
         if (outcome.success) shared++;
-      } catch {
+        else log.warn(`[convert] recipe share into ${groupId} refused: ${outcome.message}`);
+      } catch (error) {
         // Teilen ist ein Zusatz: ein Projekt, in dem die Person nicht mehr
         // teilen darf, hält das Rezept nicht auf. Gezählt wird unten.
+        log.warn(`[convert] recipe share into ${groupId} failed:`, error);
       }
     }
     const missing = groupIds.length - shared;
@@ -404,7 +417,7 @@ async function convertToRecipe(
       items,
       'groupShares',
       missing === 0
-        ? `Das Rezept ist in dieselben ${count(shared, 'Projekt', 'Projekte')} geteilt.`
+        ? `Das Rezept ist ${sameProjects(shared)} geteilt.`
         : `Das Rezept ist in ${count(shared, 'Projekt', 'Projekte')} geteilt; in ${count(missing, 'Projekt', 'Projekte')} darfst du nicht mehr teilen.`,
       missing === 0 ? 'carried' : 'later'
     );
@@ -448,9 +461,11 @@ async function convertToProject(
           sharerName: params.sharerName,
         });
         if (outcome.success) shared++;
-      } catch {
+        else log.warn(`[convert] notebook ${id} share refused: ${outcome.message}`);
+      } catch (error) {
         // Ein Notebook, das der Person nicht (mehr) gehört, bleibt draussen;
         // gezählt wird unten.
+        log.warn(`[convert] notebook ${id} share failed:`, error);
       }
     }
     const missing = notebookIds.length - shared;

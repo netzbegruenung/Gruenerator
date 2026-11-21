@@ -57,7 +57,7 @@ export type UserAgentPatch = Partial<UserAgentInput>;
 export type UserAgentRecord = Agent & {
   id: string;
   /** Nachfolger nach dem Umwandeln; der Agent selbst bleibt unverändert. */
-  migratedTo?: { kind: AgentConversionTarget; ref: string };
+  migratedTo?: { recipe?: string; project?: string };
 };
 
 function rowToAgent(row: UserAgentRow): UserAgentRecord {
@@ -88,8 +88,13 @@ function rowToAgent(row: UserAgentRow): UserAgentRecord {
     ...(row.default_recipe_mention ? { defaultRecipeMention: row.default_recipe_mention } : {}),
     ...(row.default_recipe_id ? { defaultRecipeId: row.default_recipe_id } : {}),
     ...(row.slug_suffix ? { slugSuffix: row.slug_suffix } : {}),
-    ...(row.migrated_to_kind && row.migrated_to_ref
-      ? { migratedTo: { kind: row.migrated_to_kind, ref: row.migrated_to_ref } }
+    ...(row.migrated_recipe_id || row.migrated_project_id
+      ? {
+          migratedTo: {
+            ...(row.migrated_recipe_id ? { recipe: row.migrated_recipe_id } : {}),
+            ...(row.migrated_project_id ? { project: row.migrated_project_id } : {}),
+          },
+        }
       : {}),
   };
 }
@@ -223,8 +228,8 @@ export async function updateUserAgent(
 }
 
 /**
- * Merkt sich den Nachfolger eines umgewandelten Agents. Schreibt nur die drei
- * `migrated_*`-Spalten — Inhalt, `updated_at` und Freigaben bleiben stehen.
+ * Merkt sich den Nachfolger eines umgewandelten Agents für ein Ziel. Schreibt
+ * nur die `migrated_*`-Spalten — Inhalt, `updated_at` und Freigaben bleiben stehen.
  */
 export async function setUserAgentSuccessor(
   userId: string,
@@ -235,8 +240,9 @@ export async function setUserAgentSuccessor(
   const rows = await db
     .update(userAgents)
     .set({
-      migrated_to_kind: successor.kind,
-      migrated_to_ref: successor.ref,
+      ...(successor.kind === 'recipe'
+        ? { migrated_recipe_id: successor.ref }
+        : { migrated_project_id: successor.ref }),
       migrated_at: new Date(),
     })
     .where(and(ownedByHandle(userId, agentId), notTrashed(userAgents)))

@@ -178,7 +178,7 @@ describe('convertUserAgent', () => {
 
   it('second call returns the living successor instead of a copy', async () => {
     const d = deps({
-      getAgent: vi.fn(async () => agent({ migratedTo: { kind: 'recipe', ref: RECIPE_ID } })),
+      getAgent: vi.fn(async () => agent({ migratedTo: { recipe: RECIPE_ID } })),
       successorPath: vi.fn(async () => '/agentura/rezept/pressearbeit-kv'),
     });
     const out = await convertUserAgent({ ...RUN, target: 'recipe' }, d);
@@ -191,7 +191,7 @@ describe('convertUserAgent', () => {
 
   it('a trashed successor does not count: converting again creates a new one', async () => {
     const d = deps({
-      getAgent: vi.fn(async () => agent({ migratedTo: { kind: 'recipe', ref: RECIPE_ID } })),
+      getAgent: vi.fn(async () => agent({ migratedTo: { recipe: RECIPE_ID } })),
       successorPath: vi.fn(async () => null),
     });
     await convertUserAgent({ ...RUN, target: 'recipe' }, d);
@@ -223,6 +223,51 @@ describe('convertUserAgent', () => {
     await expect(convertUserAgent({ ...RUN, target: 'project' }, d)).rejects.toThrow('db');
     expect(d.trashProject).toHaveBeenCalledWith('u1', PROJECT_ID);
     expect(d.setSuccessor).not.toHaveBeenCalled();
+  });
+
+  it('remembers each target: a project successor neither blocks nor replaces the recipe one', async () => {
+    const d = deps({
+      getAgent: vi.fn(async () =>
+        agent({ migratedTo: { recipe: RECIPE_ID, project: PROJECT_ID } })
+      ),
+      successorPath: vi.fn(async (_u, s) =>
+        s.kind === 'recipe' ? '/agentura/rezept/pressearbeit-kv' : '/projekte/p-abc234'
+      ),
+    });
+    const recipe = await convertUserAgent({ ...RUN, target: 'recipe' }, d);
+    const project = await convertUserAgent({ ...RUN, target: 'project' }, d);
+    expect(recipe.ok && recipe.response.result?.ref).toBe(RECIPE_ID);
+    expect(project.ok && project.response.result?.ref).toBe(PROJECT_ID);
+    expect(d.createRecipe).not.toHaveBeenCalled();
+    expect(d.createProject).not.toHaveBeenCalled();
+  });
+
+  it('builds the mention from the identifier, not from a long title', async () => {
+    const d = deps({
+      getAgent: vi.fn(async () =>
+        agent({
+          identifier: 'pm-kv',
+          title: 'Pressearbeit für den Kreisverband Musterstadt mit langem Titel',
+        })
+      ),
+    });
+    await convertUserAgent({ ...RUN, target: 'recipe' }, d);
+    expect(vi.mocked(d.createRecipe).mock.calls[0]?.[1].mention).toBe('pm-kv');
+  });
+
+  it('says "dasselbe Projekt" for a single project share', async () => {
+    const d = deps({
+      readFacts: vi.fn(async () => ({ ...NO_FACTS, groupShareCount: 1 })),
+      listAgentGroupIds: vi.fn(async () => ['g1']),
+    });
+    const plan = planAgentConversion(agent(), 'recipe', { ...NO_FACTS, groupShareCount: 1 });
+    expect(plan.items.find((i) => i.part === 'groupShares')?.note).toBe(
+      'Das Rezept wird in dasselbe Projekt geteilt.'
+    );
+    const out = await convertUserAgent({ ...RUN, target: 'recipe' }, d);
+    expect(out.ok && out.response.items.find((i) => i.part === 'groupShares')?.note).toBe(
+      'Das Rezept ist in dasselbe Projekt geteilt.'
+    );
   });
 
   it('unknown agent is a 404', async () => {
