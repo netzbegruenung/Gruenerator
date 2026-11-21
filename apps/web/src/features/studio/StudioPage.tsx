@@ -195,7 +195,7 @@ function Studio(): JSX.Element {
                 onQuery={filters.setSearchInput}
                 placeholder="Studio durchsuchen…"
               />
-              <Button asChild variant="ghost" size="icon">
+              <Button asChild variant="ghost" size="icon" className="touch-target">
                 <Link
                   to="/studio/sticker"
                   aria-label="Sticker & Hintergründe"

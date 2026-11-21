@@ -42,8 +42,9 @@ export function MediaToolbar({
   onToggleGridSize: () => void;
 }): JSX.Element {
   const typeFiltered = filters.type !== 'all';
+  // 8 px apart on touch screens: the buttons' 44 px tap areas (#5928) meet, not overlap.
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-1 pointer-coarse:gap-2">
       <FilterMenuButton
         label={typeFiltered ? `Filter: ${studioFilterLabel(filters.type)}` : 'Filter'}
         menuLabel="Anzeigen"
