@@ -1,21 +1,35 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import { Button } from '@gruenerator/ui';
 import { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { GenerationProgress } from '../components/common/GenerationProgress';
 import { CreateSiteScreen } from '../components/CreateSiteScreen';
 import { EditorSkeleton } from '../editor/EditorSkeleton';
 import { SiteGenerationError, type SiteGenerationInput } from '../generation/siteGenerationStream';
-import { useSite, type GeneratedSiteData } from '../hooks/useSite';
+import { useCreateSite, type GeneratedSiteData } from '../hooks/useSite';
 import { useSiteGeneration } from '../hooks/useSiteGeneration';
 import { useToast } from '../hooks/useToast';
-import { useAuth } from '../SitesContext';
+import { useAuth, useSitesPaths } from '../SitesContext';
 import { handleApiError, SitesApiError } from '../utils/errorHandler';
 import { nameToSubdomain } from '../utils/sanitization';
 import { validators } from '../utils/validation';
 
+async function isOwnSite(handle: string): Promise<boolean> {
+  try {
+    const res = await getContractsClient().sites.getSiteByHandle({ params: { handle } });
+    return res.status === 200;
+  } catch {
+    return false;
+  }
+}
+
 export function CreateFlow({ onBack }: { onBack?: () => void }) {
   const { user } = useAuth();
-  const { publicOrigin, createSite, isCreating, refetch } = useSite();
+  const { publicOrigin, createSite, isCreating } = useCreateSite();
+  const navigate = useNavigate();
+  const routeState: unknown = useLocation().state;
+  const paths = useSitesPaths();
   const { generate, cancel, steps, current, isGenerating, isFlyer } = useSiteGeneration();
   const toast = useToast();
   const [failure, setFailure] = useState<{ message: string; retry: (() => void) | null } | null>(
@@ -28,31 +42,30 @@ export function CreateFlow({ onBack }: { onBack?: () => void }) {
   const contactEmail = user?.email ?? '';
   const [description, setDescription] = useState('');
 
-  // The generated content goes straight into a new site; once it exists, EditPage opens the editor.
+  // The generated content goes straight into a new site, and its editor opens.
   // A failed create keeps the content in the retry, so a second click does not regenerate it.
   const createFromGenerated = async (data: GeneratedSiteData) => {
     setFailure(null);
+    const handle = subdomain.toLowerCase().replace(/[^a-z0-9-]/g, '');
     try {
-      await createSite({
-        subdomain: subdomain.toLowerCase().replace(/[^a-z0-9-]/g, ''),
+      const site = await createSite({
+        subdomain: handle,
         site_title: data.site_title,
         tagline: data.tagline,
         contact_email: data.contact_email || contactEmail,
         sections: data.sections,
       });
       toast.success('Seite erstellt', 'Deine Seite wurde erfolgreich erstellt');
+      void navigate(paths.site(site.subdomain), { replace: true, state: routeState });
     } catch (err) {
       console.error('Create failed:', err);
-      handleApiError(err, toast);
-      // A first attempt can have stored the site before failing; reload it so the editor opens.
-      if (
-        err instanceof SitesApiError &&
-        err.status === 400 &&
-        /bereits eine Website/.test(err.message)
-      ) {
-        void refetch();
+      // A first attempt can have stored the site before failing; then the address is taken
+      // by this account, and the editor opens instead.
+      if (err instanceof SitesApiError && err.status === 400 && (await isOwnSite(handle))) {
+        void navigate(paths.site(handle), { replace: true, state: routeState });
         return;
       }
+      handleApiError(err, toast);
       setFailure({
         message: 'Die Seite konnte nicht angelegt werden.',
         retry: () => void createFromGenerated(data),

@@ -33,10 +33,10 @@ Du findest den Chat unter dem Menüpunkt **<UiLabel id="catalog.tool-chat" />**.
 
 Anfordern musst du nichts davon — es genügt, die Frage zu stellen. Die Kennzeichnungen an den Karten bedeuten:
 
-- **`@kürzel`** — für diese Fähigkeit gibt es zusätzlich eine Erwähnung, mit der du sie im Eingabefeld vorwählen kannst. **Nur ein Teil der Fähigkeiten hat so ein Kürzel**, und das ist Absicht: Erwähnungen gibt es dort, wo die Vorauswahl wirklich etwas ändert — bei Quellen, die man gezielt ansteuert, und bei Formaten, die man bewusst wählt. Vieles erkennt der Grünerator auch ohne Erwähnung zuverlässig an der Formulierung allein. `@wetter` gibt es zusätzlich als Kürzel, sobald der Wetterdienst als Zusatzquelle verbunden ist — genau wie bei Bahn, tagesschau, trivago und Gesetze (siehe unten).
+- **`@kürzel`** — für diese Fähigkeit gibt es zusätzlich eine Erwähnung, mit der du sie im Eingabefeld vorwählen kannst. **Nur ein Teil der Fähigkeiten hat so ein Kürzel**, und das ist Absicht: Erwähnungen gibt es dort, wo die Vorauswahl wirklich etwas ändert — bei Quellen, die man gezielt ansteuert, und bei Formaten, die man bewusst wählt. Vieles erkennt der Grünerator auch ohne Erwähnung zuverlässig an der Formulierung allein. `@wetter` gibt es zusätzlich als Kürzel, sobald der Wetterdienst als Zusatzquelle verbunden ist — genau wie bei Bahn, tagesschau, trivago, Gesetze und Rateo (siehe unten).
 - **experimentell** — noch jung. Funktioniert, kann sich aber in Bedienung und Ergebnis noch ändern und ist nicht überall verfügbar. Verlass dich für etwas Wichtiges nicht blind darauf.
 - **Werkzeug: …** — diese Fähigkeit lässt sich in eigenen Agents gezielt an- und abschalten.
-- **Zusatzquelle: …** — dahinter steckt ein externer Dienst (Bahn, Wetterdienst, tagesschau, trivago, Gesetze), der pro Umgebung angebunden wird. Fehlt die Anbindung gerade, bleibt die Frage nicht unbeantwortet: der Grünerator weicht auf die Websuche aus — bei Zugverbindungen dann ohne Live-Daten.
+- **Zusatzquelle: …** — dahinter steckt ein externer Dienst (Bahn, Wetterdienst, tagesschau, trivago, Gesetze, Rateo für die Berliner Bezirksverordnetenversammlungen), der pro Umgebung angebunden wird. Fehlt die Anbindung gerade, bleibt die Frage nicht unbeantwortet: der Grünerator weicht auf die Websuche aus — bei Zugverbindungen dann ohne Live-Daten.
 
 <ChatCapabilities />
 
@@ -44,9 +44,9 @@ Anfordern musst du nichts davon — es genügt, die Frage zu stellen. Die Kennze
 
 **Manches ist nur in der Web-Version möglich.** Excel-/CSV-Vorlagen über den Chat ausfüllen geht nur in der Web-Version unter gruenerator.eu; gespeicherte Tabellen öffnet die App aber im eingebetteten Editor. Sharepics entstehen dagegen auch in der App — du siehst sie direkt im Gespräch, kannst sie teilen und speichern; zum Feinschliff öffnet sich der Editor eingebettet, ohne dass du die App verlässt.
 
-**Einige Quellen decken nur Deutschland ab.** Bundestag, Abgeordnetenwatch, Bahn, tagesschau und Gesetze (deutsches Bundesrecht) beziehen sich auf deutsche Daten. Bei österreichischen Fragen weicht der Grünerator auf die Websuche aus.
+**Einige Quellen decken nur Deutschland ab.** Bundestag, Abgeordnetenwatch, Bahn, tagesschau, Gesetze (deutsches Bundesrecht) und Rateo (Berliner Bezirke) beziehen sich auf deutsche Daten. Bei österreichischen Fragen weicht der Grünerator auf die Websuche aus.
 
-**Nicht jede Zusatzquelle ist überall angebunden.** Bahn, Wetterdienst, tagesschau, trivago und Gesetze werden pro Umgebung eingerichtet. Fehlt eine, greift der Grünerator auf die Websuche zurück und sagt dazu, worauf die Antwort beruht — erfundene Abfahrtszeiten gibt es nicht.
+**Nicht jede Zusatzquelle ist überall angebunden.** Bahn, Wetterdienst, tagesschau, trivago, Gesetze und Rateo werden pro Umgebung eingerichtet. Fehlt eine, greift der Grünerator auf die Websuche zurück und sagt dazu, worauf die Antwort beruht — erfundene Abfahrtszeiten gibt es nicht.
 
 **Erfindet der Grünerator nichts?** Bei Recherchen und Datenquellen nennt er die Belege. Prüfe Zahlen und Zitate trotzdem, bevor sie nach außen gehen — mehr dazu unter [Risiken und Gefahren von LLMs](../basics/risiken-und-gefahren-von-llms.md).
 

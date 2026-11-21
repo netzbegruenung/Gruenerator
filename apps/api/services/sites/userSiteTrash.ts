@@ -5,6 +5,8 @@
  * only. A restore comes back as a draft (snapshot dropped, not published); one
  * whose subdomain was taken meanwhile fails with 23505 and answers `conflict`.
  */
+import { SITES_PER_ACCOUNT_MAX } from '@gruenerator/contracts';
+
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { closeCollabRooms } from '../collab/hocuspocusInternal.js';
 import {
@@ -36,17 +38,18 @@ export async function trashUserSite(userId: string, id: string) {
 }
 
 /**
- * Undo a trash. One Website per user is enforced in code, not by an index:
- * a user who built a new one meanwhile gets `conflict`, never a second site.
+ * Undo a trash. An account already at SITES_PER_ACCOUNT_MAX live Websites gets
+ * `conflict`; the count is not locked against a parallel create, so a race can
+ * overshoot the soft limit by one, never break a row.
  */
 export async function restoreUserSite(userId: string, id: string): Promise<OwnedRestoreResult> {
   const found = await getTrashedOwnedRow(USER_SITE_TRASH, userId, id);
   if (typeof found === 'string') return found;
-  const live = await getPostgresInstance().query<{ id: string }>(
-    'SELECT id FROM user_sites WHERE user_id = $1 AND deleted_at IS NULL LIMIT 1',
+  const live = await getPostgresInstance().query<{ n: number }>(
+    'SELECT count(*)::int AS n FROM user_sites WHERE user_id = $1 AND deleted_at IS NULL',
     [userId]
   );
-  if (live.length > 0) return 'conflict';
+  if (Number(live[0]?.n ?? 0) >= SITES_PER_ACCOUNT_MAX) return 'conflict';
   await getPostgresInstance().query(
     `UPDATE user_sites SET is_published = false, published_snapshot = NULL
      WHERE id = $1 AND user_id = $2 AND deleted_at IS NOT NULL`,

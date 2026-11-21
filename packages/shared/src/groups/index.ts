@@ -2,6 +2,7 @@ export {
   ALLOWED_LINK_ICONS,
   GROUPS_QUERY_KEY,
   buildGroupInviteUrl,
+  canManageShare,
   canShareIntoGroup,
   groupContentKey,
   groupShareCommentsKey,
@@ -25,6 +26,8 @@ export {
   useDeleteGroupShareComment,
   useGroupShareComments,
   useUpdateGroupShare,
+  useRemoveGroupContent,
+  useSetGroupContentWrite,
   useCreateGroupPost,
   useUpdateGroupPost,
   useDeleteGroupPost,
@@ -48,8 +51,11 @@ export {
   useVerifyJoinToken,
 } from './useGroups.js';
 
+export { type GroupPostUploadFile, type NativeUploadFile } from './postFormData.js';
+
 export {
   GROUP_FEED_KINDS,
+  austauschItems,
   fileExtensionLabel,
   filterGroupFeed,
   formatFeedDate,
@@ -69,6 +75,8 @@ export {
   type ToGroupFeedItemsOptions,
 } from './feed.js';
 
+export { projectChatThreads } from './projectChats.js';
+
 export {
   addItemsToGroup,
   addableKey,
@@ -83,3 +91,9 @@ export {
   patchShareReactions,
   type GroupContentBuckets,
 } from './reactionPatches.js';
+
+export {
+  CREATE_IN_PROJECT_FALLBACK,
+  createInProject,
+  type CreateInProjectKind,
+} from './createInProject.js';

@@ -86,7 +86,8 @@ test.describe('Sites: Zugang und Anlegen', () => {
 
     await page.goto('/start/arbeiten');
     await page.locator('[data-tour="arbeiten-tools"]').getByRole('link', { name: /Sites/ }).click();
-    await expect(page).toHaveURL(/\/sites$/);
+    // Without a site the overview hands straight over to creating one.
+    await expect(page).toHaveURL(/\/sites\/neu$/);
 
     // Create: address, description, generate. The site is created right away, no review step.
     await page.getByLabel('Adresse').fill(HANDLE);
@@ -95,6 +96,7 @@ test.describe('Sites: Zugang und Anlegen', () => {
     await page.locator('#description').fill(DESCRIPTION);
     await page.getByRole('button', { name: /Seite generieren/ }).click();
     await expect.poll(() => state.site?.subdomain ?? null).toBe(HANDLE);
+    await expect(page).toHaveURL(new RegExp(`/sites/${HANDLE}$`));
     expect(state.createBodies[0]).toMatchObject({
       subdomain: HANDLE,
       site_title: GENERATED.hero.heading,
@@ -170,7 +172,10 @@ test.describe('Sites: Editor', () => {
         publishFromDraft(state, 'de-DE', siteDraftToSnapshotSource(room.seeded, site.legal)).ok
       ).toBe(true);
 
+      // The overview lists the site and opens its editor.
       await page.goto('/sites');
+      await page.getByRole('link', { name: new RegExp(site.site_title) }).click();
+      await expect(page).toHaveURL(new RegExp(`/sites/${site.subdomain}$`));
       await expect(page.getByText('Nicht veröffentlicht', { exact: true })).toHaveCount(0);
       await expect(page.getByText('Live', { exact: true })).toBeVisible();
 

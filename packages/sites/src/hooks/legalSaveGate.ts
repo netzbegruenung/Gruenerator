@@ -7,7 +7,7 @@ let tail: Promise<unknown> = Promise.resolve();
 let queued = 0;
 let flusher: (() => void) | null = null;
 
-/** Newest Impressum value of a site that the `my-site` cache may not show yet. */
+/** Newest Impressum value of a site that the sites cache may not show yet. */
 export function rememberLegal(siteId: string, legal: SiteLegalDraft): void {
   newest.set(siteId, legal);
 }

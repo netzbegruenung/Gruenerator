@@ -47,7 +47,7 @@ const CONFLICT_MESSAGE =
 /** Where a restore clashes with something other than a name. */
 const CONFLICT_MESSAGE_BY_KIND: Partial<Record<TrashKind, string>> = {
   user_site:
-    'Die Website lässt sich nicht wiederherstellen: Du hast inzwischen eine andere Website, oder ihre Subdomain ist vergeben.',
+    'Die Website lässt sich nicht wiederherstellen: Du hast schon die Höchstzahl an Websites, oder ihre Adresse ist inzwischen vergeben.',
 };
 
 function conflict(kind: TrashKind) {

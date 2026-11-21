@@ -13,6 +13,7 @@ import {
 } from '@gruenerator/contracts';
 
 import { SYSTEM_AGENTS } from '../agents/index.js';
+import { groupMentionsToPlain } from '../utils/groupMentions.js';
 
 /** Reihenfolge = Reihenfolge der Abschnitte in „Alle". */
 export const GROUP_FEED_KINDS = [
@@ -92,9 +93,12 @@ export function groupPostFilePath(groupId: string, postId: string, fileId: strin
 
 const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
 
-/** Titel für „Alle" und Suche: erste Zeile des Texts, sonst der erste Dateiname. */
-function postTitle(body: string, files: GroupPostFile[]): string {
-  const line = body.trim().split('\n')[0]?.trim() ?? '';
+/**
+ * Titel für Listen und Suche: erste Zeile des Texts, sonst der erste Dateiname.
+ * Erwähnungen als Klartext (`@Name`), nicht als gespeichertes Token.
+ */
+export function postTitle(body: string, files: GroupPostFile[]): string {
+  const line = groupMentionsToPlain(body).trim().split('\n')[0]?.trim() ?? '';
   if (line) return line.length > 80 ? `${line.slice(0, 79)}…` : line;
   return files[0]?.name ?? 'Beitrag';
 }
@@ -245,6 +249,28 @@ export function sortGroupFeed(items: GroupFeedItem[]): GroupFeedItem[] {
 
 export function isPinned(item: GroupFeedItem): boolean {
   return !!item.share?.pinnedAt;
+}
+
+/**
+ * Der Austausch zeigt, was besprochen wird: Beiträge und Freigaben mit Notiz,
+ * Anheftung, Reaktionen oder Kommentaren — plus, was gerade angesteuert wird
+ * (`discussed`: per „Im Austausch besprechen" geholt; `focusShareId`: Link oder
+ * Benachrichtigung). Alles andere ist Wissen.
+ */
+export function austauschItems(
+  items: GroupFeedItem[],
+  discussed: ReadonlySet<string>,
+  focusShareId: string | null
+): GroupFeedItem[] {
+  return items.filter(
+    (i) =>
+      i.kind === 'post' ||
+      isPinned(i) ||
+      !!i.share?.note ||
+      (i.share?.commentCount ?? 0) > 0 ||
+      (i.share?.reactions.length ?? 0) > 0 ||
+      (!!i.share && (discussed.has(i.share.shareId) || i.share.shareId === focusShareId))
+  );
 }
 
 /** „Alle": je Art ein Abschnitt, leere weggelassen, Reihenfolge wie `GROUP_FEED_KINDS`. */

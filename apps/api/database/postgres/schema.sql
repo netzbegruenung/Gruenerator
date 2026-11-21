@@ -1717,5 +1717,5 @@ ALTER TABLE user_sites
         CHECK (moderation IN ('ok', 'hidden', 'removed'));
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS sites_unlocked BOOLEAN;
 
-CREATE UNIQUE INDEX IF NOT EXISTS user_sites_one_live_per_user
+CREATE INDEX IF NOT EXISTS idx_user_sites_user_live
     ON user_sites (user_id) WHERE deleted_at IS NULL;

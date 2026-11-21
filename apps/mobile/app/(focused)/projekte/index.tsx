@@ -32,12 +32,13 @@ import { roleLabel } from '../../../utils/groups';
 import { goBackOr } from '../../../utils/navigation';
 
 /**
- * Projekte — the read-only mobile view of what web calls Gruppen.
+ * Projekte — die mobile Ansicht dessen, was das Web Gruppen nennt.
  *
- * Read-only on purpose: creating a project, joining by code, renaming, managing
- * members and links all stay on web. What is left is the thing people actually
- * do on a phone — look up which projects they are in and what has been shared
- * there. An invite link still works; `app/gruppen-join/[token]` handles it.
+ * Was im Projekt selbst geht, steht in `[id]/info` (Stummschalten, Umbenennen,
+ * Einladungslink, Rollen, Verlassen). Im Web bleiben: Projekt anlegen, Einladung
+ * per E-Mail, Profilbild, Links und Anweisungen bearbeiten, Löschen, öffentliche
+ * Projekte, Beitrittsanfragen und Sichtbarkeit. Ein Einladungslink funktioniert
+ * weiter; `app/gruppen-join/[token]` fängt ihn ab.
  */
 export default function ProjekteScreen() {
   const colorScheme = useColorScheme();

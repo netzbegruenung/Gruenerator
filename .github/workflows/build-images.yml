@@ -322,7 +322,7 @@ jobs:
           ln -s "$RUNNER_TEMP/pw/node_modules" node_modules
           "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
           timeout 30 sh -c 'until curl -sf http://localhost:8080/health; do sleep 1; done'
-          cd apps/web && "$RUNNER_TEMP/pw/node_modules/.bin/playwright" test -c playwright.smoke.config.ts
+          cd apps/web && "$RUNNER_TEMP/pw/node_modules/.bin/playwright" test -c playwright.smoke.config.ts --project=chromium
 
       - name: Build and push
         uses: docker/build-push-action@v7

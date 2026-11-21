@@ -207,7 +207,7 @@ Professional subtitle generation for videos:
 
 ## Monorepo Structure
 
-This is a **pnpm + Turborepo** monorepo: 7 apps, 16 packages, and 5 services.
+This is a **pnpm + Turborepo** monorepo: 6 apps, 16 packages, and 5 services.
 
 ### Apps
 

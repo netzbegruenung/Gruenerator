@@ -2,6 +2,7 @@ import { type ModerationState } from '@gruenerator/contracts';
 import { type InferSelectModel, sql } from 'drizzle-orm';
 import {
   boolean,
+  index,
   integer,
   jsonb,
   pgTable,
@@ -48,7 +49,8 @@ export const userSites = pgTable(
     uniqueIndex('user_sites_subdomain_unique')
       .on(t.subdomain)
       .where(sql`deleted_at IS NULL`),
-    uniqueIndex('user_sites_one_live_per_user')
+    // Up to SITES_PER_ACCOUNT_MAX live sites per account; the limit lives in code.
+    index('idx_user_sites_user_live')
       .on(t.user_id)
       .where(sql`deleted_at IS NULL`),
   ]
