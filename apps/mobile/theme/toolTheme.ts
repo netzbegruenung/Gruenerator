@@ -53,8 +53,8 @@ const TOOL_THEME: Record<string, ToolThemePair> = {
     dark: { tile: '#1C211D', icon: '#9CA99F', title: '#C0CCC3', desc: '#8A968C' },
   },
   projekte: {
-    light: { tile: '#DCE6F2', icon: '#2E4E7A', title: '#1E3A5E', desc: '#4F6784' },
-    dark: { tile: '#14202E', icon: '#7CA2CB', title: '#A2C0E4', desc: '#6E88AB' },
+    light: { tile: '#DFEBD9', icon: '#3D6130', title: '#2F4D25', desc: '#5E7A53' },
+    dark: { tile: '#1A2B16', icon: '#8FC27E', title: '#B3DAA5', desc: '#7FA672' },
   },
   scanner: {
     light: { tile: '#E6F0D6', icon: '#3E5A1E', title: '#31471A', desc: '#5B703E' },
