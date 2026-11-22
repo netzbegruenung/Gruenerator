@@ -50,7 +50,7 @@ async function initializeBoardAgentState(
   userId: string | undefined,
   project?: ProjectRunContext | null
 ) {
-  return initializeChatState({
+  const state = await initializeChatState({
     messages: [userMessage],
     // Falsy agentId → ChatGraph resolves the default universal agent. A real id +
     // userId resolves the chosen agent (system → own → group-shared) with its
@@ -71,6 +71,11 @@ async function initializeBoardAgentState(
       }),
     }),
   });
+  // Wie im Request-Pfad (`streamContext.ts`): die dokumentgebundene Suche
+  // (Projektdateien, Agent-Notebooks) liest die Person aus `agentConfig.userId`
+  // und bricht ohne sie mit „User ID must be a non-empty string" ab.
+  if (userId != null) state.agentConfig.userId = userId;
+  return state;
 }
 
 /**
