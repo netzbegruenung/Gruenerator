@@ -1465,6 +1465,28 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
         }
       }
     }
+    // Die Präsentation hängt auch ohne erkannte Art, aber ohne Garantie: Ob der Turn
+    // eine bestellt, entscheidet das Modell. Die Art kommt aus Verb plus Substantiv
+    // (`compoundGenerationKind`), und „Ich brauche eine PowerPoint…“ oder „Präsi zu
+    // Radwegen“ trugen keins — sechs von 24 Aufträgen im Chat-Test bekamen eine
+    // Gliederung samt „technisch nicht verfügbar“ (#5956). Keine weitere Wortliste:
+    // das Werkzeug kostet einen kurzen Auftragstext im Schema, und
+    // `forceCompoundGeneration` greift weiter nur bei erkannter Art.
+    if (
+      loop.req &&
+      !editorSurface &&
+      state.compoundGenerationKind == null &&
+      state.enabledTools?.create_presentation !== false
+    ) {
+      tools.create_presentation = artifactTool('presentation', {
+        sse,
+        state,
+        req: loop.req,
+        threadId: loop.threadId ?? null,
+        sourceRegistry,
+        researchBanned,
+      });
+    }
   }
 
   if (params.toolAllowlist) {

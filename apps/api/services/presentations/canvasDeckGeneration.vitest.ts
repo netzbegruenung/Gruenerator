@@ -226,6 +226,16 @@ describe('generateCanvasDeck', () => {
     expect(ids).toContain('folie-text');
   });
 
+  it('reads an empty vorlage as none', async () => {
+    modelAnswers({
+      title: 'Bürgerenergie',
+      vorlage: '',
+      slides: [{ typ: 'titel', slots: { headline: 'Energie' } }],
+    });
+    const result = await generateCanvasDeck({ prompt: 'x', userId: 'u1', locale: 'de-DE' });
+    expect(result).not.toBeNull();
+  });
+
   it('keeps the deck without a broken slide on the last attempt', async () => {
     // Live 22.11. (chat probe p12): attempt 1 had a too-long `zahl`, the repair dropped
     // `text` and `quelle` — the whole deck was lost for one slide.
