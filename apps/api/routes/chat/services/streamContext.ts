@@ -37,7 +37,11 @@ import {
 import { acquireThreadRun, type ThreadRunLease } from '../../../services/chat/threadRunLock.js';
 import { readThreadProjectInstructions } from '../../../services/groups/groupInstructions.js';
 import { readThreadProjectLandesverband } from '../../../services/groups/projectLandesverband.js';
-import { getProjectFileSources } from '../../../services/groups/projectFiles.js';
+import {
+  getProjectCollabDocs,
+  type ProjectCollabDoc,
+} from '../../../services/groups/projectCollabDocs.js';
+import { getProjectFileDocumentIds } from '../../../services/groups/projectFiles.js';
 import { getProjectNotebookIds } from '../../../services/groups/projectNotebooks.js';
 import { getProjectRecipeIds } from '../../../services/groups/projectRecipes.js';
 import { extractLocaleFromRequest } from '../../../services/localization/index.js';
@@ -980,26 +984,37 @@ async function buildStreamContextInner({
   }
 
   // === Dateien des Projekts ===
-  // Liegt der Chat in einem Projekt, sind dessen Dateien Material jedes Turns —
-  // nach Mitgliedschaft geprüft, nicht am Thread gespeichert (`projectFiles.ts`).
-  // Sie laufen als „mitgetragen": sie erzwingen keine Route, ein Duplikat zu
-  // einer gewählten @datei zählt nur einmal.
+  // Liegt der Chat in einem Projekt, sind dessen Dateien ein stilles Notebook:
+  // alle fertigen Dateien als EIN Dokument-Scope, wie die Dokumente eines
+  // Nutzer-Notebooks (`defaultNotebookDocumentIds`). Nach Mitgliedschaft
+  // geprüft, nicht am Thread gespeichert (`projectFiles.ts`). Eine @datei- oder
+  // @notebook-Wahl des Turns schlägt die Vorgabe (`agentNotebookDocIds`).
+  let projectFileDocumentIds: string[] = [];
   if (actualThreadId) {
     try {
-      const have = new Set(
-        notebookSources.flatMap((s) => (s.kind === 'user' ? [s.documentId] : []))
-      );
-      const projectFiles = await withTimeout(
-        getProjectFileSources(actualThreadId, userId),
+      projectFileDocumentIds = await withTimeout(
+        getProjectFileDocumentIds(actualThreadId, userId),
         EXTERNAL_CONTEXT_TIMEOUT_MS,
         'project files'
       );
-      notebookSources = [
-        ...notebookSources,
-        ...projectFiles.filter((s) => s.kind !== 'user' || !have.has(s.documentId)),
-      ];
     } catch (err) {
       log.warn('[StreamContext] Could not load project files (continuing):', err);
+    }
+  }
+
+  // === Docs, Tabellen, Boards des Projekts ===
+  // Nicht indexiert und nicht im Prompt: nur eine Titelliste (`projectDocs`),
+  // den Inhalt liest das Modell bei Bedarf mit `read_artifact`.
+  let projectDocs: ProjectCollabDoc[] | null = null;
+  if (actualThreadId) {
+    try {
+      projectDocs = await withTimeout(
+        getProjectCollabDocs(actualThreadId, userId),
+        EXTERNAL_CONTEXT_TIMEOUT_MS,
+        'project docs'
+      );
+    } catch (err) {
+      log.warn('[StreamContext] Could not load project docs (continuing):', err);
     }
   }
 
@@ -1312,7 +1327,9 @@ async function buildStreamContextInner({
     defaultNotebookId,
     projectNotebookIds: projectNotebookIds.length > 0 ? projectNotebookIds : undefined,
     defaultNotebookDocumentIds:
-      defaultNotebookDocumentIds.length > 0 ? defaultNotebookDocumentIds : undefined,
+      defaultNotebookDocumentIds.length > 0 || projectFileDocumentIds.length > 0
+        ? [...new Set([...defaultNotebookDocumentIds, ...projectFileDocumentIds])]
+        : undefined,
     documentNotebookIds:
       Object.keys(documentNotebookIds).length > 0 ? documentNotebookIds : undefined,
     documentIds: authorizedDocumentIds.length ? authorizedDocumentIds : undefined,
@@ -1396,6 +1413,7 @@ async function buildStreamContextInner({
       ) ?? undefined,
     userInstructions,
     projectInstructions,
+    projectDocs,
     ...(projectRecipeIds.length > 0 && { projectRecipeIds }),
     ...(projectLandesverband && { projectLandesverband }),
     contextWindowTokens,
