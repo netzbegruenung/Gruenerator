@@ -116,7 +116,7 @@ export interface CustomGeneratorUpdateBody extends Partial<CustomGeneratorCreate
 // ============================================================================
 
 export const groupCreateSchema = z.object({
-  name: z.string().min(1, 'Gruppenname ist erforderlich.'),
+  name: z.string().min(1, 'Projektname ist erforderlich.'),
   description: z.string().optional(),
 });
 export type GroupCreateBody = z.infer<typeof groupCreateSchema>;

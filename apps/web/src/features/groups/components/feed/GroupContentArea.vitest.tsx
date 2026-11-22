@@ -54,7 +54,7 @@ function render(props: Partial<React.ComponentProps<typeof GroupContentArea>> = 
       items={items}
       isLoading={false}
       isAdmin
-      isPersonal={false}
+      hasAustausch
       isSystem={false}
       currentUserId="me"
       currentUserName="Moritz"
@@ -83,10 +83,10 @@ describe('GroupContentArea', () => {
   it('team: opens on the overview, the post box lives only in Austausch', async () => {
     const { user, container } = render();
     expect(screen.getByText('ÜBERSICHT')).toBeInTheDocument();
-    expect(screen.queryByText(/Schreib etwas an die Gruppe/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Schreib etwas an das Projekt/)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: 'Austausch' }));
-    expect(screen.getByText(/Schreib etwas an die Gruppe/)).toBeInTheDocument();
+    expect(screen.getByText(/Schreib etwas an das Projekt/)).toBeInTheDocument();
     // Big cards only for shares with a note.
     expect(screen.getByText('Bitte lesen.')).toBeInTheDocument();
     expect(screen.queryByText('Ohne Notiz')).not.toBeInTheDocument();
@@ -106,8 +106,8 @@ describe('GroupContentArea', () => {
     expect(screen.getByText('Ohne Notiz')).toBeInTheDocument();
   });
 
-  it('personal project: no tabs, no Austausch', () => {
-    render({ isPersonal: true });
+  it('only you in the project: no tabs, no Austausch', () => {
+    render({ hasAustausch: false });
     expect(screen.getByText('ÜBERSICHT')).toBeInTheDocument();
     expect(screen.queryByRole('tab')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'besprechen' })).not.toBeInTheDocument();
@@ -116,6 +116,6 @@ describe('GroupContentArea', () => {
   it('system project: opens on Austausch; no post box without share rights', () => {
     render({ isSystem: true, onOpenShare: null, isAdmin: false });
     expect(screen.getByRole('tab', { name: 'Austausch' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.queryByText(/Schreib etwas an die Gruppe/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Schreib etwas an das Projekt/)).not.toBeInTheDocument();
   });
 });

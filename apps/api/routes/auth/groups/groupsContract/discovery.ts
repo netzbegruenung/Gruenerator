@@ -48,7 +48,6 @@ export const discoveryRoutes = {
           WHERE g.is_public = TRUE
             AND g.is_active = TRUE
             AND g.deleted_at IS NULL
-            AND COALESCE(g.group_type, 'standard') <> 'personal'
             AND NOT g.is_system
             AND g.audience IN ($2, 'all')
             AND NOT EXISTS (
@@ -91,7 +90,7 @@ export const discoveryRoutes = {
       if (!updated) {
         return {
           status: 404 as const,
-          body: { success: false as const, message: 'Gruppe nicht gefunden.' },
+          body: { success: false as const, message: 'Projekt nicht gefunden.' },
         };
       }
 
@@ -120,13 +119,13 @@ export const discoveryRoutes = {
       if (!group) {
         return {
           status: 404 as const,
-          body: { success: false as const, message: 'Gruppe nicht gefunden.' },
+          body: { success: false as const, message: 'Projekt nicht gefunden.' },
         };
       }
       if (!group.is_public) {
         return {
           status: 400 as const,
-          body: { success: false as const, message: 'Diese Gruppe ist nicht öffentlich.' },
+          body: { success: false as const, message: 'Dieses Projekt ist nicht öffentlich.' },
         };
       }
 
@@ -138,7 +137,7 @@ export const discoveryRoutes = {
       if (existingMembership) {
         return {
           status: 400 as const,
-          body: { success: false as const, message: 'Du bist bereits Mitglied dieser Gruppe.' },
+          body: { success: false as const, message: 'Du bist bereits Mitglied dieses Projekts.' },
         };
       }
 
@@ -153,7 +152,7 @@ export const discoveryRoutes = {
             status: 409 as const,
             body: {
               success: false as const,
-              message: 'Du hast bereits eine offene Anfrage für diese Gruppe.',
+              message: 'Du hast bereits eine offene Anfrage für dieses Projekt.',
             },
           };
         }
@@ -271,7 +270,7 @@ export const discoveryRoutes = {
         );
       });
 
-      const groupName = group?.name || 'Gruppe';
+      const groupName = group?.name || 'Projekt';
       void createNotification({
         userId: request.user_id,
         type: 'group_join_approved',
@@ -347,7 +346,7 @@ export const discoveryRoutes = {
         [groupId],
         { table: 'groups' }
       )) as { name: string } | null;
-      const groupName = group?.name || 'Gruppe';
+      const groupName = group?.name || 'Projekt';
 
       void createNotification({
         userId: request.user_id,

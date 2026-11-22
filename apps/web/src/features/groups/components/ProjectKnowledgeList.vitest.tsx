@@ -139,6 +139,38 @@ describe('ProjectKnowledgeList', () => {
     expect(onSetWrite).toHaveBeenCalledWith(doc, true);
   });
 
+  it('labels items outside the search scope and summarizes how many are searchable', () => {
+    renderWithProviders(
+      <ProjectKnowledgeList
+        items={[
+          make({ id: 'a', title: 'Fertig', searchState: 'ready' }),
+          make({ id: 'b', title: 'Lädt', searchState: 'indexing' }),
+          make({ id: 'c', title: 'Kaputt', searchState: 'failed' }),
+          make({ id: 'd', title: 'Ohne Zustand' }),
+        ]}
+        onUseTemplate={vi.fn()}
+        actions={null}
+        onDiscuss={null}
+      />
+    );
+    expect(screen.getByText('1 von 3 durchsuchbar')).toBeInTheDocument();
+    expect(screen.getByText('Wird eingelesen')).toBeInTheDocument();
+    expect(screen.getByText('Einlesen fehlgeschlagen')).toBeInTheDocument();
+    expect(screen.queryByText('Durchsuchbar')).not.toBeInTheDocument();
+  });
+
+  it('shows no summary when no item has a search state', () => {
+    renderWithProviders(
+      <ProjectKnowledgeList
+        items={[make({ id: 'a', title: 'Notiz' })]}
+        onUseTemplate={vi.fn()}
+        actions={null}
+        onDiscuss={null}
+      />
+    );
+    expect(screen.queryByText(/durchsuchbar/)).not.toBeInTheDocument();
+  });
+
   it('offers no role choice to someone who may not manage the item', () => {
     const doc = make({
       id: 'c2',

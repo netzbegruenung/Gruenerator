@@ -345,17 +345,76 @@ describe('GroupFeedCard — Beitrag', () => {
     await waitFor(() => expect(patched).toEqual({ body: 'Samstag 10 Uhr' }));
   });
 
-  it('offers other members no actions, but admins may delete', async () => {
+  it('offers other members only „Melden“, but admins may also delete', async () => {
     const other = { ...postItem, post: { ...postItem.post!, authorId: 'someone' } };
-    const { unmount } = renderWithProviders(<GroupFeedCard {...baseProps} item={other} />);
-    expect(
-      screen.queryByRole('button', { name: 'Aktionen für diesen Beitrag' })
-    ).not.toBeInTheDocument();
+    const { user, unmount } = renderWithProviders(<GroupFeedCard {...baseProps} item={other} />);
+    await user.click(screen.getByRole('button', { name: 'Aktionen für diesen Beitrag' }));
+    expect(await screen.findByRole('menuitem', { name: 'Melden' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Bearbeiten' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Beitrag löschen' })).not.toBeInTheDocument();
     unmount();
 
-    const { user } = renderWithProviders(<GroupFeedCard {...baseProps} item={other} isAdmin />);
-    await user.click(screen.getByRole('button', { name: 'Aktionen für diesen Beitrag' }));
+    const admin = renderWithProviders(<GroupFeedCard {...baseProps} item={other} isAdmin />);
+    await admin.user.click(screen.getByRole('button', { name: 'Aktionen für diesen Beitrag' }));
     expect(screen.queryByRole('menuitem', { name: 'Bearbeiten' })).not.toBeInTheDocument();
     expect(await screen.findByRole('menuitem', { name: 'Beitrag löschen' })).toBeInTheDocument();
+  });
+
+  it("reports a post and a comment, but never one's own content", async () => {
+    const reports: unknown[] = [];
+    server.use(
+      http.post('http://localhost/api/content-reports', async ({ request }) => {
+        reports.push(await request.json());
+        return HttpResponse.json({ success: true });
+      }),
+      http.get(COMMENTS_URL, () =>
+        HttpResponse.json({
+          success: true,
+          comments: [
+            {
+              id: 'c1',
+              shareId: SHARE,
+              parentId: null,
+              userId: 'someone',
+              authorName: 'Tom Krüger',
+              body: 'Fremd.',
+              createdAt: '2026-09-26T09:00:00Z',
+            },
+            {
+              id: 'c2',
+              shareId: SHARE,
+              parentId: null,
+              userId: 'me',
+              authorName: 'Moritz Wächter',
+              body: 'Eigen.',
+              createdAt: '2026-09-26T10:00:00Z',
+            },
+          ],
+        })
+      )
+    );
+    const { user } = renderWithProviders(<GroupFeedCard {...baseProps} />);
+
+    // Comment: only the other person's comment has „Melden“.
+    await user.click(screen.getByRole('button', { name: 'Kommentare, 1' }));
+    await screen.findByText('Fremd.');
+    const reportButtons = screen.getAllByRole('button', { name: 'Melden' });
+    expect(reportButtons).toHaveLength(1);
+    await user.click(reportButtons[0]!);
+    await user.click(await screen.findByRole('radio', { name: 'Beleidigend oder hasserfüllt' }));
+    await user.click(screen.getByRole('button', { name: 'Melden' }));
+    await waitFor(() =>
+      expect(reports).toEqual([
+        { kind: 'group_comment', targetId: 'c1', groupId: GROUP, reason: 'offensive' },
+      ])
+    );
+  });
+
+  it("offers no „Melden“ on one's own post", async () => {
+    const own = { ...postItem, post: { ...postItem.post!, authorId: 'me' } };
+    const { user } = renderWithProviders(<GroupFeedCard {...baseProps} item={own} />);
+    await user.click(screen.getByRole('button', { name: 'Aktionen für diesen Beitrag' }));
+    expect(await screen.findByRole('menuitem', { name: 'Bearbeiten' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Melden' })).not.toBeInTheDocument();
   });
 });

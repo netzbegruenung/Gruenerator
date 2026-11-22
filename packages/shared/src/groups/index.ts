@@ -1,9 +1,20 @@
 export {
+  GROUP_COLOR_KEYS,
+  GROUP_COLOR_STYLES,
+  resolveGroupColor,
+  type GroupColor,
+  type GroupColorTone,
+} from './groupColors.js';
+export {
   ALLOWED_LINK_ICONS,
   GROUPS_QUERY_KEY,
   buildGroupInviteUrl,
   canManageShare,
   canShareIntoGroup,
+  isGroupArchived,
+  splitArchivedGroups,
+  sortGroups,
+  type GroupSort,
   groupContentKey,
   groupShareCommentsKey,
   buildGroupPath,
@@ -38,13 +49,17 @@ export {
   useGroupDetails,
   useGroupInstructions,
   useGroupMembers,
+  useGroupStart,
   useJoinGroup,
   useLeaveGroup,
   useSetGroupMute,
   useSetGroupInstructions,
+  useSetGroupStart,
   useUpdateGroupInfo,
   useUpdateGroupLink,
   useUpdateGroupName,
+  useRemoveGroupMember,
+  useSetGroupArchived,
   useUpdateMemberRole,
   useUploadGroupAvatar,
   useUserGroups,
@@ -52,10 +67,12 @@ export {
 } from './useGroups.js';
 
 export { type GroupPostUploadFile, type NativeUploadFile } from './postFormData.js';
+export { landesverbandOptions, type LandesverbandOption } from './landesverbandOptions.js';
 
 export {
   GROUP_FEED_KINDS,
   austauschItems,
+  hasAustauschContent,
   fileExtensionLabel,
   filterGroupFeed,
   formatFeedDate,
@@ -74,6 +91,12 @@ export {
   type GroupPostFile,
   type ToGroupFeedItemsOptions,
 } from './feed.js';
+
+export {
+  PROJECT_SEARCH_STATE_LABELS,
+  hasSearchStateInProgress,
+  searchSummary,
+} from './searchState.js';
 
 export { projectChatThreads } from './projectChats.js';
 

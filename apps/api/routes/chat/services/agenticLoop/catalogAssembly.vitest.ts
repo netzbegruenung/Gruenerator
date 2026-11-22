@@ -1301,6 +1301,50 @@ describe('assembleToolCatalog — Notebook des Agenten bleibt sichtbar', () => {
   });
 });
 
+// Im Projekt-Chat nennt der Prompt die Docs des Projekts und `read_artifact`;
+// „Fasse das Protokoll zusammen" trifft den Hinweis von „meine Inhalte" nicht.
+describe('assembleToolCatalog — Projekt-Werkzeuge bleiben im Projekt-Chat sichtbar', () => {
+  const visibleFor = async (project: { id: string; documentIds: string[] } | null) => {
+    const buildChatToolCatalog = vi.fn(() => ({
+      tools: {
+        read_artifact: { execute: async () => ({}) },
+        groups: { execute: async () => ({}) },
+        media: { execute: async () => ({}) },
+      },
+      toolNames: ['read_artifact', 'groups', 'media'],
+    }));
+    const assembled = await assembleToolCatalog(
+      {
+        state: fakeState({
+          agentConfig: { identifier: 'universal', userId: 'u1' },
+          lastUserTextNoMentions: 'Fasse das Protokoll zusammen',
+          project,
+        }),
+        sourceRegistry: createSourceRegistry(),
+        sse: fakeSse().sse,
+        threadId: 't1',
+      },
+      deps({
+        buildChatToolCatalog:
+          buildChatToolCatalog as unknown as CatalogDeps['buildChatToolCatalog'],
+      })
+    );
+    return assembled.toolScope.activeTools([]) ?? Object.keys(assembled.tools);
+  };
+
+  it('hält read_artifact und groups sichtbar, aber nicht die ganze Gruppe', async () => {
+    const visible = await visibleFor({ id: 'g1', documentIds: ['d1'] });
+    expect(visible).toEqual(expect.arrayContaining(['read_artifact', 'groups']));
+    expect(visible).not.toContain('media');
+  });
+
+  it('außerhalb von Projekten bleiben sie hinter dem Lader', async () => {
+    const visible = await visibleFor(null);
+    expect(visible).not.toContain('read_artifact');
+    expect(visible).not.toContain('groups');
+  });
+});
+
 describe('priorLookups (#3931)', () => {
   it('liefert nur eigene Abrufe, mit Begriff, Trefferzahl und Ausgang', () => {
     const steps: PersistedStep[] = [

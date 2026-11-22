@@ -69,9 +69,9 @@ describe.each([
     expect(await check('u1', ID, deps)).toBe('forbidden');
   });
 
-  it('Projekt (persönlich) → forbidden, wie beim Kommentieren', async () => {
+  it('Projekt mit Typ persönlich → ok, der Typ spielt keine Rolle', async () => {
     const { deps } = fakeDeps({ member: { group_type: 'personal' } });
-    expect(await check('u1', ID, deps)).toBe('forbidden');
+    expect(await check('u1', ID, deps)).toBe('ok');
   });
 
   it('unbekannt oder Gruppe im Papierkorb → not_found', async () => {

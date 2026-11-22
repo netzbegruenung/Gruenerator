@@ -17,7 +17,7 @@ const SHARE_MODE_LABELS: Record<string, string> = {
 const ACCESS_TYPE_LABELS: Record<string, string> = {
   owner: 'Eigentümer*in',
   direct: 'Direkt geteilt',
-  group: 'Über Gruppe',
+  group: 'Über Projekt',
   public: 'Öffentlich',
 };
 
@@ -122,7 +122,7 @@ export function MetadataDialog({ doc, open, onOpenChange }: MetadataDialogProps)
 
           {doc.group_shares && doc.group_shares.length > 0 && (
             <div className="pt-3">
-              <p className="mb-2 text-sm font-medium text-foreground">Gruppenfreigaben</p>
+              <p className="mb-2 text-sm font-medium text-foreground">Projektfreigaben</p>
               <div className="flex flex-wrap gap-1.5">
                 {doc.group_shares.map((g) => (
                   <Badge key={g.group_id} variant="outline">

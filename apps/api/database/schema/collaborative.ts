@@ -2,6 +2,7 @@ import { type InferSelectModel } from 'drizzle-orm';
 import {
   boolean,
   customType,
+  integer,
   jsonb,
   pgTable,
   primaryKey,
@@ -62,6 +63,15 @@ export const collaborative_document_folders = pgTable('collaborative_document_fo
   created_by: uuid('created_by'),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   is_deleted: boolean('is_deleted').default(false),
+});
+
+// Qdrant index state of a collaborative document (project search); see collabSearchIndex.ts.
+export const collab_search_index = pgTable('collab_search_index', {
+  document_id: uuid('document_id').primaryKey(),
+  content_hash: text('content_hash').notNull(),
+  chunk_count: integer('chunk_count').notNull().default(0),
+  checked_at: timestamp('checked_at', { withTimezone: true }).notNull(),
+  indexed_at: timestamp('indexed_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export type CollaborativeDocument = InferSelectModel<typeof collaborative_documents>;

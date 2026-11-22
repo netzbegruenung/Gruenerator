@@ -95,7 +95,7 @@ export async function createGroupDirect(
   const slug = group.slug_suffix ? buildGroupSlug(group.name, group.slug_suffix) : group.id;
   return {
     ok: true,
-    note: `Gruppe „${group.name}" wurde erstellt (${absolutizeUrl(`/gruppen/${slug}`)}).`,
+    note: `Projekt „${group.name}" wurde erstellt (${absolutizeUrl(`/gruppen/${slug}`)}).`,
   };
 }
 
@@ -113,7 +113,7 @@ export async function joinGroupDirect(
     if (!group) return { error: 'Ungültiger oder abgelaufener Einladungslink.' };
     return {
       needsConfirmation: true,
-      note: `Der Gruppe „${group.name}" beitreten? Die Mitglieder werden benachrichtigt. Frage die Person und rufe join erst mit confirm=true erneut auf.`,
+      note: `Dem Projekt „${group.name}" beitreten? Die Mitglieder werden benachrichtigt. Frage die Person und rufe join erst mit confirm=true erneut auf.`,
     };
   }
 
@@ -129,7 +129,7 @@ export async function joinGroupDirect(
     ok: true,
     note: outcome.alreadyMember
       ? `Du bist bereits Mitglied von „${outcome.group.name}".`
-      : `Du bist der Gruppe „${outcome.group.name}" beigetreten.`,
+      : `Du bist dem Projekt „${outcome.group.name}" beigetreten.`,
   };
 }
 
@@ -193,12 +193,12 @@ export async function shareDocToGroupMcp(
   // Only member groups — findGroups also returns public groups with empty role.
   const groups = await findGroups(userId, groupName, 5);
   const group = groups.find((g) => g.role);
-  if (!group) return { error: `Keine Gruppe „${groupName}" gefunden, der du angehörst.` };
+  if (!group) return { error: `Kein Projekt „${groupName}" gefunden, der du angehörst.` };
 
   if (args.confirm !== true) {
     return {
       needsConfirmation: true,
-      note: `„${doc.title}" mit der Gruppe „${group.name}" teilen (${permission === 'editor' ? 'Bearbeiten' : 'Nur lesen'})? Frage die Person und rufe share_to_group erst mit confirm=true erneut auf.`,
+      note: `„${doc.title}" mit dem Projekt „${group.name}" teilen (${permission === 'editor' ? 'Bearbeiten' : 'Nur lesen'})? Frage die Person und rufe share_to_group erst mit confirm=true erneut auf.`,
     };
   }
 

@@ -49,7 +49,7 @@ export async function shareDocumentToGroup(opts: {
         excludeUserId: userId,
         type: 'group_content_shared',
         title: 'Dokument geteilt',
-        body: `Ein Dokument „${docTitle}" wurde mit der Gruppe geteilt`,
+        body: `Ein Dokument „${docTitle}" wurde mit dem Projekt geteilt`,
         actionUrl: `/office/${docId}`,
         metadata: { documentId: docId, groupId },
       })

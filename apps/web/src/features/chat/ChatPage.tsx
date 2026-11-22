@@ -382,6 +382,11 @@ function ChatPage() {
   const projektName = projektDetails?.group.name ?? null;
   const projektBaselineThreadRef = useRef<string | null>(null);
   const projektFiledThreadRef = useRef<string | null>(null);
+  // The composer's project picker shows ?projekt= as its choice and creates the
+  // thread in it; the PATCH below stays as the fallback.
+  useEffect(() => {
+    if (projektParam) useAgentStore.getState().setPendingGroup(projektParam, false, 10 * 60_000);
+  }, [projektParam]);
   useEffect(() => {
     if (!projektParam) return;
     projektBaselineThreadRef.current = useAgentStore.getState().currentThreadId;
@@ -502,6 +507,7 @@ function ChatPage() {
             {...(chatBackground.key === 'neutral' ? {} : { className: 'chat-thread-glow' })}
             composerVariant={COMPOSER_VARIANT}
             enablePastedTextAttachments
+            showProjectPicker
             userLocale={userLocale}
           />
         )}

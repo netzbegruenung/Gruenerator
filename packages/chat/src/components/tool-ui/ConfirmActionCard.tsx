@@ -38,6 +38,7 @@ const ICON_MAP: Record<ConfirmActionType, typeof FileText> = {
   set_notebook_visibility: Eye,
   share_notebook: Share2,
   set_group_visibility: Eye,
+  add_project_text: FileText,
   create_recurring_task: Repeat,
   create_user_agent: Bot,
   share_user_agent: Share2,
@@ -54,6 +55,7 @@ const GROUP_ACTION_TYPES: ReadonlySet<ConfirmActionType> = new Set([
   // Die Karte verlinkt danach das Projekt, nicht das Notebook.
   'share_notebook',
   'set_group_visibility',
+  'add_project_text',
   'share_user_agent',
   'share_text_form',
 ]);
@@ -140,7 +142,7 @@ export const ConfirmActionCard = memo(function ConfirmActionCard({
                           : action.type === 'create_user_agent'
                             ? 'Grünerator-Agent öffnen'
                             : GROUP_ACTION_TYPES.has(action.type)
-                              ? 'Gruppe öffnen'
+                              ? 'Projekt öffnen'
                               : NOTEBOOK_ACTION_TYPES.has(action.type)
                                 ? 'Notebook öffnen'
                                 : 'Dokument öffnen'}

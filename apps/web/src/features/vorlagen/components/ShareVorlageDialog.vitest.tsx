@@ -98,7 +98,7 @@ describe('ShareVorlageDialog', () => {
     expect(link).toBeInTheDocument();
   });
 
-  it('übernimmt eine neue Gruppen-Berechtigung sofort, nicht erst nach der Antwort', async () => {
+  it('übernimmt eine neue Projekt-Berechtigung sofort, nicht erst nach der Antwort', async () => {
     setupHandlers('public');
     let release = () => {};
     const answered = new Promise<void>((r) => (release = r));
@@ -154,7 +154,7 @@ describe('ShareVorlageDialog', () => {
       <ShareVorlageDialog title={template.title} owned={template} open onOpenChange={() => {}} />
     );
 
-    const project = await screen.findByDisplayValue('Projekt oder Gruppe auswählen...');
+    const project = await screen.findByDisplayValue('Projekt auswählen...');
     const role = screen.getByLabelText('Mitglieder können');
     await userEvent.selectOptions(project, 'mine');
     expect(role).toHaveValue('viewer');
@@ -179,10 +179,7 @@ describe('ShareVorlageDialog', () => {
       <ShareVorlageDialog title={template.title} owned={template} open onOpenChange={() => {}} />
     );
 
-    await userEvent.selectOptions(
-      await screen.findByDisplayValue('Projekt oder Gruppe auswählen...'),
-      'team'
-    );
+    await userEvent.selectOptions(await screen.findByDisplayValue('Projekt auswählen...'), 'team');
     await userEvent.click(screen.getByRole('button', { name: 'Teilen' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(

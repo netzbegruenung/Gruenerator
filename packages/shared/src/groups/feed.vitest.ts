@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   austauschItems,
+  hasAustauschContent,
   filterGroupFeed,
   groupFeedByKind,
   postTitle,
@@ -346,6 +347,33 @@ describe('austauschItems', () => {
     const titles = austauschItems(items, new Set(['s-disc']), 's-foc').map((i) => i.title);
     expect(titles).toEqual(expect.arrayContaining(['Besprochen', 'Fokus']));
     expect(titles).not.toContain('Still');
+  });
+});
+
+describe('hasAustauschContent', () => {
+  const plain = toGroupFeedItems({
+    collaborative_documents: [
+      { id: 'd', title: 'Still', document_subtype: 'docs', share: share({ shareId: 's1' }) },
+    ],
+  });
+  const talked = toGroupFeedItems({
+    collaborative_documents: [
+      {
+        id: 'd',
+        title: 'Notiz',
+        document_subtype: 'docs',
+        share: share({ shareId: 's2', note: 'Hi' }),
+      },
+    ],
+  });
+
+  it('is true once a talked-about item exists', () => {
+    expect(hasAustauschContent(talked)).toBe(true);
+  });
+
+  it('is false for an empty feed or plain knowledge only', () => {
+    expect(hasAustauschContent([])).toBe(false);
+    expect(hasAustauschContent(plain)).toBe(false);
   });
 });
 

@@ -7,14 +7,12 @@ import { axe, renderWithProviders } from '../../../test-utils';
 
 import { ProjectChatComposer } from './ProjectChatComposer';
 
-function renderComposer(isPersonal = false) {
+function renderComposer(solo = false) {
   return renderWithProviders(
     <Routes>
       <Route
         path="/"
-        element={
-          <ProjectChatComposer groupId="g1" groupName="Wärmewende" isPersonal={isPersonal} />
-        }
+        element={<ProjectChatComposer groupId="g1" groupName="Wärmewende" solo={solo} />}
       />
       <Route path="/chat" element={<p>Chat-Seite</p>} />
     </Routes>
@@ -65,7 +63,7 @@ describe('ProjectChatComposer', () => {
     expect(useAgentStore.getState().pendingGroup).toMatchObject({ id: 'g1', teamShared: false });
   });
 
-  it('has no switch in a personal project and never asks for a team chat', async () => {
+  it('has no switch when nobody else is in the project and never asks for a team chat', async () => {
     const { user } = renderComposer(true);
     expect(screen.queryByRole('switch')).not.toBeInTheDocument();
     await user.type(screen.getByRole('textbox'), 'Hallo{Enter}');
@@ -78,5 +76,42 @@ describe('ProjectChatComposer', () => {
     await user.type(screen.getByRole('textbox'), 'Hallo{Enter}');
     expect(useAgentStore.getState().selectedAgentId).toBeNull();
     expect(useAgentStore.getState().pendingMessage).toBe('Hallo');
+  });
+});
+
+describe('ProjectChatComposer start questions', () => {
+  beforeEach(() => {
+    useAgentStore.setState({ pendingMessage: null, pendingGroup: null });
+  });
+
+  it('shows the welcome and starts a project chat with a clicked question', async () => {
+    const { user } = renderWithProviders(
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <ProjectChatComposer
+              groupId="g1"
+              groupName="Wärmewende"
+              welcomeMessage="Willkommen im Projekt!"
+              startQuestions={['Fasse die Förderung zusammen', 'Was ist neu?']}
+            />
+          }
+        />
+        <Route path="/chat" element={<p>Chat-Seite</p>} />
+      </Routes>
+    );
+    expect(screen.getByText('Willkommen im Projekt!')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Was ist neu?' }));
+
+    expect(useAgentStore.getState().pendingMessage).toBe('Was ist neu?');
+    expect(useAgentStore.getState().pendingGroup).toMatchObject({ id: 'g1', teamShared: true });
+    expect(await screen.findByText('Chat-Seite')).toBeInTheDocument();
+  });
+
+  it('renders no start block without welcome or questions', () => {
+    renderComposer();
+    expect(screen.queryByRole('region', { name: 'Start in Wärmewende' })).toBeNull();
   });
 });
