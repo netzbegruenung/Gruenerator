@@ -2547,11 +2547,13 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // to Tier 4 also keeps the router's persistent-action gate in the path: it
     // only ever sees ARTIFACT intents, so an early `produktion` here would quietly
     // retire the gate instead of satisfying it.
+    let generationUndecided = false;
     if (
       GENERATION_SIGNAL.test(userContent) &&
       !isNegatedArtifactRequest(userContent, GENERATION_SIGNAL)
     ) {
       const generation = await resolveGenerationScope({ userContent, conversationContext });
+      generationUndecided = generation === null;
       if (generation !== null) {
         const resolvedIntent =
           generation === 'keine'
@@ -2618,11 +2620,16 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // `keepsSinglePass` is the only place that keeps a turn out. Anything else
     // the table produced (a low-confidence artifact or gated verdict) stands — it found SOMETHING, just not confidently, and the
     // router's licence and negative-action gates are what check it.
-    const residualIntent: SearchIntent = proseGoesToLoop(heuristic.intent)
-      ? 'agentic'
-      : NO_RETRIEVAL_VERDICTS.has(heuristic.intent) && heuristic.intent !== 'greeting'
-        ? 'produktion'
-        : heuristic.intent;
+    // Der Auflöser war gefragt und blieb ohne Urteil (Zeitlimit, Ausfall): dann
+    // entscheidet der Loop, nicht die schwache Regel. Live 22.11.: „… 8 Folien mit
+    // Diagrammen" lief nach 1501 ms Zeitlimit als `chart@0.65` und bekam kein Deck
+    // (#5958); der Loop bietet die Erstell-Werkzeuge an und das Modell wählt.
+    const residualIntent: SearchIntent =
+      proseGoesToLoop(heuristic.intent) || (generationUndecided && isAgenticLoopEnabled())
+        ? 'agentic'
+        : NO_RETRIEVAL_VERDICTS.has(heuristic.intent) && heuristic.intent !== 'greeting'
+          ? 'produktion'
+          : heuristic.intent;
     const classificationTimeMs = Date.now() - startTime;
     log.info(
       `[Classifier] Residual: heuristic ${heuristic.intent}@${effectiveConfidence.toFixed(2)} → ${residualIntent} in ${classificationTimeMs}ms`
