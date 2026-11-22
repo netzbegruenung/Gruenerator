@@ -6,25 +6,30 @@ vi.mock('../../database/services/PostgresService.js', () => ({
   getPostgresInstance: () => ({ query: mockQuery }),
 }));
 
-const { getProjectCollabDocs, appendProjectDocParts, PROJECT_COLLAB_DOC_CAP } =
+const { getProjectCollabDocs, formatProjectDocs, PROJECT_COLLAB_DOC_CAP } =
   await import('./projectCollabDocs.js');
 
 describe('getProjectCollabDocs', () => {
   beforeEach(() => mockQuery.mockReset());
 
-  it('sorts the shared documents by how they are read, once each', async () => {
+  it('maps subtypes to the kind read_artifact takes, once per document', async () => {
     mockQuery.mockResolvedValue([
-      { id: 'a', subtype: 'docs' },
-      { id: 'b', subtype: 'sheets' },
-      { id: 'c', subtype: 'boards' },
-      { id: 'd', subtype: 'presentations' },
-      { id: 'a', subtype: 'docs' },
+      { id: 'a', title: 'Klimaplan', subtype: 'docs' },
+      { id: 'b', title: 'Budget', subtype: 'sheets' },
+      { id: 'c', title: 'Aufgaben', subtype: 'boards' },
+      { id: 'd', title: 'Folien', subtype: 'presentations' },
+      { id: 'e', title: 'Plakat', subtype: 'canvas' },
+      { id: 'a', title: 'Klimaplan', subtype: 'docs' },
+      { id: 'f', title: null, subtype: 'antrag' },
     ]);
-    expect(await getProjectCollabDocs('thread-1', 'viewer')).toEqual({
-      docIds: ['a', 'd'],
-      sheetIds: ['b'],
-      boardIds: ['c'],
-    });
+    expect(await getProjectCollabDocs('thread-1', 'viewer')).toEqual([
+      { id: 'a', title: 'Klimaplan', kind: 'doc' },
+      { id: 'b', title: 'Budget', kind: 'sheet' },
+      { id: 'c', title: 'Aufgaben', kind: 'board' },
+      { id: 'd', title: 'Folien', kind: 'presentation' },
+      { id: 'e', title: 'Plakat', kind: 'presentation' },
+      { id: 'f', title: '(ohne Titel)', kind: 'doc' },
+    ]);
   });
 
   it('binds access to the member, drops trashed rows and caps the newest', async () => {
@@ -39,18 +44,39 @@ describe('getProjectCollabDocs', () => {
     expect(params[2]).toBe(PROJECT_COLLAB_DOC_CAP);
     expect(params[3]).not.toContain('video');
   });
-});
 
-describe('appendProjectDocParts', () => {
-  it('keeps the existing material untouched when there is nothing to add', () => {
-    expect(appendProjectDocParts('mentioned', [])).toBe('mentioned');
-    expect(appendProjectDocParts(null, [])).toBeNull();
+  it('returns nothing for a thread outside the viewer’s project', async () => {
+    mockQuery.mockResolvedValue([]);
+    expect(await getProjectCollabDocs('foreign-thread', 'viewer')).toEqual([]);
   });
 
-  it('puts project documents behind the mentioned ones, separated', () => {
-    expect(appendProjectDocParts('### A\n\nx', ['### B\n\ny', '### C\n\nz'])).toBe(
-      '### A\n\nx\n\n---\n\n### B\n\ny\n\n---\n\n### C\n\nz'
-    );
-    expect(appendProjectDocParts(null, ['### B'])).toBe('### B');
+  it('cuts long titles', async () => {
+    mockQuery.mockResolvedValue([{ id: 'a', title: 'x'.repeat(300), subtype: 'docs' }]);
+    const [doc] = await getProjectCollabDocs('t', 'u');
+    expect(doc!.title).toHaveLength(80);
+  });
+});
+
+describe('formatProjectDocs', () => {
+  it('renders nothing without shared documents', () => {
+    expect(formatProjectDocs(null)).toBe('');
+    expect(formatProjectDocs([])).toBe('');
+  });
+
+  it('lists title, noun, kind and id and points at read_artifact', () => {
+    const out = formatProjectDocs([{ id: 'abc', title: 'Klimaplan', kind: 'doc' }]);
+    expect(out).toContain('## DOKUMENTE DES PROJEKTS');
+    expect(out).toContain('- Klimaplan (Dokument; kind=doc, id=abc)');
+    expect(out).toContain('read_artifact');
+    expect(out).toContain('Titel als Quelle');
+  });
+
+  it('stays small for a full list', () => {
+    const docs = Array.from({ length: PROJECT_COLLAB_DOC_CAP }, (_, i) => ({
+      id: '00000000-0000-0000-0000-00000000000' + (i % 10),
+      title: `Dokument Nummer ${i} zur Klimapolitik`,
+      kind: 'doc' as const,
+    }));
+    expect(formatProjectDocs(docs).length).toBeLessThan(3000);
   });
 });

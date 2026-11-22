@@ -38,7 +38,7 @@ import { acquireThreadRun, type ThreadRunLease } from '../../../services/chat/th
 import { readThreadProjectInstructions } from '../../../services/groups/groupInstructions.js';
 import {
   getProjectCollabDocs,
-  type ProjectCollabDocs,
+  type ProjectCollabDoc,
 } from '../../../services/groups/projectCollabDocs.js';
 import { getProjectFileDocumentIds } from '../../../services/groups/projectFiles.js';
 import { getProjectNotebookIds } from '../../../services/groups/projectNotebooks.js';
@@ -1002,12 +1002,12 @@ async function buildStreamContextInner({
   }
 
   // === Docs, Tabellen, Boards des Projekts ===
-  // Nicht indexiert: gelesen wird im Volltext, mit Budget, als Material ohne
-  // Route (`projectCollabDocs.ts`, `enrichContext`).
-  let projectCollabDocs: ProjectCollabDocs | null = null;
+  // Nicht indexiert und nicht im Prompt: nur eine Titelliste (`projectDocs`),
+  // den Inhalt liest das Modell bei Bedarf mit `read_artifact`.
+  let projectDocs: ProjectCollabDoc[] | null = null;
   if (actualThreadId) {
     try {
-      projectCollabDocs = await withTimeout(
+      projectDocs = await withTimeout(
         getProjectCollabDocs(actualThreadId, userId),
         EXTERNAL_CONTEXT_TIMEOUT_MS,
         'project docs'
@@ -1399,6 +1399,7 @@ async function buildStreamContextInner({
       ) ?? undefined,
     userInstructions,
     projectInstructions,
+    projectDocs,
     ...(projectRecipeIds.length > 0 && { projectRecipeIds }),
     contextWindowTokens,
   });
@@ -1483,7 +1484,6 @@ async function buildStreamContextInner({
     ...(mergedBoardIds.length > 0 && { rawBoardIds: mergedBoardIds }),
     ...(mergedSheetIds.length > 0 && { rawSheetIds: mergedSheetIds }),
     ...(turnDocContextIds.length > 0 && { rawDocMentionIds: turnDocContextIds }),
-    ...(projectCollabDocs && { projectCollabDocs }),
     docAttachments,
     processedMeta,
     contextWindowTokens,

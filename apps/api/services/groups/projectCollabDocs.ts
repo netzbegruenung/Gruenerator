@@ -1,37 +1,42 @@
 /**
- * Die Docs, Präsentationen, Tabellen und Boards eines Projekts als Material
- * für dessen Chats.
+ * Die Docs, Präsentationen, Tabellen und Boards eines Projekts — als Titelliste
+ * im Prompt seiner Chats, nicht als Inhalt.
  *
- * Anders als Dateien (`projectFiles.ts`) sind kollaborative Dokumente nicht in
- * Qdrant indexiert: ein Chat liest sie nur als Volltext aus Yjs, wenn jemand sie
- * per @doc nennt (`readMentionedDocs`). Für Projekte geht derselbe Lesepfad
- * mit einem Budget: die neuesten geteilten Dokumente, je Dokument gekürzt. Das
- * Material kommt als „REFERENZIERTE"-Abschnitt dazu und steuert keine Route —
- * wie ein mitgetragenes @doc.
+ * Kollaborative Dokumente sind nicht in Qdrant indexiert; ihr Text liegt in
+ * Yjs. Ihn bei jedem Turn mitzuschicken kostete rund 8k Token auch dort, wo die
+ * Frage kein Dokument braucht. Stattdessen sieht das Modell nur Titel, Art und
+ * id (ein paar Dutzend Token) und liest bei Bedarf mit `read_artifact`
+ * (`personalDataTools.ts`) — dessen Lader prüfen den Zugriff je Aufruf selbst.
+ * Die ids kommen ausschliesslich aus dieser Abfrage, nie aus dem Modell.
  *
  * Zugriffsregel in der Abfrage: aktive Mitgliedschaft im Projekt des Threads,
- * eigener Thread oder Team-Chat (`projectThreadScopeSql`). Lesen braucht nicht
- * mehr als Mitgliedschaft; getrashte Dokumente fallen heraus (`deleted_at`
- * UND `is_deleted`, siehe CLAUDE.md „Papierkorb").
+ * eigener Thread oder Team-Chat (`projectThreadScopeSql`); getrashte Dokumente
+ * fallen heraus (`deleted_at` UND `is_deleted`, siehe CLAUDE.md „Papierkorb").
  */
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { embedUntrusted } from '../../routes/chat/services/untrustedContent.js';
 
 import { projectThreadScopeSql } from './projectThreadScope.js';
 
 /**
- * Wie viele Dokumente ein Turn höchstens mitliest. Jedes bringt bis zu
- * `PROJECT_COLLAB_DOC_CHAR_CAP` Zeichen in den Prompt, und das Material wird bei
- * JEDEM Turn des Projekt-Chats neu gelesen: 8 × 4000 Zeichen ≈ 8k Token sind
- * der Preis, den ein Projekt-Chat dafür zahlt. Mehr Dokumente findet die Person
- * über @doc oder die Titelliste des Projekt-Werkzeugs.
+ * Wie viele Titel der Prompt höchstens nennt: je Zeile rund 25 Token, also gut
+ * 500 Token im Vollausbau. Mehr findet das Modell über `find_content`.
  */
-export const PROJECT_COLLAB_DOC_CAP = 8;
+export const PROJECT_COLLAB_DOC_CAP = 20;
 
-/** Obergrenze je Dokument (unter dem 8000er-Deckel einer @doc-Nennung). */
-export const PROJECT_COLLAB_DOC_CHAR_CAP = 4000;
+const TITLE_MAX_CHARS = 80;
 
-/** Welche Arten gelesen werden — `video` hat keinen Text. */
-const READABLE_SUBTYPES = [
+/** Art, wie `read_artifact` sie als `kind` nimmt. */
+export type ProjectCollabReadKind = 'doc' | 'sheet' | 'board' | 'presentation';
+
+export interface ProjectCollabDoc {
+  id: string;
+  title: string;
+  kind: ProjectCollabReadKind;
+}
+
+/** Welche Arten gelistet werden — `video` hat keinen Text. */
+const LISTED_SUBTYPES = [
   'blank',
   'docs',
   'antrag',
@@ -48,19 +53,20 @@ const READABLE_SUBTYPES = [
   'boards',
 ] as const;
 
-export interface ProjectCollabDocs {
-  /** Docs, Präsentationen, Canvas: gelesen über `readMentionedDocs`. */
-  docIds: string[];
-  sheetIds: string[];
-  boardIds: string[];
+function readKindOf(subtype: string): ProjectCollabReadKind {
+  if (subtype === 'sheets') return 'sheet';
+  if (subtype === 'boards') return 'board';
+  // `read_artifact` liest ein Canvas über die Art „presentation".
+  if (subtype === 'presentations' || subtype === 'canvas') return 'presentation';
+  return 'doc';
 }
 
 export async function getProjectCollabDocs(
   threadId: string,
   userId: string
-): Promise<ProjectCollabDocs> {
+): Promise<ProjectCollabDoc[]> {
   const rows = (await getPostgresInstance().query(
-    `SELECT cd.id, COALESCE(cd.document_subtype, 'docs') AS subtype
+    `SELECT cd.id, cd.title, COALESCE(cd.document_subtype, 'docs') AS subtype
        FROM ${projectThreadScopeSql('$1', '$2')}
        JOIN group_content_shares gcs ON gcs.group_id = g.id AND gcs.content_type = 'collaborative_documents'
        -- content_id ist text, collaborative_documents.id uuid.
@@ -69,24 +75,33 @@ export async function getProjectCollabDocs(
         AND COALESCE(cd.document_subtype, 'docs') = ANY($4::text[])
       ORDER BY gcs.shared_at DESC
       LIMIT $3`,
-    [threadId, userId, PROJECT_COLLAB_DOC_CAP, [...READABLE_SUBTYPES]]
-  )) as { id: string; subtype: string }[];
+    [threadId, userId, PROJECT_COLLAB_DOC_CAP, [...LISTED_SUBTYPES]]
+  )) as { id: string; title: string | null; subtype: string }[];
 
-  const out: ProjectCollabDocs = { docIds: [], sheetIds: [], boardIds: [] };
   const seen = new Set<string>();
+  const out: ProjectCollabDoc[] = [];
   for (const r of rows) {
     if (seen.has(r.id)) continue;
     seen.add(r.id);
-    if (r.subtype === 'sheets') out.sheetIds.push(r.id);
-    else if (r.subtype === 'boards') out.boardIds.push(r.id);
-    else out.docIds.push(r.id);
+    out.push({
+      id: r.id,
+      title: (r.title ?? '').trim().slice(0, TITLE_MAX_CHARS) || '(ohne Titel)',
+      kind: readKindOf(r.subtype),
+    });
   }
   return out;
 }
 
-/** Hängt Projekt-Dokumente hinter bereits vorhandenes Referenzmaterial des Turns. */
-export function appendProjectDocParts(existing: string | null, parts: string[]): string | null {
-  if (parts.length === 0) return existing;
-  const joined = parts.join('\n\n---\n\n');
-  return existing ? `${existing}\n\n---\n\n${joined}` : joined;
+const KIND_NOUN: Record<ProjectCollabReadKind, string> = {
+  doc: 'Dokument',
+  sheet: 'Tabelle',
+  board: 'Board',
+  presentation: 'Präsentation',
+};
+
+/** Der Prompt-Abschnitt; leer, wenn das Projekt nichts geteilt hat. */
+export function formatProjectDocs(docs: readonly ProjectCollabDoc[] | null): string {
+  if (!docs?.length) return '';
+  const lines = docs.map((d) => `- ${d.title} (${KIND_NOUN[d.kind]}; kind=${d.kind}, id=${d.id})`);
+  return `\n\n## DOKUMENTE DES PROJEKTS\n\nDiese Dokumente sind ins Projekt dieses Chats geteilt. Ihren Inhalt kennst du NICHT. Betrifft die Frage eines davon, lies es mit \`read_artifact\` (kind und id aus der Liste) und nenne in der Antwort seinen Titel als Quelle. Rate nie, was darin steht; ohne Bezug zur Frage lies nichts.\n\n${embedUntrusted('projekt_dokumente', lines.join('\n'))}`;
 }

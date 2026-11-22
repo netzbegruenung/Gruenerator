@@ -15,11 +15,6 @@ import {
   CanvasLiveStateUnavailableError,
 } from '../../../services/canvas/canvasWriteErrors.js';
 import {
-  appendProjectDocParts,
-  PROJECT_COLLAB_DOC_CHAR_CAP,
-  type ProjectCollabDocs,
-} from '../../../services/groups/projectCollabDocs.js';
-import {
   formatPresentationAsContext,
   loadPresentationState,
 } from '../../../services/presentations/PresentationGenerationService.js';
@@ -159,8 +154,6 @@ export async function enrichContext(opts: {
   rawBoardIds?: string[];
   rawSheetIds?: string[];
   rawDocMentionIds?: string[];
-  /** Shared docs/sheets/boards of the thread's project (read as carried material, no route). */
-  projectCollabDocs?: ProjectCollabDocs;
   docAttachments: ProcessedAttachment[];
   processedMeta: ProcessedAttachmentMeta[];
   contextWindowTokens: number;
@@ -177,7 +170,6 @@ export async function enrichContext(opts: {
     rawBoardIds,
     rawSheetIds,
     rawDocMentionIds,
-    projectCollabDocs,
     docAttachments,
     processedMeta,
     contextWindowTokens,
@@ -352,56 +344,6 @@ export async function enrichContext(opts: {
         `[ChatGraph] Doc mention context failed: ${err instanceof Error ? err.message : String(err)}`
       );
       failedMentions.push('Dokument');
-    }
-  }
-
-  // Shared docs, presentations, sheets and boards of the project: material,
-  // never a route (no mention ids, no anchors), cut small because it is read on
-  // every turn of the project chat. A doc already @-mentioned above is skipped.
-  if (
-    projectCollabDocs &&
-    projectCollabDocs.docIds.length +
-      projectCollabDocs.sheetIds.length +
-      projectCollabDocs.boardIds.length >
-      0
-  ) {
-    try {
-      const budget = Math.max(
-        2000,
-        Math.min(PROJECT_COLLAB_DOC_CHAR_CAP, Math.floor(contextWindowTokens * 0.25))
-      );
-      const query = lastUserText(initialState);
-      const mentioned = new Set(rawDocMentionIds ?? []);
-      const docIds = projectCollabDocs.docIds.filter((id) => !mentioned.has(id));
-      const docs = docIds.length > 0 ? await readMentionedDocs(docIds, userId) : [];
-      const parts: Array<string | null> = await Promise.all([
-        ...docs.map((d) => docContextPart(d, userId, budget, query)),
-        ...projectCollabDocs.sheetIds
-          .filter((id) => !mentioned.has(id))
-          .map(async (id) => {
-            const { loadSheetState, formatSheetAsContext } =
-              await import('../../../services/sheets/SheetGenerationService.js');
-            const state = await loadSheetState(id, userId);
-            return state ? truncateDocument(formatSheetAsContext(state), budget, query) : null;
-          }),
-        ...projectCollabDocs.boardIds
-          .filter((id) => !mentioned.has(id))
-          .map(async (id) => {
-            const { loadBoardState, formatBoardAsContext } =
-              await import('../../../services/boards/BoardService.js');
-            const state = await loadBoardState(id, userId);
-            return state ? truncateDocument(formatBoardAsContext(state), budget, query) : null;
-          }),
-      ]);
-      initialState.documentMentionContext = appendProjectDocParts(
-        initialState.documentMentionContext ?? null,
-        parts.filter((p): p is string => p !== null)
-      );
-    } catch (err) {
-      // Not a failed mention: nobody asked for these, so no warning to the user.
-      log.warn(
-        `[ChatGraph] Project docs context failed (continuing): ${err instanceof Error ? err.message : String(err)}`
-      );
     }
   }
 
