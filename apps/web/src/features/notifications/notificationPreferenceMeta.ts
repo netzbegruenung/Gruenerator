@@ -17,6 +17,7 @@ import {
   AtSign,
   CloudDownload,
   FileText,
+  Flag,
   Heart,
   LayoutDashboard,
   Megaphone,
@@ -217,6 +218,12 @@ export const RAW_TYPE_META: Record<NotificationType, RawTypeMeta> = {
     label: 'Beitritt abgelehnt',
     description: 'Wenn deine Beitrittsanfrage abgelehnt wird',
     icon: UserPlus,
+    group: 'groups',
+  },
+  group_content_reported: {
+    label: 'Gemeldete Inhalte',
+    description: 'Wenn jemand einen Inhalt in einem Projekt meldet, das du verwaltest',
+    icon: Flag,
     group: 'groups',
   },
 
