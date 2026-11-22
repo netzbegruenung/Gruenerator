@@ -228,6 +228,13 @@ function normalizeDeck(input: unknown): unknown {
     }
     return { ...(slide as object), slots: renamed };
   });
+  // Eine leere Vorlage heißt „keine“, wie ein leeres Feld (live 22.11.: `vorlage: ""`
+  // im zweiten Versuch kostete das ganze Deck).
+  const vorlage = (deck as { vorlage?: unknown }).vorlage;
+  if (typeof vorlage === 'string' && vorlage.trim() === '') {
+    const { vorlage: _empty, ...rest } = deck as { vorlage?: unknown; slides: unknown[] };
+    return { ...rest, slides };
+  }
   return { ...deck, slides };
 }
 
