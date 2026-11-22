@@ -41,7 +41,7 @@ import {
 } from './shared.js';
 
 import type { UserProfile } from '../../../../services/user/types.js';
-import type { GroupLinkBody } from '@gruenerator/contracts';
+import type { GroupLinkBody, LandesverbandId } from '@gruenerator/contracts';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -253,7 +253,7 @@ export const coreRoutes = {
         `SELECT gm.role, gm.joined_at, gm.notifications_muted,
                 g.id, g.name, g.description, g.created_at, g.created_by, g.join_token,
                 g.settings, g.avatar_url, g.links, g.is_public, g.audience, g.slug_suffix,
-                g.group_type, g.is_system
+                g.group_type, g.is_system, g.landesverband
            FROM group_memberships gm
            JOIN groups g ON g.id = gm.group_id
           WHERE gm.group_id = $1 AND gm.user_id = $2 AND g.deleted_at IS NULL`,
@@ -277,6 +277,7 @@ export const coreRoutes = {
         slug_suffix: string | null;
         group_type: 'standard' | 'personal' | null;
         is_system: boolean | null;
+        landesverband: LandesverbandId | null;
       } | null;
 
       if (!row) {
@@ -310,6 +311,7 @@ export const coreRoutes = {
             group_type: row.group_type ?? 'standard',
             is_system: isSystem,
             slug_suffix: row.slug_suffix ?? null,
+            landesverband: row.landesverband ?? null,
           },
           membership: {
             role: row.role,
@@ -330,13 +332,14 @@ export const coreRoutes = {
 
   updateInfo: s.route(groupsContract.updateInfo, async (args) => {
     const { groupId } = args.params;
-    const { name, description, settings } = args.body;
+    const { name, description, settings, landesverband } = args.body;
     try {
       const userId = getUserId(args.req);
       const outcome = await updateGroupInfo(groupId, userId, {
         ...(name !== undefined ? { name } : {}),
         ...(description !== undefined ? { description } : {}),
         ...(settings !== undefined ? { settings } : {}),
+        ...(landesverband !== undefined ? { landesverband } : {}),
       });
       switch (outcome.status) {
         case 200:

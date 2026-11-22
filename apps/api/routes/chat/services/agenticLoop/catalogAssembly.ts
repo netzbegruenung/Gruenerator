@@ -553,6 +553,7 @@ export async function assembleToolCatalog(
             mention,
             agentIdentifier: agentConfig.identifier ?? null,
             activeRole: state.activeRole ?? null,
+            projectLandesverband: state.projectLandesverband ?? null,
             userLocale: state.userLocale ?? null,
           }),
       });

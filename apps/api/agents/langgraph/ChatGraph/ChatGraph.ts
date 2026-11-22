@@ -225,6 +225,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     roleBausteinActive: input.roleBausteinActive === true,
     userRoles: input.userRoles ?? [],
     activeRole: input.activeRole ?? null,
+    projectLandesverband: input.projectLandesverband ?? null,
 
     // Active skill (drives platform-specific prompt fragment in respondNode)
     activeSkillMention: input.activeSkillMention || null,

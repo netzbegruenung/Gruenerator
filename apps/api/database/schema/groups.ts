@@ -3,6 +3,7 @@ import {
   type GroupLink,
   type GroupRole,
   type JoinRequestStatus,
+  type LandesverbandId,
 } from '@gruenerator/contracts';
 import { type InferSelectModel } from 'drizzle-orm';
 import {
@@ -46,6 +47,9 @@ export const groups = pgTable('groups', {
   // The one system group: every profile is a member, only instance admins
   // share, and member info is never exposed. See services/groups/systemGroup.ts.
   is_system: boolean('is_system').notNull().default(false),
+  // Explicit Landesverband of the project (id of `LANDESVERBAENDE`); beats the
+  // active role when picking LV recipe variants. Narrowed in contracts.
+  landesverband: text('landesverband').$type<LandesverbandId>(),
 });
 
 export const group_memberships = pgTable('group_memberships', {

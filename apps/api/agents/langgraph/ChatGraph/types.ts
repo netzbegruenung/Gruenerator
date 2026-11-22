@@ -702,6 +702,8 @@ export interface ChatGraphInput {
   userRoles?: readonly RoleLandesverbandInput[] | undefined;
   /** Die im Turn aktive Rolle (aufgelöste `roleRef`) — Quelle des LV-Rezept-Vorzugs. */
   activeRole?: RoleLandesverbandInput | null | undefined;
+  /** Ausdrücklicher Landesverband des Projekts, in dem der Chat liegt. Siehe `ChatGraphState.projectLandesverband`. */
+  projectLandesverband?: string | null | undefined;
   activeSkillMention?: string | undefined;
   /** Gewählte Methoden-Rezepte (`skillRole === 'methode'`). Siehe `ChatGraphState.methodSkillMentions`. */
   methodSkillMentions?: string[] | undefined;
@@ -1021,6 +1023,10 @@ export interface ChatGraphState {
   // Quelle des LV-Rezept-Vorzugs (`preferredLvRecipeMention`) — anders als
   // `userRoles`, das nur die Sichtbarkeit regelt.
   activeRole: RoleLandesverbandInput | null;
+
+  // Ausdrücklicher Landesverband des Projekts, in dem der Chat liegt
+  // (`groups.landesverband`). Schlägt `activeRole` im LV-Rezept-Vorzug.
+  projectLandesverband?: string | null;
 
   // Mention key of the active skill (e.g. 'instagram'). When set, respondNode
   // appends the skill's `skillSystemPrompt` as an additive section.

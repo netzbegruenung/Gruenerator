@@ -2,6 +2,7 @@ import {
   type GroupContentType,
   type GroupPostCreatedResponse,
   type GroupShareComment,
+  type LandesverbandId,
 } from '@gruenerator/contracts';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
@@ -161,6 +162,7 @@ export const useUpdateGroupInfo = (groupId: string) => {
       name?: string;
       description?: string | null;
       settings?: Record<string, unknown>;
+      landesverband?: LandesverbandId | null;
     }) => {
       const res = await getContractsClient().groups.updateInfo({
         params: { groupId },

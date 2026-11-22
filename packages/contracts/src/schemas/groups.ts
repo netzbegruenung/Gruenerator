@@ -23,6 +23,27 @@ export type GroupRole = z.infer<typeof groupRoleSchema>;
 export const groupAudienceSchema = z.enum(['de-DE', 'de-AT', 'all']);
 export type GroupAudience = z.infer<typeof groupAudienceSchema>;
 
+/**
+ * Landesverband eines Projekts (Ids der Registry `LANDESVERBAENDE` in
+ * `@gruenerator/shared/agents`; `landesverbandIds.vitest.ts` in der API hält
+ * beide gleich). Contracts hängt nicht an shared, deshalb steht die Liste hier.
+ */
+export const landesverbandIdSchema = z.enum([
+  'berlin',
+  'hamburg',
+  'mecklenburg-vorpommern',
+  'thueringen',
+  'brandenburg',
+  'bayern',
+  'sachsen-anhalt',
+  'hessen',
+  'nordrhein-westfalen',
+  'saarland',
+  'schleswig-holstein',
+  'oesterreich',
+]);
+export type LandesverbandId = z.infer<typeof landesverbandIdSchema>;
+
 export const joinRequestStatusSchema = z.enum(['pending', 'approved', 'denied']);
 export type JoinRequestStatus = z.infer<typeof joinRequestStatusSchema>;
 
@@ -184,6 +205,8 @@ export const groupDetailSchema = z.object({
   is_system: z.boolean().nullish(),
   // Stable 6-char tail for the Notion-style URL `/gruppen/<name>-<suffix>`.
   slug_suffix: z.string().nullish(),
+  // Explicit Landesverband: its recipe variants win over the person's active role.
+  landesverband: landesverbandIdSchema.nullish(),
 });
 export type GroupDetailDto = z.infer<typeof groupDetailSchema>;
 
@@ -225,6 +248,8 @@ export const updateGroupInfoBodySchema = z.object({
   // Free-form group settings (e.g. `templateTags`). Kept as a generic record so
   // the typed client accepts the frontend's `Record<string, unknown>` value.
   settings: z.record(z.string(), z.unknown()).nullish(),
+  // `null` clears the Landesverband, omitted leaves it alone.
+  landesverband: landesverbandIdSchema.nullish(),
 });
 export type UpdateGroupInfoBody = z.infer<typeof updateGroupInfoBodySchema>;
 

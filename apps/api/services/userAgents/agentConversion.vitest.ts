@@ -57,6 +57,7 @@ function deps(over: Partial<AgentConversionDeps> = {}) {
     })),
     trashProject: vi.fn(async () => 'ok'),
     setInstructions: vi.fn(async () => ({})),
+    setLandesverband: vi.fn(async () => ({})),
     share: vi.fn(async () => ({ status: 200 as const, success: true, message: 'ok' })),
     setSuccessor: vi.fn(async () => true),
     ...over,
@@ -219,6 +220,29 @@ describe('convertUserAgent', () => {
     const types = vi.mocked(d.share).mock.calls.map((c) => c[0].contentType);
     expect(types).toEqual(['system_notebooks', 'notebook_collections']);
     expect(out.ok && out.response.result?.path).toBe('/projekte/pressearbeit-kv-abc234');
+    // A plain user agent is no LV agent: the project stays without a Landesverband.
+    expect(d.setLandesverband).not.toHaveBeenCalled();
+  });
+
+  it('an LV agent gives its Landesverband to the new project', async () => {
+    const d = deps({
+      getAgent: vi.fn(async () =>
+        agent({
+          identifier: 'gruenerator-oeffentlichkeitsarbeit-bayern',
+          defaultRecipeMention: null,
+        })
+      ),
+    });
+    await convertUserAgent({ ...RUN, target: 'project' }, d);
+    expect(d.setLandesverband).toHaveBeenCalledWith(PROJECT_ID, 'u1', 'bayern');
+  });
+
+  it('an agent whose default recipe is an LV variant gives that Landesverband', async () => {
+    const d = deps({
+      getAgent: vi.fn(async () => agent({ defaultRecipeMention: 'presse-bayern-partei' })),
+    });
+    await convertUserAgent({ ...RUN, target: 'project' }, d);
+    expect(d.setLandesverband).toHaveBeenCalledWith(PROJECT_ID, 'u1', 'bayern');
   });
 
   it('project: a recipe stored by id alone is named by its current mention', async () => {

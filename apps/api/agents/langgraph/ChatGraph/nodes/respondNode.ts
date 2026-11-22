@@ -2338,6 +2338,7 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
     agentDefault: () =>
       roleAwareDefaultRecipeMention(agentConfig, {
         activeRole: state.activeRole,
+        projectLandesverband: state.projectLandesverband ?? null,
         userLocale: state.userLocale,
       }),
     agentDefaultRecipeId: agentConfig.defaultRecipeId ?? null,

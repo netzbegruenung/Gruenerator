@@ -7,7 +7,11 @@
  */
 import crypto from 'crypto';
 
-import { type CreateGroupBody, type GroupAudience } from '@gruenerator/contracts';
+import {
+  type CreateGroupBody,
+  type GroupAudience,
+  type LandesverbandId,
+} from '@gruenerator/contracts';
 import { generateSlugSuffix } from '@gruenerator/shared/utils';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -139,6 +143,7 @@ export interface UpdateGroupInfoInput {
   name?: string | null;
   description?: string | null;
   settings?: Record<string, unknown> | null;
+  landesverband?: LandesverbandId | null;
 }
 
 export interface UpdateGroupInfoOutcome {
@@ -157,7 +162,7 @@ export async function updateGroupInfo(
   userId: string,
   input: UpdateGroupInfoInput
 ): Promise<UpdateGroupInfoOutcome> {
-  const { name, description, settings } = input;
+  const { name, description, settings, landesverband } = input;
   let postgres: ReturnType<typeof getPostgresInstance>;
   let isAdmin: boolean;
   try {
@@ -191,6 +196,10 @@ export async function updateGroupInfo(
   if (settings != null) {
     updateFields.push(`settings = $${paramIndex++}`);
     updateValues.push(JSON.stringify(settings));
+  }
+  if (landesverband !== undefined) {
+    updateFields.push(`landesverband = $${paramIndex++}`);
+    updateValues.push(landesverband);
   }
 
   if (updateFields.length === 0) {

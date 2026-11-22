@@ -52,6 +52,7 @@ export {
 } from './useGroups.js';
 
 export { type GroupPostUploadFile, type NativeUploadFile } from './postFormData.js';
+export { landesverbandOptions, type LandesverbandOption } from './landesverbandOptions.js';
 
 export {
   GROUP_FEED_KINDS,

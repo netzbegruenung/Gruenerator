@@ -1,3 +1,4 @@
+import { type LandesverbandId } from '@gruenerator/contracts';
 import {
   type GroupFeedItem,
   addableKey,
@@ -70,6 +71,7 @@ import { ProjectAddMenu } from './ProjectAddMenu';
 import { ProjectChatComposer } from './ProjectChatComposer';
 import { ProjectInstructionsCard } from './ProjectInstructionsCard';
 import { ProjectKnowledgeList } from './ProjectKnowledgeList';
+import { ProjectLandesverbandSelect } from './ProjectLandesverbandSelect';
 import { ProjectMembersCard } from './ProjectMembersCard';
 import { type ShareActions } from './shareActions';
 import { ShareNoteDialog } from './ShareNoteDialog';
@@ -86,6 +88,7 @@ export interface GroupInfo {
   audience?: GroupAudience;
   group_type?: 'standard' | 'personal';
   is_system?: boolean;
+  landesverband?: LandesverbandId | null | undefined;
 }
 
 export interface GroupData {
@@ -493,6 +496,13 @@ const GroupInfoSection = memo(
                     {editedGroupDescription.length}/500 Zeichen
                   </div>
                 )}
+                <ProjectLandesverbandSelect
+                  groupId={groupId}
+                  audience={data?.groupInfo?.audience}
+                  current={data?.groupInfo?.landesverband}
+                  {...(onSuccessMessage && { onSuccessMessage })}
+                  {...(onErrorMessage && { onErrorMessage })}
+                />
                 <div className="flex gap-xs">
                   <Button
                     variant="default"

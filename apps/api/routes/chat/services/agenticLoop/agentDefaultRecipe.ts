@@ -45,6 +45,7 @@ type DefaultRecipeState = Pick<
   | 'activeRecipeId'
   | 'customSystemPrompt'
   | 'activeRole'
+  | 'projectLandesverband'
   | 'userLocale'
   | 'agentConfig'
 >;
@@ -119,6 +120,7 @@ export function loopAgentDefaultRecipe(state: DefaultRecipeState): EffectiveReci
       agentDefault: () =>
         roleAwareDefaultRecipeMention(agentConfig, {
           activeRole: state.activeRole,
+          projectLandesverband: state.projectLandesverband ?? null,
           userLocale: state.userLocale,
         }),
       agentDefaultRecipeId: agentConfig.defaultRecipeId ?? null,

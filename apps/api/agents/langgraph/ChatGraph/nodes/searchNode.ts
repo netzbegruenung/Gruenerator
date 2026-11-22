@@ -2099,6 +2099,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           state.activeSkillMention,
           roleAwareDefaultRecipeMention(agentConfig, {
             activeRole: state.activeRole,
+            projectLandesverband: state.projectLandesverband ?? null,
             userLocale: state.userLocale,
           }),
         ]);

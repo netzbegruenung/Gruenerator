@@ -1,7 +1,18 @@
+import { type LandesverbandId } from '@gruenerator/contracts';
+import { useAuth } from '@gruenerator/shared/hooks';
+import { landesverbandOptions } from '@gruenerator/shared/groups';
 import * as Haptics from 'expo-haptics';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 
 import { SheetHeader } from '../../../../components/projekte/SheetHeader';
@@ -29,24 +40,29 @@ export default function ProjektBearbeitenScreen() {
   const { mutate, isPending } = useUpdateGroupInfo(id ?? '');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [landesverband, setLandesverband] = useState<LandesverbandId | null>(null);
   const [seeded, setSeeded] = useState(false);
+  const { locale } = useAuth();
 
   useEffect(() => {
     if (group && !seeded) {
       setName(group.name ?? '');
       setDescription(group.description ?? '');
+      setLandesverband(group.landesverband ?? null);
       setSeeded(true);
     }
   }, [group, seeded]);
 
   const unchanged =
-    name.trim() === (group?.name ?? '') && description.trim() === (group?.description ?? '');
+    name.trim() === (group?.name ?? '') &&
+    description.trim() === (group?.description ?? '') &&
+    landesverband === (group?.landesverband ?? null);
   const canSave = seeded && name.trim().length > 0 && !unchanged && !isPending && !!id;
 
   const save = () => {
     if (!canSave) return;
     mutate(
-      { name: name.trim(), description: description.trim() },
+      { name: name.trim(), description: description.trim(), landesverband },
       {
         onSuccess: () => {
           void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -115,6 +131,43 @@ export default function ProjektBearbeitenScreen() {
                 { color: theme.text, backgroundColor: theme.buttonBackground },
               ]}
             />
+            <Text style={[styles.label, { color: theme.textSecondary }]}>Landesverband</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.chipsScroll}
+            >
+              <View style={styles.chips}>
+                {[
+                  { id: null, title: 'Keiner' },
+                  ...landesverbandOptions(group.audience, locale, landesverband),
+                ].map((option) => {
+                  const selected = option.id === landesverband;
+                  return (
+                    <Pressable
+                      key={option.id ?? 'none'}
+                      onPress={() => setLandesverband(option.id)}
+                      disabled={isPending}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      style={[
+                        styles.chip,
+                        { backgroundColor: selected ? theme.text : theme.buttonBackground },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.chipText,
+                          { color: selected ? theme.background : theme.text },
+                        ]}
+                      >
+                        {option.title}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </ScrollView>
             {description.length >= COUNTER_FROM ? (
               <Text style={[styles.counter, { color: theme.textSecondary }]}>
                 {description.length} / {DESCRIPTION_MAX}
@@ -147,5 +200,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 12,
   },
+  label: { fontFamily: BODY_FONT, fontSize: 13, marginTop: spacing.small },
+  chipsScroll: { flexGrow: 0 },
+  chips: { flexDirection: 'row', gap: 8 },
+  chip: { borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8 },
+  chipText: { fontFamily: BODY_FONT, fontSize: 14 },
   counter: { fontFamily: BODY_FONT, fontSize: 12, textAlign: 'right' },
 });

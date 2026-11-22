@@ -21,6 +21,7 @@
  */
 import {
   GROUP_INSTRUCTIONS_MAX,
+  landesverbandIdSchema,
   MAX_TEXT_FORM_DESCRIPTION_CHARS,
   MAX_TEXT_FORM_STYLE_CHARS,
   MAX_TEXT_FORM_TITLE_CHARS,
@@ -29,7 +30,9 @@ import {
   type AgentConversionResponse,
   type AgentConversionTarget,
   type GroupContentType,
+  type LandesverbandId,
 } from '@gruenerator/contracts';
+import { SKILLS, lvIdForAgentIdentifier } from '@gruenerator/shared/agents';
 import { getNotebookDefinition } from '@gruenerator/shared/notebooks';
 import { buildGroupSlug } from '@gruenerator/shared/utils';
 
@@ -38,7 +41,7 @@ import { collectTakenMentions } from '../../routes/userTextForms/textFormRouterH
 import { createLogger } from '../../utils/logger.js';
 import { shareContentToGroup, type ShareContentOutcome } from '../groups/groupContent.js';
 import { setProjectInstructions } from '../groups/groupInstructions.js';
-import { createGroupForUser } from '../groups/groupMutations.js';
+import { createGroupForUser, updateGroupInfo } from '../groups/groupMutations.js';
 import { trashGroup } from '../groups/groupTrash.js';
 import { resolveMentionCollision } from '../user/textFormDraftService.js';
 import { deriveRecipeMention } from '../user/textFormKind.js';
@@ -76,6 +79,20 @@ export function projectInstructionsFor(agent: UserAgentRecord): string {
   const role = agent.systemRole.trim();
   const recipe = agent.defaultRecipeMention;
   return recipe ? `${role}\n\nFür Texte nutzt du das Rezept @${recipe}.` : role;
+}
+
+/**
+ * Der Landesverband eines LV-Agents: sein eigener Bezeichner oder, bei einem
+ * Agent mit LV-Rezept als Standard (`presse-berlin-partei`), der Besitzer
+ * dieses Rezepts. `null` für jeden anderen Agent.
+ */
+export function landesverbandOfConvertedAgent(agent: UserAgentRecord): LandesverbandId | null {
+  const fromIdentifier = lvIdForAgentIdentifier(agent.identifier);
+  const mention = agent.defaultRecipeMention?.toLowerCase();
+  const recipe = mention ? SKILLS.find((s) => s.mention.toLowerCase() === mention) : undefined;
+  const id = fromIdentifier ?? (recipe ? lvIdForAgentIdentifier(recipe.identifier) : null);
+  const parsed = landesverbandIdSchema.safeParse(id);
+  return parsed.success ? parsed.data : null;
 }
 
 function count(n: number, one: string, many: string): string {
@@ -116,7 +133,9 @@ export function planAgentConversion(
     items.push({
       part: 'role',
       outcome: 'carried',
-      note: 'Die Rolle wird zu den Anweisungen des Projekts.',
+      note: landesverbandOfConvertedAgent(agent)
+        ? 'Die Rolle wird zu den Anweisungen des Projekts; das Projekt bekommt den Landesverband des Agents.'
+        : 'Die Rolle wird zu den Anweisungen des Projekts.',
     });
   }
 
@@ -272,6 +291,7 @@ export interface AgentConversionDeps {
   ) => Promise<{ id: string; name: string; slugSuffix: string | null }>;
   trashProject: (userId: string, groupId: string) => Promise<unknown>;
   setInstructions: (groupId: string, userId: string, text: string) => Promise<unknown>;
+  setLandesverband: (groupId: string, userId: string, lv: LandesverbandId) => Promise<unknown>;
   share: (input: {
     userId: string;
     groupId: string;
@@ -452,6 +472,9 @@ async function convertToProject(
 
   try {
     await deps.setInstructions(project.id, userId, projectInstructionsFor(agent));
+    // Ein LV-Agent bindet die Wahl an seinen Verband; das Projekt übernimmt das.
+    const landesverband = landesverbandOfConvertedAgent(agent);
+    if (landesverband) await deps.setLandesverband(project.id, userId, landesverband);
   } catch (error) {
     // Ohne Anweisungen ist das Projekt eine leere Hülle: wieder abräumen
     // (Papierkorb, nicht hart), damit kein halbes Projekt liegen bleibt.
@@ -583,6 +606,8 @@ function defaultDeps(): AgentConversionDeps {
     },
     trashProject: (userId, groupId) => trashGroup(userId, groupId),
     setInstructions: setProjectInstructions,
+    setLandesverband: (groupId, userId, landesverband) =>
+      updateGroupInfo(groupId, userId, { landesverband }),
     share: (input) =>
       shareContentToGroup({
         ...input,

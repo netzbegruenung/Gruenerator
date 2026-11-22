@@ -36,6 +36,7 @@ import {
 } from '../../../config/notebookCollectionMap.js';
 import { acquireThreadRun, type ThreadRunLease } from '../../../services/chat/threadRunLock.js';
 import { readThreadProjectInstructions } from '../../../services/groups/groupInstructions.js';
+import { readThreadProjectLandesverband } from '../../../services/groups/projectLandesverband.js';
 import { getProjectFileSources } from '../../../services/groups/projectFiles.js';
 import { getProjectNotebookIds } from '../../../services/groups/projectNotebooks.js';
 import { getProjectRecipeIds } from '../../../services/groups/projectRecipes.js';
@@ -1204,6 +1205,19 @@ async function buildStreamContextInner({
       })
     : null;
 
+  // Ausdrücklicher Landesverband des Projekts — schlägt die aktive Rolle im
+  // LV-Rezept-Vorzug. Ein Ausfall heißt: Rolle entscheidet wie bisher.
+  const projectLandesverband = actualThreadId
+    ? await withTimeout(
+        readThreadProjectLandesverband(actualThreadId, userId),
+        EXTERNAL_CONTEXT_TIMEOUT_MS,
+        'project landesverband'
+      ).catch((err: unknown) => {
+        log.warn('[StreamContext] Could not load project landesverband (continuing):', err);
+        return null;
+      })
+    : null;
+
   // Rezepte des Projekts — der Katalog listet sie als eigenen Block.
   const projectRecipeIds = actualThreadId
     ? await withTimeout(
@@ -1383,6 +1397,7 @@ async function buildStreamContextInner({
     userInstructions,
     projectInstructions,
     ...(projectRecipeIds.length > 0 && { projectRecipeIds }),
+    ...(projectLandesverband && { projectLandesverband }),
     contextWindowTokens,
   });
 
