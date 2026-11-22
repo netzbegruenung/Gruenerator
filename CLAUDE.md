@@ -77,7 +77,7 @@ User-facing/shareable resource URLs use a Notion-style slug — `slugifyName(nam
 
 ### Projekte mit Feed und Kommentaren
 
-Jedes Projekt (eine Art, `group_type` spielt keine Rolle) hat Feed und „Alle“, eigene Beiträge mit Dateien, angeheftete Freigaben, Kommentar-Threads und Erwähnungen; die UI zeigt den Austausch erst, wenn mehr als eine Person im Projekt ist. Das System-Projekt „Grünerator“ enthält alle Profile; nur Instanz-Admins teilen/schreiben Beiträge, Mitgliederinfos bleiben verborgen, Meldungen bleiben in der App. **Details und Rechte: `docs/CLAUDE-groups.md`.** Gemeinsame Feed-Aufbereitung: `packages/shared/src/groups/feed.ts`; API-Handler: `apps/api/routes/auth/groups/groupsContract/`; Logik: `services/groups/groupFeed.ts` und `groupPosts.ts`. `group_post` ist kein allgemeiner teilbarer Inhaltstyp — immer die Beitrags-Routen verwenden.
+Jedes Projekt (eine Art, `group_type` spielt keine Rolle) hat Feed und „Alle“, eigene Beiträge mit Dateien, angeheftete Freigaben, Kommentar-Threads und Erwähnungen; die UI zeigt den Austausch, sobald mehr als eine Person im Projekt ist oder es dort Beiträge bzw. besprochene Freigaben gibt (#5950); Projekt-Chats sehen `read_artifact` und `groups` immer (Lesen, Suche, Text anlegen per Karte). Das System-Projekt „Grünerator“ enthält alle Profile; nur Instanz-Admins teilen/schreiben Beiträge, Mitgliederinfos bleiben verborgen, Meldungen bleiben in der App. **Details und Rechte: `docs/CLAUDE-groups.md`.** Gemeinsame Feed-Aufbereitung: `packages/shared/src/groups/feed.ts`; API-Handler: `apps/api/routes/auth/groups/groupsContract/`; Logik: `services/groups/groupFeed.ts` und `groupPosts.ts`. `group_post` ist kein allgemeiner teilbarer Inhaltstyp — immer die Beitrags-Routen verwenden.
 
 ### Database & Migrations
 
