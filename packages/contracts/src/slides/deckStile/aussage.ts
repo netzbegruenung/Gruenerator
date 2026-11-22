@@ -7,6 +7,7 @@
  * und die großen Schriften des Entwurfs.
  */
 
+import { type FlowSpec } from '../fitText.js';
 import { type FolieSpec, type FolienTypId } from '../folienTypen.js';
 import { SlideBuilder, type SlideLayoutState } from '../slideLayouts.js';
 
@@ -53,15 +54,18 @@ export function buildAussage(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutSta
 
   switch (folie.typ) {
     case 'titel':
-      head(b, 'folie-headline', X, 380, 1700, size(240));
-      b.text('folie-text', '', X + 6, 860, 1500, 44, { fill: akzent });
-      if (störer) stoerer(b, störer, 1595, 305, t.gras);
+      // Mit Störer bleibt rechts eine Spalte für ihn frei: oben rechts lag er auf der Headline.
+      head(b, 'folie-headline', X, 380, störer ? 1400 : 1700, size(240));
+      b.text('folie-text', '', X + 6, 860, störer ? 1400 : 1500, 44, { fill: akzent });
+      if (störer) stoerer(b, störer, 1700, 540, t.gras);
       break;
     case 'liste': {
       head(b, 'folie-headline', X, 110, 1300, size(110));
       const items = listItems(folie, 'punkte');
-      reihe(items, 470, 44, items.length === 4 ? 2 : 3, 300);
-      if (störer) stoerer(b, störer, 1595, 305, t.gras);
+      // Spalten in Beamergröße; bei bis zu drei Punkten eine Reihe, größer.
+      reihe(items, 430, items.length <= 3 ? 60 : 50, items.length === 4 ? 2 : 3, 280);
+      // Oben rechts neben der Überschrift (endet bei 1410): bei 305 hing er auf der dritten Spalte.
+      if (störer) stoerer(b, störer, 1700, 200, t.gras);
       break;
     }
     case 'text':
@@ -113,7 +117,8 @@ export const AUSSAGE_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
     'folie-text': { maxHeight: 130, minScale: 0.8 },
   },
   liste: {
-    'folie-punkt-*': { maxHeight: 200, minScale: 0.7 },
+    // Bis zum Balken der nächsten Reihe (280) bzw. vor die Fußzeile.
+    'folie-punkt-*': { maxHeight: 230, minScale: 0.7 },
     'folie-headline': { maxHeight: 330, minScale: 0.6 },
   },
   text: {
@@ -132,4 +137,40 @@ export const AUSSAGE_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
   zitat: { 'folie-zitat': { maxHeight: 580, minScale: 0.6 } },
   danke: { 'folie-headline': { maxHeight: 330, minScale: 0.6 } },
   bild: BILD_BOXES,
+};
+
+/** Texte nach gemessener Höhe statt auf festen y-Werten (`fitSlideTexts`). */
+export const AUSSAGE_FLOWS: Partial<Record<FolienTypId, FlowSpec>> = {
+  titel: {
+    ids: ['folie-headline', 'folie-text'],
+    top: 120,
+    bottom: 960,
+    align: 'center',
+    gapEm: 0.3,
+    gapAfter: { 'folie-headline': 40 },
+  },
+  text: {
+    ids: ['folie-spalte-1'],
+    top: 260,
+    below: { id: 'folie-headline', gap: 70 },
+    bottom: 970,
+    align: 'top',
+    gapEm: 0,
+  },
+  zahl: {
+    ids: ['folie-zahl', 'folie-zahl-text', 'folie-quelle'],
+    top: 100,
+    bottom: 970,
+    align: 'center',
+    gapEm: 0,
+    gapAfter: { 'folie-zahl': 40, 'folie-zahl-text': 50 },
+  },
+  zitat: {
+    ids: ['folie-intro', 'folie-zitat', 'folie-zitat-name'],
+    top: 100,
+    bottom: 970,
+    align: 'center',
+    gapEm: 0,
+    gapAfter: { 'folie-intro': 40, 'folie-zitat': 50 },
+  },
 };

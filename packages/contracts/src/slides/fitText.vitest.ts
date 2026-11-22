@@ -26,11 +26,12 @@ const size = (state: { additionalTexts: Array<{ id: string; fontSize: number }> 
 
 describe('fitSlideTexts', () => {
   it('shrinks a two-line title headline until it fits its box', () => {
-    const state = buildFolie('cd', titel('Mehr Radwege'), ctx('de-DE'));
+    const state = buildFolie('cd', titel('Mehr sichere Radwege'), ctx('de-DE'));
     const before = size(state, 'folie-headline');
-    expect(measure('Mehr Radwege', { family: 'x', size: before, lineHeight: 1 }, 1700).height).toBe(
-      2 * before
-    );
+    const width = state.additionalTexts.find((t) => t.id === 'folie-headline')!.width;
+    expect(
+      measure('Mehr sichere Radwege', { family: 'x', size: before, lineHeight: 1 }, width).height
+    ).toBe(2 * before);
 
     const out = fitSlideTexts(
       state,

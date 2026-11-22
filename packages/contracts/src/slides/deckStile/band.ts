@@ -6,6 +6,7 @@
  * rechts wie auf der Titelfolie.
  */
 
+import { LIST_BOX_KEY, type FlowSpec } from '../fitText.js';
 import { type FolieSpec, type FolienTypId } from '../folienTypen.js';
 import { removeElement } from '../slideDeckBasics.js';
 import { SlideBuilder, slideKit, type SlideLayoutState } from '../slideLayouts.js';
@@ -74,7 +75,8 @@ export function buildBand(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutState 
         });
         b.shape(`folie-linie-${i + 1}`, 'rect', 1275, y + 120, 1070, 3, rgba(t.tanne, 0.2));
       });
-      renderList(b, items, { x: 850, y: 160, width: 960, size: 52, pitch: 123, prefix: '' });
+      // Der Fluss setzt Nummern und Linien mit ihrem Punkt (`BAND_FLOWS`).
+      renderList(b, items, { x: 850, y: 160, width: 960, size: 56, pitch: 123, prefix: '' });
       if (störer) stoerer(b, störer, 320, 860, STOERER_MAGENTA);
       break;
     }
@@ -151,7 +153,8 @@ export const BAND_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
     'folie-text': { maxHeight: 250, minScale: 0.8 },
   },
   liste: {
-    'folie-punkt-*': { maxHeight: 110, minScale: 0.7 },
+    // Zwei Zeilen à 56 px; wo sie stehen und ob die Liste passt, regelt der Fluss.
+    'folie-punkt-*': { maxHeight: 145, minScale: 0.7 },
     'folie-headline': { maxHeight: 530, minScale: 0.6 },
   },
   text: {
@@ -170,4 +173,52 @@ export const BAND_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
   zitat: { 'folie-zitat': { maxHeight: 600, minScale: 0.6 } },
   danke: { 'folie-headline': { maxHeight: 400, minScale: 0.6 } },
   bild: BILD_BOXES,
+};
+
+/** Rechts neben dem Band: Texte nach gemessener Höhe statt auf festen y-Werten (`fitSlideTexts`). */
+export const BAND_FLOWS: Partial<Record<FolienTypId, FlowSpec>> = {
+  titel: {
+    ids: ['folie-headline', 'folie-text'],
+    top: 120,
+    bottom: 960,
+    align: 'center',
+    gapEm: 0.3,
+    gapAfter: { 'folie-headline': 50 },
+  },
+  liste: {
+    ids: [LIST_BOX_KEY],
+    top: 170,
+    bottom: 970,
+    align: 'top',
+    gapEm: 0.9,
+    // Nummer auf der Oberkante, die Linie mittig im Abstand zum nächsten Punkt (0,9 × 56 / 2).
+    follow: {
+      'folie-nummer-': { anchor: 'top', dy: 0 },
+      'folie-linie-': { anchor: 'bottom', dy: 25 },
+    },
+  },
+  kernsatz: {
+    ids: ['folie-kernsatz', LIST_BOX_KEY],
+    top: 150,
+    bottom: 970,
+    align: 'center',
+    gapEm: 0.35,
+    gapAfter: { 'folie-kernsatz': 70 },
+  },
+  zitat: {
+    ids: ['folie-zitat', 'folie-zitat-name'],
+    top: 150,
+    bottom: 970,
+    align: 'center',
+    gapEm: 0,
+    gapAfter: { 'folie-zitat': 50 },
+  },
+  danke: {
+    ids: ['folie-headline', 'folie-text'],
+    top: 150,
+    bottom: 960,
+    align: 'center',
+    gapEm: 0,
+    gapAfter: { 'folie-headline': 40 },
+  },
 };

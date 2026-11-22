@@ -6,7 +6,13 @@
 
 import { type BrandLocale } from '../brand/grueneBrand.js';
 
-import { buildFolie, deckStilBoxes, type DeckStilId, DECK_STIL_IDS } from './deckStile/index.js';
+import {
+  buildFolie,
+  deckStilBoxes,
+  deckStilFlow,
+  type DeckStilId,
+  DECK_STIL_IDS,
+} from './deckStile/index.js';
 import { fitSlideTexts, type MeasureText } from './fitText.js';
 import { type DeckSpec, type FolieSpec, folienSlotsOf, type FolienTypId } from './folienTypen.js';
 import { slideKit, slideLayoutConfigId, type SlideLayoutState } from './slideLayouts.js';
@@ -51,7 +57,13 @@ export function composeSlideDeck(
       index,
     });
     if (options.measure) {
-      const fitted = fitSlideTexts(state, deckStilBoxes(options.stil, folie.typ), options.measure);
+      const fitted = fitSlideTexts(
+        state,
+        deckStilBoxes(options.stil, folie.typ),
+        options.measure,
+        null,
+        deckStilFlow(options.stil, folie.typ)
+      );
       state = fitted.state;
       overflow.push(...fitted.overflow.map((id) => `${index + 1}:${id}`));
     }

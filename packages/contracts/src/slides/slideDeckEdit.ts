@@ -18,7 +18,7 @@ import { z } from 'zod';
 import { type BrandLocale } from '../brand/grueneBrand.js';
 import { stripInlineMarks } from '../text/inlineMarks.js';
 
-import { buildFolie, deckStilBoxes, type DeckStilId } from './deckStile/index.js';
+import { buildFolie, deckStilBoxes, deckStilFlow, type DeckStilId } from './deckStile/index.js';
 import { fitSlideTexts, type MeasureText } from './fitText.js';
 import { type FolieSpec, folieSpecSchema, folienSlotsOf } from './folienTypen.js';
 import { restylePage } from './restyleDeck.js';
@@ -189,7 +189,13 @@ function composeOne(
     index: position,
   });
   if (ctx.measure) {
-    state = fitSlideTexts(state, deckStilBoxes(stil, spec.typ), ctx.measure).state;
+    state = fitSlideTexts(
+      state,
+      deckStilBoxes(stil, spec.typ),
+      ctx.measure,
+      null,
+      deckStilFlow(stil, spec.typ)
+    ).state;
   }
   return {
     id: ctx.newPageId(),
@@ -322,7 +328,8 @@ export function applySlideDeckOperations(
           state as unknown as Parameters<typeof fitSlideTexts>[0],
           deckStilBoxes(stil ?? 'cd', folie.typ),
           ctx.measure,
-          base
+          base,
+          deckStilFlow(stil ?? 'cd', folie.typ)
         );
         pages[index]!.state = fitted.state as unknown as Record<string, unknown>;
         for (const id of fitted.overflow) {

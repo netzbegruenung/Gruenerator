@@ -37,7 +37,8 @@ export function footer(b: SlideBuilder, ctx: DeckStilCtx) {
     year: 'numeric',
   }).format(ctx.date);
   b.text('folie-datum', date, M, FOOTER.y, 600, FOOTER.size);
-  b.text('folie-titel', ctx.title, 864, FOOTER.y, 600, FOOTER.size);
+  // Der Titel steht mittig zwischen Datum und Seitenzahl.
+  b.text('folie-titel', ctx.title, (W - 900) / 2, FOOTER.y, 900, FOOTER.size, { align: 'center' });
   b.text('folie-seitenzahl', String(ctx.pageNumber), W - M - 200, FOOTER.y, 200, FOOTER.size, {
     align: 'right',
   });
