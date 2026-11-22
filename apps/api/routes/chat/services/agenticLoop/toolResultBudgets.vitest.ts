@@ -242,6 +242,7 @@ describe('Wächter: jede Kappe über 6000 steht in der Tabelle oder begründet d
     MAX_IMAGE_CHARS: 'Bilddaten-URL im sharepic_check, kein Text fürs Modell',
     MAX_MOTION_CHARS:
       'Obergrenze der Eingabe (Antragstext + Begründung) für antragsgruen_antrag_stellen',
+    ADD_TEXT_MAX_CHARS: 'Obergrenze der Eingabe (Textinhalt) für groups add_text',
   };
 
   /**
