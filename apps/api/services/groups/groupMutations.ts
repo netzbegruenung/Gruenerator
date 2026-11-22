@@ -324,3 +324,29 @@ export async function removeGroupMember(
     groupName: target.name,
   };
 }
+
+/**
+ * Ein Projekt archivieren bzw. wiederherstellen — nur Admins, nie das
+ * System-Projekt. Archiviert heißt: Chats und Inhalte bleiben, das Projekt
+ * verlässt die Hauptlisten und ist schreibgeschützt (Schreibwege laufen über
+ * `assertCanShareToGroup` bzw. `findViewer`). Wirft bei fehlenden Rechten wie
+ * die Mitgliedsprüfung; der Handler macht daraus ein 403.
+ */
+export async function setGroupArchived(
+  groupId: string,
+  userId: string,
+  archived: boolean
+): Promise<{ status: 200 | 400; success: boolean; message: string }> {
+  const { postgres, isSystem } = await getPostgresAndCheckMembership(groupId, userId, true);
+  if (isSystem) return { status: 400, success: false, message: SYSTEM_GROUP_FORBIDDEN };
+  await postgres.exec(
+    `UPDATE groups SET archived_at = ${archived ? 'COALESCE(archived_at, CURRENT_TIMESTAMP)' : 'NULL'}
+      WHERE id = $1 AND deleted_at IS NULL`,
+    [groupId]
+  );
+  return {
+    status: 200,
+    success: true,
+    message: archived ? 'Projekt archiviert.' : 'Projekt wiederhergestellt.',
+  };
+}

@@ -192,6 +192,24 @@ export const useUpdateGroupName = (groupId: string) => {
   });
 };
 
+/** Admin archives or restores a project. */
+export const useSetGroupArchived = (groupId: string) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (archived: boolean) => {
+      const res = await getContractsClient().groups.setGroupArchived({
+        params: { groupId },
+        body: { archived },
+      });
+      if (res.status !== 200) throw apiErrorFromResponse(res);
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: GROUPS_QUERY_KEY });
+      void qc.invalidateQueries({ queryKey: groupDetailsKey(groupId) });
+    },
+  });
+};
+
 export const useVerifyJoinToken = (joinToken: string | null | undefined) =>
   useQuery({
     queryKey: ['groupVerifyToken', joinToken],

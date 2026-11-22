@@ -26,6 +26,7 @@ import { isInstanceAdmin } from '../../utils/adminAuthz.js';
 import { getReactionSummaries } from '../entityReactions/EntityReactionsService.js';
 
 import { notifyGroupActivity } from './groupActivityNotifications.js';
+import { ARCHIVED_PROJECT_READ_ONLY } from './groupMembership.js';
 
 import type { PostgresService } from '../../database/services/PostgresService.js';
 
@@ -54,6 +55,8 @@ export interface Viewer {
   isSystem: boolean;
   /** May put new content into the group (post, share). */
   canShare: boolean;
+  /** Archived: readable, but no posts, comments or shares. */
+  isArchived: boolean;
 }
 
 export async function getViewer(
@@ -75,7 +78,7 @@ export async function findViewer(
   checkInstanceAdmin: (userId: string) => Promise<boolean> = isInstanceAdmin
 ): Promise<Viewer | null> {
   const row = (await postgres.queryOne(
-    `SELECT gm.role, g.group_type, g.created_by, g.is_system
+    `SELECT gm.role, g.group_type, g.created_by, g.is_system, g.archived_at
        FROM group_memberships gm
        JOIN groups g ON g.id = gm.group_id
       WHERE gm.group_id = $1 AND gm.user_id = $2 AND g.deleted_at IS NULL`,
@@ -86,6 +89,7 @@ export async function findViewer(
     group_type: string | null;
     created_by: string | null;
     is_system: boolean | null;
+    archived_at?: string | Date | null;
   } | null;
   if (!row) return null;
   const isAdmin = row.is_system
@@ -94,9 +98,10 @@ export async function findViewer(
   return {
     isAdmin,
     // Same rule as `assertCanShareToGroup`: in the system group only admins post.
-    canShare: !row.is_system || isAdmin,
+    canShare: (!row.is_system || isAdmin) && row.archived_at == null,
     isPersonal: row.group_type === 'personal',
     isSystem: !!row.is_system,
+    isArchived: row.archived_at != null,
   };
 }
 
@@ -244,6 +249,7 @@ export async function createShareComment(
   if (viewer.isPersonal) {
     return { status: 400, message: 'In Projekten gibt es keine Kommentare.' };
   }
+  if (viewer.isArchived) return { status: 403, message: ARCHIVED_PROJECT_READ_ONLY };
   const share = await getShare(postgres, groupId, shareId);
   if (!share) return SHARE_NOT_FOUND;
   if (!body) return { status: 400, message: 'Kommentar ist leer.' };

@@ -43,6 +43,7 @@ import {
   listUserGroupsResponseSchema,
   memberRoleBodySchema,
   requestToJoinResponseSchema,
+  setGroupArchivedBodySchema,
   setGroupMuteBodySchema,
   setGroupVisibilityBodySchema,
   shareContentBodySchema,
@@ -371,6 +372,21 @@ export const groupsContract = c.router({
       500: groupErrorResponseSchema,
     },
     summary: 'Change a member role (admin)',
+  },
+
+  setGroupArchived: {
+    method: 'PUT',
+    path: '/api/auth/groups/:groupId/archive',
+    pathParams: z.object({ groupId: z.string() }),
+    body: setGroupArchivedBodySchema,
+    responses: {
+      200: groupSuccessResponseSchema,
+      400: groupErrorResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Archive or restore a project (admin, not the system project)',
   },
 
   removeMember: {

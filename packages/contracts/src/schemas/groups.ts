@@ -164,6 +164,8 @@ export const groupSummarySchema = z.object({
   content_count: z.number().nullish(),
   // Stable 6-char tail for the Notion-style URL `/gruppen/<name>-<suffix>`.
   slug_suffix: z.string().nullish(),
+  // ISO time the project was archived; null/absent = active.
+  archived_at: z.string().nullish(),
 });
 export type GroupSummaryDto = z.infer<typeof groupSummarySchema>;
 
@@ -184,6 +186,7 @@ export const groupDetailSchema = z.object({
   is_system: z.boolean().nullish(),
   // Stable 6-char tail for the Notion-style URL `/gruppen/<name>-<suffix>`.
   slug_suffix: z.string().nullish(),
+  archived_at: z.string().nullish(),
 });
 export type GroupDetailDto = z.infer<typeof groupDetailSchema>;
 
@@ -259,6 +262,9 @@ export const memberRoleBodySchema = z.object({
   role: groupRoleSchema,
 });
 export type MemberRoleBody = z.infer<typeof memberRoleBodySchema>;
+
+export const setGroupArchivedBodySchema = z.object({ archived: z.boolean() });
+export type SetGroupArchivedBody = z.infer<typeof setGroupArchivedBodySchema>;
 
 /** Body for muting/unmuting the caller's own notifications for a group. */
 export const setGroupMuteBodySchema = z.object({

@@ -67,6 +67,8 @@ export interface GroupSummary {
   settings?: Record<string, unknown> | null;
   /** Stable 6-char tail for the Notion-style URL `/gruppen/<name>-<suffix>`. */
   slug_suffix?: string | null;
+  /** ISO time an admin archived the project; null/absent = active. */
+  archived_at?: string | null;
   [key: string]: unknown;
 }
 
@@ -122,7 +124,20 @@ export const getGroupInitials = (name: string | null | undefined): string => {
 export const canShareIntoGroup = (group: {
   is_system?: boolean | null;
   isAdmin?: boolean | null;
-}): boolean => !group.is_system || !!group.isAdmin;
+  archived_at?: string | null;
+}): boolean => (!group.is_system || !!group.isAdmin) && !group.archived_at;
+
+/** Archived projects leave the main lists, stay readable and take no new content. */
+export const isGroupArchived = (group: { archived_at?: string | null }): boolean =>
+  !!group.archived_at;
+
+/** Splits a project list into the active ones and the archived ones, keeping order. */
+export const splitArchivedGroups = <T extends { archived_at?: string | null }>(
+  groups: readonly T[]
+): { active: T[]; archived: T[] } => ({
+  active: groups.filter((g) => !isGroupArchived(g)),
+  archived: groups.filter(isGroupArchived),
+});
 
 /**
  * Wer eine Freigabe verwalten (Rolle ändern, entfernen) darf — dieselbe Regel wie auf dem

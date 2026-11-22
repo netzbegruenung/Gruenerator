@@ -21,6 +21,7 @@ import {
   createGroupForUser,
   joinGroupByToken,
   removeGroupMember,
+  setGroupArchived,
   updateGroupInfo,
 } from '../../../../services/groups/groupMutations.js';
 import { trashGroup } from '../../../../services/groups/groupTrash.js';
@@ -66,7 +67,7 @@ export const coreRoutes = {
       const groupIds = memberships.map((m) => m.group_id);
       const groupsData = (await postgres.query(
         `SELECT g.id, g.name, g.description, g.created_at, g.created_by, g.join_token, g.settings,
-                g.avatar_url, g.links, g.slug_suffix, g.group_type, g.is_system,
+                g.avatar_url, g.links, g.slug_suffix, g.group_type, g.is_system, g.archived_at,
                 (SELECT COUNT(*)::int FROM group_memberships gm WHERE gm.group_id = g.id) AS member_count
            FROM groups g WHERE g.id = ANY($1) AND g.deleted_at IS NULL
           ORDER BY g.created_at DESC`, // neuestes Projekt zuerst — ohne das ist die Reihenfolge beliebig
@@ -85,6 +86,7 @@ export const coreRoutes = {
         slug_suffix: string | null;
         group_type: 'standard' | 'personal' | null;
         is_system: boolean | null;
+        archived_at: string | Date | null;
         member_count: number;
       }>;
 
@@ -116,6 +118,7 @@ export const coreRoutes = {
           // No member info in the system group — everyone is in it.
           member_count: isSystem ? 0 : group.member_count,
           slug_suffix: group.slug_suffix ?? null,
+          archived_at: toIsoOrNull(group.archived_at),
         };
       });
 
@@ -254,7 +257,7 @@ export const coreRoutes = {
         `SELECT gm.role, gm.joined_at, gm.notifications_muted,
                 g.id, g.name, g.description, g.created_at, g.created_by, g.join_token,
                 g.settings, g.avatar_url, g.links, g.is_public, g.audience, g.slug_suffix,
-                g.group_type, g.is_system
+                g.group_type, g.is_system, g.archived_at
            FROM group_memberships gm
            JOIN groups g ON g.id = gm.group_id
           WHERE gm.group_id = $1 AND gm.user_id = $2 AND g.deleted_at IS NULL`,
@@ -278,6 +281,7 @@ export const coreRoutes = {
         slug_suffix: string | null;
         group_type: 'standard' | 'personal' | null;
         is_system: boolean | null;
+        archived_at: string | Date | null;
       } | null;
 
       if (!row) {
@@ -311,6 +315,7 @@ export const coreRoutes = {
             group_type: row.group_type ?? 'standard',
             is_system: isSystem,
             slug_suffix: row.slug_suffix ?? null,
+            archived_at: toIsoOrNull(row.archived_at),
           },
           membership: {
             role: row.role,
@@ -801,6 +806,25 @@ export const coreRoutes = {
       };
     } catch (error) {
       return groupErrorResponse('updateMemberRole', 'Fehler beim Aktualisieren der Rolle.', error);
+    }
+  }),
+
+  setGroupArchived: s.route(groupsContract.setGroupArchived, async (args) => {
+    try {
+      const outcome = await setGroupArchived(
+        args.params.groupId,
+        getUserId(args.req),
+        args.body.archived
+      );
+      if (outcome.status === 400) {
+        return {
+          status: 400 as const,
+          body: { success: false as const, message: outcome.message },
+        };
+      }
+      return { status: 200 as const, body: { success: true as const, message: outcome.message } };
+    } catch (error) {
+      return groupErrorResponse('setGroupArchived', 'Fehler beim Archivieren des Projekts.', error);
     }
   }),
 

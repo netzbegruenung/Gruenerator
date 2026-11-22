@@ -46,6 +46,8 @@ export const groups = pgTable('groups', {
   // The one system group: every profile is a member, only instance admins
   // share, and member info is never exposed. See services/groups/systemGroup.ts.
   is_system: boolean('is_system').notNull().default(false),
+  // Set by a project admin: leaves the main lists, stays readable, takes no new content.
+  archived_at: timestamp('archived_at', { withTimezone: true }),
 });
 
 export const group_memberships = pgTable('group_memberships', {

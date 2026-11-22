@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { createGroupForUser, joinGroupByToken, removeGroupMember } from './groupMutations.js';
+import {
+  createGroupForUser,
+  joinGroupByToken,
+  removeGroupMember,
+  setGroupArchived,
+} from './groupMutations.js';
 
 // --- mocked infra (lazy refs so vi.mock hoisting is safe) --------------------
 const ensureInitialized = vi.fn();
@@ -204,6 +209,37 @@ describe('removeGroupMember', () => {
   it('answers 404 for someone who is not a member', async () => {
     const out = await removeGroupMember('g1', 'admin2', 'ghost');
     expect(out.status).toBe(404);
+    expect(exec).not.toHaveBeenCalled();
+  });
+});
+
+describe('setGroupArchived', () => {
+  const postgres = { exec: (...a: unknown[]) => exec(...a) };
+
+  beforeEach(() => {
+    checkMembership.mockResolvedValue({ postgres, isAdmin: true, isSystem: false });
+    exec.mockResolvedValue({ changes: 1 });
+  });
+
+  it('archives and restores through the admin gate', async () => {
+    expect(await setGroupArchived('g1', 'u1', true)).toMatchObject({ status: 200 });
+    expect(checkMembership).toHaveBeenCalledWith('g1', 'u1', true);
+    expect(exec.mock.calls[0][0]).toContain(
+      'archived_at = COALESCE(archived_at, CURRENT_TIMESTAMP)'
+    );
+    await setGroupArchived('g1', 'u1', false);
+    expect(exec.mock.calls[1][0]).toContain('archived_at = NULL');
+  });
+
+  it('never archives the system project', async () => {
+    checkMembership.mockResolvedValue({ postgres, isAdmin: true, isSystem: true });
+    expect(await setGroupArchived('g1', 'u1', true)).toMatchObject({ status: 400 });
+    expect(exec).not.toHaveBeenCalled();
+  });
+
+  it('propagates the gate failure for non-admins', async () => {
+    checkMembership.mockRejectedValue(new Error('Keine Berechtigung für diese Aktion.'));
+    await expect(setGroupArchived('g1', 'u1', true)).rejects.toThrow('Berechtigung');
     expect(exec).not.toHaveBeenCalled();
   });
 });

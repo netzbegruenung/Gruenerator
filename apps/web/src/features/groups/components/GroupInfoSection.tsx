@@ -3,6 +3,7 @@ import {
   addableKey,
   canManageShare,
   sharedContentKeys,
+  useSetGroupArchived,
 } from '@gruenerator/shared/groups';
 import {
   Button,
@@ -24,11 +25,13 @@ import {
   Sheet,
   SheetContent,
   SheetTitle,
+  StatusBanner,
   useIsMobile,
 } from '@gruenerator/ui';
 import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import {
   HiDotsVertical,
+  HiOutlineArchive,
   HiOutlineBell,
   HiOutlineLink,
   HiOutlineLogout,
@@ -86,6 +89,7 @@ export interface GroupInfo {
   audience?: GroupAudience;
   group_type?: 'standard' | 'personal';
   is_system?: boolean;
+  archived_at?: string | null;
 }
 
 export interface GroupData {
@@ -309,7 +313,19 @@ const GroupInfoSection = memo(
     // admins (`isAdmin` there) share. Hides all team chrome, like personal.
     const isSystem = data?.groupInfo?.is_system === true;
     const isTeam = !isPersonal && !isSystem;
-    const canShare = !isSystem || !!data?.isAdmin;
+    // Archived projects stay readable but take no new content (the server enforces it too).
+    const isArchived = !!data?.groupInfo?.archived_at;
+    const canShare = (!isSystem || !!data?.isAdmin) && !isArchived;
+    const setArchived = useSetGroupArchived(groupId);
+    const toggleArchived = useCallback(() => {
+      const next = !isArchived;
+      setArchived.mutate(next, {
+        onSuccess: () =>
+          onSuccessMessage?.(next ? 'Projekt archiviert.' : 'Projekt wiederhergestellt.'),
+        onError: (err: Error) =>
+          onErrorMessage?.(err.message || 'Projekt konnte nicht geändert werden.'),
+      });
+    }, [isArchived, setArchived, onSuccessMessage, onErrorMessage]);
     const groupLinks = data?.groupInfo?.links ?? [];
     // Chats gibt es in Projekten und Gruppen, nicht im System-Projekt „Grünerator".
     const showChats = canShare && !isSystem;
@@ -423,6 +439,13 @@ const GroupInfoSection = memo(
 
     return (
       <>
+        {isArchived && (
+          <StatusBanner variant="info" className="mb-md">
+            Dieses Projekt ist archiviert. Chats und Inhalte bleiben lesbar, neue Beiträge, Chats
+            und Freigaben sind nicht möglich.
+            {data?.isAdmin ? ' Über das Menü kannst du es wiederherstellen.' : ''}
+          </StatusBanner>
+        )}
         <div className="mb-lg flex flex-wrap items-center justify-between gap-md">
           <div className="flex min-w-0 flex-1 items-center gap-md">
             <div className="relative group/avatar shrink-0">
@@ -683,6 +706,10 @@ const GroupInfoSection = memo(
                     {!isSystem && (
                       <>
                         <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={toggleArchived} disabled={setArchived.isPending}>
+                          <HiOutlineArchive className="size-4 mr-xs" />
+                          {isArchived ? 'Wiederherstellen' : 'Archivieren'}
+                        </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => setShowDeleteConfirm(true)}
                           disabled={isDeletingGroup || isUpdatingGroupName}

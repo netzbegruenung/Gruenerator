@@ -229,7 +229,8 @@ CREATE TABLE IF NOT EXISTS groups (
     avatar_url TEXT,
     links JSONB DEFAULT '[]',
     slug_suffix TEXT,
-    is_system BOOLEAN NOT NULL DEFAULT FALSE
+    is_system BOOLEAN NOT NULL DEFAULT FALSE,
+    archived_at TIMESTAMPTZ
 );
 
 -- Stable 6-char tail for Notion-style group URLs (`/gruppen/<name>-<suffix>`).

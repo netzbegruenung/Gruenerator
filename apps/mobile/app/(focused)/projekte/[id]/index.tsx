@@ -83,7 +83,13 @@ export default function ProjektDetailScreen() {
   const isTeam = !!group && !isPersonal && !isSystem;
   // Wie im Web: ins System-Projekt teilen nur Instanz-Admins.
   const isAdmin = !!detailsQuery.data?.membership.isAdmin;
-  const canAdd = !!group && canShareIntoGroup({ is_system: group.is_system, isAdmin });
+  const canAdd =
+    !!group &&
+    canShareIntoGroup({
+      is_system: group.is_system,
+      isAdmin,
+      archived_at: group.archived_at ?? null,
+    });
   const shareActions = useShareItemActions(id ?? null, isAdmin, !isPersonal);
   const addActions = useProjectAddActions(id ?? null);
   const userName = useAuthStore((s) => s.user?.display_name ?? null);

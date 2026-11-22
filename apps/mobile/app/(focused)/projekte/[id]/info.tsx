@@ -29,6 +29,7 @@ import {
   useLeaveGroup,
   useSetGroupMute,
   useRemoveGroupMember,
+  useSetGroupArchived,
   useUpdateMemberRole,
   type GroupMember,
 } from '../../../../hooks/useGroups';
@@ -71,6 +72,7 @@ export default function ProjektInfoScreen() {
   const muteMutation = useSetGroupMute(id ?? '');
   const roleMutation = useUpdateMemberRole(id ?? '');
   const removeMutation = useRemoveGroupMember(id ?? '');
+  const archiveMutation = useSetGroupArchived(id ?? '');
   const leaveMutation = useLeaveGroup();
   const muted = muteMutation.isPending
     ? (muteMutation.variables ?? false)
@@ -220,7 +222,7 @@ export default function ProjektInfoScreen() {
                 <ListRow
                   icon="create-outline"
                   title="Name und Beschreibung bearbeiten"
-                  last={!canShareLink}
+                  last={group.is_system === true && !canShareLink}
                   onPress={() =>
                     router.push({
                       pathname: '/(focused)/projekte/[id]/bearbeiten',
@@ -232,10 +234,21 @@ export default function ProjektInfoScreen() {
                   <ListRow
                     icon="share-outline"
                     title="Einladungslink teilen"
-                    last
+                    last={group.is_system === true}
                     onPress={shareInvite}
                   />
                 ) : null}
+                {group.is_system ? null : (
+                  <ListRow
+                    icon="archive-outline"
+                    title={group.archived_at ? 'Projekt wiederherstellen' : 'Projekt archivieren'}
+                    last
+                    disabled={archiveMutation.isPending}
+                    onPress={() =>
+                      archiveMutation.mutate(!group.archived_at, { onSuccess: done, onError: fail })
+                    }
+                  />
+                )}
               </ListGroup>
             )
           : null}

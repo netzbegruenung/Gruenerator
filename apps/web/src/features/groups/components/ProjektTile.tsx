@@ -14,6 +14,7 @@ const TILE_BASE =
   'dark:hover:shadow-[0_4px_12px_rgba(0,0,0,0.30)]';
 
 function projektMeta(projekt: GroupSummary): string {
+  if (projekt.archived_at) return 'Archiviert';
   if (projekt.group_type === 'personal') return 'Nur für dich';
   if (projekt.is_system) return 'Für alle';
   if (projekt.member_count != null) {
