@@ -3,7 +3,6 @@ import {
   type AgentConversionTarget,
   type CreateUserAgentBody,
   type UpdateUserAgentBody,
-  type DraftedAgentSpec,
 } from '@gruenerator/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
