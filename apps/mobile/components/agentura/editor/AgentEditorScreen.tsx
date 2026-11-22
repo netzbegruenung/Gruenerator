@@ -9,7 +9,6 @@ import {
   recurrenceToSchedule,
   scheduleToRecurrence,
   useCreateRecurringTask,
-  useCreateUserAgent,
   useDeleteUserAgent,
   useRecurringTasks,
   useUpdateRecurringTask,
@@ -17,7 +16,6 @@ import {
   useUserAgent,
 } from '@gruenerator/shared/grueneratoren';
 import { useAuth } from '@gruenerator/shared/hooks';
-import { getRandomBytes } from 'expo-crypto';
 import { router, Stack, useLocalSearchParams, usePreventRemove } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
@@ -53,7 +51,6 @@ import {
   MAX_TITLE,
   missingForSave,
   MODEL_OPTIONS,
-  newAgentIdentifier,
   taskInstructionTooLong,
 } from './agentEditorLogic';
 import { useAgentConversion } from './useAgentConversion';
@@ -223,7 +220,6 @@ function EditorForm({
 }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
   const patch = useAgentEditorStore((s) => s.patch);
   const reset = useAgentEditorStore((s) => s.reset);
 
@@ -232,7 +228,6 @@ function EditorForm({
   const showSchedule = variant === 'recurring' || taskId !== null;
   const writesTask = showSchedule;
 
-  const createMut = useCreateUserAgent();
   const updateMut = useUpdateUserAgent(identifier ?? '');
   const deleteMut = useDeleteUserAgent();
   const createTaskMut = useCreateRecurringTask();
@@ -305,30 +300,14 @@ function EditorForm({
     }
     setSaving(true);
     void saveSession(s, {
-      createAgent: createMut.mutateAsync,
       updateAgent: updateMut.mutateAsync,
       createTask: createTaskMut.mutateAsync,
       updateTask: updateTaskMut.mutateAsync,
-      author: user?.display_name || 'Eigener Agent',
     }).then((outcome) => {
       setSaving(false);
       switch (outcome.kind) {
         case 'failed':
           return Alert.alert(outcome.title, outcome.message);
-        case 'task':
-          return leave(() =>
-            router.replace({
-              pathname: '/(focused)/grueneratoren/aufgabe/[id]',
-              params: { id: outcome.taskId },
-            })
-          );
-        case 'agent':
-          return leave(() =>
-            router.replace({
-              pathname: '/(focused)/grueneratoren/agent/[slug]',
-              params: { slug: outcome.slug },
-            })
-          );
         case 'updated':
           return leave(() => router.back());
       }
@@ -643,64 +622,32 @@ const styles = StyleSheet.create({
   },
 });
 
-type SaveOutcome =
-  | { kind: 'task'; taskId: string }
-  | { kind: 'agent'; slug: string }
-  | { kind: 'updated' }
-  | { kind: 'failed'; title: string; message: string };
+type SaveOutcome = { kind: 'updated' } | { kind: 'failed'; title: string; message: string };
 
 interface SaveDeps {
-  createAgent: ReturnType<typeof useCreateUserAgent>['mutateAsync'];
   updateAgent: ReturnType<typeof useUpdateUserAgent>['mutateAsync'];
   createTask: ReturnType<typeof useCreateRecurringTask>['mutateAsync'];
   updateTask: ReturnType<typeof useUpdateRecurringTask>['mutateAsync'];
-  author: string;
 }
 
 const errorText = (err: unknown) =>
   err instanceof Error ? err.message : 'Speichern fehlgeschlagen.';
 
 /**
- * Speichert die Sitzung: Agent anlegen oder ändern, dann die Aufgabe. Steht
+ * Speichert die Sitzung: Agent ändern, dann die Aufgabe. Steht
  * außerhalb der Komponente, weil der React Compiler `try` mit bedingten
  * Ausdrücken nicht übersetzt (`test/reactCompilerCoverage.vitest.ts`).
- *
- * Die ID eines schon angelegten Agents bleibt in der Sitzung — scheitert danach
- * nur die Aufgabe, legt ein zweiter Versuch keinen zweiten Agent an.
  */
-async function saveSession(
-  s: AgentEditorSession & { setCreatedIdentifier: (identifier: string) => void },
-  deps: SaveDeps
-): Promise<SaveOutcome> {
+async function saveSession(s: AgentEditorSession, deps: SaveDeps): Promise<SaveOutcome> {
   const payload = formToPayload(s.form);
   try {
+    // Neue Agents gibt es nicht mehr; der Editor öffnet nur noch bestehende.
     if (s.identifier === null) {
-      let agentId = s.createdIdentifier;
-      if (!agentId) {
-        const created = await deps.createAgent({
-          identifier: newAgentIdentifier(s.form.title, getRandomBytes),
-          author: deps.author,
-          ...payload,
-        });
-        agentId = created.identifier;
-        s.setCreatedIdentifier(agentId);
-      }
-      if (s.variant !== 'recurring') return { kind: 'agent', slug: agentId };
-      try {
-        const task = await deps.createTask({
-          ...taskFields(s),
-          agentIdentifier: agentId,
-          locale: s.form.locale,
-          enabled: true,
-        });
-        return { kind: 'task', taskId: task.id };
-      } catch (err) {
-        return {
-          kind: 'failed',
-          title: 'Zeitplan nicht gespeichert',
-          message: `Der Agent ist angelegt, aber der Zeitplan konnte nicht gespeichert werden. Bitte erneut speichern.\n\n${errorText(err)}`,
-        };
-      }
+      return {
+        kind: 'failed',
+        title: 'Nicht möglich',
+        message: 'Neue Agents lassen sich nicht mehr anlegen. Lege ein Rezept an.',
+      };
     }
 
     await deps.updateAgent(payload);

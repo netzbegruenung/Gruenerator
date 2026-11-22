@@ -367,6 +367,9 @@ const UebersetzerPage = lazy(() => import('../features/uebersetzer/UebersetzerPa
 const VoicePage = lazy(() => import('../features/voice/VoicePage'));
 const TranskriptionPage = lazy(() => import('../features/transkription/TranskriptionPage'));
 const RecurringTasksPage = lazy(() => import('../features/recurring-tasks/RecurringTasksPage'));
+const RecurringTaskBuilderPage = lazy(
+  () => import('../features/recurring-tasks/RecurringTaskBuilderPage')
+);
 const TrashPage = lazy(() => import('../features/trash/TrashPage'));
 const WorkplacePage = lazy(() => import('../features/workplace/WorkplacePage'));
 const ProjektePage = lazy(() => import('../features/groups/pages/ProjektePage'));
@@ -501,6 +504,8 @@ const standardRoutes: RouteConfig[] = [
     : []),
   // EXPERIMENTAL — recurring agent tasks management.
   { path: '/wiederkehrend', component: RecurringTasksPage },
+  { path: '/wiederkehrend/neu', component: RecurringTaskBuilderPage },
+  { path: '/wiederkehrend/:id/bearbeiten', component: RecurringTaskBuilderPage },
   { path: '/papierkorb', component: TrashPage },
   // /grueneratoren is the overview of what a person works with (own, shared,
   // starred). /marktplatz is the shop for official, Landesverband and public
