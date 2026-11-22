@@ -424,6 +424,12 @@
         "group": "groups"
       },
       {
+        "key": "group_content_reported",
+        "label": "Gemeldete Inhalte",
+        "description": "Wenn jemand einen Inhalt in einem Projekt meldet, das du verwaltest",
+        "group": "groups"
+      },
+      {
         "key": "transfer_downloaded",
         "label": "Transfer-Download",
         "description": "Wenn jemand deine geteilte Datei herunterlädt",
