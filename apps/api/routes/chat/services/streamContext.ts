@@ -41,13 +41,11 @@ import {
   getProjectCollabDocumentIds,
   type ProjectCollabDoc,
 } from '../../../services/groups/projectCollabDocs.js';
-import {
-  getProjectFileDocumentIds,
-  getThreadProjectId,
-} from '../../../services/groups/projectFiles.js';
+import { getProjectFileDocumentIds } from '../../../services/groups/projectFiles.js';
 import { readThreadProjectLandesverband } from '../../../services/groups/projectLandesverband.js';
 import { getProjectNotebookIds } from '../../../services/groups/projectNotebooks.js';
 import { getProjectRecipeIds } from '../../../services/groups/projectRecipes.js';
+import { getThreadProjectId } from '../../../services/groups/projectRunContext.js';
 import { extractLocaleFromRequest } from '../../../services/localization/index.js';
 import {
   loadTurnMemories,
