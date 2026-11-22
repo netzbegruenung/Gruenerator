@@ -37,7 +37,8 @@ const rowCls =
 
 /**
  * „Wissen": was Chats im Projekt nutzen können — Dateien, Texte, Notebooks,
- * Rezepte, Agents … — als eine kompakte Liste statt großer Karten. Ein Klick
+ * Agents … — als eine kompakte Liste statt großer Karten. Rezepte stehen in
+ * ihrer eigenen Karte (`ProjectRecipesCard`). Ein Klick
  * öffnet das bestehende Ziel; Entfernen und „Im Austausch besprechen" hängen am
  * Zeilenmenü.
  */
@@ -112,7 +113,8 @@ export function ProjectKnowledgeList({
   );
 }
 
-function KnowledgeRow({
+/** Eine Zeile: öffnet das Ziel, Entfernen und Besprechen hängen am Menü. Auch die Rezepte-Karte nutzt sie. */
+export function KnowledgeRow({
   item,
   onUseTemplate,
   actions,

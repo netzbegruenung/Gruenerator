@@ -8,6 +8,7 @@ import {
 import { extractSlugSuffix } from '@gruenerator/shared/utils';
 import {
   Button,
+  ConfirmDialogProvider,
   SectionHeader,
   Select,
   SelectContent,
@@ -31,6 +32,7 @@ import { WorkplaceHero } from '../../workplace/components/WorkplaceHero';
 import GroupDetailSection from '../components/GroupDetailSection';
 import GroupsCreateSection, { type CreateGroupExtras } from '../components/GroupsCreateSection';
 import { ProjekteComposer } from '../components/ProjekteComposer';
+import { ProjekteRecipesSection } from '../components/ProjekteRecipesSection';
 import { ProjektTile } from '../components/ProjektTile';
 import PublicGroupsSection from '../components/PublicGroupsSection';
 import { useGroupResolver } from '../hooks/useGroupResolver';
@@ -289,6 +291,7 @@ const ProjektePage = () => {
           </div>
         </details>
       )}
+      <ProjekteRecipesSection />
       <PublicGroupsSection onSuccessMessage={showSuccess} onErrorMessage={showError} />
 
       {createDialog}
@@ -296,4 +299,13 @@ const ProjektePage = () => {
   );
 };
 
-export default withAuthRequired(ProjektePage, { title: 'Projekte' });
+/** Löschen eines Rezepts fragt per AlertDialog nach, nicht per `window.confirm`. */
+function ProjekteRoute() {
+  return (
+    <ConfirmDialogProvider>
+      <ProjektePage />
+    </ConfirmDialogProvider>
+  );
+}
+
+export default withAuthRequired(ProjekteRoute, { title: 'Projekte' });
