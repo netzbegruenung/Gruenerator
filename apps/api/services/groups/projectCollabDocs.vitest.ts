@@ -45,7 +45,10 @@ describe('getProjectCollabDocs', () => {
     expect(sql).toMatch(/t\.user_id::text = \$2::text OR EXISTS/);
     expect(sql).toMatch(/content_type = 'collaborative_documents'/);
     expect(sql).toMatch(/cd\.deleted_at IS NULL AND cd\.is_deleted = false/);
-    expect(sql).toMatch(/ORDER BY gcs\.shared_at DESC\s+LIMIT \$3/);
+    // Docs und Dateien in einer Liste, gemeinsam nach Teilzeitpunkt gedeckelt.
+    expect(sql).toMatch(/content_type = 'documents'/);
+    expect(sql).toMatch(/d\.deleted_at IS NULL AND d\.status = 'completed'/);
+    expect(sql).toMatch(/ORDER BY shared_at DESC\s+LIMIT \$3/);
     expect(params[2]).toBe(PROJECT_COLLAB_DOC_CAP);
     expect(params[3]).not.toContain('video');
   });
@@ -82,7 +85,8 @@ describe('formatProjectDocs', () => {
       title: `Dokument Nummer ${i} zur Klimapolitik`,
       kind: 'doc' as const,
     }));
-    expect(formatProjectDocs(docs).length).toBeLessThan(3000);
+    // 30 Zeilen samt Hinweis auf `groups` — rund 1.000 Token, nur Titel.
+    expect(formatProjectDocs(docs).length).toBeLessThan(4500);
   });
 });
 

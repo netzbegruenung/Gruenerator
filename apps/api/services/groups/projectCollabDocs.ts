@@ -20,10 +20,11 @@ import { embedUntrusted } from '../../routes/chat/services/untrustedContent.js';
 import { projectThreadScopeSql } from './projectThreadScope.js';
 
 /**
- * Wie viele Titel der Prompt höchstens nennt: je Zeile rund 25 Token, also gut
- * 500 Token im Vollausbau. Mehr findet das Modell über `find_content`.
+ * Wie viele Titel der Prompt höchstens nennt (Docs und Dateien zusammen, neueste
+ * zuerst): je Zeile rund 25 Token, also gut 750 Token im Vollausbau. Mehr findet
+ * das Modell über `groups` (search, content).
  */
-export const PROJECT_COLLAB_DOC_CAP = 20;
+export const PROJECT_COLLAB_DOC_CAP = 30;
 
 /**
  * Wie viele indexierte Dokumente höchstens in den Dokument-Scope des Projekts
@@ -34,8 +35,8 @@ export const PROJECT_COLLAB_SEARCH_CAP = 50;
 
 const TITLE_MAX_CHARS = 80;
 
-/** Art, wie `read_artifact` sie als `kind` nimmt. */
-export type ProjectCollabReadKind = 'doc' | 'sheet' | 'board' | 'presentation';
+/** Art, wie `read_artifact` sie als `kind` nimmt; `file` = hochgeladene Datei bzw. Text. */
+export type ProjectCollabReadKind = 'doc' | 'sheet' | 'board' | 'presentation' | 'file';
 
 export interface ProjectCollabDoc {
   id: string;
@@ -62,6 +63,7 @@ export const PROJECT_COLLAB_SUBTYPES = [
 ] as const;
 
 function readKindOf(subtype: string): ProjectCollabReadKind {
+  if (subtype === 'file') return 'file';
   if (subtype === 'sheets') return 'sheet';
   if (subtype === 'boards') return 'board';
   // `read_artifact` liest ein Canvas über die Art „presentation".
@@ -73,16 +75,27 @@ export async function getProjectCollabDocs(
   threadId: string,
   userId: string
 ): Promise<ProjectCollabDoc[]> {
+  // Docs und Dateien in EINER Liste: ohne die Dateien hatte das Modell für
+  // „Lies die Datei X ganz" keine id und antwortete aus den Vorab-Treffern —
+  // live 22.11.2026 mit dem falschen „letzten Satz".
   const rows = (await getPostgresInstance().query(
-    `SELECT cd.id, cd.title, COALESCE(cd.document_subtype, 'docs') AS subtype
-       FROM ${projectThreadScopeSql('$1', '$2')}
-       JOIN group_content_shares gcs ON gcs.group_id = g.id AND gcs.content_type = 'collaborative_documents'
-       -- content_id ist text, collaborative_documents.id uuid.
-       JOIN collaborative_documents cd ON cd.id::text = gcs.content_id
-      WHERE cd.deleted_at IS NULL AND cd.is_deleted = false
-        AND COALESCE(cd.document_subtype, 'docs') = ANY($4::text[])
-      ORDER BY gcs.shared_at DESC
-      LIMIT $3`,
+    `SELECT id, title, subtype FROM (
+       SELECT cd.id::text AS id, cd.title, COALESCE(cd.document_subtype, 'docs') AS subtype, gcs.shared_at
+         FROM ${projectThreadScopeSql('$1', '$2')}
+         JOIN group_content_shares gcs ON gcs.group_id = g.id AND gcs.content_type = 'collaborative_documents'
+         -- content_id ist text, collaborative_documents.id uuid.
+         JOIN collaborative_documents cd ON cd.id::text = gcs.content_id
+        WHERE cd.deleted_at IS NULL AND cd.is_deleted = false
+          AND COALESCE(cd.document_subtype, 'docs') = ANY($4::text[])
+       UNION ALL
+       SELECT d.id::text AS id, COALESCE(NULLIF(d.title, ''), d.filename) AS title, 'file' AS subtype, gcs.shared_at
+         FROM ${projectThreadScopeSql('$1', '$2')}
+         JOIN group_content_shares gcs ON gcs.group_id = g.id AND gcs.content_type = 'documents'
+         JOIN documents d ON d.id::text = gcs.content_id
+        WHERE d.deleted_at IS NULL AND d.status = 'completed' AND d.user_id IS NOT NULL
+     ) items
+     ORDER BY shared_at DESC
+     LIMIT $3`,
     [threadId, userId, PROJECT_COLLAB_DOC_CAP, [...PROJECT_COLLAB_SUBTYPES]]
   )) as { id: string; title: string | null; subtype: string }[];
 
@@ -130,11 +143,16 @@ const KIND_NOUN: Record<ProjectCollabReadKind, string> = {
   sheet: 'Tabelle',
   board: 'Board',
   presentation: 'Präsentation',
+  file: 'Datei',
 };
 
 /** Der Prompt-Abschnitt; leer, wenn das Projekt nichts geteilt hat. */
 export function formatProjectDocs(docs: readonly ProjectCollabDoc[] | null): string {
   if (!docs?.length) return '';
   const lines = docs.map((d) => `- ${d.title} (${KIND_NOUN[d.kind]}; kind=${d.kind}, id=${d.id})`);
-  return `\n\n## DOKUMENTE DES PROJEKTS\n\nDiese Dokumente sind ins Projekt dieses Chats geteilt. Ihren Inhalt kennst du NICHT. Betrifft die Frage eines davon, lies es mit \`read_artifact\` (kind und id aus der Liste) und nenne in der Antwort seinen Titel als Quelle. Rate nie, was darin steht; ohne Bezug zur Frage lies nichts.\n\n${embedUntrusted('projekt_dokumente', lines.join('\n'))}`;
+  const more =
+    docs.length >= PROJECT_COLLAB_DOC_CAP
+      ? ' Die Liste zeigt nur die neuesten; weitere findest du mit `groups` (action="search" oder "content").'
+      : '';
+  return `\n\n## DOKUMENTE DES PROJEKTS\n\nDiese Dokumente und Dateien sind ins Projekt dieses Chats geteilt. Vorab gefundene Stellen daraus sind nur Auszüge, nicht der ganze Inhalt. Geht es um den ganzen Inhalt, den genauen Wortlaut oder etwas, das in den Auszügen fehlt, lies es mit \`read_artifact\` (kind und id aus der Liste) und nenne in der Antwort seinen Titel als Quelle. Rate nie, was darin steht; ohne Bezug zur Frage lies nichts.${more}\n\n${embedUntrusted('projekt_dokumente', lines.join('\n'))}`;
 }
