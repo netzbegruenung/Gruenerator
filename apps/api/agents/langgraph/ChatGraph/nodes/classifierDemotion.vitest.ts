@@ -551,3 +551,39 @@ describe('Tier 3.5 — die Geltungsfrage', () => {
     expect(result.intent).toBe('agentic');
   });
 });
+
+/**
+ * #5958: der Erstell-Auflöser war gefragt und blieb ohne Urteil (live: Zeitlimit
+ * nach 1501 ms). Dann entscheidet der Loop, nicht die schwache Regel — vorher
+ * gewann `chart@0.65`, und der Präsentationsauftrag bekam kein Deck.
+ */
+describe('Residual — Erstell-Auflöser ohne Urteil', () => {
+  const ORDER =
+    'Präsentation 8 Folien zur Haushaltslage: Einnahmen 2024: Gewerbesteuer 41,3 Mio, ' +
+    'Einkommensteuer-Anteil 38,9 Mio, Zuweisungen 55,2 Mio. Ausgaben: Personal 62,1 Mio, ' +
+    'Soziales 48,7 Mio, Investitionen 19,4 Mio, Schuldendienst 7,8 Mio. Defizit 3,6 Mio. ' +
+    'Mach daraus Diagramme und eine klare Botschaft.';
+
+  /** Jeder kleine Auflöser scheitert: der Erstell-Auflöser liefert `null`, nicht „keine". */
+  function failAllModelCalls() {
+    executeProvider.mockImplementation(async () => {
+      throw new Error('Generation scope timed out after 1500ms');
+    });
+  }
+  afterEach(() => {
+    executeProvider.mockImplementation(async () => ({ content: 'keine' }));
+  });
+
+  it('geht in den Loop, wenn der Auflöser ausfällt', async () => {
+    failAllModelCalls();
+    const result = await classifierNode(buildState({ userMessage: ORDER }));
+    expect(result.intent).toBe('agentic');
+  });
+
+  it('bleibt ohne Loop bei der schwachen Regel (Loop aus)', async () => {
+    process.env.CHAT_AGENT_LOOP = 'false';
+    failAllModelCalls();
+    const result = await classifierNode(buildState({ userMessage: ORDER }));
+    expect(result.intent).not.toBe('agentic');
+  });
+});
