@@ -3,6 +3,7 @@ import {
   AtSign,
   CloudDownload,
   FileText,
+  Flag,
   Heart,
   LayoutDashboard,
   Megaphone,
@@ -204,6 +205,13 @@ export const NOTIFICATION_TYPES: Record<string, NotificationTypeConfig> = {
     icon: UserPlus,
     group: 'groups',
     subtypes: ['group_join_requested', 'group_join_approved', 'group_join_denied'],
+    actions: (ctx) => [openLinkAction('Projekt öffnen')(ctx)],
+  },
+  group_content_reported: {
+    label: 'Gemeldete Inhalte',
+    description: 'Wenn jemand einen Inhalt in einem Projekt meldet, das du verwaltest',
+    icon: Flag,
+    group: 'groups',
     actions: (ctx) => [openLinkAction('Projekt öffnen')(ctx)],
   },
 
