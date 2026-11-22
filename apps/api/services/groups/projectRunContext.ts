@@ -11,6 +11,7 @@
  */
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 
+import { PROJECT_COLLAB_SEARCH_CAP } from './projectCollabDocs.js';
 import { PROJECT_FILE_DOCUMENT_CAP } from './projectFiles.js';
 import {
   PROJECT_NOTEBOOKS_PER_TURN,
@@ -25,7 +26,7 @@ export interface ProjectRunContext {
   projectInstructions: { projectName: string; text: string } | null;
   projectNotebookIds: string[];
   projectRecipeIds: string[];
-  /** Alle Dateien des Projekts als ein Suchbereich (stilles Notebook, wie im Projekt-Chat). */
+  /** Alle Dateien und indexierten Dokumente des Projekts als ein Suchbereich (stilles Notebook, wie im Projekt-Chat). */
   projectFileDocumentIds: string[];
 }
 
@@ -53,7 +54,7 @@ export async function loadProjectRunContext(
   if (projectName == null) return null;
   const db = getPostgresInstance();
 
-  const [instr, notebookRows, recipeRows, fileRows] = await Promise.all([
+  const [instr, notebookRows, recipeRows, fileRows, collabRows] = await Promise.all([
     db.queryOne(
       `SELECT custom_prompt FROM group_instructions
         WHERE group_id = $1::uuid AND COALESCE(is_active, TRUE) = TRUE
@@ -81,6 +82,16 @@ export async function loadProjectRunContext(
         ORDER BY gcs.shared_at DESC LIMIT $2`,
       [groupId, PROJECT_FILE_DOCUMENT_CAP]
     ) as Promise<Array<{ id: string }>>,
+    db.query(
+      `SELECT cd.id
+         FROM group_content_shares gcs
+         JOIN collaborative_documents cd ON cd.id::text = gcs.content_id
+         JOIN collab_search_index ci ON ci.document_id = cd.id AND ci.chunk_count > 0
+        WHERE gcs.group_id = $1::uuid AND gcs.content_type = 'collaborative_documents'
+          AND cd.deleted_at IS NULL AND cd.is_deleted = false
+        ORDER BY gcs.shared_at DESC LIMIT $2`,
+      [groupId, PROJECT_COLLAB_SEARCH_CAP]
+    ) as Promise<Array<{ id: string }>>,
   ]);
 
   const text = instr?.custom_prompt?.trim() ?? '';
@@ -91,7 +102,7 @@ export async function loadProjectRunContext(
       notebookRows.map((r) => ({ contentType: r.content_type, contentId: r.content_id }))
     ),
     projectRecipeIds: [...new Set(recipeRows.map((r) => r.content_id))],
-    projectFileDocumentIds: [...new Set(fileRows.map((r) => r.id))],
+    projectFileDocumentIds: [...new Set([...fileRows, ...collabRows].map((r) => r.id))],
   };
 }
 

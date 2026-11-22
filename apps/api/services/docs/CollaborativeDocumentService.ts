@@ -23,6 +23,20 @@ export type QueryRunner = <T = Record<string, unknown>>(
   params?: unknown[]
 ) => Promise<T[]>;
 
+/**
+ * A trashed document's chunks must stop being found. Best effort: the index
+ * worker also sweeps index rows of trashed documents, so a failure here only
+ * delays the cleanup. Restore needs nothing — no index row means due again.
+ */
+async function dropCollabSearchIndex(id: string): Promise<void> {
+  try {
+    const { removeCollabIndex } = await import('./collabSearchIndex.js');
+    await removeCollabIndex(id);
+  } catch (error) {
+    reportBackgroundError(error, { job: 'collab-search-index-drop', docId: id });
+  }
+}
+
 export interface PermissionEntry {
   level: 'owner' | 'editor' | 'viewer';
 }
@@ -179,6 +193,7 @@ export async function trashCollaborativeDocument(
   // Open editors would otherwise keep editing a trashed document; on reconnect
   // Hocuspocus refuses it.
   void closeCollabRooms([id]);
+  void dropCollabSearchIndex(id);
   return { status: 'ok' };
 }
 
@@ -343,6 +358,10 @@ export async function purgeCollaborativeDocument(
   await sideStore('yjs_document_snapshots', () =>
     runQuery('DELETE FROM yjs_document_snapshots WHERE document_id = $1', [id])
   );
+  await sideStore('collab_search_points', async () => {
+    const { removeCollabIndex } = await import('./collabSearchIndex.js');
+    await removeCollabIndex(id);
+  });
   await sideStore('group_content_shares', () =>
     runQuery(
       `DELETE FROM group_content_shares

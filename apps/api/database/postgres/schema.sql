@@ -440,6 +440,14 @@ CREATE TABLE IF NOT EXISTS collaborative_documents_init (
     PRIMARY KEY(document_id)
 );
 
+CREATE TABLE IF NOT EXISTS collab_search_index (
+    document_id UUID PRIMARY KEY REFERENCES collaborative_documents(id) ON DELETE CASCADE,
+    content_hash TEXT NOT NULL,
+    chunk_count INTEGER NOT NULL DEFAULT 0,
+    checked_at TIMESTAMPTZ NOT NULL,
+    indexed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS collaborative_document_folders (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,

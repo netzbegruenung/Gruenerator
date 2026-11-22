@@ -39,6 +39,7 @@ import { readThreadProjectInstructions } from '../../../services/groups/groupIns
 import { readThreadProjectLandesverband } from '../../../services/groups/projectLandesverband.js';
 import {
   getProjectCollabDocs,
+  getProjectCollabDocumentIds,
   type ProjectCollabDoc,
 } from '../../../services/groups/projectCollabDocs.js';
 import { getProjectFileDocumentIds } from '../../../services/groups/projectFiles.js';
@@ -1002,9 +1003,23 @@ async function buildStreamContextInner({
     }
   }
 
+  // Indexierte Docs, Tabellen, Boards des Projekts liegen im selben Scope.
+  if (actualThreadId) {
+    try {
+      const collabIds = await withTimeout(
+        getProjectCollabDocumentIds(actualThreadId, userId),
+        EXTERNAL_CONTEXT_TIMEOUT_MS,
+        'project collab docs'
+      );
+      projectFileDocumentIds = [...new Set([...projectFileDocumentIds, ...collabIds])];
+    } catch (err) {
+      log.warn('[StreamContext] Could not load project collab doc ids (continuing):', err);
+    }
+  }
+
   // === Docs, Tabellen, Boards des Projekts ===
-  // Nicht indexiert und nicht im Prompt: nur eine Titelliste (`projectDocs`),
-  // den Inhalt liest das Modell bei Bedarf mit `read_artifact`.
+  // Nicht im Prompt: nur eine Titelliste (`projectDocs`); den ganzen Inhalt liest
+  // das Modell bei Bedarf mit `read_artifact`, Fundstellen kommen aus der Suche oben.
   let projectDocs: ProjectCollabDoc[] | null = null;
   if (actualThreadId) {
     try {
