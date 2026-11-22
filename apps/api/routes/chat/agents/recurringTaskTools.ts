@@ -38,6 +38,7 @@ import {
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
+import { getThreadProjectId } from '../../../services/groups/projectRunContext.js';
 import {
   DELIVERY_LABELS_DE,
   describeRecurrence,
@@ -78,6 +79,8 @@ export interface RecurringTaskToolDeps {
   /** `false` ⇒ für diese Aufgabe läuft bereits ein Lauf (Lease, #3221). */
   runRecurringTask: (row: RecurringTaskRow) => Promise<boolean>;
   getAgentForUser: typeof getAgentForUser;
+  /** Projekt des Chats (nur mit aktiver Mitgliedschaft), sonst `null`. */
+  getThreadProjectId: typeof getThreadProjectId;
 }
 
 /** `PersonalToolCtx` plus optionale Fakes — der Katalog reicht den Ctx ohne `deps`. */
@@ -109,6 +112,7 @@ function resolveDeps(partial: Partial<RecurringTaskToolDeps> | undefined): Recur
         return true;
       }),
     getAgentForUser: partial?.getAgentForUser ?? getAgentForUser,
+    getThreadProjectId: partial?.getThreadProjectId ?? getThreadProjectId,
   };
 }
 
@@ -323,6 +327,10 @@ Für create formulierst du instruction als vollständige Arbeitsanweisung an den
     const agent = await resolveAgentTitle(userId, agentIdentifier);
     if ('error' in agent) return agent;
 
+    // Aus einem Projekt-Chat heraus gehört die Aufgabe ins Projekt: Anweisungen
+    // und Wissen des Projekts gelten dann auch im Lauf.
+    const groupId = await deps.getThreadProjectId(threadId, userId).catch(() => null);
+
     const validated = createRecurringTaskBodySchema.safeParse({
       title: args.title.trim(),
       instruction: args.instruction.trim(),
@@ -330,6 +338,7 @@ Für create formulierst du instruction als vollständige Arbeitsanweisung an den
       ...(args.delivery ? { delivery: args.delivery } : {}),
       ...(args.emailNotify !== undefined ? { emailNotify: args.emailNotify } : {}),
       agentIdentifier,
+      ...(groupId ? { groupId } : {}),
       timezone: args.timezone?.trim() || (locale === 'de-AT' ? 'Europe/Vienna' : 'Europe/Berlin'),
       locale,
     });
@@ -358,6 +367,7 @@ Für create formulierst du instruction als vollständige Arbeitsanweisung an den
       { key: 'Takt', value: takt },
       { key: 'Zustellung', value: zustellung },
       { key: 'Agent', value: agentTitle ?? 'Grünerator (Standard)' },
+      ...(groupId ? [{ key: 'Projekt', value: 'Dieses Projekt' }] : []),
     ]);
     const note = `Bestätigung angefordert: wiederkehrende Aufgabe „${body.title}" (${takt}, ${zustellung}) einrichten.`;
     groundNote(sourceRegistry, 'Wiederkehrende Aufgabe einrichten', note);

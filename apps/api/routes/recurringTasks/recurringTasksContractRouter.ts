@@ -7,6 +7,7 @@
 import { recurringTasksContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { getActiveProjectName } from '../../services/groups/projectRunContext.js';
 import { runRecurringTask } from '../../services/recurringTasks/recurringTaskRunner.js';
 import {
   createRecurringTask,
@@ -33,6 +34,11 @@ const notFound = {
   body: { success: false, message: 'Aufgabe nicht gefunden.' },
 };
 
+const notProjectMember = {
+  status: 400 as const,
+  body: { success: false, message: 'Du bist in diesem Projekt nicht Mitglied.' },
+};
+
 const s = initServer();
 
 export const recurringTasksContractRouter = s.router(recurringTasksContract, {
@@ -51,6 +57,9 @@ export const recurringTasksContractRouter = s.router(recurringTasksContract, {
   create: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
+      if (args.body.groupId && (await getActiveProjectName(args.body.groupId, userId)) == null) {
+        return notProjectMember;
+      }
       const task = await createRecurringTask(userId, args.body);
       return { status: 201 as const, body: { success: true, task } };
     } catch (error) {
@@ -76,6 +85,9 @@ export const recurringTasksContractRouter = s.router(recurringTasksContract, {
   update: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
+      if (args.body.groupId && (await getActiveProjectName(args.body.groupId, userId)) == null) {
+        return notProjectMember;
+      }
       const task = await updateRecurringTask(userId, args.params.id, args.body);
       if (!task) return notFound;
       return { status: 200 as const, body: { success: true, task } };

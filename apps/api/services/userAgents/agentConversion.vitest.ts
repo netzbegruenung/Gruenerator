@@ -57,6 +57,7 @@ function deps(over: Partial<AgentConversionDeps> = {}) {
     })),
     trashProject: vi.fn(async () => 'ok'),
     setInstructions: vi.fn(async () => ({})),
+    handOverTasks: vi.fn(async () => 0),
     share: vi.fn(async () => ({ status: 200 as const, success: true, message: 'ok' })),
     setSuccessor: vi.fn(async () => true),
     ...over,
@@ -285,6 +286,71 @@ describe('convertUserAgent', () => {
     expect(out.ok && out.response.items.find((i) => i.part === 'groupShares')?.note).toBe(
       'Das Rezept ist in dasselbe Projekt geteilt.'
     );
+  });
+
+  it('project: hands the agent tasks over to the new project and reports them as carried', async () => {
+    const d = deps({
+      readFacts: vi.fn(async () => ({ ...NO_FACTS, recurringTaskCount: 2 })),
+      handOverTasks: vi.fn(async () => 2),
+    });
+    const out = await convertUserAgent(
+      {
+        userId: 'u1',
+        sharerName: 'Kim',
+        handle: 'pressearbeit-kv',
+        target: 'project',
+        dryRun: false,
+        fresh: false,
+      },
+      d
+    );
+    expect(d.handOverTasks).toHaveBeenCalledWith(
+      'u1',
+      expect.objectContaining({ id: AGENT_ID }),
+      PROJECT_ID
+    );
+    if (!out.ok) throw new Error('expected ok');
+    expect(out.response.items.find((i) => i.part === 'recurringTasks')).toMatchObject({
+      outcome: 'carried',
+    });
+  });
+
+  it('project: a failed hand-over reports the tasks as later, not carried', async () => {
+    const d = deps({
+      readFacts: vi.fn(async () => ({ ...NO_FACTS, recurringTaskCount: 1 })),
+      handOverTasks: vi.fn(async () => {
+        throw new Error('db');
+      }),
+    });
+    const out = await convertUserAgent(
+      {
+        userId: 'u1',
+        sharerName: 'Kim',
+        handle: 'pressearbeit-kv',
+        target: 'project',
+        dryRun: false,
+        fresh: false,
+      },
+      d
+    );
+    if (!out.ok) throw new Error('expected ok');
+    expect(out.response.items.find((i) => i.part === 'recurringTasks')?.outcome).toBe('later');
+  });
+
+  it('recipe: tasks stay with the agent and the note says why', async () => {
+    const d = deps({ readFacts: vi.fn(async () => ({ ...NO_FACTS, recurringTaskCount: 1 })) });
+    await convertUserAgent(
+      {
+        userId: 'u1',
+        sharerName: 'Kim',
+        handle: 'pressearbeit-kv',
+        target: 'recipe',
+        dryRun: false,
+        fresh: false,
+      },
+      d
+    );
+    expect(d.handOverTasks).not.toHaveBeenCalled();
   });
 
   it('unknown agent is a 404', async () => {

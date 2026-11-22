@@ -23,6 +23,7 @@ import {
   prepareAgentState,
   type PreparedAgentState,
 } from '../../../../services/boards/agentFlow/generate.js';
+import { type ProjectRunContext } from '../../../../services/groups/projectRunContext.js';
 import { withLangfuseTrace } from '../../../../services/telemetry/langfuseTelemetry.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { createNullSSE } from '../sseHelpers.js';
@@ -90,6 +91,8 @@ export interface HeadlessTurnParams {
   /** Schon klassifizierter Zustand für genau diese `instruction` — spart die
    *  zweite Klassifikation, wenn der Aufrufer den Intent vorab brauchte. */
   prepared?: PreparedAgentState;
+  /** Material des Projekts einer wiederkehrenden Aufgabe (#5939). */
+  project?: ProjectRunContext | null;
 }
 
 export interface HeadlessTurnResult {
@@ -130,6 +133,7 @@ export async function runHeadlessAgenticTurn(
     (await deps.prepareAgentState(p.instruction, p.userLocale, {
       agentId: p.agentId ?? null,
       userId: p.userId,
+      ...(p.project && { project: p.project }),
     }));
 
   // Schreibende Werkzeuge abschalten, BEVOR der Katalog gebaut wird. Das Gate
