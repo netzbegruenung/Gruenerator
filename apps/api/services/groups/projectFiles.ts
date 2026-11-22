@@ -29,18 +29,6 @@ import { projectThreadScopeSql } from './projectThreadScope.js';
  */
 export const PROJECT_FILE_DOCUMENT_CAP = 200;
 
-/**
- * Das Projekt, in dem der Thread liegt — nach derselben Zugriffsregel wie die
- * Dateien. `null` für einen Chat ohne Projekt oder ohne Zugriff darauf.
- */
-export async function getThreadProjectId(threadId: string, userId: string): Promise<string | null> {
-  const rows = (await getPostgresInstance().query(
-    `SELECT g.id FROM ${projectThreadScopeSql('$1', '$2')} LIMIT 1`,
-    [threadId, userId]
-  )) as { id: string }[];
-  return rows[0]?.id ?? null;
-}
-
 export async function getProjectFileDocumentIds(
   threadId: string,
   userId: string

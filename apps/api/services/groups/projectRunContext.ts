@@ -46,6 +46,27 @@ export async function getActiveProjectName(
   return row?.name ?? null;
 }
 
+/**
+ * Darf eine wiederkehrende Aufgabe an dieses Projekt gebunden werden? Nur für
+ * aktive Mitglieder, und nicht in einem archivierten Projekt — dort ruhen die
+ * Aufgaben (#5951, der Scheduler überspringt sie).
+ */
+export async function getProjectTaskTarget(
+  groupId: string,
+  userId: string
+): Promise<'ok' | 'not_member' | 'archived'> {
+  const row = (await getPostgresInstance().queryOne(
+    `SELECT g.archived_at
+       FROM groups g
+       JOIN group_memberships gm ON gm.group_id = g.id AND gm.user_id = $2::uuid
+        AND gm.is_active = TRUE
+      WHERE g.id = $1::uuid AND g.deleted_at IS NULL AND COALESCE(g.is_active, TRUE) = TRUE`,
+    [groupId, userId]
+  )) as { archived_at: Date | string | null } | null;
+  if (!row) return 'not_member';
+  return row.archived_at ? 'archived' : 'ok';
+}
+
 export async function loadProjectRunContext(
   groupId: string,
   userId: string

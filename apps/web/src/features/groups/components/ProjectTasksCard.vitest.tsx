@@ -45,4 +45,11 @@ describe('ProjectTasksCard', () => {
     renderWithProviders(<ProjectTasksCard groupId="g1" archived />);
     expect(screen.queryByRole('link', { name: /Aufgabe$/ })).not.toBeInTheDocument();
   });
+
+  it('shows the tasks of an archived project as paused (#5951)', () => {
+    tasks.value = [task('a', 'g1')];
+    renderWithProviders(<ProjectTasksCard groupId="g1" archived />);
+    expect(screen.getByText(/Pausiert, solange das Projekt archiviert ist/)).toBeInTheDocument();
+    expect(screen.getByText(/· pausiert/)).toBeInTheDocument();
+  });
 });
