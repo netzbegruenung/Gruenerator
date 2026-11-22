@@ -1,4 +1,4 @@
-import { buildGroupPath, canShareIntoGroup } from '@gruenerator/shared/groups';
+import { buildGroupPath, canShareIntoGroup, splitArchivedGroups } from '@gruenerator/shared/groups';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,7 +43,7 @@ export const ProjekteSidebarSection = memo(function ProjekteSidebarSection({
   const { userGroups, isLoadingGroups, isErrorGroups } = useGroups({ isActive: true });
   const [open, setOpen] = useState(false);
 
-  const projekte = userGroups ?? [];
+  const { active: projekte, archived: archivedProjekte } = splitArchivedGroups(userGroups ?? []);
 
   const handleOpenChange = useCallback(
     (isOpen: boolean) => {
@@ -137,6 +137,25 @@ export const ProjekteSidebarSection = memo(function ProjekteSidebarSection({
                 </div>
               );
             })
+          )}
+          {archivedProjekte.length > 0 && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Archiviert</DropdownMenuLabel>
+              <div className="max-h-32 overflow-y-auto">
+                {archivedProjekte.map((g) => (
+                  <button
+                    key={g.id}
+                    type="button"
+                    onClick={() => openProjekt(buildGroupPath(g), g.name)}
+                    className="flex w-full min-w-0 items-center gap-2 rounded-sm px-3 py-1.5 text-left text-sm text-muted-foreground hover:bg-hover-alt"
+                  >
+                    <PiUsersThree className="size-4 shrink-0 text-grey-400" />
+                    <span className="min-w-0 flex-1 truncate">{g.name}</span>
+                  </button>
+                ))}
+              </div>
+            </>
           )}
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => openProjekt('/projekte', 'Projekte')}>

@@ -1,4 +1,10 @@
-import { filterGroupFeed, groupFeedKindMeta, type GroupFeedItem } from '@gruenerator/shared/groups';
+import {
+  PROJECT_SEARCH_STATE_LABELS,
+  filterGroupFeed,
+  groupFeedKindMeta,
+  searchSummary,
+  type GroupFeedItem,
+} from '@gruenerator/shared/groups';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -58,6 +64,8 @@ export function ProjectKnowledgeList({
   const hasMenu = (item: GroupFeedItem) =>
     buildKnowledgeActions(item, !!onDiscuss, shareActions?.actionsFor(item) ?? []).length > 0;
 
+  const summary = searchSummary(items);
+
   return (
     <View style={[styles.card, { backgroundColor: theme.card }]}>
       <View style={styles.head}>
@@ -68,6 +76,12 @@ export function ProjectKnowledgeList({
           <Text style={[styles.count, { color: theme.textSecondary }]}>{items.length}</Text>
         ) : null}
       </View>
+
+      {summary.total > 0 ? (
+        <Text style={[styles.rowMeta, { color: theme.textSecondary }]}>
+          {summary.searchable} von {summary.total} durchsuchbar
+        </Text>
+      ) : null}
 
       {items.length === 0 ? (
         <Text style={[styles.note, { color: theme.textSecondary }]}>
@@ -98,7 +112,13 @@ export function ProjectKnowledgeList({
             visible.map((item) => {
               const openable = canOpenInApp(item);
               const menu = hasMenu(item);
-              const label = [groupFeedKindMeta(item.kind).label, projectRoleLabel(item)]
+              const label = [
+                groupFeedKindMeta(item.kind).label,
+                projectRoleLabel(item),
+                item.searchState && item.searchState !== 'ready'
+                  ? PROJECT_SEARCH_STATE_LABELS[item.searchState]
+                  : null,
+              ]
                 .filter(Boolean)
                 .join(' · ');
               return (

@@ -17,6 +17,7 @@ import type {
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
 import type { ArtifactKindId } from '../../../routes/chat/services/artifactKindRegistry.js';
 import type { EditableArtifact } from '../../../routes/chat/services/editAddressee.js';
+import type { ProjectCollabDoc } from '../../../services/groups/projectCollabDocs.js';
 import type { RenderedMemory } from '../../../services/memory/memoryPrompt.js';
 import type { SystemCollection } from '../../../services/notebook/systemNotebookSources.js';
 import type { UserAgentInput } from '../../../services/userAgents/userAgentsRepository.js';
@@ -702,6 +703,8 @@ export interface ChatGraphInput {
   userRoles?: readonly RoleLandesverbandInput[] | undefined;
   /** Die im Turn aktive Rolle (aufgelöste `roleRef`) — Quelle des LV-Rezept-Vorzugs. */
   activeRole?: RoleLandesverbandInput | null | undefined;
+  /** Ausdrücklicher Landesverband des Projekts, in dem der Chat liegt. Siehe `ChatGraphState.projectLandesverband`. */
+  projectLandesverband?: string | null | undefined;
   activeSkillMention?: string | undefined;
   /** Gewählte Methoden-Rezepte (`skillRole === 'methode'`). Siehe `ChatGraphState.methodSkillMentions`. */
   methodSkillMentions?: string[] | undefined;
@@ -710,6 +713,9 @@ export interface ChatGraphInput {
   userInstructions?: string | undefined;
   /** Anweisungen des Projekts, in dem der Chat liegt (`group_instructions`). */
   projectInstructions?: { projectName: string; text: string } | null | undefined;
+  projectDocs?: ProjectCollabDoc[] | null | undefined;
+  /** Projekt des Threads samt durchsuchbarer Dokument-IDs. Siehe `ChatGraphState.project`. */
+  project?: ChatProject | null | undefined;
   /** Ins Projekt des Threads geteilte Rezepte (`user_text_forms`-Ids). Siehe `ChatGraphState.projectRecipeIds`. */
   projectRecipeIds?: string[] | undefined;
   contextWindowTokens?: number | undefined;
@@ -1022,6 +1028,10 @@ export interface ChatGraphState {
   // `userRoles`, das nur die Sichtbarkeit regelt.
   activeRole: RoleLandesverbandInput | null;
 
+  // Ausdrücklicher Landesverband des Projekts, in dem der Chat liegt
+  // (`groups.landesverband`). Schlägt `activeRole` im LV-Rezept-Vorzug.
+  projectLandesverband?: string | null;
+
   // Mention key of the active skill (e.g. 'instagram'). When set, respondNode
   // appends the skill's `skillSystemPrompt` as an additive section.
   activeSkillMention: string | null;
@@ -1066,6 +1076,15 @@ export interface ChatGraphState {
 
   // Anweisungen der Projekt-Admins für alle Chats im Projekt (group_instructions).
   projectInstructions: { projectName: string; text: string } | null;
+  /** Shared docs of the thread's project, titles only (`projectCollabDocs.ts`). */
+  projectDocs: ProjectCollabDoc[] | null;
+  /**
+   * Das Projekt, in dem der Chat liegt (Zugriff wie `projectThreadScopeSql`),
+   * mit den Dokument-IDs seines Suchbereichs (Dateien + indexierte Docs). Der
+   * Loop hält damit die Projekt-Werkzeuge sichtbar (`catalogAssembly`) und
+   * sucht gezielt (`groups` action="search"). `null` außerhalb von Projekten.
+   */
+  project: ChatProject | null;
 
   // Rezepte, die ins Projekt des Threads geteilt sind: der Loop listet sie im
   // Katalog als eigenen Block vor den übrigen (`renderRecipeCatalog`).
@@ -1592,6 +1611,21 @@ export interface CreateGroupPayload {
   description: string | null;
 }
 
+/** Projekt des Chats (`ChatGraphState.project`). */
+export interface ChatProject {
+  id: string;
+  /** Suchbereich: fertige Dateien + indexierte Docs, nach Zugriff geprüft. */
+  documentIds: string[];
+}
+
+/** Bestätigter Text, den der Chat als Datei ins Projekt legt (`groups` action="add_text"). */
+export interface AddProjectTextPayload {
+  groupId: string;
+  groupName: string;
+  title: string;
+  content: string;
+}
+
 /** Eine Antragsgrün-Seite auf antragsgruen.de (`services/antragsgruen/hosting/`). */
 export interface CreateAntragsgruenSitePayload {
   title: string;
@@ -1768,6 +1802,7 @@ export type PendingAction = {
   | { type: 'set_notebook_visibility'; payload: SetNotebookVisibilityPayload }
   | { type: 'share_notebook'; payload: ShareNotebookPayload }
   | { type: 'set_group_visibility'; payload: SetGroupVisibilityPayload }
+  | { type: 'add_project_text'; payload: AddProjectTextPayload }
   | { type: 'create_recurring_task'; payload: CreateRecurringTaskPayload }
   | { type: 'create_user_agent'; payload: CreateUserAgentPayload }
   | { type: 'share_user_agent'; payload: ShareUserAgentPayload }

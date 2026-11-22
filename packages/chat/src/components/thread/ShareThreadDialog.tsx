@@ -132,14 +132,13 @@ export const ShareThreadDialog = memo(function ShareThreadDialog({
 
           {!loading && userGroups.length === 0 && (
             <p className="text-sm text-grey-400 py-4 text-center">
-              Du bist in keinem Projekt und keiner Gruppe. Lege ein Projekt an oder tritt einer
-              Gruppe bei.
+              Du bist in keinem Projekt. Lege ein Projekt an oder tritt einem bei.
             </p>
           )}
 
           {!loading && userGroups.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs text-grey-400 mb-2">Mit Projekt oder Gruppe teilen:</p>
+              <p className="text-xs text-grey-400 mb-2">Mit Projekt teilen:</p>
               {userGroups.map((group) => {
                 const share = sharedGroups.find((g) => g.group_id === group.id);
                 const isShared = Boolean(share);

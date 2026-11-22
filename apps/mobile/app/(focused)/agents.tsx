@@ -497,11 +497,7 @@ export default function AgentsScreen() {
         onSelect={(id) =>
           afterSheet(() => {
             if (id === 'recipe') router.push('/(focused)/grueneratoren/rezept/neu');
-            else
-              router.push({
-                pathname: '/(focused)/grueneratoren/agent/neu',
-                params: { mode: 'recurring' },
-              });
+            else router.push('/(focused)/grueneratoren/aufgabe/neu');
           })
         }
       />

@@ -23,6 +23,31 @@ export type GroupRole = z.infer<typeof groupRoleSchema>;
 export const groupAudienceSchema = z.enum(['de-DE', 'de-AT', 'all']);
 export type GroupAudience = z.infer<typeof groupAudienceSchema>;
 
+/**
+ * Landesverband eines Projekts (Ids der Registry `LANDESVERBAENDE` in
+ * `@gruenerator/shared/agents`; `landesverbandIds.vitest.ts` in der API hält
+ * beide gleich). Contracts hängt nicht an shared, deshalb steht die Liste hier.
+ */
+export const landesverbandIdSchema = z.enum([
+  'berlin',
+  'hamburg',
+  'mecklenburg-vorpommern',
+  'thueringen',
+  'brandenburg',
+  'bayern',
+  'sachsen-anhalt',
+  'hessen',
+  'nordrhein-westfalen',
+  'saarland',
+  'schleswig-holstein',
+  'oesterreich',
+]);
+export type LandesverbandId = z.infer<typeof landesverbandIdSchema>;
+/** Fixed tile palette for projects (no colour = the default blue tile); the colour values live with the renderers (shared `groupColors`). */
+export const GROUP_COLORS = ['gruen', 'tanne', 'sonne', 'magenta', 'flieder'] as const;
+export const groupColorSchema = z.enum(GROUP_COLORS);
+export type GroupColor = z.infer<typeof groupColorSchema>;
+
 export const joinRequestStatusSchema = z.enum(['pending', 'approved', 'denied']);
 export type JoinRequestStatus = z.infer<typeof joinRequestStatusSchema>;
 
@@ -155,7 +180,7 @@ export const groupSummarySchema = z.object({
   role: z.string(),
   joined_at: z.string().nullish(),
   isAdmin: z.boolean(),
-  // 'personal' = solo Space (lean UI, hidden from discovery); else team Space.
+  // F0 stored value; behaviour follows membership, not this type.
   group_type: z.enum(['standard', 'personal']).nullish(),
   // The one system group every user belongs to: no member info, only instance
   // admins share. member_count is 0 there.
@@ -164,6 +189,11 @@ export const groupSummarySchema = z.object({
   content_count: z.number().nullish(),
   // Stable 6-char tail for the Notion-style URL `/gruppen/<name>-<suffix>`.
   slug_suffix: z.string().nullish(),
+  // ISO time the project was archived; null/absent = active.
+  archived_at: z.string().nullish(),
+  color: groupColorSchema.nullish(),
+  // Latest post, share, comment or visible chat in the project (ISO); absent on old servers.
+  last_activity_at: z.string().nullish(),
 });
 export type GroupSummaryDto = z.infer<typeof groupSummarySchema>;
 
@@ -179,11 +209,15 @@ export const groupDetailSchema = z.object({
   links: z.array(groupLinkSchema).nullish(),
   is_public: z.boolean().nullish(),
   audience: groupAudienceSchema.nullish(),
-  // 'personal' = solo Space (lean UI, hidden from discovery); else team Space.
+  // F0 stored value; behaviour follows membership, not this type.
   group_type: z.enum(['standard', 'personal']).nullish(),
   is_system: z.boolean().nullish(),
   // Stable 6-char tail for the Notion-style URL `/gruppen/<name>-<suffix>`.
   slug_suffix: z.string().nullish(),
+  // Explicit Landesverband: its recipe variants win over the person's active role.
+  landesverband: landesverbandIdSchema.nullish(),
+  archived_at: z.string().nullish(),
+  color: groupColorSchema.nullish(),
 });
 export type GroupDetailDto = z.infer<typeof groupDetailSchema>;
 
@@ -211,10 +245,10 @@ export const groupTokenRefSchema = z.object({ id: z.string(), name: z.string() }
 // ── Request bodies ─────────────────────────────────────────────────────────────
 
 export const createGroupBodySchema = z.object({
-  name: z.string().min(1, 'Space-Name ist erforderlich.'),
+  name: z.string().min(1, 'Projektname ist erforderlich.'),
   description: z.string().nullish(),
-  // 'personal' = a solo Space (hidden from team discovery, lean UI). Omitted =
-  // a normal team Space.
+  // F0: shipped mobile builds still send it. The server ignores it — every new
+  // project is stored as 'standard' (one kind of project, members can join any time).
   groupType: z.enum(['standard', 'personal']).optional(),
 });
 export type CreateGroupBody = z.infer<typeof createGroupBodySchema>;
@@ -225,6 +259,10 @@ export const updateGroupInfoBodySchema = z.object({
   // Free-form group settings (e.g. `templateTags`). Kept as a generic record so
   // the typed client accepts the frontend's `Record<string, unknown>` value.
   settings: z.record(z.string(), z.unknown()).nullish(),
+  // `null` clears the Landesverband, omitted leaves it alone.
+  landesverband: landesverbandIdSchema.nullish(),
+  // null clears the colour (back to the default); absent leaves it alone.
+  color: groupColorSchema.nullish(),
 });
 export type UpdateGroupInfoBody = z.infer<typeof updateGroupInfoBodySchema>;
 
@@ -259,6 +297,9 @@ export const memberRoleBodySchema = z.object({
   role: groupRoleSchema,
 });
 export type MemberRoleBody = z.infer<typeof memberRoleBodySchema>;
+
+export const setGroupArchivedBodySchema = z.object({ archived: z.boolean() });
+export type SetGroupArchivedBody = z.infer<typeof setGroupArchivedBodySchema>;
 
 /** Body for muting/unmuting the caller's own notifications for a group. */
 export const setGroupMuteBodySchema = z.object({
@@ -508,6 +549,17 @@ const groupContentBucketSchema = z.array(z.record(z.string(), z.unknown()));
  * subtype enum. `.passthrough()` keeps the extra hydrated fields the frontend
  * reads (name/slug/thumbnail_url/…) without enumerating every one.
  */
+export const projectSearchStateSchema = z.enum([
+  'ready',
+  'indexing',
+  'failed',
+  'not_searchable',
+  'stale',
+  'pending',
+  'over_cap',
+]);
+export type ProjectSearchState = z.infer<typeof projectSearchStateSchema>;
+
 export const groupCollabDocItemSchema = z
   .object({
     id: z.union([z.string(), z.number()]),
@@ -518,6 +570,8 @@ export const groupCollabDocItemSchema = z
     shared_by_id: z.string().nullish(),
     thumbnail_url: z.string().nullish(),
     share: groupShareMetaSchema.nullish(),
+    /** Ob das Dokument im Suchbereich des Projekts liegt; `null`: Art wird nicht indexiert. */
+    search_state: projectSearchStateSchema.nullish(),
   })
   .passthrough();
 
@@ -575,3 +629,25 @@ export const groupInstructionsResponseSchema = z.object({
   updatedAt: z.string().nullable(),
 });
 export type GroupInstructionsResponse = z.infer<typeof groupInstructionsResponseSchema>;
+
+// Projekt-Start: Begrüßung und Startfragen auf der Übersicht (Fragen starten einen Projekt-Chat).
+export const GROUP_WELCOME_MAX = 400;
+export const GROUP_START_QUESTIONS_MAX = 4;
+export const GROUP_START_QUESTION_MAX = 160;
+
+export const groupStartBodySchema = z.object({
+  // Leer = Begrüßung entfernen.
+  welcomeMessage: z.string().trim().max(GROUP_WELCOME_MAX),
+  // Leere Einträge werden verworfen.
+  startQuestions: z
+    .array(z.string().trim().max(GROUP_START_QUESTION_MAX))
+    .max(GROUP_START_QUESTIONS_MAX),
+});
+export type GroupStartBody = z.infer<typeof groupStartBodySchema>;
+
+export const groupStartResponseSchema = z.object({
+  success: z.literal(true),
+  welcomeMessage: z.string(),
+  startQuestions: z.array(z.string()),
+});
+export type GroupStartResponse = z.infer<typeof groupStartResponseSchema>;

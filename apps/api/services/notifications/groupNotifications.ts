@@ -153,7 +153,7 @@ async function deliver(
   params: NotifyGroupParams
 ): Promise<void> {
   const { groupId, type, title, body, actionUrl, metadata } = params;
-  const groupName = group?.name || 'Gruppe';
+  const groupName = group?.name || 'Projekt';
   // In the system group notifications stay in-app — no mass email to every user.
   const channelOverride = group?.is_system ? { email: false } : undefined;
   for (let i = 0; i < userIds.length; i += DELIVER_CHUNK) {

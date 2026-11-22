@@ -110,13 +110,13 @@ export const contentRoutes = {
         status: 200 as const,
         body: {
           success: true as const,
-          message: 'Inhalt wurde erfolgreich aus der Gruppe entfernt.',
+          message: 'Inhalt wurde erfolgreich aus dem Projekt entfernt.',
         },
       };
     } catch (error) {
       return groupErrorResponse(
         'unshareContent',
-        'Fehler beim Entfernen des Inhalts aus der Gruppe.',
+        'Fehler beim Entfernen des Inhalts aus dem Projekt.',
         error
       );
     }
@@ -140,7 +140,7 @@ export const contentRoutes = {
         },
       };
     } catch (error) {
-      return groupErrorResponse('listGroupContent', 'Fehler beim Laden der Gruppeninhalte.', error);
+      return groupErrorResponse('listGroupContent', 'Fehler beim Laden der Projektinhalte.', error);
     }
   }),
 
@@ -159,7 +159,10 @@ export const contentRoutes = {
       if (!shareRecord) {
         return {
           status: 404 as const,
-          body: { success: false as const, message: 'Inhalt ist nicht mit dieser Gruppe geteilt.' },
+          body: {
+            success: false as const,
+            message: 'Inhalt ist nicht mit diesem Projekt geteilt.',
+          },
         };
       }
 

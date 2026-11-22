@@ -237,21 +237,21 @@ export const threadsContractRouter = s.router(threadsContract, {
 
       const postgres = getPostgresInstance();
 
-      // „Für das Team": only in a team Projekt. Checked after the membership
-      // gate, so a stranger learns nothing about the Projekt's kind.
+      // „Für das Team": any Projekt, whatever its stored type. Checked after the
+      // membership gate, so a stranger learns nothing about the Projekt.
       if (teamShared) {
         const kind =
           groupId != null
             ? await postgres.queryOne(
-                `SELECT group_type FROM groups WHERE id = $1::uuid AND deleted_at IS NULL`,
+                `SELECT id FROM groups WHERE id = $1::uuid AND deleted_at IS NULL`,
                 [groupId]
               )
             : null;
-        if (!kind || kind.group_type === 'personal') {
+        if (!kind) {
           return {
             status: 400 as const,
             body: {
-              error: 'Team-Chats gibt es nur in Team-Projekten.',
+              error: 'Dieses Projekt gibt es nicht.',
               code: 'team_chat_needs_team_project',
             },
           };

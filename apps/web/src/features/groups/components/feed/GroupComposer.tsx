@@ -197,7 +197,7 @@ export function GroupComposer({
             onClick={() => setExpanded(true)}
             className="h-11 min-w-0 flex-1 cursor-text truncate rounded-full border-none bg-background-alt px-md text-left font-[inherit] text-[15px] text-muted-foreground hover:bg-grey-100 dark:hover:bg-grey-800"
           >
-            Schreib etwas an die Gruppe …
+            Schreib etwas an das Projekt …
           </button>
           <Button
             variant="ghost"
@@ -234,8 +234,8 @@ export function GroupComposer({
               onKeyDown={onKeyDown}
               autoFocus
               rows={3}
-              aria-label="Beitrag an die Gruppe"
-              placeholder="Was möchtest du mit der Gruppe teilen? Mit @ erwähnst du jemanden."
+              aria-label="Beitrag an das Projekt"
+              placeholder="Was möchtest du mit dem Projekt teilen? Mit @ erwähnst du jemanden."
               className="min-h-[88px] resize-none border-none bg-transparent px-md py-sm text-base shadow-none focus-visible:ring-0 dark:bg-transparent"
             />
             <MentionSuggestions

@@ -17,7 +17,7 @@ interface PostComposerRowProps {
 export function PostComposerRow({
   userName,
   onPress,
-  placeholder = 'Schreib etwas an die Gruppe …',
+  placeholder = 'Schreib etwas an das Projekt …',
 }: PostComposerRowProps) {
   const theme = useTheme();
   const tone = useProjekteTone();

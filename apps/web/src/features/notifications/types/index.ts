@@ -47,7 +47,7 @@ export const NOTIFICATION_GROUPS: Record<NotificationGroup, { label: string; ord
   // Selbstlaufende Läufe lagen unter „Board", laufen aber auch ganz ohne Board:
   // wer Board-Lärm abstellte, verlor seine Hintergrund-Ergebnisse gleich mit.
   automations: { label: 'Automatisierungen', order: 2 },
-  groups: { label: 'Gruppen', order: 3 },
+  groups: { label: 'Projekte', order: 3 },
   system: { label: 'System', order: 4 },
 };
 
@@ -146,17 +146,17 @@ export const NOTIFICATION_TYPES: Record<string, NotificationTypeConfig> = {
     icon: Users,
     group: 'groups',
     subtypes: ['group_member_joined', 'group_member_left', 'group_role_changed'],
-    actions: (ctx) => [openLinkAction('Gruppe öffnen')(ctx)],
+    actions: (ctx) => [openLinkAction('Projekt öffnen')(ctx)],
   },
   group_content_shared: {
     label: 'Geteilte Inhalte',
-    description: 'Wenn Inhalte in deiner Gruppe geteilt werden',
+    description: 'Wenn Inhalte in deinem Projekt geteilt werden',
     icon: Share2,
     group: 'groups',
     actions: (ctx) => [openLinkAction('Beitrag öffnen')(ctx)],
   },
   group_comment_added: {
-    label: 'Kommentare in Gruppen',
+    label: 'Kommentare in Projekten',
     description:
       'Wenn jemand deinen geteilten Inhalt oder einen Beitrag kommentiert, den du kommentiert hast',
     icon: MessageSquare,
@@ -192,19 +192,19 @@ export const NOTIFICATION_TYPES: Record<string, NotificationTypeConfig> = {
     actions: (ctx) => [openLinkAction('Beitrag öffnen')(ctx)],
   },
   group_deleted: {
-    label: 'Gruppe aufgelöst',
-    description: 'Wenn eine Gruppe aufgelöst wird',
+    label: 'Projekt aufgelöst',
+    description: 'Wenn ein Projekt aufgelöst wird',
     icon: Users,
     group: 'groups',
   },
   group_join_requested: {
     label: 'Beitrittsanfragen',
     description:
-      'Wenn jemand einer öffentlichen Gruppe beitreten möchte oder deine Anfrage beantwortet wird',
+      'Wenn jemand einem öffentlichen Projekt beitreten möchte oder deine Anfrage beantwortet wird',
     icon: UserPlus,
     group: 'groups',
     subtypes: ['group_join_requested', 'group_join_approved', 'group_join_denied'],
-    actions: (ctx) => [openLinkAction('Gruppe öffnen')(ctx)],
+    actions: (ctx) => [openLinkAction('Projekt öffnen')(ctx)],
   },
 
   notebook_liked: {

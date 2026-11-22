@@ -229,7 +229,9 @@ CREATE TABLE IF NOT EXISTS groups (
     avatar_url TEXT,
     links JSONB DEFAULT '[]',
     slug_suffix TEXT,
-    is_system BOOLEAN NOT NULL DEFAULT FALSE
+    is_system BOOLEAN NOT NULL DEFAULT FALSE,
+    archived_at TIMESTAMPTZ,
+    color TEXT
 );
 
 -- Stable 6-char tail for Notion-style group URLs (`/gruppen/<name>-<suffix>`).
@@ -299,6 +301,8 @@ CREATE TABLE IF NOT EXISTS group_instructions (
     custom_prompt TEXT DEFAULT '',
     instructions_enabled BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
+    welcome_message TEXT DEFAULT '',
+    start_questions JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(group_id)
@@ -434,6 +438,14 @@ CREATE TABLE IF NOT EXISTS collaborative_documents_init (
     init_data BYTEA,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY(document_id)
+);
+
+CREATE TABLE IF NOT EXISTS collab_search_index (
+    document_id UUID PRIMARY KEY REFERENCES collaborative_documents(id) ON DELETE CASCADE,
+    content_hash TEXT NOT NULL,
+    chunk_count INTEGER NOT NULL DEFAULT 0,
+    checked_at TIMESTAMPTZ NOT NULL,
+    indexed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS collaborative_document_folders (

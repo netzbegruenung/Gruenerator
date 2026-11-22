@@ -35,7 +35,7 @@ describe('CanvasShareToProject', () => {
     setGlobalApiClient(createApiClient({ baseURL: 'http://localhost/api', authMode: 'cookie' }));
   });
 
-  it('offers only team projects and posts the captured image as a file', async () => {
+  it('offers every project, whatever its stored type, and posts the captured image as a file', async () => {
     let received: FormData | null = null;
     server.use(
       groupsHandler,
@@ -49,7 +49,7 @@ describe('CanvasShareToProject', () => {
     await waitFor(() =>
       expect(screen.getByRole('option', { name: 'KV Rhein-Sieg' })).toBeInTheDocument()
     );
-    expect(screen.queryByRole('option', { name: 'Mein Raum' })).toBeNull();
+    expect(screen.getByRole('option', { name: 'Mein Raum' })).toBeInTheDocument();
 
     await user.selectOptions(screen.getByLabelText('Projekt'), 'g1');
     await user.type(screen.getByLabelText('Text zum Beitrag'), 'Hallo');

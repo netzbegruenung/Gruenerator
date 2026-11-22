@@ -324,7 +324,7 @@ function AssetVisibility({ item, onBack, onDone }: StepProps & { item: StudioAss
     <VisibilityStep
       current={item.visibility === 'public' ? 'public' : 'private'}
       currentGroupIds={[]}
-      projectUnavailable="Sticker und Hintergründe lassen sich noch nicht in Projekte und Gruppen teilen."
+      projectUnavailable="Sticker und Hintergründe lassen sich noch nicht in Projekte teilen."
       publicRequirement="rights"
       initialAudience={item.audience}
       onBack={onBack}

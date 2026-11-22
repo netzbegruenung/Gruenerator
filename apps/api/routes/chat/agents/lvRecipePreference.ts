@@ -77,6 +77,11 @@ export function preferredLvRecipeMention(params: {
   agentIdentifier?: string | null;
   /** Die im Chat aktive Rolle (aufgelöste `roleRef`); greift nur auf Nicht-LV-Agenten. */
   activeRole?: RoleLandesverbandInput | null;
+  /**
+   * Der ausdrückliche Landesverband des Projekts, in dem der Chat liegt
+   * (`groups.landesverband`). Schlägt die aktive Rolle, hinter dem LV-Agenten.
+   */
+  projectLandesverband?: string | null;
   userLocale: string | null;
   /**
    * Die Instanz, auf der der Turn läuft. Ein Deployment ohne Landesverbands-
@@ -106,6 +111,11 @@ export function preferredLvRecipeMention(params: {
   let lv: LandesverbandRecord | null = agentIdentifier
     ? landesverbandOfAgent(agentIdentifier)
     : null;
+  // Danach das Projekt: ein Projekt „für den LV Bayern" schreibt im Haus-Stil
+  // Bayerns, auch wenn die Person als Berlin-Landesgeschäftsstelle angemeldet ist.
+  if (!lv && params.projectLandesverband) {
+    lv = LANDESVERBAENDE.find((entry) => entry.id === params.projectLandesverband) ?? null;
+  }
   if (!lv) {
     const lvIds = landesverbandIdsForRoles(activeRole ? [activeRole] : [], userLocale ?? 'de-DE');
     if (lvIds.length === 1) {
@@ -141,6 +151,7 @@ export function roleAwareDefaultRecipeMention(
   agentConfig: { identifier?: string | undefined; defaultRecipeMention?: string | undefined },
   ctx: {
     activeRole?: RoleLandesverbandInput | null | undefined;
+    projectLandesverband?: string | null | undefined;
     userLocale?: string | null | undefined;
   }
 ): string | null {
@@ -151,6 +162,7 @@ export function roleAwareDefaultRecipeMention(
       mention: base,
       agentIdentifier: agentConfig.identifier ?? null,
       activeRole: ctx.activeRole ?? null,
+      projectLandesverband: ctx.projectLandesverband ?? null,
       userLocale: ctx.userLocale ?? null,
     }) ?? base
   );

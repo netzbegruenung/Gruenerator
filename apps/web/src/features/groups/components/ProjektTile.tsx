@@ -1,8 +1,15 @@
-import { getGroupInitials, buildGroupPath, type GroupSummary } from '@gruenerator/shared/groups';
+import {
+  getGroupInitials,
+  buildGroupPath,
+  GROUP_COLOR_STYLES,
+  resolveGroupColor,
+  type GroupSummary,
+} from '@gruenerator/shared/groups';
 import { HiUser, HiUserGroup } from 'react-icons/hi';
 import { Link } from 'react-router-dom';
 
 import { getToolTheme } from '../../../config/toolTheme';
+import { formatRelativeDate } from '../../../utils/dateFormatter';
 import { resolveApiAssetUrl } from '../../../utils/platform';
 
 // Square projekte-blue tile mirroring the OfficeTile idiom (aspect-square,
@@ -14,7 +21,7 @@ const TILE_BASE =
   'dark:hover:shadow-[0_4px_12px_rgba(0,0,0,0.30)]';
 
 function projektMeta(projekt: GroupSummary): string {
-  if (projekt.group_type === 'personal') return 'Nur für dich';
+  if (projekt.archived_at) return 'Archiviert';
   if (projekt.is_system) return 'Für alle';
   if (projekt.member_count != null) {
     return `${projekt.member_count} Mitglied${projekt.member_count === 1 ? '' : 'er'}`;
@@ -23,11 +30,34 @@ function projektMeta(projekt: GroupSummary): string {
 }
 
 export function ProjektTile({ projekt }: { projekt: GroupSummary }) {
-  const theme = getToolTheme('projekte');
-  const TypeIcon = projekt.group_type === 'personal' ? HiUser : HiUserGroup;
+  const base = getToolTheme('projekte');
+  const colorKey = resolveGroupColor(projekt.color);
+  const palette = colorKey ? GROUP_COLOR_STYLES[colorKey] : null;
+  // A chosen colour swaps the whole tone set (background, title, description, icon) so the
+  // contrast pairs stay the audited ones, in both modes.
+  const theme = palette
+    ? {
+        tile: 'bg-(--tile-bg) dark:bg-(--tile-bg-dark)',
+        icon: 'text-(--tile-title) dark:text-(--tile-title-dark)',
+        title: 'text-(--tile-title) dark:text-(--tile-title-dark)',
+        desc: 'text-(--tile-desc) dark:text-(--tile-desc-dark)',
+      }
+    : base;
+  const toneVars = palette
+    ? ({
+        '--tile-bg': palette.light.bg,
+        '--tile-bg-dark': palette.dark.bg,
+        '--tile-title': palette.light.title,
+        '--tile-title-dark': palette.dark.title,
+        '--tile-desc': palette.light.desc,
+        '--tile-desc-dark': palette.dark.desc,
+      } as React.CSSProperties)
+    : undefined;
+  const TypeIcon = (projekt.member_count ?? 1) > 1 ? HiUserGroup : HiUser;
   return (
     <Link
       to={buildGroupPath(projekt)}
+      style={toneVars}
       className={`${TILE_BASE} ${theme?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'}`}
     >
       <span className="flex items-start justify-between">
@@ -61,6 +91,13 @@ export function ProjektTile({ projekt }: { projekt: GroupSummary }) {
         >
           {projektMeta(projekt)}
         </span>
+        {projekt.last_activity_at && !projekt.archived_at && (
+          <span
+            className={`block truncate text-[12px] leading-snug sm:text-[13px] ${theme?.desc ?? 'text-muted-foreground'}`}
+          >
+            {formatRelativeDate(projekt.last_activity_at)}
+          </span>
+        )}
       </span>
     </Link>
   );

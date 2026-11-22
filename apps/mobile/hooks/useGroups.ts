@@ -18,6 +18,8 @@ export {
   useUpdateGroupLink,
   useUpdateGroupName,
   useSetGroupMute,
+  useRemoveGroupMember,
+  useSetGroupArchived,
   useUpdateMemberRole,
   useUploadGroupAvatar,
   useUserGroups,

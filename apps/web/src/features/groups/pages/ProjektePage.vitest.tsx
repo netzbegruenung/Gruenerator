@@ -113,3 +113,41 @@ describe('ProjektePage — Leerzustand', () => {
     expect(screen.queryByText(EMPTY_TEXT)).not.toBeInTheDocument();
   });
 });
+
+describe('ProjektePage — Archiv', () => {
+  it('führt archivierte Projekte nur im eingeklappten Abschnitt „Archiviert"', () => {
+    useGroups.mockReturnValue(
+      groupsResult({
+        userGroups: [
+          { id: 'g1', name: 'Aktiv', role: 'admin', isAdmin: true },
+          {
+            id: 'g2',
+            name: 'Alt',
+            role: 'admin',
+            isAdmin: true,
+            archived_at: '2026-11-22T10:00:00Z',
+          },
+        ],
+      })
+    );
+    const { container } = renderWithProviders(<ProjektePage />);
+    const details = container.querySelector('details');
+    expect(details).not.toBeNull();
+    expect(details).not.toHaveAttribute('open');
+    expect(details).toHaveTextContent('Archiviert (1)');
+    expect(details).toHaveTextContent('Alt');
+    // Das aktive Projekt steht im Hauptraster, nicht im Archiv.
+    expect(details).not.toHaveTextContent('Aktiv');
+    expect(screen.getByText('Aktiv')).toBeInTheDocument();
+  });
+
+  it('zeigt den Leerzustand nicht, solange nur archivierte Projekte existieren', () => {
+    useGroups.mockReturnValue(
+      groupsResult({
+        userGroups: [{ id: 'g2', name: 'Alt', role: 'admin', archived_at: '2026-11-22T10:00:00Z' }],
+      })
+    );
+    renderWithProviders(<ProjektePage />);
+    expect(screen.queryByText(EMPTY_TEXT)).not.toBeInTheDocument();
+  });
+});

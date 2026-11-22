@@ -30,6 +30,8 @@ export const recurringTaskSchema = z.object({
   instruction: z.string(),
   /** Agent to run (own / group / system). Null → the default universal agent. */
   agentIdentifier: z.string().nullable(),
+  /** Projekt, dessen Anweisungen und Wissen im Lauf gelten. Null → ohne Projekt. */
+  groupId: z.string().nullable(),
   delivery: recurringTaskDeliverySchema,
   /** Whether a completed run additionally notifies the user by email. */
   emailNotify: z.boolean(),
@@ -47,10 +49,14 @@ export type RecurringTask = z.infer<typeof recurringTaskSchema>;
 
 // ── Request bodies ───────────────────────────────────────────────────────────
 
+/** Cap of a task's instruction — shared with the builders. */
+export const MAX_RECURRING_TASK_INSTRUCTION = 4000;
+
 export const createRecurringTaskBodySchema = z.object({
   title: z.string().min(1).max(120),
-  instruction: z.string().min(1).max(4000),
+  instruction: z.string().min(1).max(MAX_RECURRING_TASK_INSTRUCTION),
   agentIdentifier: z.string().max(64).nullish(),
+  groupId: z.string().uuid().nullish(),
   delivery: recurringTaskDeliverySchema.default('document'),
   emailNotify: z.boolean().default(true),
   recurrence: scheduleRecurrenceSchema,
