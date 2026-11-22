@@ -152,7 +152,6 @@ const ChatInnerReady: React.FC<ChatInnerProps> = ({ projectId, teamShared = fals
         presets={WORKPLACE_PRESETS}
         requireProfileHydration
         enablePastedTextAttachments
-        showProjectPicker
       />
     </ThreadPrimitive.Root>
   );
