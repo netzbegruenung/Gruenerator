@@ -231,7 +231,7 @@ describe('convertUserAgent', () => {
       getAgent: vi.fn(async () =>
         agent({
           identifier: 'gruenerator-oeffentlichkeitsarbeit-bayern',
-          defaultRecipeMention: null,
+          defaultRecipeMention: '',
         })
       ),
     });

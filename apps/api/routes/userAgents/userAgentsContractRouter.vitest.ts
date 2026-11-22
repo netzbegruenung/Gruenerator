@@ -22,10 +22,8 @@ const { AGENT_CREATION_CLOSED } = await import('../chat/agents/userAgentTools.js
 
 describe('create', () => {
   it('answers 410 with the AGENT_CREATION_CLOSED message and creates nothing', async () => {
-    const res = await router.create({
-      req: { user: { id: 'user-1', locale: 'de-DE' }, headers: {} },
-      body: { identifier: 'neu', title: 'Neu' },
-    } as never);
+    // The handler ignores its request: creation is closed for everyone.
+    const res = await router.create();
     expect(res).toEqual({ status: 410, body: { success: false, message: AGENT_CREATION_CLOSED } });
     expect(repo.createUserAgent).not.toHaveBeenCalled();
   });

@@ -32,6 +32,7 @@ function task(over: Partial<RecurringTask> = {}): RecurringTask {
     title: 'Wochenbericht',
     instruction: 'Fasse die Woche zusammen.',
     agentIdentifier: null,
+    groupId: null,
     delivery: 'document',
     emailNotify: true,
     recurrence: { frequency: 'weekly', hour: 9, minute: 0, byweekday: [0] },

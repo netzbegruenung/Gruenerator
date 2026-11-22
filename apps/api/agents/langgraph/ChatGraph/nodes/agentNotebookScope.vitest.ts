@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { agentNotebookDocIds } from './agentNotebookScope.js';
+import { agentNotebookDocIds as pick } from './agentNotebookScope.js';
+
+type Scope = Parameters<typeof pick>[0];
+const agentNotebookDocIds = (s: Partial<Scope>) => pick(s as Scope);
 
 /**
  * Die Dateien eines Projekts reisen als `defaultNotebookDocumentIds` (stilles

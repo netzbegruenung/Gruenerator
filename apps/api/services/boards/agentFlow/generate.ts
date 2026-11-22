@@ -65,9 +65,10 @@ async function initializeBoardAgentState(
         projectNotebookIds: project.projectNotebookIds,
       }),
       ...(project.projectRecipeIds.length > 0 && { projectRecipeIds: project.projectRecipeIds }),
-      // Dateien des Projekts sind Material, kein Zwang (wie im Projekt-Chat).
-      notebookSources: project.notebookSources,
-      notebookSourcesCarriedOnly: true,
+      // Dateien des Projekts als ein Suchbereich (wie im Projekt-Chat).
+      ...(project.projectFileDocumentIds.length > 0 && {
+        defaultNotebookDocumentIds: project.projectFileDocumentIds,
+      }),
     }),
   });
 }

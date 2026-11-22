@@ -17,6 +17,7 @@ import type {
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
 import type { ArtifactKindId } from '../../../routes/chat/services/artifactKindRegistry.js';
 import type { EditableArtifact } from '../../../routes/chat/services/editAddressee.js';
+import type { ProjectCollabDoc } from '../../../services/groups/projectCollabDocs.js';
 import type { RenderedMemory } from '../../../services/memory/memoryPrompt.js';
 import type { SystemCollection } from '../../../services/notebook/systemNotebookSources.js';
 import type { UserAgentInput } from '../../../services/userAgents/userAgentsRepository.js';

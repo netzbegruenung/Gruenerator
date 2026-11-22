@@ -2,7 +2,7 @@
  * Das Material eines Projekts für Läufe OHNE Thread (wiederkehrende Aufgaben, #5939).
  *
  * Ein Projekt-Chat bekommt Anweisungen, Dateien, Notebooks und Rezepte über den
- * Thread (`readThreadProjectInstructions`, `getProjectFileSources`,
+ * Thread (`readThreadProjectInstructions`, `getProjectFileDocumentIds`,
  * `getProjectNotebookIds`, `getProjectRecipeIds`). Ein Lauf hat keinen Thread,
  * sondern eine Projekt-Id; hier stehen dieselben Abfragen nach Projekt statt nach
  * Thread. Die Zugriffsregel bleibt: die Person muss zur Laufzeit AKTIVES Mitglied
@@ -11,7 +11,7 @@
  */
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 
-import { PROJECT_FILES_PER_TURN } from './projectFiles.js';
+import { PROJECT_FILE_DOCUMENT_CAP } from './projectFiles.js';
 import {
   PROJECT_NOTEBOOKS_PER_TURN,
   selectProjectNotebooks,
@@ -20,14 +20,13 @@ import {
 import { PROJECT_RECIPES_LISTED } from './projectRecipes.js';
 import { projectThreadScopeSql } from './projectThreadScope.js';
 
-import type { ResolvedNotebookSource } from '../../agents/langgraph/ChatGraph/types.js';
-
 export interface ProjectRunContext {
   groupId: string;
   projectInstructions: { projectName: string; text: string } | null;
   projectNotebookIds: string[];
   projectRecipeIds: string[];
-  notebookSources: ResolvedNotebookSource[];
+  /** Alle Dateien des Projekts als ein Suchbereich (stilles Notebook, wie im Projekt-Chat). */
+  projectFileDocumentIds: string[];
 }
 
 /** Projekt-Name, wenn die Person aktives Mitglied eines lebenden Projekts ist, sonst `null`. */
@@ -74,16 +73,14 @@ export async function loadProjectRunContext(
       [groupId, PROJECT_RECIPES_LISTED]
     ) as Promise<Array<{ content_id: string }>>,
     db.query(
-      `SELECT d.id, d.title, d.filename, d.user_id
+      `SELECT d.id
          FROM group_content_shares gcs
          JOIN documents d ON d.id::text = gcs.content_id
         WHERE gcs.group_id = $1::uuid AND gcs.content_type = 'documents'
           AND d.deleted_at IS NULL AND d.status = 'completed' AND d.user_id IS NOT NULL
         ORDER BY gcs.shared_at DESC LIMIT $2`,
-      [groupId, PROJECT_FILES_PER_TURN]
-    ) as Promise<
-      Array<{ id: string; title: string | null; filename: string | null; user_id: string }>
-    >,
+      [groupId, PROJECT_FILE_DOCUMENT_CAP]
+    ) as Promise<Array<{ id: string }>>,
   ]);
 
   const text = instr?.custom_prompt?.trim() ?? '';
@@ -94,13 +91,7 @@ export async function loadProjectRunContext(
       notebookRows.map((r) => ({ contentType: r.content_type, contentId: r.content_id }))
     ),
     projectRecipeIds: [...new Set(recipeRows.map((r) => r.content_id))],
-    notebookSources: fileRows.map((r) => ({
-      kind: 'user' as const,
-      documentId: r.id,
-      notebookId: null,
-      ownerUserId: r.user_id,
-      title: r.title?.trim() || r.filename?.trim() || 'Datei',
-    })),
+    projectFileDocumentIds: [...new Set(fileRows.map((r) => r.id))],
   };
 }
 

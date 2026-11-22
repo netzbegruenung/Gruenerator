@@ -306,7 +306,7 @@ describe('runRecurringTask — Projekt der Aufgabe (#5939)', () => {
     projectInstructions: { projectName: 'KV', text: 'Duze alle.' },
     projectNotebookIds: [],
     projectRecipeIds: [],
-    notebookSources: [],
+    projectFileDocumentIds: [],
   };
 
   it('aktives Mitglied: Projektmaterial geht in den Lauf, der Thread liegt im Projekt', async () => {
