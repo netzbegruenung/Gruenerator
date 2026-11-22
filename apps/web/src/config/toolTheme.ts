@@ -154,15 +154,14 @@ export const TOOL_THEME = {
     gradient:
       'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#FAEFE9_0%,#FCF7F4_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#22160F_0%,#170F0A_55%,#0E0906_100%)]',
   },
-  // Projekte — a soft blue (the calm, "bündeln/organisieren" hue), distinct from
-  // sheets' teal and the warm office/agentura tones.
+  // Projekte — the app's green (same family as profilbild), not a tool-specific hue.
   projekte: {
-    tile: 'bg-[#DCE6F2] dark:bg-[#14202E]',
-    icon: 'text-[#2E4E7A] dark:text-[#7CA2CB]',
-    title: 'text-[#1E3A5E] dark:text-[#A2C0E4]',
-    desc: 'text-[#4F6784] dark:text-[#6E88AB]',
+    tile: 'bg-[#DFEBD9] dark:bg-[#1A2B16]',
+    icon: 'text-[#3D6130] dark:text-[#8FC27E]',
+    title: 'text-[#2F4D25] dark:text-[#B3DAA5]',
+    desc: 'text-[#5E7A53] dark:text-[#7FA672]',
     gradient:
-      'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#ECF2F9_0%,#F6F9FC_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#131C26_0%,#0E1319_55%,#090D10_100%)]',
+      'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#EDF5E9_0%,#F6FAF4_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#161F13_0%,#10170E_55%,#0A0F08_100%)]',
   },
   weitere: {
     tile: 'bg-[#E7EAE6] dark:bg-[#1C211D]',
