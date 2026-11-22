@@ -124,6 +124,9 @@ export const group_instructions = pgTable('group_instructions', {
   custom_prompt: text('custom_prompt').default(''),
   instructions_enabled: boolean('instructions_enabled').default(false),
   is_active: boolean('is_active').default(true),
+  // Projekt-Start (Begrüßung + Startfragen); getrennt von den Anweisungen, teilt nur die Zeile.
+  welcome_message: text('welcome_message').default(''),
+  start_questions: jsonb('start_questions').$type<string[]>().default([]),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });

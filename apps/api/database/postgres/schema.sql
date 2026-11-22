@@ -299,6 +299,8 @@ CREATE TABLE IF NOT EXISTS group_instructions (
     custom_prompt TEXT DEFAULT '',
     instructions_enabled BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
+    welcome_message TEXT DEFAULT '',
+    start_questions JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(group_id)

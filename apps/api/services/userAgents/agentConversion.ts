@@ -21,6 +21,8 @@
  */
 import {
   GROUP_INSTRUCTIONS_MAX,
+  GROUP_START_QUESTIONS_MAX,
+  GROUP_WELCOME_MAX,
   MAX_TEXT_FORM_DESCRIPTION_CHARS,
   MAX_TEXT_FORM_STYLE_CHARS,
   MAX_TEXT_FORM_TITLE_CHARS,
@@ -38,6 +40,7 @@ import { collectTakenMentions } from '../../routes/userTextForms/textFormRouterH
 import { createLogger } from '../../utils/logger.js';
 import { shareContentToGroup, type ShareContentOutcome } from '../groups/groupContent.js';
 import { setProjectInstructions } from '../groups/groupInstructions.js';
+import { normalizeProjectStart, setProjectStart, type ProjectStart } from '../groups/groupStart.js';
 import { createGroupForUser } from '../groups/groupMutations.js';
 import { trashGroup } from '../groups/groupTrash.js';
 import { resolveMentionCollision } from '../user/textFormDraftService.js';
@@ -76,6 +79,20 @@ export function projectInstructionsFor(agent: UserAgentRecord): string {
   const role = agent.systemRole.trim();
   const recipe = agent.defaultRecipeMention;
   return recipe ? `${role}\n\nFür Texte nutzt du das Rezept @${recipe}.` : role;
+}
+
+/** Was von Begrüßung und Startfragen im Projekt ankommt; Kürzungen stehen dabei. */
+function openingCarriedNote(agent: UserAgentRecord, opening: ProjectStart): string {
+  const cut: string[] = [];
+  if (agent.openingMessage.trim().length > GROUP_WELCOME_MAX) {
+    cut.push(`die Begrüßung auf ${GROUP_WELCOME_MAX} Zeichen`);
+  }
+  const questions = agent.openingQuestions.filter((q) => q.trim()).length;
+  if (questions > opening.startQuestions.length) {
+    cut.push(`die Startfragen auf ${GROUP_START_QUESTIONS_MAX}`);
+  }
+  const base = 'Begrüßung und Startfragen erscheinen auf der Projekt-Übersicht.';
+  return cut.length > 0 ? `${base} Gekürzt: ${cut.join(' und ')}.` : base;
 }
 
 function count(n: number, one: string, many: string): string {
@@ -176,15 +193,24 @@ export function planAgentConversion(
     );
   }
 
+  const opening = normalizeProjectStart({
+    welcomeMessage: agent.openingMessage,
+    startQuestions: agent.openingQuestions,
+  });
   if (agent.openingMessage.trim() || agent.openingQuestions.length > 0) {
-    items.push({
-      part: 'opening',
-      outcome: 'later',
-      note:
-        target === 'recipe'
-          ? 'Begrüßung und Startfragen kann ein Rezept noch nicht zeigen.'
-          : 'Begrüßung und Startfragen kann ein Projekt noch nicht zeigen.',
-    });
+    items.push(
+      target === 'recipe'
+        ? {
+            part: 'opening',
+            outcome: 'later',
+            note: 'Begrüßung und Startfragen kann ein Rezept noch nicht zeigen.',
+          }
+        : {
+            part: 'opening',
+            outcome: 'carried',
+            note: openingCarriedNote(agent, opening),
+          }
+    );
   }
 
   if (facts.groupShareCount > 0) {
@@ -272,6 +298,7 @@ export interface AgentConversionDeps {
   ) => Promise<{ id: string; name: string; slugSuffix: string | null }>;
   trashProject: (userId: string, groupId: string) => Promise<unknown>;
   setInstructions: (groupId: string, userId: string, text: string) => Promise<unknown>;
+  setStart: (groupId: string, userId: string, start: ProjectStart) => Promise<unknown>;
   share: (input: {
     userId: string;
     groupId: string;
@@ -452,6 +479,13 @@ async function convertToProject(
 
   try {
     await deps.setInstructions(project.id, userId, projectInstructionsFor(agent));
+    const opening = normalizeProjectStart({
+      welcomeMessage: agent.openingMessage,
+      startQuestions: agent.openingQuestions,
+    });
+    if (opening.welcomeMessage || opening.startQuestions.length > 0) {
+      await deps.setStart(project.id, userId, opening);
+    }
   } catch (error) {
     // Ohne Anweisungen ist das Projekt eine leere Hülle: wieder abräumen
     // (Papierkorb, nicht hart), damit kein halbes Projekt liegen bleibt.
@@ -583,6 +617,7 @@ function defaultDeps(): AgentConversionDeps {
     },
     trashProject: (userId, groupId) => trashGroup(userId, groupId),
     setInstructions: setProjectInstructions,
+    setStart: setProjectStart,
     share: (input) =>
       shareContentToGroup({
         ...input,
