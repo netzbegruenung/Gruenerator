@@ -15,6 +15,7 @@
 import { randomUUID } from 'node:crypto';
 
 import {
+  CONFIRM_ACTION_TYPES_APP_1_7_0,
   type chatGraphContract,
   isVisualBlockKind,
   type NotebookSourceRef,
@@ -353,7 +354,11 @@ async function buildStreamContextInner({
     webpageUrls: rawWebpageUrls,
     platform: rawPlatform,
     visualBlocks: rawVisualBlocks,
+    confirmActions: rawConfirmActions,
   } = body;
+  // Which confirm cards this client draws: a card it would drop is refused at
+  // `emitToolConfirmAction` instead of being promised to the model.
+  sse.setConfirmActionTypes(rawConfirmActions ?? CONFIRM_ACTION_TYPES_APP_1_7_0);
   // `currentCanvas.sharepic` is read with `.catch(null)`: an invalid spec
   // context silently drops the turn to the op path. Say so here, where the
   // raw body is still at hand.

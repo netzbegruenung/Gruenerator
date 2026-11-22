@@ -125,7 +125,7 @@ Freigaben vorhandener Inhalte verwenden weiterhin `groupContent.ts` und dessen Z
 
 ## Mobile
 
-Gleiche Struktur wie Web: `Übersicht` (`ProjectChatComposer`, `ProjectChatList`, `ProjectInstructionsCard`, `ProjectKnowledgeList`, `ProjectLinks`, `ProjectMembersPreview`) und `Austausch` (nur Team- und System-Projekt, `GroupFeedCard`, `GroupCommentsSheet`). Menüs bauen `shareMenu.ts`, `addMenu.ts`, `knowledgeMenu.ts`, `moderationMenu.ts` (Melden, Person ausblenden). Offene Parität zu Web: Beiträge werden in der App über die Zeile oben im Austausch bzw. „+“ geschrieben; nicht alle Erstell- und Bearbeitungsfunktionen sind gleich.
+Gleiche Struktur wie Web: `Übersicht` (`ProjectChatComposer`, `ProjectChatList`, `ProjectInstructionsCard`, `ProjectKnowledgeList`, `ProjectLinks`, `ProjectMembersPreview`) und `Austausch` (sichtbar nach derselben Regel wie im Web, #5950; `GroupFeedCard`, `GroupCommentsSheet`). Menüs bauen `shareMenu.ts`, `addMenu.ts`, `knowledgeMenu.ts`, `moderationMenu.ts` (Melden, Person ausblenden). Funktional gleich mit dem Web (Stand 23.11.2026 im Code verglichen): Beiträge mit Dateien schreiben, bearbeiten und löschen, Admin-Löschen fremder Beiträge und Kommentare, Anheften, Notiz, Kommentar-Threads, Erwähnungen, Reaktionen, Melden. Anders nur in der Form: Beiträge entstehen über die Zeile oben im Austausch bzw. „+“ auf einem eigenen Bildschirm (`projekte/[id]/beitrag.tsx`), Anheften/Notiz/Löschen liegen im „…“-Menü statt als Knopf. Auf beiden Plattformen fehlt: eigene Kommentare bearbeiten (keine Route), Dateien eines Beitrags nachträglich ändern.
 
 ## Gezielte Prüfung
 
