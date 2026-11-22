@@ -1471,11 +1471,15 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
     // Radwegen“ trugen keins — sechs von 24 Aufträgen im Chat-Test bekamen eine
     // Gliederung samt „technisch nicht verfügbar“ (#5956). Keine weitere Wortliste:
     // das Werkzeug kostet einen kurzen Auftragstext im Schema, und
-    // `forceCompoundGeneration` greift weiter nur bei erkannter Art.
+    // `forceCompoundGeneration` greift weiter nur bei erkannter Art. Auch neben einer
+    // anderen Art: „Präsentation mit 5 Folien und dazu ein Sharepic“ bekam sonst nur
+    // das Sharepic, und das Modell meldete die Präsentation als erstellt (#5957).
+    // Grenze: Sobald ein Artefakt steht, nimmt `forceFinish` alle Werkzeuge weg; beide
+    // entstehen nur, wenn das Modell sie im selben Schritt ruft.
     if (
       loop.req &&
       !editorSurface &&
-      state.compoundGenerationKind == null &&
+      state.compoundGenerationKind !== 'presentation' &&
       state.enabledTools?.create_presentation !== false
     ) {
       tools.create_presentation = artifactTool('presentation', {
