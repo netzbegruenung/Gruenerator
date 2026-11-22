@@ -17,6 +17,7 @@ import {
   getProjectInstructions,
   setProjectInstructions,
 } from '../../../../services/groups/groupInstructions.js';
+import { getProjectStart, setProjectStart } from '../../../../services/groups/groupStart.js';
 import {
   createGroupForUser,
   joinGroupByToken,
@@ -392,6 +393,28 @@ export const coreRoutes = {
       return groupErrorResponse(
         'setGroupInstructions',
         'Fehler beim Speichern der Anweisungen.',
+        error
+      );
+    }
+  }),
+
+  getGroupStart: s.route(groupsContract.getGroupStart, async (args) => {
+    try {
+      const result = await getProjectStart(args.params.groupId, getUserId(args.req));
+      return { status: 200 as const, body: { success: true as const, ...result } };
+    } catch (error) {
+      return groupErrorResponse('getGroupStart', 'Fehler beim Laden des Projekt-Starts.', error);
+    }
+  }),
+
+  setGroupStart: s.route(groupsContract.setGroupStart, async (args) => {
+    try {
+      const result = await setProjectStart(args.params.groupId, getUserId(args.req), args.body);
+      return { status: 200 as const, body: { success: true as const, ...result } };
+    } catch (error) {
+      return groupErrorResponse(
+        'setGroupStart',
+        'Fehler beim Speichern des Projekt-Starts.',
         error
       );
     }

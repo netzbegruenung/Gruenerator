@@ -21,6 +21,8 @@ import {
   groupDetailsResponseSchema,
   groupInstructionsBodySchema,
   groupInstructionsResponseSchema,
+  groupStartBodySchema,
+  groupStartResponseSchema,
   groupErrorResponseSchema,
   groupLinkBodySchema,
   groupLinkResponseSchema,
@@ -630,5 +632,33 @@ export const groupsContract = c.router({
       500: groupErrorResponseSchema,
     },
     summary: 'Write the Projekt instructions (Projekt admins; empty text removes them)',
+  },
+
+  getGroupStart: {
+    method: 'GET',
+    path: '/api/auth/groups/:groupId/start',
+    pathParams: z.object({ groupId: z.string() }),
+    responses: {
+      200: groupStartResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Read the Projekt welcome message and start questions (members)',
+  },
+
+  setGroupStart: {
+    method: 'PUT',
+    path: '/api/auth/groups/:groupId/start',
+    pathParams: z.object({ groupId: z.string() }),
+    body: groupStartBodySchema,
+    responses: {
+      200: groupStartResponseSchema,
+      400: groupErrorResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Write the Projekt welcome message and start questions (Projekt admins)',
   },
 });

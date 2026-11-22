@@ -1,3 +1,4 @@
+import { DOCUMENT_UPLOAD_EXTENSIONS } from '@gruenerator/contracts';
 import {
   Button,
   Dialog,
@@ -6,22 +7,40 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  Textarea,
 } from '@gruenerator/ui';
 import React, { useState, useEffect, useCallback } from 'react';
-import { PiUser, PiUsersThree, PiX } from 'react-icons/pi';
+import { PiPaperclip, PiUser, PiUsersThree, PiX } from 'react-icons/pi';
 
 type ProjektType = 'personal' | 'standard';
+
+/** Was die Erstellung über den Namen hinaus mitgibt. */
+export interface CreateGroupExtras {
+  /** „Worum geht es in diesem Projekt?" — wird zur Beschreibung. */
+  description: string;
+  /** Dateien, die gleich nach dem Anlegen ins Projekt kommen. */
+  files: File[];
+}
+
+export const GROUP_DESCRIPTION_MAX = 500;
 
 interface GroupsCreateSectionProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreateGroup: (groupName: string, groupType: ProjektType, inviteEmails: string[]) => void;
+  onCreateGroup: (
+    groupName: string,
+    groupType: ProjektType,
+    inviteEmails: string[],
+    extras: CreateGroupExtras
+  ) => void;
   isCreatingGroup: boolean;
   isCreateGroupError: boolean;
   createGroupError: Error | null;
   /** Type the dialog opens on — lets the "Projekt" / "Gruppe" tile preselect
    *  its type. Defaults to 'personal'. */
   initialProjektType?: ProjektType;
+  /** Name, mit dem das Feld startet (aus dem Erstellen-Feld der Übersicht). */
+  initialName?: string;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -54,10 +73,13 @@ const GroupsCreateSection: React.FC<GroupsCreateSectionProps> = ({
   isCreateGroupError,
   createGroupError,
   initialProjektType = 'personal',
+  initialName = '',
 }) => {
   const [step, setStep] = useState<1 | 2>(2);
   const [projektType, setProjektType] = useState<ProjektType>(initialProjektType);
   const [groupName, setGroupName] = useState('');
+  const [description, setDescription] = useState('');
+  const [files, setFiles] = useState<File[]>([]);
   const [emails, setEmails] = useState<string[]>([]);
   const [emailDraft, setEmailDraft] = useState('');
   const [emailError, setEmailError] = useState('');
@@ -71,12 +93,14 @@ const GroupsCreateSection: React.FC<GroupsCreateSectionProps> = ({
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setProjektType(initialProjektType);
       setStep(2);
-      setGroupName('');
+      setGroupName(initialName);
+      setDescription('');
+      setFiles([]);
       setEmails([]);
       setEmailDraft('');
       setEmailError('');
     }
-  }, [isOpen, initialProjektType]);
+  }, [isOpen, initialProjektType, initialName]);
 
   const isTeam = projektType === 'standard';
 
@@ -122,9 +146,12 @@ const GroupsCreateSection: React.FC<GroupsCreateSectionProps> = ({
         isTeam && pending && EMAIL_RE.test(pending) && !emails.includes(pending)
           ? [...emails, pending]
           : emails;
-      onCreateGroup(groupName, projektType, isTeam ? finalEmails : []);
+      onCreateGroup(groupName, projektType, isTeam ? finalEmails : [], {
+        description: description.trim(),
+        files,
+      });
     },
-    [emailDraft, emails, groupName, projektType, isTeam, onCreateGroup]
+    [emailDraft, emails, groupName, description, files, projektType, isTeam, onCreateGroup]
   );
 
   const submitLabel = isCreatingGroup
@@ -195,6 +222,69 @@ const GroupsCreateSection: React.FC<GroupsCreateSectionProps> = ({
                 disabled={isCreatingGroup}
               />
             </label>
+
+            <label className="flex flex-col gap-xs">
+              <span className="text-sm font-medium">
+                Worum geht es in diesem Projekt?{' '}
+                <span className="font-normal text-grey-500">(optional)</span>
+              </span>
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+                maxLength={GROUP_DESCRIPTION_MAX}
+                placeholder="Zum Beispiel: Material und Texte für den Kommunalwahlkampf im Ortsverband."
+                disabled={isCreatingGroup}
+              />
+            </label>
+
+            <div className="flex flex-col gap-xs">
+              <span className="text-sm font-medium">
+                Dateien <span className="font-normal text-grey-500">(optional)</span>
+              </span>
+              {files.length > 0 && (
+                <ul className="m-0 flex list-none flex-col gap-1 p-0">
+                  {files.map((file, index) => (
+                    <li
+                      key={`${file.name}-${file.size}-${index}`}
+                      className="flex items-center justify-between gap-sm rounded-md bg-grey-100 px-sm py-1 text-sm dark:bg-grey-800"
+                    >
+                      <span className="min-w-0 truncate">{file.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => setFiles((prev) => prev.filter((_, i) => i !== index))}
+                        disabled={isCreatingGroup}
+                        aria-label={`${file.name} entfernen`}
+                        className="rounded-full p-0.5 hover:bg-grey-300/50"
+                      >
+                        <PiX className="h-3 w-3" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <label className="inline-flex w-fit cursor-pointer items-center gap-xs rounded-md border border-grey-300 px-sm py-xs text-sm hover:bg-grey-100 dark:border-grey-600 dark:hover:bg-grey-800">
+                <PiPaperclip aria-hidden />
+                Dateien auswählen
+                <input
+                  type="file"
+                  multiple
+                  hidden
+                  accept={DOCUMENT_UPLOAD_EXTENSIONS.join(',')}
+                  aria-label="Dateien für das Projekt auswählen"
+                  disabled={isCreatingGroup}
+                  onChange={(e) => {
+                    const picked = Array.from(e.target.files ?? []);
+                    e.target.value = '';
+                    setFiles((prev) => [...prev, ...picked]);
+                  }}
+                />
+              </label>
+              <span className="text-xs text-grey-500">
+                Kommen nach dem Anlegen ins Projekt; Chats darin nutzen sie, sobald sie eingelesen
+                sind.
+              </span>
+            </div>
 
             {isTeam && (
               <div className="flex flex-col gap-xs">

@@ -97,11 +97,18 @@ export const useGroups = ({ isActive }: UseGroupsOptions = {}) => {
 
   const createGroup = (
     groupName: string,
-    options: MutationOptions<GroupSummary> & { groupType?: 'standard' | 'personal' } = {}
+    options: MutationOptions<GroupSummary> & {
+      groupType?: 'standard' | 'personal';
+      description?: string;
+    } = {}
   ) => {
-    const { groupType, ...cb } = options;
+    const { groupType, description, ...cb } = options;
     createMutation.mutate(
-      { name: groupName, ...(groupType ? { groupType } : {}) },
+      {
+        name: groupName,
+        ...(description ? { description } : {}),
+        ...(groupType ? { groupType } : {}),
+      },
       {
         onSuccess: (group) => cb.onSuccess?.(group),
         onError: (err) => cb.onError?.(err as Error),

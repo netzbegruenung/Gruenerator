@@ -4,6 +4,7 @@ import {
   addableKey,
   canManageShare,
   sharedContentKeys,
+  useGroupStart,
 } from '@gruenerator/shared/groups';
 import {
   Button,
@@ -70,6 +71,7 @@ import GroupVisibilityDialog from './GroupVisibilityDialog';
 import { ProjectAddMenu } from './ProjectAddMenu';
 import { ProjectChatComposer } from './ProjectChatComposer';
 import { ProjectInstructionsCard } from './ProjectInstructionsCard';
+import { ProjectStartCard } from './ProjectStartCard';
 import { ProjectKnowledgeList } from './ProjectKnowledgeList';
 import { ProjectLandesverbandSelect } from './ProjectLandesverbandSelect';
 import { ProjectMembersCard } from './ProjectMembersCard';
@@ -244,6 +246,7 @@ const GroupInfoSection = memo(
     }, [inviteDraft, inviteEmails, inviteToGroup, groupId, onSuccessMessage, onErrorMessage]);
 
     const isMuted = data?.membership?.notifications_muted ?? false;
+    const { data: projectStart } = useGroupStart(groupId);
     const setGroupMute = useSetGroupMute(groupId);
     const handleToggleMute = useCallback(() => {
       if (setGroupMute.isPending) return;
@@ -762,6 +765,8 @@ const GroupInfoSection = memo(
                     groupId={groupId}
                     groupName={data?.groupInfo?.name ?? ''}
                     isPersonal={isPersonal || isSystem}
+                    welcomeMessage={projectStart?.welcomeMessage}
+                    startQuestions={projectStart?.startQuestions}
                   />
                   <SpaceChatsSection groupId={groupId} />
                 </div>
@@ -772,6 +777,14 @@ const GroupInfoSection = memo(
                   showChats ? 'min-[900px]:w-[340px] min-[900px]:shrink-0' : 'flex-1'
                 )}
               >
+                {showChats && (
+                  <ProjectStartCard
+                    groupId={groupId}
+                    isAdmin={!!data?.isAdmin}
+                    onSuccessMessage={onSuccessMessage}
+                    onErrorMessage={onErrorMessage}
+                  />
+                )}
                 {!isSystem && (
                   <ProjectInstructionsCard
                     groupId={groupId}

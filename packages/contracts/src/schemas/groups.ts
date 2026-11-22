@@ -600,3 +600,25 @@ export const groupInstructionsResponseSchema = z.object({
   updatedAt: z.string().nullable(),
 });
 export type GroupInstructionsResponse = z.infer<typeof groupInstructionsResponseSchema>;
+
+// Projekt-Start: Begrüßung und Startfragen auf der Übersicht (Fragen starten einen Projekt-Chat).
+export const GROUP_WELCOME_MAX = 400;
+export const GROUP_START_QUESTIONS_MAX = 4;
+export const GROUP_START_QUESTION_MAX = 160;
+
+export const groupStartBodySchema = z.object({
+  // Leer = Begrüßung entfernen.
+  welcomeMessage: z.string().trim().max(GROUP_WELCOME_MAX),
+  // Leere Einträge werden verworfen.
+  startQuestions: z
+    .array(z.string().trim().max(GROUP_START_QUESTION_MAX))
+    .max(GROUP_START_QUESTIONS_MAX),
+});
+export type GroupStartBody = z.infer<typeof groupStartBodySchema>;
+
+export const groupStartResponseSchema = z.object({
+  success: z.literal(true),
+  welcomeMessage: z.string(),
+  startQuestions: z.array(z.string()),
+});
+export type GroupStartResponse = z.infer<typeof groupStartResponseSchema>;
