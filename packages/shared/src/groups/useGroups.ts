@@ -1,4 +1,5 @@
 import {
+  type GroupColor,
   type GroupContentType,
   type GroupPostCreatedResponse,
   type GroupShareComment,
@@ -161,6 +162,8 @@ export const useUpdateGroupInfo = (groupId: string) => {
       name?: string;
       description?: string | null;
       settings?: Record<string, unknown>;
+      /** `null` clears the colour. */
+      color?: GroupColor | null;
     }) => {
       const res = await getContractsClient().groups.updateInfo({
         params: { groupId },

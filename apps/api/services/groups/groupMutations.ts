@@ -7,7 +7,7 @@
  */
 import crypto from 'crypto';
 
-import { type CreateGroupBody, type GroupAudience } from '@gruenerator/contracts';
+import { type CreateGroupBody, type GroupAudience, type GroupColor } from '@gruenerator/contracts';
 import { generateSlugSuffix } from '@gruenerator/shared/utils';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -141,6 +141,8 @@ export interface UpdateGroupInfoInput {
   name?: string | null;
   description?: string | null;
   settings?: Record<string, unknown> | null;
+  /** `null` clears the colour, `undefined` leaves it alone. */
+  color?: GroupColor | null;
 }
 
 export interface UpdateGroupInfoOutcome {
@@ -159,7 +161,7 @@ export async function updateGroupInfo(
   userId: string,
   input: UpdateGroupInfoInput
 ): Promise<UpdateGroupInfoOutcome> {
-  const { name, description, settings } = input;
+  const { name, description, settings, color } = input;
   let postgres: ReturnType<typeof getPostgresInstance>;
   let isAdmin: boolean;
   try {
@@ -193,6 +195,11 @@ export async function updateGroupInfo(
   if (settings != null) {
     updateFields.push(`settings = $${paramIndex++}`);
     updateValues.push(JSON.stringify(settings));
+  }
+
+  if (color !== undefined) {
+    updateFields.push(`color = $${paramIndex++}`);
+    updateValues.push(color);
   }
 
   if (updateFields.length === 0) {

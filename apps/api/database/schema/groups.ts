@@ -1,5 +1,6 @@
 import {
   type GroupAudience,
+  type GroupColor,
   type GroupLink,
   type GroupRole,
   type JoinRequestStatus,
@@ -48,6 +49,8 @@ export const groups = pgTable('groups', {
   is_system: boolean('is_system').notNull().default(false),
   // Set by a project admin: leaves the main lists, stays readable, takes no new content.
   archived_at: timestamp('archived_at', { withTimezone: true }),
+  // Optional tile colour from the fixed palette; null = the default blue.
+  color: text('color').$type<GroupColor>(),
 });
 
 export const group_memberships = pgTable('group_memberships', {

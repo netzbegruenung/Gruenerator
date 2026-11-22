@@ -5,6 +5,7 @@ import {
   joinGroupByToken,
   removeGroupMember,
   setGroupArchived,
+  updateGroupInfo,
 } from './groupMutations.js';
 
 // --- mocked infra (lazy refs so vi.mock hoisting is safe) --------------------
@@ -241,5 +242,30 @@ describe('setGroupArchived', () => {
     checkMembership.mockRejectedValue(new Error('Keine Berechtigung für diese Aktion.'));
     await expect(setGroupArchived('g1', 'u1', true)).rejects.toThrow('Berechtigung');
     expect(exec).not.toHaveBeenCalled();
+  });
+});
+
+describe('updateGroupInfo colour', () => {
+  const postgres = { exec: (...a: unknown[]) => exec(...a) };
+
+  beforeEach(() => {
+    exec.mockResolvedValue({ changes: 1 });
+  });
+
+  it('writes a palette colour and clears it with null', async () => {
+    checkMembership.mockResolvedValue({ postgres, isAdmin: true });
+    expect(await updateGroupInfo('g1', 'u1', { color: 'tanne' })).toMatchObject({ status: 200 });
+    expect(exec.mock.calls[0][0]).toContain('color = $1');
+    expect(exec.mock.calls[0][1]).toEqual(['tanne', 'g1']);
+    await updateGroupInfo('g1', 'u1', { color: null });
+    expect(exec.mock.calls[1][1]).toEqual([null, 'g1']);
+  });
+
+  it('leaves the colour alone when absent, and refuses non-admins', async () => {
+    checkMembership.mockResolvedValue({ postgres, isAdmin: true });
+    await updateGroupInfo('g1', 'u1', { name: 'Neu' });
+    expect(exec.mock.calls[0][0]).not.toContain('color');
+    checkMembership.mockResolvedValue({ postgres, isAdmin: false });
+    expect(await updateGroupInfo('g1', 'u1', { color: 'gruen' })).toMatchObject({ status: 403 });
   });
 });

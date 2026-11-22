@@ -4,6 +4,7 @@ import {
   canManageShare,
   sharedContentKeys,
   useSetGroupArchived,
+  useUpdateGroupInfo,
 } from '@gruenerator/shared/groups';
 import {
   Button,
@@ -65,6 +66,7 @@ import {
 import { AddExistingPicker, type PickerItem } from './AddExistingPicker';
 import { AddLinkDialog } from './AddLinkDialog';
 import { GroupContentArea } from './feed/GroupContentArea';
+import { GroupColorPicker } from './GroupColorPicker';
 import GroupJoinRequestsSection from './GroupJoinRequestsSection';
 import GroupLinksSection from './GroupLinksSection';
 import GroupMembersList from './GroupMembersList';
@@ -90,6 +92,7 @@ export interface GroupInfo {
   group_type?: 'standard' | 'personal';
   is_system?: boolean;
   archived_at?: string | null;
+  color?: string | null;
 }
 
 export interface GroupData {
@@ -317,6 +320,7 @@ const GroupInfoSection = memo(
     const isArchived = !!data?.groupInfo?.archived_at;
     const canShare = (!isSystem || !!data?.isAdmin) && !isArchived;
     const setArchived = useSetGroupArchived(groupId);
+    const updateInfo = useUpdateGroupInfo(groupId);
     const toggleArchived = useCallback(() => {
       const next = !isArchived;
       setArchived.mutate(next, {
@@ -514,6 +518,28 @@ const GroupInfoSection = memo(
                 {editedGroupDescription.length >= 450 && (
                   <div className="text-xs text-foreground">
                     {editedGroupDescription.length}/500 Zeichen
+                  </div>
+                )}
+                {!isSystem && (
+                  <div className="flex flex-col gap-xs">
+                    <span className="text-xs font-medium text-grey-600 dark:text-grey-300">
+                      Farbe der Kachel
+                    </span>
+                    <GroupColorPicker
+                      value={data?.groupInfo?.color}
+                      disabled={updateInfo.isPending}
+                      onChange={(color) =>
+                        updateInfo.mutate(
+                          { color },
+                          {
+                            onError: (err: Error) =>
+                              onErrorMessage?.(
+                                err.message || 'Farbe konnte nicht gespeichert werden.'
+                              ),
+                          }
+                        )
+                      }
+                    />
                   </div>
                 )}
                 <div className="flex gap-xs">

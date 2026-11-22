@@ -69,6 +69,8 @@ export interface GroupSummary {
   slug_suffix?: string | null;
   /** ISO time an admin archived the project; null/absent = active. */
   archived_at?: string | null;
+  /** Optional tile colour (key of the fixed palette); null/absent = default. */
+  color?: string | null;
   [key: string]: unknown;
 }
 

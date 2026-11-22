@@ -1,4 +1,10 @@
-import { getGroupInitials, buildGroupPath, type GroupSummary } from '@gruenerator/shared/groups';
+import {
+  getGroupInitials,
+  buildGroupPath,
+  GROUP_COLOR_STYLES,
+  resolveGroupColor,
+  type GroupSummary,
+} from '@gruenerator/shared/groups';
 import { HiUser, HiUserGroup } from 'react-icons/hi';
 import { Link } from 'react-router-dom';
 
@@ -24,11 +30,34 @@ function projektMeta(projekt: GroupSummary): string {
 }
 
 export function ProjektTile({ projekt }: { projekt: GroupSummary }) {
-  const theme = getToolTheme('projekte');
+  const base = getToolTheme('projekte');
+  const colorKey = resolveGroupColor(projekt.color);
+  const palette = colorKey ? GROUP_COLOR_STYLES[colorKey] : null;
+  // A chosen colour swaps the whole tone set (background, title, description, icon) so the
+  // contrast pairs stay the audited ones, in both modes.
+  const theme = palette
+    ? {
+        tile: 'bg-(--tile-bg) dark:bg-(--tile-bg-dark)',
+        icon: 'text-(--tile-title) dark:text-(--tile-title-dark)',
+        title: 'text-(--tile-title) dark:text-(--tile-title-dark)',
+        desc: 'text-(--tile-desc) dark:text-(--tile-desc-dark)',
+      }
+    : base;
+  const toneVars = palette
+    ? ({
+        '--tile-bg': palette.light.bg,
+        '--tile-bg-dark': palette.dark.bg,
+        '--tile-title': palette.light.title,
+        '--tile-title-dark': palette.dark.title,
+        '--tile-desc': palette.light.desc,
+        '--tile-desc-dark': palette.dark.desc,
+      } as React.CSSProperties)
+    : undefined;
   const TypeIcon = projekt.group_type === 'personal' ? HiUser : HiUserGroup;
   return (
     <Link
       to={buildGroupPath(projekt)}
+      style={toneVars}
       className={`${TILE_BASE} ${theme?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'}`}
     >
       <span className="flex items-start justify-between">

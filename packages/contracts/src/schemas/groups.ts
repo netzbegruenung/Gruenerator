@@ -23,6 +23,11 @@ export type GroupRole = z.infer<typeof groupRoleSchema>;
 export const groupAudienceSchema = z.enum(['de-DE', 'de-AT', 'all']);
 export type GroupAudience = z.infer<typeof groupAudienceSchema>;
 
+/** Fixed tile palette for projects (no colour = the default blue tile); the colour values live with the renderers (shared `groupColors`). */
+export const GROUP_COLORS = ['gruen', 'tanne', 'sonne', 'magenta', 'flieder'] as const;
+export const groupColorSchema = z.enum(GROUP_COLORS);
+export type GroupColor = z.infer<typeof groupColorSchema>;
+
 export const joinRequestStatusSchema = z.enum(['pending', 'approved', 'denied']);
 export type JoinRequestStatus = z.infer<typeof joinRequestStatusSchema>;
 
@@ -166,6 +171,7 @@ export const groupSummarySchema = z.object({
   slug_suffix: z.string().nullish(),
   // ISO time the project was archived; null/absent = active.
   archived_at: z.string().nullish(),
+  color: groupColorSchema.nullish(),
 });
 export type GroupSummaryDto = z.infer<typeof groupSummarySchema>;
 
@@ -187,6 +193,7 @@ export const groupDetailSchema = z.object({
   // Stable 6-char tail for the Notion-style URL `/gruppen/<name>-<suffix>`.
   slug_suffix: z.string().nullish(),
   archived_at: z.string().nullish(),
+  color: groupColorSchema.nullish(),
 });
 export type GroupDetailDto = z.infer<typeof groupDetailSchema>;
 
@@ -228,6 +235,8 @@ export const updateGroupInfoBodySchema = z.object({
   // Free-form group settings (e.g. `templateTags`). Kept as a generic record so
   // the typed client accepts the frontend's `Record<string, unknown>` value.
   settings: z.record(z.string(), z.unknown()).nullish(),
+  // null clears the colour (back to the default); absent leaves it alone.
+  color: groupColorSchema.nullish(),
 });
 export type UpdateGroupInfoBody = z.infer<typeof updateGroupInfoBodySchema>;
 

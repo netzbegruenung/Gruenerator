@@ -1,7 +1,22 @@
+import {
+  GROUP_COLOR_KEYS,
+  GROUP_COLOR_STYLES,
+  resolveGroupColor,
+  type GroupColor,
+} from '@gruenerator/shared/groups';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import * as Haptics from 'expo-haptics';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  useColorScheme,
+  View,
+} from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 
 import { SheetHeader } from '../../../../components/projekte/SheetHeader';
@@ -29,24 +44,29 @@ export default function ProjektBearbeitenScreen() {
   const { mutate, isPending } = useUpdateGroupInfo(id ?? '');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [color, setColor] = useState<GroupColor | null>(null);
   const [seeded, setSeeded] = useState(false);
+  const dark = useColorScheme() === 'dark';
 
   useEffect(() => {
     if (group && !seeded) {
       setName(group.name ?? '');
       setDescription(group.description ?? '');
+      setColor(resolveGroupColor(group.color));
       setSeeded(true);
     }
   }, [group, seeded]);
 
   const unchanged =
-    name.trim() === (group?.name ?? '') && description.trim() === (group?.description ?? '');
+    name.trim() === (group?.name ?? '') &&
+    description.trim() === (group?.description ?? '') &&
+    color === resolveGroupColor(group?.color);
   const canSave = seeded && name.trim().length > 0 && !unchanged && !isPending && !!id;
 
   const save = () => {
     if (!canSave) return;
     mutate(
-      { name: name.trim(), description: description.trim() },
+      { name: name.trim(), description: description.trim(), color },
       {
         onSuccess: () => {
           void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -115,6 +135,35 @@ export default function ProjektBearbeitenScreen() {
                 { color: theme.text, backgroundColor: theme.buttonBackground },
               ]}
             />
+            <Text style={[styles.label, { color: theme.textSecondary }]}>Farbe der Kachel</Text>
+            <View accessibilityRole="radiogroup" style={styles.swatches}>
+              {[null, ...GROUP_COLOR_KEYS].map((key) => {
+                const tone = key ? GROUP_COLOR_STYLES[key][dark ? 'dark' : 'light'] : null;
+                const selected = key === color;
+                return (
+                  <Pressable
+                    key={key ?? 'standard'}
+                    onPress={() => setColor(key)}
+                    disabled={isPending}
+                    accessibilityRole="radio"
+                    accessibilityLabel={key ? GROUP_COLOR_STYLES[key].label : 'Standard'}
+                    accessibilityState={{ checked: selected, disabled: isPending }}
+                    style={[
+                      styles.swatch,
+                      {
+                        backgroundColor: tone?.bg ?? theme.buttonBackground,
+                        borderColor: selected ? theme.text : theme.cardBorder,
+                        borderWidth: selected ? 2 : StyleSheet.hairlineWidth,
+                      },
+                    ]}
+                  >
+                    {selected ? (
+                      <Ionicons name="checkmark" size={18} color={tone?.title ?? theme.text} />
+                    ) : null}
+                  </Pressable>
+                );
+              })}
+            </View>
             {description.length >= COUNTER_FROM ? (
               <Text style={[styles.counter, { color: theme.textSecondary }]}>
                 {description.length} / {DESCRIPTION_MAX}
@@ -146,6 +195,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     borderRadius: 12,
     padding: 12,
+  },
+  label: { fontFamily: BODY_FONT, fontSize: 13, marginTop: spacing.small },
+  swatches: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small },
+  swatch: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   counter: { fontFamily: BODY_FONT, fontSize: 12, textAlign: 'right' },
 });
