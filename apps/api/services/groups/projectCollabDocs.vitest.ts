@@ -12,6 +12,8 @@ const {
   formatProjectDocs,
   PROJECT_COLLAB_DOC_CAP,
   PROJECT_COLLAB_SEARCH_CAP,
+  namedProjectDocs,
+  NAMED_PROJECT_DOC_CAP,
 } = await import('./projectCollabDocs.js');
 
 describe('getProjectCollabDocs', () => {
@@ -114,5 +116,38 @@ describe('getProjectCollabDocumentIds', () => {
   it('returns nothing for a chat outside any project or for a non-member', async () => {
     mockQuery.mockResolvedValue([]);
     expect(await getProjectCollabDocumentIds('thread-1', 'stranger')).toEqual([]);
+  });
+});
+
+describe('namedProjectDocs (#5952)', () => {
+  const docs = [
+    { id: 'f6', title: '06_protokoll_buergerbus.md', kind: 'file' as const },
+    { id: 'f8', title: '08_protokoll_waermeplanung.md', kind: 'file' as const },
+    { id: 'd1', title: 'Haushaltsklausur 2027', kind: 'doc' as const },
+    { id: 'n1', title: 'Notizen', kind: 'doc' as const },
+  ];
+
+  it('erkennt Dateinamen mit und ohne Endung, Groß/klein egal', () => {
+    expect(namedProjectDocs('Lies 06_protokoll_buergerbus.md ganz', docs).map((d) => d.id)).toEqual(
+      ['f6']
+    );
+    expect(
+      namedProjectDocs('Was steht in 08_Protokoll_Waermeplanung?', docs).map((d) => d.id)
+    ).toEqual(['f8']);
+    expect(
+      namedProjectDocs('Fass die Haushaltsklausur 2027 zusammen', docs).map((d) => d.id)
+    ).toEqual(['d1']);
+  });
+
+  it('deckelt bei zwei und ignoriert kurze Alltagstitel', () => {
+    const text =
+      'Vergleiche 06_protokoll_buergerbus, 08_protokoll_waermeplanung und Haushaltsklausur 2027';
+    expect(namedProjectDocs(text, docs)).toHaveLength(NAMED_PROJECT_DOC_CAP);
+    expect(namedProjectDocs('Schreib mir Notizen zum Treffen', docs)).toEqual([]);
+  });
+
+  it('ohne Titelliste oder Treffer nichts', () => {
+    expect(namedProjectDocs('Lies das Protokoll', docs)).toEqual([]);
+    expect(namedProjectDocs('06_protokoll_buergerbus.md', null)).toEqual([]);
   });
 });

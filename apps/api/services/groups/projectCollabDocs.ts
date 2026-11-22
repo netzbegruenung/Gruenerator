@@ -156,3 +156,41 @@ export function formatProjectDocs(docs: readonly ProjectCollabDoc[] | null): str
       : '';
   return `\n\n## DOKUMENTE DES PROJEKTS\n\nDiese Dokumente und Dateien sind ins Projekt dieses Chats geteilt. Vorab gefundene Stellen daraus sind nur Auszüge, nicht der ganze Inhalt. Geht es um den ganzen Inhalt, den genauen Wortlaut oder etwas, das in den Auszügen fehlt, lies es mit \`read_artifact\` (kind und id aus der Liste) und nenne in der Antwort seinen Titel als Quelle. Rate nie, was darin steht; ohne Bezug zur Frage lies nichts.${more}\n\n${embedUntrusted('projekt_dokumente', lines.join('\n'))}`;
 }
+
+/**
+ * Höchstens so viele Dateien bzw. Docs liest ein Turn vorab ganz, weil die
+ * Nachricht sie beim Titel nennt (`namedProjectDocs`). Zwei deckt „vergleiche
+ * X und Y“ ab.
+ */
+export const NAMED_PROJECT_DOC_CAP = 2;
+
+/** Kürzere Titel („Notizen“, „Protokoll“) sind Alltagswörter, kein Verweis. */
+const NAMED_TITLE_MIN_CHARS = 8;
+
+/**
+ * Welche Einträge der Titelliste die Nachricht beim Namen nennt — der Titel
+ * selbst oder ein Dateiname ohne Endung, Groß/klein egal. Kein Wortraten: nur
+ * die Titel, die der Prompt ohnehin listet, wie `matchMcpServerByName` bei
+ * Konnektoren. Ein so genannter Eintrag wird vorab ganz gelesen
+ * (`seedNamedProjectDocs`), weil die Modelle sonst aus den Suchauszügen raten
+ * statt `read_artifact` zu rufen (gemessen 22.11.2026, #5952: Gemma 0/6,
+ * Mistral Large 2/6 Aufrufe).
+ */
+export function namedProjectDocs(
+  text: string,
+  docs: readonly ProjectCollabDoc[] | null
+): ProjectCollabDoc[] {
+  if (!docs?.length || !text.trim()) return [];
+  const haystack = text.toLocaleLowerCase('de-DE');
+  const hits: ProjectCollabDoc[] = [];
+  for (const doc of docs) {
+    const title = doc.title.trim().toLocaleLowerCase('de-DE');
+    const stem = title.replace(/\.[a-z0-9]{1,5}$/, '');
+    const named = [title, stem].some(
+      (candidate) => candidate.length >= NAMED_TITLE_MIN_CHARS && haystack.includes(candidate)
+    );
+    if (named) hits.push(doc);
+    if (hits.length >= NAMED_PROJECT_DOC_CAP) break;
+  }
+  return hits;
+}

@@ -246,9 +246,9 @@ export const DOCS_PAGES: readonly DocPage[] = [
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "title": "Wie erstelle ich ein gemeinsames Projekt?",
+    "title": "Wie erstelle ich ein Projekt und lade andere ein?",
     "category": "Guides",
-    "lead": "Am Ende hast du einen gemeinsamen Bereich, in den du andere Menschen einladen und Inhalte wie Notebooks aufnehmen kannst. Die Team-Variante eines Projekts heißt in der aktuellen Oberfläche noch „Grup…"
+    "lead": "Am Ende hast du ein Projekt, in dem du Wissen wie Dateien und Notebooks ablegst, mit Chats darauf zugreifst und bei Bedarf andere Menschen einlädst. Es gibt nur eine Art von Projekt: Du legst es imme…"
   },
   {
     "url": "/docs/guides/einsteigerinnen/gruenerator-personalisieren",
@@ -1415,7 +1415,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Gespräch starten",
     "anchor": "#gespräch-starten",
     "category": "Chat",
-    "text": "Den Chat erreichst du über den Menüpunkt Chat in der Seitenleiste oder direkt unter /chat. Dort siehst du: Eingabefeld unten zum Schreiben deiner Nachricht Seitenleiste links mit deinem Gesprächsverlauf — Gespräche kannst du dort auch in Projekten bündeln (eigene Projekte und Gruppen, mit Übersicht unter /projekte) „+\"-Menü links im Eingabefeld — Dateien anhängen, Websuche und Dokumentensuche ein- und ausschalten, Rezepte, Rollen, Konnektoren und die Erstellen-Werkzeuge Modell-Auswahl rechts unten im Eingabefeld Jedes Gespräch wird als eigener Thread mit eigener Adresse (/chat/…) gespeichert. Du kannst jederzeit ein neues Gespräch beginnen oder in der Seitenleiste zu einem früheren Gespräch zurückkehren."
+    "text": "Den Chat erreichst du über den Menüpunkt Chat in der Seitenleiste oder direkt unter /chat. Dort siehst du: Eingabefeld unten zum Schreiben deiner Nachricht Seitenleiste links mit deinem Gesprächsverlauf — Gespräche kannst du dort auch in Projekten bündeln (auch gemeinsam mit anderen, mit Übersicht unter /projekte) „+\"-Menü links im Eingabefeld — Dateien anhängen, Websuche und Dokumentensuche ein- und ausschalten, Rezepte, Rollen, Konnektoren und die Erstellen-Werkzeuge Modell-Auswahl rechts unten im Eingabefeld Jedes Gespräch wird als eigener Thread mit eigener Adresse (/chat/…) gespeichert. Du kannst jederzeit ein neues Gespräch beginnen oder in der Seitenleiste zu einem früheren Gespräch zurückkehren."
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -2119,7 +2119,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Teilen und veröffentlichen",
     "anchor": "#teilen-und-veröffentlichen",
     "category": "Features",
-    "text": "Sichtbarkeit und Veröffentlichung sind aus der Erstellung herausgelöst. Der Einstieg ist der „Teilen\"-Button: Öffne dein Notebook über Bearbeiten, dann findest du oben rechts — neben „Alle Quellen aktualisieren\" — den Button „Teilen\". Er ist nur für die Eigentümer*in sichtbar und öffnet den Dialog „Notebook teilen\", in dem du die gesamte Sichtbarkeit steuerst. (Das „Teilen\"-Untermenü im Drei-Punkte-Menü der Notebook-Übersicht ist davon getrennt: Es bietet nur „Link kopieren\" und das direkte Teilen mit einer Gruppe, aber nicht die Sichtbarkeits- und Veröffentlichungseinstellungen.) Im Dialog „Notebook teilen\" stellst du die Sichtbarkeit ein: „Privat — nur ich\" — Standard. Nur du siehst das Notebook. „Mit Gruppen geteilt\" — sichtbar für ausgewählte Gruppen. Du fügst Gruppen hinzu und legst unter „Wer darf bearbeiten?\" fest, wer Änderungen vornehmen darf (nur ich / Gruppen-Admins / alle Mitglieder). „Mit Anmeldung — alle eingeloggten Nutzer*innen\" — sichtbar für alle eingeloggten Nutzer*innen aus deinem Land."
+    "text": "Sichtbarkeit und Veröffentlichung sind aus der Erstellung herausgelöst. Der Einstieg ist der „Teilen\"-Button: Öffne dein Notebook über Bearbeiten, dann findest du oben rechts — neben „Alle Quellen aktualisieren\" — den Button „Teilen\". Er ist nur für die Eigentümer*in sichtbar und öffnet den Dialog „Notebook teilen\", in dem du die gesamte Sichtbarkeit steuerst. (Das „Teilen\"-Untermenü im Drei-Punkte-Menü der Notebook-Übersicht ist davon getrennt: Es bietet nur „Link kopieren\" und das direkte Hinzufügen zu einem Projekt, aber nicht die Sichtbarkeits- und Veröffentlichungseinstellungen.) Im Dialog „Notebook teilen\" stellst du die Sichtbarkeit ein: „Privat — nur ich\" — Standard. Nur du siehst das Notebook. „Mit Projekten geteilt\" — sichtbar für ausgewählte Projekte. Du fügst Projekte hinzu und legst unter „Wer darf bearbeiten?\" fest, wer Änderungen vornehmen darf („Nur ich\" / „Admins der geteilten Projekte\" / „Alle Mitglieder der geteilten Projekte\"). „Mit Anmeldung — alle eingeloggten Nutzer*innen\" — sichtbar für alle eingeloggten Nutzer*innen aus deinem Land."
   },
   {
     "url": "/docs/features/notebooks",
@@ -2127,7 +2127,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Verwalten",
     "anchor": "#verwalten",
     "category": "Features",
-    "text": "Hinter der Kachel „Meine Notebooks\" auf der Wissen-Seite erscheint jedes deiner Notebooks als Karte, zusammen mit den Notebooks, die andere über ein Projekt mit dir teilen, und denen, die du im Marktplatz gemerkt hast. Ein Klick auf die Karte öffnet die Notebook-Detailseite, von der aus du chatten und durchsuchen kannst. Über das Drei-Punkte-Menü der Karte erreichst du weitere Aktionen: Bearbeiten — öffnet wieder den Editor (Quellen, Details, Labels, Wolke, Docs). Auf der Bearbeiten-Seite kannst du Name und Beschreibung auch direkt im Kopfbereich ändern und alle Quellen per „Alle Quellen aktualisieren\" neu synchronisieren. Teilen — Untermenü mit „Link kopieren\" und — falls du in Gruppen bist — Optionen zum direkten Teilen mit einer Gruppe. Die volle Sichtbarkeitssteuerung liegt dagegen im „Teilen\"-Button auf der Bearbeiten-Seite (siehe oben). Löschen — entfernt das Notebook unwiderruflich. Wichtig: Die enthaltenen Dokumente bleiben in deiner persönlichen Bibliothek erhalten und können in andere Notebooks aufgenommen werden."
+    "text": "Hinter der Kachel „Meine Notebooks\" auf der Wissen-Seite erscheint jedes deiner Notebooks als Karte, zusammen mit den Notebooks, die andere über ein Projekt mit dir teilen, und denen, die du im Marktplatz gemerkt hast. Ein Klick auf die Karte öffnet die Notebook-Detailseite, von der aus du chatten und durchsuchen kannst. Über das Drei-Punkte-Menü der Karte erreichst du weitere Aktionen: Bearbeiten — öffnet wieder den Editor (Quellen, Details, Labels, Wolke, Docs). Auf der Bearbeiten-Seite kannst du Name und Beschreibung auch direkt im Kopfbereich ändern und alle Quellen per „Alle Quellen aktualisieren\" neu synchronisieren. Teilen — Untermenü mit „Link kopieren\" und — falls du in Projekten bist — Optionen, das Notebook direkt zu einem Projekt hinzuzufügen. Die volle Sichtbarkeitssteuerung liegt dagegen im „Teilen\"-Button auf der Bearbeiten-Seite (siehe oben). Löschen — entfernt das Notebook unwiderruflich. Wichtig: Die enthaltenen Dokumente bleiben in deiner persönlichen Bibliothek erhalten und können in andere Notebooks aufgenommen werden."
   },
   {
     "url": "/docs/features/notebooks",
@@ -2731,91 +2731,83 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
-    "heading": "Wie erstelle ich ein gemeinsames Projekt?",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
+    "heading": "Wie erstelle ich ein Projekt und lade andere ein?",
     "anchor": "",
     "category": "Guides",
-    "text": "Am Ende hast du einen gemeinsamen Bereich, in den du andere Menschen einladen und Inhalte wie Notebooks aufnehmen kannst. Die Team-Variante eines Projekts heißt in der aktuellen Oberfläche noch „Gruppe“."
+    "text": "Am Ende hast du ein Projekt, in dem du Wissen wie Dateien und Notebooks ablegst, mit Chats darauf zugreifst und bei Bedarf andere Menschen einlädst. Es gibt nur eine Art von Projekt: Du legst es immer auf demselben Weg an, nutzt es allein oder mit anderen und kannst jederzeit Mitglieder einladen."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
-    "heading": "Beiträge, Erwähnungen und Benachrichtigungen",
-    "anchor": "#beiträge-erwähnungen-und-benachrichtigungen",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
+    "heading": "Austausch: Beiträge, Kommentare und Erwähnungen",
+    "anchor": "#austausch-beiträge-kommentare-und-erwähnungen",
     "category": "Guides",
-    "text": "Im Feed einer Gruppe öffnet „Schreib etwas an die Gruppe …“ den Beitragseditor. Schreibe deinen Text, hänge bei Bedarf über „Dateien“ Anhänge an und klicke auf „Posten“. Ein Beitrag darf bis zu 5.000 Zeichen und zehn Dateien mit jeweils höchstens 25 MiB enthalten; auch ein Beitrag nur mit Dateien ist möglich. Über die Sprechblase unter einem Beitrag oder geteilten Inhalt öffnest du die Kommentare. Schreibe ins Kommentarfeld und klicke auf „Senden“. Auf vorhandene Kommentare kannst du antworten; Antworten werden als Thread zusammengefasst. Kommentare dürfen bis zu 2.000 Zeichen enthalten. Über das Stecknadel-Symbol können Admins bis zu drei Einträge anheften. Eine weitere Anheftung löst die älteste. Die anderen Mitglieder bekommen eine Benachrichtigung, wenn jemand einen Beitrag schreibt oder einen Inhalt teilt. Tippe @ und wähle eine Person aus der Liste, um sie gezielt anzusprechen. Sie bekommt eine eigene Benachrichtigung. Mit @alle benachrichtigst du alle Mitglieder der Gruppe. Antwortest du auf einen Kommentar, ist die Person, der du antwortest, schon erwähnt."
+    "text": "Sobald außer dir noch andere im Projekt sind oder es schon Beiträge gibt, erscheint neben Übersicht die Registerkarte Austausch. Dort schreibst du Beiträge, teilst Inhalte mit einer Notiz und kommentierst. Im Austausch findest du Einträge über das Feld „Im Austausch suchen“. Klicke auf „Schreib etwas an das Projekt …“. Der Beitragseditor öffnet sich. Schreibe deinen Text, hänge bei Bedarf über „Dateien“ Anhänge an und klicke auf „Posten“. Ein Beitrag darf bis zu 5.000 Zeichen und zehn Dateien mit jeweils höchstens 25 MiB enthalten; auch ein Beitrag nur mit Dateien ist möglich. Über „Aus meinen Inhalten“ teilst du stattdessen einen vorhandenen Inhalt mit einer Notiz. Bei einem Eintrag im Wissen holt „Im Austausch besprechen“ ihn in den Austausch, damit ihr darüber schreiben könnt. Über die Sprechblase unter einem Beitrag öffnest du die Kommentare. Schreibe ins Feld „Kommentieren …“ und klicke auf „Senden“. Auf vorhandene Kommentare kannst du antworten; Antworten werden als Thread zusammengefasst. Kommentare dürfen bis zu 2.000 Zeichen enthalten. Über das Stecknadel-Symbol können Admins bis zu drei Einträge anheften. Eine weitere Anheftung löst die älteste."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
-    "heading": "Beiträge, Erwähnungen und Benachrichtigungen",
-    "anchor": "#beiträge-erwähnungen-und-benachrichtigungen",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
+    "heading": "Austausch: Beiträge, Kommentare und Erwähnungen",
+    "anchor": "#austausch-beiträge-kommentare-und-erwähnungen",
     "category": "Guides",
-    "text": "Wie viele Benachrichtigungen du bekommst und welche auch per E-Mail kommen, stellst du in den Einstellungen unter Benachrichtigungen ein. „Benachrichtigungen stummschalten“ im Drei-Punkte-Menü der Gruppe stoppt die E-Mails dieser Gruppe; in der Glocke erscheinen sie weiterhin."
+    "text": "Angeheftete Einträge stehen im Austausch oben. Die anderen Mitglieder bekommen eine Benachrichtigung, wenn jemand einen Beitrag schreibt oder einen Inhalt teilt. Tippe @ und wähle eine Person aus der Liste, um sie gezielt anzusprechen. Sie bekommt eine eigene Benachrichtigung. Mit @alle benachrichtigst du alle Mitglieder des Projekts. Antwortest du auf einen Kommentar, ist die Person, der du antwortest, schon erwähnt. Wie viele Benachrichtigungen du bekommst und welche auch per E-Mail kommen, stellst du in den Einstellungen unter Benachrichtigungen ein. „Benachrichtigungen stummschalten“ im Menü „Projektoptionen“ stoppt die E-Mails dieses Projekts; in der Glocke erscheinen sie weiterhin."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
-    "heading": "Ein Notebook hinzufügen",
-    "anchor": "#ein-notebook-hinzufügen",
-    "category": "Guides",
-    "text": "Klicke oben rechts auf „Inhalte teilen“. Im geöffneten Beitragseditor erreichst du dieselbe Auswahl über „Aus meinen Inhalten“. Wähle „Notebooks“. Klicke auf das Notebook, das du freigeben möchtest. Ein Häkchen zeigt die Auswahl an. Du kannst auch mehrere Notebooks auswählen. Optional kannst du eine Notiz für die Gruppe ergänzen. Klicke unten rechts auf „1 hinzufügen“. Bei mehreren ausgewählten Inhalten passt sich die Zahl automatisch an. Das Notebook erscheint danach im Feed und unter „Alle“ im Abschnitt „Notebooks“. Mitglieder des Projekts können es dort öffnen und lesen; durch das Hinzufügen erhalten sie keine Schreibrechte am Notebook."
-  },
-  {
-    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
-    "heading": "Einladungslink kopieren",
-    "anchor": "#einladungslink-kopieren",
-    "category": "Guides",
-    "text": "Öffne oben rechts das Drei-Punkte-Menü „Gruppenoptionen“. Klicke auf „Einladungslink kopieren“. Der Link wird direkt in die Zwischenablage kopiert. Füge den Link in eine Nachricht an die Personen ein, die beitreten sollen. Der Link ist eine Einladung zu deinem Projekt. Teile ihn nur mit den vorgesehenen Personen. Nur Admins sehen diese Aktion. Alternativ kannst du im selben Menü „Per E-Mail einladen“ wählen."
-  },
-  {
-    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
-    "heading": "Feed und Inhaltsübersicht",
-    "anchor": "#feed-und-inhaltsübersicht",
-    "category": "Guides",
-    "text": "Gemeinsame Projekte haben zwei Ansichten: „Feed“ zeigt Beiträge und geteilte Inhalte, „Alle“ sortiert die Inhalte nach Art. Angeheftete Einträge stehen im Feed oben. Über das Suchfeld findest du Inhalte anhand von Titel, Notiz, Beitragstext oder Dateinamen."
-  },
-  {
-    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
-    "heading": "Gemeinsames Projekt anlegen",
-    "anchor": "#gemeinsames-projekt-anlegen",
-    "category": "Guides",
-    "text": "Öffne im Bereich Arbeiten die Seite Projekte. Direkt erreichbar ist sie auch unter /projekte. Klicke auf „Gruppe erstellen“. Nimm nicht „Projekt erstellen“: Damit legst du ein persönliches Projekt ohne Mitglieder und Einladungslink an. Gib einen Namen ein. Er darf höchstens 100 Zeichen lang sein. Optional kannst du schon jetzt E-Mail-Adressen eingeben. Bestätige jede Adresse mit Enter oder einem Komma. Diese Personen erhalten nach dem Erstellen eine E-Mail mit einem Beitrittslink. Klicke auf „Gruppe erstellen“ beziehungsweise, wenn du Adressen hinzugefügt hast, auf „Erstellen & einladen“. Das neue gemeinsame Projekt öffnet sich automatisch. Du bist Admin und kannst Mitglieder sowie geteilte Inhalte verwalten."
-  },
-  {
-    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
     "heading": "Inhalte wieder entfernen",
     "anchor": "#inhalte-wieder-entfernen",
     "category": "Guides",
-    "text": "Als Admin kannst du einen geteilten Inhalt über das Aktionsmenü seiner Karte im Feed wieder aus dem Projekt nehmen. Das löscht das ursprüngliche Notebook nicht — nur seine Freigabe im Projekt wird entfernt."
+    "text": "Jede Zeile im Wissen hat ein Menü „Weitere Aktionen für …“. Dort nimmst du den Inhalt mit „Aus dem Projekt entfernen“ wieder heraus, wenn du dazu berechtigt bist. Das löscht das ursprüngliche Notebook nicht, nur seine Freigabe im Projekt wird entfernt. Dasselbe Menü legt auch fest, ob Mitglieder den Inhalt „Bearbeiten“ oder „Nur lesen“ dürfen."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
-    "heading": "Projekt oder Gruppe?",
-    "anchor": "#projekt-oder-gruppe",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
+    "heading": "Menschen einladen",
+    "anchor": "#menschen-einladen",
     "category": "Guides",
-    "text": "Ein Projekt ist dein persönlicher Bereich. Es hat keine Mitglieder und keinen Einladungslink. Eine Gruppe ist für die Zusammenarbeit gedacht: Mitglieder können die dort freigegebenen Inhalte öffnen, Admins verwalten zusätzlich Mitglieder, Einladungen und geteilte Inhalte. Für diesen Guide brauchst du deshalb eine Gruppe."
+    "text": "Du kannst jederzeit einladen, auch wenn du das Projekt zunächst allein genutzt hast. Klicke oben auf der Projektseite auf „Einladen“. Den Knopf sehen nur Admins. Gib im Dialog „Einladen“ E-Mail-Adressen ein (Platzhalter: name@beispiel.de) und bestätige jede mit Enter oder einem Komma. Eingeladene erhalten eine E-Mail mit einem Beitrittslink zu diesem Projekt. Oder klicke auf „Einladungslink kopieren“ und schicke den Link selbst, etwa per Messenger. Teile ihn nur mit den vorgesehenen Personen. Klicke auf „Einladen“, um die E-Mails zu verschicken. Im Drei-Punkte-Menü „Projektoptionen“ findest du dieselben Einträge „Per E-Mail einladen“ und „Einladungslink kopieren“ sowie „Mitglieder verwalten“. In einem archivierten Projekt kannst du nicht einladen."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
+    "heading": "Projekt anlegen",
+    "anchor": "#projekt-anlegen",
+    "category": "Guides",
+    "text": "Öffne im Bereich Arbeiten die Seite Projekte. Direkt erreichbar ist sie auch unter /projekte. Klicke unter dem Eingabefeld auf „Projekt erstellen“. Alternativ tippst du im Feld oben einen Namen ein und wählst „… als Projekt erstellen“. Es öffnet sich der Dialog „Neues Projekt“. Gib unter Name den Namen des Projekts ein. Er darf höchstens 100 Zeichen lang sein. Optional beschreibst du unter „Worum geht es in diesem Projekt?“ das Thema in ein bis zwei Sätzen. Optional hängst du über „Dateien auswählen“ gleich Dateien an. Optional gibst du E-Mail-Adressen ein, um Menschen einzuladen. Bestätige jede Adresse mit Enter oder einem Komma. Klicke auf „Projekt erstellen“. Hast du Adressen eingetragen, heißt der Knopf „Erstellen & einladen“. Das neue Projekt öffnet sich automatisch. Du bist Admin und kannst Mitglieder und Inhalte verwalten."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
+    "heading": "Projekt archivieren oder verlassen",
+    "anchor": "#projekt-archivieren-oder-verlassen",
+    "category": "Guides",
+    "text": "Im Menü „Projektoptionen“ findest du „Archivieren“ (und später „Wiederherstellen“) sowie „Projekt verlassen“. Archivierte Projekte stehen auf der Seite Projekte unter Archiviert."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
     "heading": "Weiterlesen",
     "anchor": "#weiterlesen",
     "category": "Guides",
-    "text": "Wie erstelle ich ein eigenes Notebook? — ein eigenes Notebook anlegen und mit Quellen füllen"
+    "text": "Wie erstelle ich ein eigenes Notebook? — Quellen sammeln und ein Notebook aufbauen"
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
     "heading": "Wenn etwas fehlt",
     "anchor": "#wenn-etwas-fehlt",
     "category": "Guides",
-    "text": "Kein Einladungslink im Menü? Dann handelt es sich wahrscheinlich um ein persönliches Projekt oder du bist kein Admin. Einladungen gibt es nur bei gemeinsamen Projekten. „Notebooks“ wird nicht angeboten? Die Auswahl zeigt nur Kategorien, in denen dir Inhalte zur Verfügung stehen. Erstelle zunächst eines oder prüfe, ob du Zugriff auf ein Notebook hast. „Inhalte teilen“ fehlt? Im System-Projekt „Grünerator“ dürfen nur Instanz-Admins Inhalte teilen und Beiträge schreiben. In normalen gemeinsamen Projekten dürfen Mitglieder teilen; Entfernen geteilter Inhalte bleibt eine Admin-Aktion."
+    "text": "Kein „Einladen“-Knopf? Dann bist du kein Admin des Projekts, das Projekt ist archiviert, oder es ist das System-Projekt „Grünerator“. Keine Registerkarte „Austausch“? Sie erscheint erst, wenn außer dir jemand im Projekt ist oder es Beiträge gibt. Lade zuerst jemanden ein. Notebooks fehlen im Auswahlfenster? Es zeigt nur Inhalte, die dir gehören. Erstelle dafür zuerst ein Notebook. „Hinzufügen“ fehlt? Im System-Projekt „Grünerator“ dürfen nur Instanz-Admins Inhalte teilen und Beiträge schreiben. In allen anderen Projekten dürfen Mitglieder Inhalte hinzufügen; Entfernen bleibt eine Admin-Aktion."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
+    "heading": "Wissen und Notebooks hinzufügen",
+    "anchor": "#wissen-und-notebooks-hinzufügen",
+    "category": "Guides",
+    "text": "Alles, was du ins Projekt legst, steht auf der Registerkarte Übersicht im Abschnitt Wissen. Chats in diesem Projekt nutzen es als Grundlage. Klicke oben rechts auf „Hinzufügen“. Wähle „Vorhandenes hinzufügen …“, um etwas aus deinen eigenen Inhalten zu übernehmen, zum Beispiel ein Notebook. Mit „Neues Doc“, „Neues Sheet“, „Neue Präsentation“ oder „Neues Board“ legst du direkt im Projekt etwas Neues an. „Datei hochladen“, „Text“ und „Link“ (nur für Admins) bringen weiteres Material ein. Wähle im Auswahlfenster das Notebook aus, das du freigeben möchtest. Mitglieder des Projekts können das Notebook danach öffnen und lesen; durch das Hinzufügen erhalten sie keine Schreibrechte. Über dem Wissen steht, wie viel davon Chats tatsächlich durchsuchen können, zum Beispiel „3 von 4 durchsuchbar“. Bei Dateien, die noch eingelesen werden oder sich nicht auslesen ließen, ist die Zahl niedriger. Ab sieben Einträgen hilft dir das Feld „Im Wissen suchen“."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gruenerator-personalisieren",

@@ -21,6 +21,7 @@ import {
 } from '../../../../agents/langgraph/ChatGraph/nodes/agentNotebookScope.js';
 import { lastUserText } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { executeMultiDocFanout } from '../../../../agents/langgraph/ChatGraph/nodes/searchNode.js';
+import { namedProjectDocs } from '../../../../services/groups/projectCollabDocs.js';
 import { McpServerRegistry } from '../../../../services/mcp/McpServerRegistry.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { makeAskHumanTool } from '../../agents/askHumanTool.js';
@@ -28,6 +29,7 @@ import { preferredLvRecipeMention } from '../../agents/lvRecipePreference.js';
 import { loadMcpCatalog as loadMcpCatalogReal, type McpCatalog } from '../../agents/mcpCatalog.js';
 import { CRAWL_SNIPPET_CHARS, readNamedPages } from '../../agents/namedPages.js';
 import { boundSystemNotebook, boundUserNotebook } from '../../agents/notebookSourceTools.js';
+import { ARTIFACT_READ_CHARS } from '../../agents/personalDataTools.js';
 import {
   buildRecipeCatalog as buildRecipeCatalogReal,
   catalogDescription,
@@ -37,6 +39,7 @@ import {
 } from '../../agents/recipeCatalog.js';
 import { makeRecipeTool } from '../../agents/recipeTools.js';
 import { buildChatToolCatalog as buildChatToolCatalogReal } from '../../agents/toolCatalog.js';
+import { readArtifactContent } from '../artifactReader.js';
 import { isTabularAttachment } from '../attachmentProcessingService.js';
 import { extractTextContent } from '../messageHelpers.js';
 import { sendChatWarning, type SSEWriter } from '../sseHelpers.js';
@@ -80,8 +83,8 @@ import {
 } from './types.js';
 import { wrapToolsForLoop, type ToolHooks } from './wrapTools.js';
 
-import type { ChatGraphState, PriorLookup } from '../../../../agents/langgraph/ChatGraph/types.js';
 import type { ToolActivity } from './toolActivity.js';
+import type { ChatGraphState, PriorLookup } from '../../../../agents/langgraph/ChatGraph/types.js';
 import type { ModelMessage, ToolSet } from 'ai';
 import type { Request } from 'express';
 
@@ -1237,6 +1240,95 @@ export async function seedAgentNotebooks(params: {
 }
 
 /**
+ * Projekt-Dateien und -Docs, die die Nachricht beim Titel nennt („Lies
+ * 06_protokoll_buergerbus.md ganz“), vorab ganz gelesen — wie eine @datei.
+ *
+ * Gemessen 22.11.2026 (#5952, 18 Turns): mit den Auszügen der Vorab-Suche im
+ * Kontext riefen Gemma und „Klein“ `read_artifact` nie, Mistral Large in 2 von
+ * 6 Fällen; „letzter Satz“, „wie oft“ und Vergleiche wurden aus Auszügen
+ * geraten. Der Replay läuft unter `read_artifact` mit derselben Seitengröße
+ * und demselben `weiter`, damit der Planer bei langen Dateien selbst
+ * weiterliest. Erkannt wird nur ein Titel aus der Prompt-Liste
+ * (`namedProjectDocs`), keine Wortliste; Zugriff prüft der Leser.
+ */
+export async function seedNamedProjectDocs(params: {
+  state: ChatGraphState;
+  sourceRegistry: SourceRegistry;
+  isMounted: boolean;
+  onInfo: (message: string) => void;
+  onError: (message: string) => void;
+}): Promise<SeededAttachedDocuments> {
+  const { state } = params;
+  const userId = state.agentConfig.userId;
+  if (!state.project || !userId) return NOTHING_SEEDED;
+  const named = namedProjectDocs(
+    state.lastUserTextNoMentions ?? lastUserText(state),
+    state.projectDocs
+  );
+  if (named.length === 0) return NOTHING_SEEDED;
+
+  const replay: ModelMessage[] = [];
+  let delivered = false;
+  for (const doc of named) {
+    try {
+      const content = await readArtifactContent({ id: doc.id, kind: doc.kind, userId });
+      if (!content?.trim()) continue;
+      const truncated = content.length > ARTIFACT_READ_CHARS;
+      const excerpt = `${content.slice(0, ARTIFACT_READ_CHARS)}${truncated ? '\n…[gekürzt]' : ''}`;
+      const block = params.sourceRegistry.seedAttached(
+        [{ source: 'eigene-inhalte', title: doc.title, content: excerpt, documentId: doc.id }],
+        ARTIFACT_READ_CHARS
+      );
+      delivered = true;
+      if (!params.isMounted) continue;
+      const toolCallId = `seed-project-doc-${doc.id}`;
+      const output = {
+        kind: doc.kind,
+        title: doc.title,
+        content: block,
+        truncated,
+        gesamtZeichen: content.length,
+        ...(truncated ? { weiter: { ab: ARTIFACT_READ_CHARS } } : {}),
+      };
+      replay.push(
+        {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool-call' as const,
+              toolCallId,
+              toolName: 'read_artifact',
+              input: { kind: doc.kind, id: doc.id },
+            },
+          ],
+        },
+        {
+          role: 'tool',
+          content: [
+            {
+              type: 'tool-result' as const,
+              toolCallId,
+              toolName: 'read_artifact',
+              output: { type: 'json' as const, value: output },
+            },
+          ],
+        }
+      );
+    } catch (err) {
+      // Nicht lesbar (wird eingelesen, Ausfall): kein Seed — der Planer kann
+      // `read_artifact` selbst rufen und bekommt dann den eigenen Satz.
+      params.onError(
+        `[Agentic] Vorab-Lesen von „${doc.title}" übersprungen: ${err instanceof Error ? err.message : err}`
+      );
+    }
+  }
+  if (delivered) {
+    params.onInfo(`[Agentic] ${named.length} beim Namen genannte Projekt-Datei(en) vorab gelesen`);
+  }
+  return { replay, delivered };
+}
+
+/**
  * Der eine Vorab-Abruf für das Material eines Loop-Turns (#5266): ruft die
  * Seeds je Leseweg (`resolveTurnMaterial`) und meldet EIN `delivered` an
  * `shouldForceFirstToolCall`. Bis dahin standen drei Aufrufe nebeneinander im
@@ -1287,9 +1379,27 @@ export async function seedTurnMaterial(params: {
     onInfo,
     onError,
   });
+  const projectDocs = await seedNamedProjectDocs({
+    state,
+    sourceRegistry,
+    isMounted: isMounted('read_artifact'),
+    onInfo,
+    onError,
+  });
   return {
-    replay: [...docs.replay, ...cloud.replay, ...pages.replay, ...agentNotebooks.replay],
-    delivered: docs.delivered || cloud.delivered || pages.delivered || agentNotebooks.delivered,
+    replay: [
+      ...docs.replay,
+      ...cloud.replay,
+      ...pages.replay,
+      ...agentNotebooks.replay,
+      ...projectDocs.replay,
+    ],
+    delivered:
+      docs.delivered ||
+      cloud.delivered ||
+      pages.delivered ||
+      agentNotebooks.delivered ||
+      projectDocs.delivered,
     writerNote: unreadableCloudFilesNote(cloud.unreadable),
   };
 }
