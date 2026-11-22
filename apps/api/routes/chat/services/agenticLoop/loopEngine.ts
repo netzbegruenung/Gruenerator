@@ -21,6 +21,7 @@ import {
   ToolChoiceViolationError,
 } from 'ai';
 
+import { GEMMA_31B_ON_MELIOUS } from '../../../../services/ai/gemmaHosts.js';
 import { PANDA_LANE_MODEL } from '../../../../services/ai/textModelPolicy.js';
 import { classifyProviderError } from '../../../../services/providers/providerErrors.js';
 import { buildAiTelemetry } from '../../../../services/telemetry/langfuseTelemetry.js';
@@ -140,15 +141,25 @@ const TOOL_PHASE_IDLE_DEADLINE_MS = 45_000;
  * 13–18 s Stille, eines von 9.400–14.400 Zeichen nach 31–42 s (~88 Token/s),
  * jeweils in einem Chunk — auch mit `parallel_tool_calls: false` oder
  * `tool_choice: 'required'`. Panda hat im Loop keine Ausweich-Lane
- * (`resolveLoopLaneChain`), ein Abriss kostet also den ganzen Zug. Nur dieses
- * Modell, nicht ganz Melious: Gemma dort ist nicht gemessen.
+ * (`resolveLoopLaneChain`), ein Abriss kostet also den ganzen Zug.
+ *
+ * Gemma 4 auf Melious `:balanced` ebenso, gemessen 23.11.2026 (#5959) am
+ * mitgeschnittenen Schritt 2 eines Präsentationsauftrags, direkt gegen Melious
+ * nachgespielt: Rollen-Chunk, Werkzeugname mit leerem Argument, dann nur
+ * `: keep-alive`-Kommentare (das SDK verwirft sie, die Frist läuft weiter), dann
+ * das ganze Argument in einem Chunk. Einzeln nach 20 s, bei 10 parallelen
+ * 33–43 s, einmal 58,4 s — der Lauf „silent for 45000ms after 0 chars", der danach
+ * die Lane als zäh markierte. `:speed` schreibt denselben Aufruf in 4–10 s und
+ * bleibt ohne Zuschlag. Der Schlüssel ist die Modell-Id des Objekts: das Tauschen
+ * auf `:speed` passiert erst auf der Leitung (`meliousWireModel`).
  */
 const SILENT_TOOL_ARGUMENT_ALLOWANCE_MS: Readonly<Record<string, number>> = {
   mistral: 45_000,
   [`melious/${PANDA_LANE_MODEL}`]: 45_000,
+  [`melious/${GEMMA_31B_ON_MELIOUS.model}`]: 45_000,
 };
 
-function silentToolArgumentAllowanceMs(model: LanguageModel): number {
+export function silentToolArgumentAllowanceMs(model: LanguageModel): number {
   const provider = providerOfModel(model);
   return (
     SILENT_TOOL_ARGUMENT_ALLOWANCE_MS[`${provider}/${modelNameOfModel(model)}`] ??
