@@ -28,6 +28,8 @@ interface UsePeerMessageSyncArgs {
 /** After a turn-start tick the server may not have written the live row yet. */
 const TURN_START_RETRY_MS = [800, 2000] as const;
 
+type ServerTurnSignal = { kind?: 'started' | 'message'; by?: string | null; t?: number };
+
 type PeerAwarenessState = {
   chatNewMessage?: { t?: number };
   chatTurnStarted?: { t?: number };
@@ -189,10 +191,26 @@ export function usePeerMessageSync({ threadId, runtime, collab }: UsePeerMessage
     };
 
     awareness.on('change', onChange);
+
+    // Server-side signal: the API writes `turnSignal` into the room whenever it
+    // persists a turn step, so turns from the app or the API reach us too. It
+    // takes the same refresh path as the awareness nudge above.
+    const signals = provider.document.getMap<ServerTurnSignal>('turnSignal');
+    const onServerSignal = () => {
+      const signal = signals.get('signal');
+      if (!signal) return;
+      const me = (awareness.getLocalState() as { user?: { id?: string } } | null)?.user?.id;
+      // Our own turn is already handled by the local runtime; a second tab of
+      // the same person is not running and still refreshes.
+      if (signal.by && signal.by === me && runtime.thread.getState().isRunning) return;
+      void tryRefresh(signal.kind === 'started' ? TURN_START_RETRY_MS : []);
+    };
+    signals.observe(onServerSignal);
     return () => {
       disposed = true;
       timers.forEach(clearTimeout);
       awareness.off('change', onChange);
+      signals.unobserve(onServerSignal);
     };
   }, [collab.provider, threadId, runtime, fetchFn, endpoints, queryClient]);
 

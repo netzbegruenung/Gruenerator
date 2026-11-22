@@ -12,6 +12,7 @@ import {
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, waitFor } from '@testing-library/react';
 import { useState } from 'react';
+import * as Y from 'yjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { useChatConfigStore } from '../stores/chatConfigStore';
@@ -29,6 +30,7 @@ function makeAwareness() {
   return {
     clientID: 1,
     getStates: () => states,
+    getLocalState: () => states.get(1) ?? null,
     on: (_: string, l: Listener) => listeners.add(l),
     off: (_: string, l: Listener) => listeners.delete(l),
     peer(patch: Record<string, unknown>) {
@@ -80,7 +82,8 @@ function mount(collabOverrides: Partial<{ broadcastTurnStarted: () => void }> = 
       yield { content: [{ type: 'text' as const, text: 'lokal' }] };
     },
   };
-  const provider = { awareness } as unknown as HocuspocusProvider;
+  const document = new Y.Doc();
+  const provider = { awareness, document } as unknown as HocuspocusProvider;
 
   function Sync({ runtime }: { runtime: AssistantRuntime }) {
     box.runtime = runtime;
@@ -112,7 +115,7 @@ function mount(collabOverrides: Partial<{ broadcastTurnStarted: () => void }> = 
     thread()
       .getState()
       .messages.map((m) => m.content.map((p) => (p.type === 'text' ? p.text : '')).join(''));
-  return { awareness, broadcastNewMessage, broadcastTurnStarted, thread, texts, box };
+  return { awareness, document, broadcastNewMessage, broadcastTurnStarted, thread, texts, box };
 }
 
 afterEach(() => {
@@ -124,6 +127,16 @@ describe('usePeerMessageSync', () => {
     const fetchMock = serve(() => [USER_ROW, DONE_ROW]);
     const { awareness, texts } = mount();
     act(() => awareness.peer({ chatNewMessage: { t: 1 } }));
+    await waitFor(() => expect(texts()).toEqual(['Frage', 'Teil und Rest']));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('a server turn signal (turn from the app) refetches like a peer tick', async () => {
+    const fetchMock = serve(() => [USER_ROW, DONE_ROW]);
+    const { document, texts } = mount();
+    act(() => {
+      document.getMap('turnSignal').set('signal', { kind: 'message', by: 'app-user', t: 1 });
+    });
     await waitFor(() => expect(texts()).toEqual(['Frage', 'Teil und Rest']));
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });

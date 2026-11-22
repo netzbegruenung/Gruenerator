@@ -10,6 +10,7 @@ import {
   appendRowsToBoardDoc,
   closeRoomConnections,
   parseRoomCloseInput,
+  parseChatTurnSignalInput,
   registerInternalApi,
   appendSheetOps,
   claimSheetOps,
@@ -694,5 +695,88 @@ describe('internal document routes and bare site ids', () => {
     const base = await start();
     expect((await call(`${base}/doc/site-${SITE_ID}/yjs`, 'GET')).status).toBe(404);
     expect((await call(`${base}/doc/${OTHER_ID}/yjs`, 'GET')).status).toBe(404);
+  });
+});
+
+describe('POST /internal/chat/:threadId/turn-signal', () => {
+  const THREAD = '11111111-2222-3333-4444-555555555555';
+  let close: (() => Promise<void>) | null = null;
+
+  afterEach(async () => {
+    await close?.();
+    close = null;
+    vi.unstubAllEnvs();
+  });
+
+  async function start(live: Y.Doc | null): Promise<string> {
+    vi.stubEnv('HOCUSPOCUS_INTERNAL_TOKEN', 'secret');
+    const app = express();
+    const hocuspocus = {
+      documents: new Map(live ? [[`chat-${THREAD}`, { getConnectionsCount: () => 1 }]] : []),
+      openDirectConnection: async () => ({
+        transact: async (fn: (d: Y.Doc) => void) => {
+          live!.transact(() => fn(live!));
+        },
+        disconnect: async () => {},
+      }),
+    };
+    registerInternalApi(app, {
+      db: async () => [],
+      server: { hocuspocus } as unknown as Parameters<typeof registerInternalApi>[1]['server'],
+      persistence: {} as Parameters<typeof registerInternalApi>[1]['persistence'],
+    });
+    const server = app.listen(0, '127.0.0.1');
+    await new Promise<void>((resolve) => server.once('listening', resolve));
+    close = () => new Promise<void>((resolve) => server.close(() => resolve()));
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('no port');
+    return `http://127.0.0.1:${address.port}/internal/chat`;
+  }
+
+  const post = (url: string, body: unknown, token: string | null = 'secret') =>
+    fetch(url, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...(token ? { 'x-internal-token': token } : {}),
+      },
+      body: JSON.stringify(body),
+    });
+
+  it('parses the input', () => {
+    expect(parseChatTurnSignalInput({ kind: 'started', by: 'u' })).toEqual({
+      kind: 'started',
+      by: 'u',
+    });
+    expect(parseChatTurnSignalInput({ kind: 'message' })).toEqual({ kind: 'message', by: null });
+    expect(parseChatTurnSignalInput({ kind: 'other' })).toBeNull();
+  });
+
+  it('writes the signal into the live room', async () => {
+    const doc = new Y.Doc();
+    const base = await start(doc);
+    const res = await post(`${base}/${THREAD}/turn-signal`, { kind: 'started', by: 'u1' });
+    expect(await res.json()).toEqual({ ok: true, live: true });
+    expect(doc.getMap('turnSignal').get('signal')).toMatchObject({ kind: 'started', by: 'u1' });
+  });
+
+  it('does not open a room nobody is in', async () => {
+    const base = await start(null);
+    const res = await post(`${base}/${THREAD}/turn-signal`, { kind: 'message', by: null });
+    expect(await res.json()).toEqual({ ok: true, live: false });
+  });
+
+  it('refuses a call without the internal token', async () => {
+    const base = await start(new Y.Doc());
+    const res = await post(`${base}/${THREAD}/turn-signal`, { kind: 'message', by: null }, null);
+    expect(res.status).toBe(401);
+  });
+
+  it('rejects a bad thread id or body', async () => {
+    const base = await start(new Y.Doc());
+    expect((await post(`${base}/nope/turn-signal`, { kind: 'message', by: null })).status).toBe(
+      400
+    );
+    expect((await post(`${base}/${THREAD}/turn-signal`, { kind: 'x' })).status).toBe(400);
   });
 });
