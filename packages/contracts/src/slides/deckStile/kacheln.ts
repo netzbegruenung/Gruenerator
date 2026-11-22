@@ -5,6 +5,7 @@
  * (110 Rand, 30 Abstand, 28er Ecken fehlen: Formen kennen keinen Radius).
  */
 
+import { type FlowSpec } from '../fitText.js';
 import { type FolieSpec, type FolienTypId } from '../folienTypen.js';
 import { SlideBuilder, type SlideLayoutState } from '../slideLayouts.js';
 
@@ -29,6 +30,8 @@ import { type DeckStilBox } from './index.js';
 const X = 110;
 const AREA_W = 1700;
 const GAP = 30;
+/** Oberkante der Kacheln: Platz für eine zweizeilige Überschrift (110 px ab y 100). */
+const KACHEL_Y = 340;
 const WHITE = '#FFFFFF';
 
 export function buildKacheln(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutState {
@@ -52,11 +55,24 @@ export function buildKacheln(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutSta
       const items = listItems(folie, 'punkte');
       const n = items.length;
       const cols = n === 4 ? 2 : 3;
+      const rows = Math.ceil(n / cols);
       const tw = (AREA_W - (cols - 1) * GAP) / cols;
-      const th = 300;
+      // Eine Reihe darf bis über die Folienmitte reichen: 300 hohe Kacheln ließen 40 % leer.
+      const th = rows === 1 ? 460 : 300;
+      // Zwei Reihen à 300: kleinere Nummer, Text höher, damit drei Zeilen à 44 px in die Kachel passen.
+      const lay =
+        rows === 1
+          ? { nr: 96, nrY: 40, textY: 150, text: 52 }
+          : { nr: 80, nrY: 30, textY: 120, text: 44 };
+      /** Die letzte, unvollständige Reihe steht mittig statt mit einer leeren Zelle rechts. */
+      const cell = (i: number) => {
+        const row = Math.floor(i / cols);
+        const inRow = Math.min(cols, n - row * cols);
+        const shift = ((cols - inRow) * (tw + GAP)) / 2;
+        return { x: X + shift + (i % cols) * (tw + GAP), y: KACHEL_Y + row * (th + GAP) };
+      };
       items.forEach((_, i) => {
-        const x = X + (i % cols) * (tw + GAP);
-        const y = 300 + Math.floor(i / cols) * (th + GAP);
+        const { x, y } = cell(i);
         const big = n > 1 && (i === 0 || i === n - 1);
         b.shape(
           `folie-kachel-${i + 1}`,
@@ -71,9 +87,9 @@ export function buildKacheln(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutSta
           `folie-kachelnr-${i + 1}`,
           String(i + 1).padStart(2, '0'),
           x + 40,
-          y + 40,
+          y + lay.nrY,
           200,
-          size(96),
+          size(lay.nr),
           {
             type: 'header',
             family: b.ink.headline,
@@ -83,10 +99,11 @@ export function buildKacheln(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutSta
         );
       });
       items.forEach((item, i) => {
-        const x = X + (i % cols) * (tw + GAP);
-        const y = 300 + Math.floor(i / cols) * (th + GAP);
-        // Entwurf setzt den Text unten in die Kachel; hier fest bei +150, damit zwei Zeilen à 44 px passen.
-        b.text(`folie-punkt-${i + 1}`, item, x + 40, y + 150, tw - 80, 44, { lineHeight: 1.25 });
+        const { x, y } = cell(i);
+        // Unter der Nummer; die Box (`KACHELN_BOXES`) hält den Text in der Kachel.
+        b.text(`folie-punkt-${i + 1}`, item, x + 40, y + lay.textY, tw - 80, lay.text, {
+          lineHeight: 1.25,
+        });
       });
       if (störer) stoerer(b, störer, 1700, 155, STOERER_MAGENTA);
       break;
@@ -94,7 +111,7 @@ export function buildKacheln(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutSta
     case 'text':
       head(b, 'folie-headline', X, 100, 1700, size(110));
       flaeche('folie-kachel-text', 300, 630);
-      b.text('folie-spalte-1', '', X + 40, 340, AREA_W - 80, 50, { lineHeight: 1.4 });
+      b.text('folie-spalte-1', '', X + 40, 340, AREA_W - 80, 58, { lineHeight: 1.35 });
       break;
     case 'kernsatz': {
       b.text('folie-headline', '', X + 6, 100, 1700, 60, {
@@ -119,7 +136,8 @@ export function buildKacheln(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutSta
     case 'zahl':
       head(b, 'folie-zahl', X, 200, 1000, size(520), t.grasText);
       b.text('folie-zahl-text', '', 1120, 330, 690, 56, { lineHeight: 1.2 });
-      b.text('folie-quelle', '', X + 6, 900, 1500, 30);
+      // Quelle unter dem Satz in derselben Spalte: links unten stand sie losgelöst von beiden.
+      b.text('folie-quelle', '', 1120, 640, 690, 36);
       break;
     case 'zitat':
       b.text('folie-intro', '', X + 6, 100, 1700, 50, { type: 'subheader', fill: t.lime });
@@ -150,8 +168,10 @@ export const KACHELN_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
     'folie-text': { maxHeight: 280, minScale: 0.8 },
   },
   liste: {
-    'folie-punkt-*': { maxHeight: 120, minScale: 0.7 },
-    'folie-headline': { maxHeight: 200, minScale: 0.6 },
+    // Drei Zeilen à 52 px; in der 300 hohen Kachel (Text ab +120) vier Zeilen bei 0,75 × 44.
+    'folie-punkt-*': { maxHeight: 195, minScale: 0.75 },
+    // Zwei Zeilen à 110 bis vor die Kacheln (`KACHEL_Y`).
+    'folie-headline': { maxHeight: 230, minScale: 0.6 },
   },
   text: {
     'folie-headline': { maxHeight: 180, minScale: 0.6 },
@@ -169,4 +189,29 @@ export const KACHELN_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
   zitat: { 'folie-zitat': { maxHeight: 520, minScale: 0.6 } },
   danke: { 'folie-headline': { maxHeight: 330, minScale: 0.6 } },
   bild: BILD_BOXES,
+};
+
+/** Texte nach gemessener Höhe: in den Flächen mittig statt oben mit leerem Rest. */
+export const KACHELN_FLOWS: Partial<Record<FolienTypId, FlowSpec>> = {
+  titel: {
+    ids: ['folie-headline', 'folie-text'],
+    top: 120,
+    bottom: 960,
+    align: 'center',
+    gapEm: 0.3,
+    gapAfter: { 'folie-headline': 50 },
+  },
+  // In der Fläche 200–760 bzw. 200–800, mit 40 Luft zum Rand.
+  kernsatz: { ids: ['folie-kernsatz'], top: 240, bottom: 720, align: 'center', gapEm: 0 },
+  zitat: { ids: ['folie-zitat'], top: 240, bottom: 760, align: 'center', gapEm: 0 },
+  // Fläche 300–930: der Text mittig darin.
+  text: { ids: ['folie-spalte-1'], top: 340, bottom: 890, align: 'center', gapEm: 0 },
+  zahl: {
+    ids: ['folie-zahl-text', 'folie-quelle'],
+    top: 330,
+    bottom: 970,
+    align: 'top',
+    gapEm: 0,
+    gapAfter: { 'folie-zahl-text': 40 },
+  },
 };

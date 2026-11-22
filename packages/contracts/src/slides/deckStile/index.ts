@@ -5,14 +5,15 @@
  * Welcher Stil eine Seite gebaut hat, steht in `state.deckStil`.
  */
 
+import { type FlowSpec } from '../fitText.js';
 import { type FolieSpec, type FolienTypId } from '../folienTypen.js';
 import { type SlideLayoutState } from '../slideLayouts.js';
 
-import { AUSSAGE_BOXES, buildAussage } from './aussage.js';
-import { BAND_BOXES, buildBand } from './band.js';
-import { buildCd, CD_BOXES } from './cd.js';
-import { buildKacheln, KACHELN_BOXES } from './kacheln.js';
-import { buildRuhig, RUHIG_BOXES } from './ruhig.js';
+import { AUSSAGE_BOXES, AUSSAGE_FLOWS, buildAussage } from './aussage.js';
+import { BAND_BOXES, BAND_FLOWS, buildBand } from './band.js';
+import { buildCd, CD_BOXES, CD_FLOWS } from './cd.js';
+import { buildKacheln, KACHELN_BOXES, KACHELN_FLOWS } from './kacheln.js';
+import { buildRuhig, RUHIG_BOXES, RUHIG_FLOWS } from './ruhig.js';
 import { type DeckStilCtx } from './shared.js';
 
 export { type DeckStilCtx } from './shared.js';
@@ -68,4 +69,20 @@ export function deckStilBoxes(stil: DeckStilId, typ: FolienTypId): Record<string
     case 'aussage':
       return AUSSAGE_BOXES[typ];
   }
+}
+
+/**
+ * Der senkrechte Fluss eines Folientyps (`fitSlideTexts`), wo der Stil einen hat:
+ * die Texte stehen dann nach gemessener Höhe untereinander statt auf festen y-Werten.
+ */
+const FLOWS: Record<DeckStilId, Partial<Record<FolienTypId, FlowSpec>>> = {
+  cd: CD_FLOWS,
+  ruhig: RUHIG_FLOWS,
+  band: BAND_FLOWS,
+  kacheln: KACHELN_FLOWS,
+  aussage: AUSSAGE_FLOWS,
+};
+
+export function deckStilFlow(stil: DeckStilId, typ: FolienTypId): FlowSpec | null {
+  return FLOWS[stil][typ] ?? null;
 }
