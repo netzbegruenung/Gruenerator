@@ -119,6 +119,7 @@ const ChatInnerReady: React.FC = () => {
         presets={WORKPLACE_PRESETS}
         requireProfileHydration
         enablePastedTextAttachments
+        showProjectPicker
       />
     </ThreadPrimitive.Root>
   );
