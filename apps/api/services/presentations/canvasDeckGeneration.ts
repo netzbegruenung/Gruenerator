@@ -219,10 +219,20 @@ function normalizeDeck(input: unknown): unknown {
     ) {
       delete renamed['headline'];
     }
+    // Die Zeile über dem Kernsatz ist frei; eine Floskel wie „Unser Ziel“ sagt dort nichts,
+    // stand trotz Promptregel in drei von sechs Decks (Design-Review 22.11.) und fällt weg.
+    const kicker = renamed['ueberschrift'];
+    if (typ === 'kernsatz' && typeof kicker === 'string' && STOCK_KICKER.test(kicker)) {
+      delete renamed['ueberschrift'];
+    }
     return { ...(slide as object), slots: renamed };
   });
   return { ...deck, slides };
 }
+
+/** Floskeln als ganze Zeile: „Unser Ziel“, „Unsere Vision:“, „Fazit“, „Kernbotschaft“ … */
+const STOCK_KICKER =
+  /^\s*(?:(?:unser(?:e|er)?|meine?|das|die|der)\s+)?(?:ziel|ziele|vision|versprechen|anspruch|auftrag|plan|weg|botschaft|kernbotschaft|kernaussage|haltung|überzeugung|forderung|fazit|ausblick|zusammenfassung|fokus)\s*[.:!]?\s*$/i;
 
 /**
  * Zitat-Folien, deren Urheber*in im Auftrag nicht vorkommt. Das Modell schrieb

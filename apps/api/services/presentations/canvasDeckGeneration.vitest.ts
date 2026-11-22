@@ -184,6 +184,26 @@ describe('generateCanvasDeck', () => {
     expect(ids).toContain('folie-text');
   });
 
+  it('drops a stock kicker above the Kernsatz but keeps a real one', async () => {
+    modelAnswers({
+      title: 'Radwege',
+      slides: [
+        { typ: 'titel', slots: { headline: 'Rad' } },
+        { typ: 'kernsatz', slots: { ueberschrift: 'Unser Ziel:', satz: 'Mehr Rad' } },
+        { typ: 'kernsatz', slots: { ueberschrift: 'Ziel bis 2030', satz: 'Mehr Rad' } },
+      ],
+    });
+    await generateCanvasDeck({ prompt: 'x', userId: 'u1', locale: 'de-DE' });
+    const kicker = (i: number) =>
+      (
+        created().initial_state.pages[i]!.state as unknown as {
+          additionalTexts: Array<{ id: string; text: string }>;
+        }
+      ).additionalTexts.find((t) => t.id === 'folie-headline')?.text ?? '';
+    expect(kicker(1)).toBe('');
+    expect(kicker(2)).toBe('Ziel bis 2030');
+  });
+
   it('puts a foreign slot into the one missing required slot of its kind', async () => {
     // Live 22.11.: `zitat` instead of `text` on the Zahl slide, `stichpunkte` for `punkte`.
     modelAnswers({
