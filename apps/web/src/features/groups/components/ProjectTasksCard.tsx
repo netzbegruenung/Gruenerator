@@ -11,7 +11,10 @@ const SHOWN = 3;
  * Aufgabe gehört der Person, nicht dem Projekt — andere Mitglieder sehen ihre
  * eigenen). „+ Aufgabe" öffnet den Editor mit vorgewähltem Projekt.
  */
-/** `archived`: ein archiviertes Projekt nimmt nichts Neues an, also keine neue Aufgabe. */
+/**
+ * `archived`: ein archiviertes Projekt nimmt nichts Neues an, also keine neue
+ * Aufgabe; seine Aufgaben ruhen (der Scheduler überspringt sie, #5951).
+ */
 export function ProjectTasksCard({ groupId, archived }: { groupId: string; archived: boolean }) {
   const { data: tasks = [] } = useRecurringTasks();
   const own = tasks.filter((t) => t.groupId === groupId);
@@ -36,6 +39,11 @@ export function ProjectTasksCard({ groupId, archived }: { groupId: string; archi
           </Link>
         )}
       </div>
+      {archived && own.length > 0 && (
+        <p className="m-0 text-xs text-muted-foreground">
+          Pausiert, solange das Projekt archiviert ist.
+        </p>
+      )}
       {own.length === 0 ? (
         <p className="m-0 text-sm text-muted-foreground">
           Lass den Grünerator regelmäßig etwas für dieses Projekt tun.
@@ -51,7 +59,7 @@ export function ProjectTasksCard({ groupId, archived }: { groupId: string; archi
                 <span className="truncate text-sm font-medium">{task.title}</span>
                 <span className="truncate text-xs text-muted-foreground">
                   {describeRecurrence(task.recurrence)}
-                  {task.enabled ? '' : ' · pausiert'}
+                  {task.enabled && !archived ? '' : ' · pausiert'}
                 </span>
               </Link>
             </li>

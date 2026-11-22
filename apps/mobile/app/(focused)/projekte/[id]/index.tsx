@@ -42,8 +42,6 @@ import { ProjectKnowledgeList } from '../../../../components/projekte/ProjectKno
 import { ProjectLinks } from '../../../../components/projekte/ProjectLinks';
 import { ProjectMembersPreview } from '../../../../components/projekte/ProjectMembersPreview';
 import { useProjekteTone } from '../../../../components/projekte/projekteTone';
-import { canShareInviteLink } from '../../../../components/projekte/settingsRules';
-import { shareProjectInvite } from '../../../../components/projekte/shareInvite';
 import { openGroupFeedItem, useBearerToken, useGroupFeed } from '../../../../hooks/useGroupContent';
 import { useGroupDetails, useGroupMembers } from '../../../../hooks/useGroups';
 import { useHiddenMemberIds } from '../../../../hooks/useHiddenMembers';
@@ -51,7 +49,6 @@ import { useProjectAddActions } from '../../../../hooks/useProjectAddActions';
 import { useProjectChats } from '../../../../hooks/useProjectChats';
 import { useShareItemActions } from '../../../../hooks/useShareItemActions';
 import { useTheme } from '../../../../hooks/useTheme';
-import { useNoticeStore } from '../../../../stores/noticeStore';
 import { colors, spacing, typography, borderRadius, BODY_FONT } from '../../../../theme';
 import { CONTENT_MAX_WIDTH } from '../../../../theme/layout';
 import { filterHiddenFeed } from '../../../../utils/hiddenMembers';
@@ -97,8 +94,6 @@ export default function ProjektDetailScreen() {
       isAdmin,
       archived_at: group.archived_at ?? null,
     });
-  const canInvite = !!group && canShareInviteLink(group, isAdmin);
-  const fail = (error: Error) => useNoticeStore.getState().show('error', error.message);
   const shareActions = useShareItemActions(id ?? null, isAdmin, hasOthers);
   const addActions = useProjectAddActions(id ?? null);
   const userName = useAuthStore((s) => s.user?.display_name ?? null);
@@ -188,17 +183,6 @@ export default function ProjektDetailScreen() {
               ) : (
                 <Ionicons name="add" size={22} color={theme.text} />
               )}
-            </Pressable>
-          ) : null}
-          {canInvite && group ? (
-            <Pressable
-              onPress={() => shareProjectInvite(group, fail)}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Einladen"
-              style={[styles.headerButton, { backgroundColor: theme.card }]}
-            >
-              <Ionicons name="person-add-outline" size={20} color={theme.text} />
             </Pressable>
           ) : null}
           <Pressable

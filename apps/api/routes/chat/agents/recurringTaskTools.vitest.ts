@@ -78,6 +78,7 @@ interface CtxOptions {
   userLocale?: 'de-DE' | 'de-AT';
   /** Projekt des Chats (aktive Mitgliedschaft), sonst keins. */
   projectId?: string | null;
+  projectArchived?: boolean;
 }
 
 function makeCtx(opts: CtxOptions = {}) {
@@ -121,6 +122,9 @@ function makeCtx(opts: CtxOptions = {}) {
     listRecurringTaskRuns: vi.fn(async () => opts.runs ?? []),
     runRecurringTask: runner,
     getThreadProjectId: vi.fn(async () => opts.projectId ?? null),
+    getProjectTaskTarget: vi.fn(async (): Promise<'ok' | 'archived'> =>
+      opts.projectArchived ? 'archived' : 'ok'
+    ),
     getAgentForUser: vi.fn(async () =>
       opts.agent === undefined
         ? ({ identifier: 'presse-agent', title: 'Presse-Agent' } as unknown as AgentConfig)
@@ -294,6 +298,18 @@ describe('recurring_tasks: create (card)', () => {
     expect(pending.payload).toMatchObject({ groupId: PROJECT });
     const meta = (sseEvents[0][1] as { metadata: Array<{ key: string }> }).metadata;
     expect(meta.some((m) => m.key === 'Projekt')).toBe(true);
+  });
+
+  it('refuses a new task in an archived project (#5951)', async () => {
+    stored.mockClear();
+    const { run, sseEvents } = makeCtx({
+      projectId: '6f1c2d3e-0000-4000-8000-0000000000aa',
+      projectArchived: true,
+    });
+    const out = await run(CREATE_ARGS);
+    expect(out.error).toMatch(/archiviert/);
+    expect(stored).not.toHaveBeenCalled();
+    expect(sseEvents).toHaveLength(0);
   });
 
   it('leaves the project empty outside a project chat', async () => {

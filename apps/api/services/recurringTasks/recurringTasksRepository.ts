@@ -271,6 +271,13 @@ export async function claimDueRecurringTasks(
       client,
       `SELECT * FROM recurring_tasks
         WHERE enabled = TRUE AND next_run_at <= now() AND deleted_at IS NULL
+          -- Archiviertes Projekt = Aufgabe pausiert (#5951). Nicht vorgerückt:
+          -- nach „Wiederherstellen" läuft eine überfällige Aufgabe einmal nach.
+          AND NOT EXISTS (
+            SELECT 1 FROM groups ag
+             WHERE ag.id = recurring_tasks.group_id
+               AND ag.archived_at IS NOT NULL AND ag.deleted_at IS NULL
+          )
         ORDER BY next_run_at
         FOR UPDATE SKIP LOCKED
         LIMIT $1`,
