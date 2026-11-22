@@ -26,7 +26,11 @@ export const ComposerProjectPicker = memo(function ComposerProjectPicker() {
   const setPendingGroup = useAgentStore((s) => s.setPendingGroup);
   const { data: groups } = useUserGroups();
 
-  const projects = useMemo(() => (groups ?? []).filter((g) => !g.is_system), [groups]);
+  // Archivierte Projekte nehmen keine neuen Chats an (Server: `assertCanShareToGroup`).
+  const projects = useMemo(
+    () => (groups ?? []).filter((g) => !g.is_system && !g.archived_at),
+    [groups]
+  );
   const options = useMemo<ComposerOption[]>(
     () => [
       { id: NO_PROJECT, name: 'Kein Projekt' },
