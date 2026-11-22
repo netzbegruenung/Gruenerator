@@ -276,11 +276,21 @@ export function planAgentConversion(
   }
 
   if (facts.recurringTaskCount > 0) {
-    items.push({
-      part: 'recurringTasks',
-      outcome: 'later',
-      note: `${count(facts.recurringTaskCount, 'wiederkehrende Aufgabe läuft', 'wiederkehrende Aufgaben laufen')} weiter mit dem Agent.`,
-    });
+    items.push(
+      target === 'project'
+        ? {
+            part: 'recurringTasks',
+            outcome: 'carried',
+            note: `${count(facts.recurringTaskCount, 'wiederkehrende Aufgabe läuft', 'wiederkehrende Aufgaben laufen')} künftig im Projekt, mit dessen Anweisungen und Wissen.`,
+          }
+        : {
+            // Eine Aufgabe kennt Projekt, aber noch kein Rezept (kein Rezept-Bezug
+            // in recurring_tasks); sie bleibt deshalb beim Agent.
+            part: 'recurringTasks',
+            outcome: 'later',
+            note: `${count(facts.recurringTaskCount, 'wiederkehrende Aufgabe läuft', 'wiederkehrende Aufgaben laufen')} weiter mit dem Agent; eine Aufgabe kann noch kein Rezept tragen. Wandle in ein Projekt um, wenn die Aufgaben mitziehen sollen.`,
+          }
+    );
   }
 
   return { items, blocked };
@@ -319,6 +329,8 @@ export interface AgentConversionDeps {
   setInstructions: (groupId: string, userId: string, text: string) => Promise<unknown>;
   setLandesverband: (groupId: string, userId: string, lv: LandesverbandId) => Promise<unknown>;
   setStart: (groupId: string, userId: string, start: ProjectStart) => Promise<unknown>;
+  /** Hängt die lebenden Aufgaben des Agents ans Projekt (Agent gelöst); Anzahl. */
+  handOverTasks: (userId: string, agent: UserAgentRecord, groupId: string) => Promise<number>;
   share: (input: {
     userId: string;
     groupId: string;
@@ -550,6 +562,23 @@ async function convertToProject(
     );
   }
 
+  if (items.some((i) => i.part === 'recurringTasks')) {
+    // Die Aufgaben laufen als eigenes Projekt-Material weiter: die Rolle steht
+    // jetzt in den Projekt-Anweisungen, der Agent wird nicht mehr gebraucht.
+    const moved = await deps.handOverTasks(userId, agent, project.id).catch((error) => {
+      log.warn('[convert] task hand-over failed:', error);
+      return 0;
+    });
+    items = withNote(
+      items,
+      'recurringTasks',
+      moved > 0
+        ? `${count(moved, 'wiederkehrende Aufgabe läuft', 'wiederkehrende Aufgaben laufen')} künftig im Projekt, mit dessen Anweisungen und Wissen.`
+        : 'Die wiederkehrenden Aufgaben ließen sich nicht ans Projekt übergeben und laufen weiter mit dem Agent.',
+      moved > 0 ? 'carried' : 'later'
+    );
+  }
+
   return { ref: project.id, path: projectPath(project), items };
 }
 
@@ -643,6 +672,17 @@ function defaultDeps(): AgentConversionDeps {
     setLandesverband: (groupId, userId, landesverband) =>
       updateGroupInfo(groupId, userId, { landesverband }),
     setStart: setProjectStart,
+    handOverTasks: async (userId, agent, groupId) => {
+      const rows = (await getPostgresInstance().query(
+        `UPDATE recurring_tasks
+            SET group_id = $1::uuid, agent_identifier = NULL, updated_at = now()
+          WHERE user_id = $2 AND deleted_at IS NULL
+            AND agent_identifier IN ($3, $4)
+          RETURNING id`,
+        [groupId, userId, agent.identifier, agent.id]
+      )) as Array<{ id: string }>;
+      return rows.length;
+    },
     share: (input) =>
       shareContentToGroup({
         ...input,

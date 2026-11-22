@@ -5,7 +5,6 @@ import {
   type ScheduleState,
 } from '@gruenerator/shared/grueneratoren';
 import { isModelEnabledByDefault, TEXT_MODELS } from '@gruenerator/shared/models';
-import { slugifyName, slugSuffixFrom } from '@gruenerator/shared/utils';
 
 /** Dieselbe Modellauswahl wie im Chat-Composer, aus dem Katalog. */
 export const MODEL_OPTIONS = TEXT_MODELS.filter((m) => isModelEnabledByDefault(m.id));
@@ -32,14 +31,6 @@ export function missingForSave(form: FormState): string | null {
 /** Vor dem ersten Aufruf prüfen — sonst stünde der Agent schon, und die Aufgabe scheiterte bei jedem neuen Versuch. */
 export function taskInstructionTooLong(form: FormState): boolean {
   return form.systemRole.trim().length > MAX_TASK_INSTRUCTION;
-}
-
-/** Zufallsbytes — in der App `getRandomBytes` aus `expo-crypto` (Hermes hat kein `crypto`). */
-export type RandomBytes = (count: number) => Uint8Array;
-
-/** Suffix klein, damit der Identifier `^[a-z0-9-]+$` erfüllt. */
-export function newAgentIdentifier(title: string, randomBytes: RandomBytes): string {
-  return `${slugifyName(title, 'agent')}-${slugSuffixFrom(randomBytes).toLowerCase()}`;
 }
 
 /** Das gespeicherte {model, provider}-Paar zurück auf eine Katalog-Id. */

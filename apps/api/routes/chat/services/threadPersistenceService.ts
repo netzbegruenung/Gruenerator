@@ -78,6 +78,8 @@ export async function createThread(
   options?: {
     notebookCollectionId?: string;
     notebookCollectionIds?: string[];
+    /** Projekt, in dem der Thread liegt (nur nach geprüfter Mitgliedschaft setzen). */
+    groupId?: string;
   }
 ): Promise<{
   id: string;
@@ -90,8 +92,8 @@ export async function createThread(
   const postgres = getPostgresInstance();
   const result = (await insertThreadWithSlugRetry((slugSuffix) =>
     postgres.query(
-      `INSERT INTO chat_threads (user_id, agent_id, title, thread_type, notebook_collection_id, notebook_collection_ids, slug_suffix)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO chat_threads (user_id, agent_id, title, thread_type, notebook_collection_id, notebook_collection_ids, slug_suffix, group_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING id, user_id, agent_id, title, thread_type, slug_suffix`,
       [
         userId,
@@ -101,6 +103,7 @@ export async function createThread(
         options?.notebookCollectionId || null,
         options?.notebookCollectionIds ? JSON.stringify(options.notebookCollectionIds) : null,
         slugSuffix,
+        options?.groupId ?? null,
       ]
     )
   )) as {

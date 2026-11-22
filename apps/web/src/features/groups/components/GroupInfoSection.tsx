@@ -75,6 +75,7 @@ import { ProjectStartCard } from './ProjectStartCard';
 import { ProjectKnowledgeList } from './ProjectKnowledgeList';
 import { ProjectLandesverbandSelect } from './ProjectLandesverbandSelect';
 import { ProjectMembersCard } from './ProjectMembersCard';
+import { ProjectTasksCard } from './ProjectTasksCard';
 import { type ShareActions } from './shareActions';
 import { ShareNoteDialog } from './ShareNoteDialog';
 import { SpaceChatsSection } from './SpaceChatsSection';
@@ -793,6 +794,7 @@ const GroupInfoSection = memo(
                     onErrorMessage={onErrorMessage}
                   />
                 )}
+                {!isSystem && <ProjectTasksCard groupId={groupId} />}
                 <ProjectKnowledgeList
                   items={knowledgeItems}
                   onUseTemplate={handleCloneTemplate}

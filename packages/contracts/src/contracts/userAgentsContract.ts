@@ -52,9 +52,11 @@ export const userAgentsContract = c.router(
         400: userAgentErrorResponseSchema,
         401: userAgentErrorResponseSchema,
         409: userAgentErrorResponseSchema,
+        /** New agents are closed (21.11.2026); old app binaries get this. */
+        410: userAgentErrorResponseSchema,
         500: userAgentErrorResponseSchema,
       },
-      summary: 'Create a user agent',
+      summary: 'Create a user agent (closed: always 410)',
     },
 
     /** POST /api/user-agents/draft — synthesize an agent spec from a freeform brief. */

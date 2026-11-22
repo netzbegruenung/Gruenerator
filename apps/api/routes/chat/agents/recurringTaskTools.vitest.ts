@@ -75,6 +75,8 @@ interface CtxOptions {
   registry?: SourceRegistry;
   userText?: string;
   userLocale?: 'de-DE' | 'de-AT';
+  /** Projekt des Chats (aktive Mitgliedschaft), sonst keins. */
+  projectId?: string | null;
 }
 
 function makeCtx(opts: CtxOptions = {}) {
@@ -117,6 +119,7 @@ function makeCtx(opts: CtxOptions = {}) {
     deleteRecurringTask: vi.fn(async () => found != null),
     listRecurringTaskRuns: vi.fn(async () => opts.runs ?? []),
     runRecurringTask: runner,
+    getThreadProjectId: vi.fn(async () => opts.projectId ?? null),
     getAgentForUser: vi.fn(async () =>
       opts.agent === undefined
         ? ({ identifier: 'presse-agent', title: 'Presse-Agent' } as unknown as AgentConfig)
@@ -278,6 +281,26 @@ describe('recurring_tasks: create (card)', () => {
       timezone: 'Europe/Vienna',
       locale: 'de-AT',
     });
+  });
+
+  it('defaults the task project to the project of the chat', async () => {
+    stored.mockClear();
+    const PROJECT = '6f1c2d3e-0000-4000-8000-0000000000aa';
+    const { run, deps, sseEvents } = makeCtx({ projectId: PROJECT });
+    await run(CREATE_ARGS);
+    expect(deps.getThreadProjectId).toHaveBeenCalledWith('thread-1', 'user-1');
+    const pending = stored.mock.calls[0][0] as { payload: Record<string, unknown> };
+    expect(pending.payload).toMatchObject({ groupId: PROJECT });
+    const meta = (sseEvents[0][1] as { metadata: Array<{ key: string }> }).metadata;
+    expect(meta.some((m) => m.key === 'Projekt')).toBe(true);
+  });
+
+  it('leaves the project empty outside a project chat', async () => {
+    stored.mockClear();
+    const { run } = makeCtx();
+    await run(CREATE_ARGS);
+    const pending = stored.mock.calls[0][0] as { payload: Record<string, unknown> };
+    expect(pending.payload.groupId ?? null).toBeNull();
   });
 
   it('refuses when the message rules out persistent changes', async () => {

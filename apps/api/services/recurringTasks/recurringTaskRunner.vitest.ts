@@ -16,6 +16,7 @@ const {
   createThreadMock,
   createMessageMock,
   consent,
+  loadProject,
 } = vi.hoisted(() => ({
   finishRun: vi.fn(async () => {}),
   setEmptyCount: vi.fn(async () => {}),
@@ -26,6 +27,7 @@ const {
   createThreadMock: vi.fn(async () => ({ id: 'thread-1' })),
   createMessageMock: vi.fn(async () => ({})),
   consent: vi.fn(async () => true),
+  loadProject: vi.fn(async (): Promise<unknown> => null),
 }));
 
 vi.mock('./recurringTasksRepository.js', () => ({
@@ -41,6 +43,7 @@ vi.mock('../../routes/chat/services/threadPersistenceService.js', () => ({
   createMessage: createMessageMock,
 }));
 
+vi.mock('../groups/projectRunContext.js', () => ({ loadProjectRunContext: loadProject }));
 vi.mock('../../middleware/requireAiConsent.js', () => ({ hasAiConsent: consent }));
 
 import { runRecurringTask, type RecurringRunnerDeps } from './recurringTaskRunner.js';
@@ -66,6 +69,7 @@ function task(overrides: Partial<RecurringTask> = {}): RecurringTask {
     locale: 'de-DE',
     config: null,
     consecutive_empty_count: 0,
+    group_id: null,
     next_run_at: new Date(),
     last_run_at: null,
     created_at: new Date(),
@@ -292,5 +296,55 @@ describe('runRecurringTask — Delivery unverändert', () => {
     const call = deps.runTurnMock.mock.calls[0]![0] as Record<string, unknown>;
     expect(call.agentId).toBe('mein-agent');
     expect(call.restrictToAgentTools).toBe(true);
+  });
+});
+
+describe('runRecurringTask — Projekt der Aufgabe (#5939)', () => {
+  const GROUP = '9d1f3a52-0000-4000-8000-000000000001';
+  const ctx = {
+    groupId: GROUP,
+    projectInstructions: { projectName: 'KV', text: 'Duze alle.' },
+    projectNotebookIds: [],
+    projectRecipeIds: [],
+    notebookSources: [],
+  };
+
+  it('aktives Mitglied: Projektmaterial geht in den Lauf, der Thread liegt im Projekt', async () => {
+    loadProject.mockResolvedValueOnce(ctx);
+    const deps = makeDeps({ turns: [turn()] });
+    await runRecurringTask(task({ group_id: GROUP, delivery: 'thread' }), RUN_ID, deps);
+
+    expect(loadProject).toHaveBeenCalledWith(GROUP, 'user-1');
+    const call = deps.runTurnMock.mock.calls[0]![0] as Record<string, unknown>;
+    expect(call.project).toBe(ctx);
+    expect(createThreadMock).toHaveBeenCalledWith(
+      'user-1',
+      'gruenerator-universal',
+      'Wochenbericht',
+      'chat',
+      { groupId: GROUP }
+    );
+  });
+
+  it('kein aktives Mitglied (loadProjectRunContext liefert null): Lauf ohne Projekt, Thread ohne Projekt', async () => {
+    loadProject.mockResolvedValueOnce(null);
+    const deps = makeDeps({ turns: [turn()] });
+    await runRecurringTask(task({ group_id: GROUP, delivery: 'thread' }), RUN_ID, deps);
+
+    const call = deps.runTurnMock.mock.calls[0]![0] as Record<string, unknown>;
+    expect(call.project).toBeUndefined();
+    expect(createThreadMock).toHaveBeenCalledWith(
+      'user-1',
+      'gruenerator-universal',
+      'Wochenbericht',
+      'chat'
+    );
+    expect(finishRun).toHaveBeenCalledWith(expect.objectContaining({ status: 'completed' }));
+  });
+
+  it('Aufgabe ohne Projekt fragt die Mitgliedschaft gar nicht erst', async () => {
+    const deps = makeDeps({ turns: [turn()] });
+    await runRecurringTask(task(), RUN_ID, deps);
+    expect(loadProject).not.toHaveBeenCalled();
   });
 });

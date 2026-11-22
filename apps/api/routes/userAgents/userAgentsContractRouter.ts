@@ -28,13 +28,11 @@ import { normalizeTextFormMention } from '../../services/user/textFormKind.js';
 import { convertUserAgent } from '../../services/userAgents/agentConversion.js';
 import { draftAgentSpec } from '../../services/userAgents/agentDraftService.js';
 import {
-  createUserAgent,
   deleteUserAgent,
   getUserAgent,
   listMentionableUserAgents,
   listUserAgents,
   updateUserAgent,
-  type UserAgentInput,
   type UserAgentPatch,
 } from '../../services/userAgents/userAgentsRepository.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
@@ -42,6 +40,7 @@ import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
 import { buildRecipeCatalog } from '../chat/agents/recipeCatalog.js';
+import { AGENT_CREATION_CLOSED } from '../chat/agents/userAgentTools.js';
 
 import type { Application } from 'express';
 
@@ -146,84 +145,13 @@ export const userAgentsContractRouter = s.router(userAgentsContract, {
     }
   },
 
-  create: async (args) => {
-    try {
-      const user = getAuthedUser(args.req);
-      const userId = user.id;
-      const body = args.body;
-
-      if (body.identifier.startsWith('gruenerator-')) {
-        return {
-          status: 400 as const,
-          body: { success: false, message: 'Bezeichner darf nicht mit "gruenerator-" beginnen.' },
-        };
-      }
-
-      const bad = invalidTools(body.enabledTools);
-      if (bad.length > 0) {
-        return {
-          status: 400 as const,
-          body: { success: false, message: `Unbekannte Tools: ${bad.join(', ')}` },
-        };
-      }
-
-      const recipeError = await validateDefaultRecipe({
-        userId,
-        mention: body.defaultRecipeMention,
-        recipeId: body.defaultRecipeId,
-        userLocale: user.locale ?? extractLocaleFromRequest(args.req),
-      });
-      if (recipeError) {
-        return { status: 400 as const, body: { success: false, message: recipeError } };
-      }
-
-      const input: UserAgentInput = {
-        identifier: body.identifier,
-        title: body.title,
-        description: body.description,
-        systemRole: body.systemRole,
-        avatar: body.avatar,
-        backgroundColor: body.backgroundColor,
-        tags: body.tags,
-        model: body.model,
-        provider: body.provider,
-        params: body.params,
-        openingMessage: body.openingMessage,
-        openingQuestions: body.openingQuestions,
-        locale: body.locale,
-        author: body.author,
-        ...(body.iconKey != null ? { iconKey: body.iconKey } : {}),
-        ...(body.defaultModel != null ? { defaultModel: body.defaultModel } : {}),
-        ...(body.defaultNotebookIds != null ? { defaultNotebookIds: body.defaultNotebookIds } : {}),
-        ...(body.plugins != null ? { plugins: body.plugins } : {}),
-        ...(body.enabledTools != null ? { enabledTools: body.enabledTools } : {}),
-        ...(body.fewShotExamples != null
-          ? { fewShotExamples: toFewShot(body.fewShotExamples) }
-          : {}),
-        ...(body.inlineSourceLinks != null ? { inlineSourceLinks: body.inlineSourceLinks } : {}),
-        ...(body.defaultRecipeMention !== undefined
-          ? { defaultRecipeMention: toStoredRecipeMention(body.defaultRecipeMention) }
-          : {}),
-        ...(body.defaultRecipeId !== undefined ? { defaultRecipeId: body.defaultRecipeId } : {}),
-      };
-
-      const agent = await createUserAgent(userId, input);
-      return { status: 201 as const, body: { success: true, agent } };
-    } catch (error) {
-      const err = error as Error;
-      log.error('[userAgentsContract.create] Error:', err);
-      if (err.message.includes('unique')) {
-        return {
-          status: 409 as const,
-          body: {
-            success: false,
-            message: 'Es existiert bereits eine Agent*in mit diesem Bezeichner.',
-          },
-        };
-      }
-      return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
-    }
-  },
+  // Neue Agents sind geschlossen (wie Chat-Werkzeug und MCP): ausgelieferte
+  // App-Versionen bekommen die Absage, die Aufgaben-Editoren brauchen keinen
+  // Agent mehr (#5939).
+  create: async () => ({
+    status: 410 as const,
+    body: { success: false, message: AGENT_CREATION_CLOSED },
+  }),
 
   draft: async (args) => {
     try {

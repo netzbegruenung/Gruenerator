@@ -11,6 +11,7 @@ import { type ModelMessage } from 'ai';
 
 import { classifierNode, initializeChatState } from '../../../agents/langgraph/ChatGraph/index.js';
 import { createLogger } from '../../../utils/logger.js';
+import { type ProjectRunContext } from '../../groups/projectRunContext.js';
 
 const log = createLogger('boardAgentGenerate');
 
@@ -22,6 +23,8 @@ export interface AgentSelection {
   agentId?: string | null;
   /** Requesting user — required so user-created and group-shared agents resolve. */
   userId?: string;
+  /** Material des Projekts der Aufgabe (#5939); nur nach geprüfter Mitgliedschaft gesetzt. */
+  project?: ProjectRunContext | null;
 }
 
 // Vom headless Loop-Einstieg (#3221, `runHeadlessAgenticTurn`) an den
@@ -44,7 +47,8 @@ async function initializeBoardAgentState(
   userMessage: ModelMessage,
   userLocale: UserLocale,
   agentId: string,
-  userId: string | undefined
+  userId: string | undefined,
+  project?: ProjectRunContext | null
 ) {
   return initializeChatState({
     messages: [userMessage],
@@ -55,6 +59,16 @@ async function initializeBoardAgentState(
     ...(userId != null && { userId }),
     enabledTools: { search: true, web: true, person: true, examples: true, research: true },
     userLocale,
+    ...(project && {
+      projectInstructions: project.projectInstructions,
+      ...(project.projectNotebookIds.length > 0 && {
+        projectNotebookIds: project.projectNotebookIds,
+      }),
+      ...(project.projectRecipeIds.length > 0 && { projectRecipeIds: project.projectRecipeIds }),
+      // Dateien des Projekts sind Material, kein Zwang (wie im Projekt-Chat).
+      notebookSources: project.notebookSources,
+      notebookSourcesCarriedOnly: true,
+    }),
   });
 }
 
@@ -82,7 +96,8 @@ export async function prepareAgentState(
       userMessage,
       userLocale,
       requestedAgentId,
-      userId
+      userId,
+      selection?.project
     );
   } catch (err) {
     if (!requestedAgentId) throw err;
@@ -90,7 +105,13 @@ export async function prepareAgentState(
       `Agent "${requestedAgentId}" could not be resolved; falling back to the default agent: ` +
         (err instanceof Error ? err.message : String(err))
     );
-    initialState = await initializeBoardAgentState(userMessage, userLocale, '', userId);
+    initialState = await initializeBoardAgentState(
+      userMessage,
+      userLocale,
+      '',
+      userId,
+      selection?.project
+    );
   }
 
   const classification = await classifierNode(initialState);

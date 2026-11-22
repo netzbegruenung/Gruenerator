@@ -3,7 +3,6 @@ import {
   type AgentConversionTarget,
   type CreateUserAgentBody,
   type UpdateUserAgentBody,
-  type DraftedAgentSpec,
 } from '@gruenerator/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -46,35 +45,6 @@ export function useUserAgent(identifier: string | undefined) {
       if (res.status === 200) return res.body.agent;
       if (res.status === 404) return null;
       throw apiErrorFromResponse(res, 'Agent konnte nicht geladen werden.');
-    },
-  });
-}
-
-export function useCreateUserAgent() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (input: UserAgentInput): Promise<Agent> => {
-      const res = await getContractsClient().userAgents.create({ body: input });
-      if (res.status === 201) return res.body.agent;
-      throw apiErrorFromResponse(res);
-    },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: KEY });
-    },
-  });
-}
-
-/**
- * Synthesize an agent spec from a one-shot freeform brief (the guided-assistant
- * start screen). The backend runs a Mistral structured-generation pass and
- * returns the validated spec to pre-fill the wizard.
- */
-export function useDraftAgent() {
-  return useMutation({
-    mutationFn: async (input: { description: string }): Promise<DraftedAgentSpec> => {
-      const res = await getContractsClient().userAgents.draft({ body: input });
-      if (res.status === 200) return res.body.spec;
-      throw apiErrorFromResponse(res);
     },
   });
 }
