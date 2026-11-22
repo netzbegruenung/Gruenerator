@@ -945,7 +945,7 @@ const GroupInfoSection = memo(
           <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
             <DialogContent className="sm:max-w-[28rem]">
               <DialogHeader>
-                <DialogTitle>Per E-Mail einladen</DialogTitle>
+                <DialogTitle>Einladen</DialogTitle>
                 <DialogDescription>
                   Eingeladene erhalten eine E-Mail mit einem Beitrittslink zu diesem Projekt.
                 </DialogDescription>
