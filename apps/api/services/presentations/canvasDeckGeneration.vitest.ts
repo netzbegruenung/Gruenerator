@@ -168,6 +168,48 @@ describe('generateCanvasDeck', () => {
     expect(created().page_count).toBe(3);
   });
 
+  it('aligns the three symbole arrays by the labels and falls back to the neutral icon', async () => {
+    modelAnswers({
+      title: 'Radwege',
+      slides: [
+        { typ: 'titel', slots: { headline: 'Rad' } },
+        {
+          typ: 'symbole',
+          slots: {
+            headline: 'Was wir anbieten',
+            // One icon too few, one line too many, one unknown key: none of it may fail the deck.
+            symbole: ['bahn', 'Quatsch'],
+            labels: ['Mehr Bahn', 'Kita-Plätze', 'Sichere Wege'],
+            zeilen: ['a', 'b', 'c', 'd'],
+          },
+        },
+      ],
+    });
+    expect(await generateCanvasDeck({ prompt: 'x', userId: 'u1', locale: 'de-DE' })).not.toBeNull();
+    const page = created().initial_state.pages[1]!.state as unknown as {
+      iconStates: Record<string, { iconId: string }>;
+      additionalTexts: Array<{ id: string }>;
+    };
+    expect(Object.values(page.iconStates).map((i) => i.iconId)).toEqual([
+      'tabler:train',
+      'tabler:star',
+      'tabler:star',
+    ]);
+    expect(page.additionalTexts.some((t) => t.id === 'folie-symboltext-4')).toBe(false);
+  });
+
+  it('offers the symbole icon keys to the model as a closed list', () => {
+    const slots = (
+      deckToolSchema().properties as {
+        slides: { items: { properties: { slots: { properties: Record<string, unknown> } } } };
+      }
+    ).slides.items.properties.slots.properties;
+    const symbole = slots['symbole'] as { items: { enum: string[] } };
+    expect(symbole.items.enum).toContain('bahn');
+    expect(deckSystemPrompt('de-DE')).toContain('"symbole"');
+    expect(deckSystemPrompt('de-DE')).toMatch(/erlaubt sind nur: .*bahn/);
+  });
+
   it('reads „Vielen Dank!“ on the closing slide as its default line', async () => {
     modelAnswers({
       title: 'Radwege',

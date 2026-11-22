@@ -11,7 +11,7 @@ import {
 } from '../folienTypen.js';
 import { buildSlideLayout } from '../slideLayouts.js';
 
-import { fitSlideTexts, type MeasureText } from '../fitText.js';
+import { fitSlideTexts, type FlowSpec, type MeasureText } from '../fitText.js';
 
 import { buildFolie, DECK_STILE, deckStilBoxes, deckStilFlow, type DeckStilId } from './index.js';
 
@@ -81,7 +81,9 @@ describe('deck stile', () => {
               expect(texts.get(slot.elementId)?.text, slotName).toBe(given);
             } else {
               slotElementIds(slot).forEach((id, i) => {
-                expect(texts.get(id)?.text, id).toContain((given as string[])[i]);
+                // Ein Symbol-Slot sind Icons, keine Texte; unbekannte Schlüssel ergeben das neutrale Symbol.
+                if (slot.iconKeys) expect(state.iconStates[id]?.iconId, id).toBeTruthy();
+                else expect(texts.get(id)?.text, id).toContain((given as string[])[i]);
               });
             }
           }
@@ -89,6 +91,7 @@ describe('deck stile', () => {
             ...texts.keys(),
             ...state.shapeInstances.map((s) => s.id),
             ...state.assetInstances.map((a) => a.id),
+            ...Object.keys(state.iconStates),
           ]);
           for (const id of state.layerOrder) expect(known.has(id), id).toBe(true);
           expect(new Set(state.layerOrder).size).toBe(state.layerOrder.length);
@@ -351,7 +354,7 @@ describe('cd kernsatz', () => {
       const state = buildFolie('cd', fullFolie('zitat'), ctx(locale));
       const byId = new Map(state.additionalTexts.map((t) => [t.id, t]));
       const ink = quoteInk(byId.get('folie-anfuehrung')!);
-      const flow = deckStilFlow('cd', 'zitat')!;
+      const flow = deckStilFlow('cd', 'zitat') as FlowSpec;
       // Der Fluss beginnt frühestens bei `flow.top`: unter der Tinte der Anführung.
       expect(flow.top).toBeGreaterThanOrEqual(ink.y1);
     });
@@ -478,16 +481,19 @@ describe('deck flow', () => {
       for (const typ of FOLIEN_TYP_IDS) {
         const flow = deckStilFlow(stil, typ);
         if (!flow) continue;
+        const flows = 'ids' in flow ? [flow] : flow;
         it(`${stil}: stacks the measured ${typ} texts without overlap, above the footer (${locale})`, () => {
           const built = buildFolie(stil, fullFolie(typ), ctx(locale));
           const { state } = fitSlideTexts(built, deckStilBoxes(stil, typ), measure, null, flow);
           const ids = new Set(
-            flow.ids.flatMap((id) =>
-              id === 'folie-punkt-*'
-                ? state.additionalTexts
-                    .filter((t) => /^folie-punkt-\d+$/.test(t.id))
-                    .map((t) => t.id)
-                : [id]
+            flows.flatMap((f) =>
+              f.ids.flatMap((id) =>
+                id === 'folie-punkt-*'
+                  ? state.additionalTexts
+                      .filter((t) => /^folie-punkt-\d+$/.test(t.id))
+                      .map((t) => t.id)
+                  : [id]
+              )
             )
           );
           const els = state.additionalTexts
@@ -497,7 +503,8 @@ describe('deck flow', () => {
           els.forEach((el, i) => {
             const bottom = el.y + heightOf(el);
             expect(bottom, `${el.id} above footer`).toBeLessThanOrEqual(1028);
-            const next = els[i + 1];
+            // Spalten stehen nebeneinander: nur Elemente derselben Spalte dürfen sich nicht berühren.
+            const next = els.slice(i + 1).find((o) => flows.length === 1 || o.x === el.x);
             if (next) expect(bottom, `${el.id} clear of ${next.id}`).toBeLessThanOrEqual(next.y);
           });
         });
@@ -515,7 +522,7 @@ describe('deck flow', () => {
       ['band', 'folie-nummer-'],
       ['band', 'folie-linie-'],
     ] as const) {
-      const flow = deckStilFlow(stil, 'liste')!;
+      const flow = deckStilFlow(stil, 'liste') as FlowSpec;
       const f = flow.follow![prefix]!;
       const { state } = fitSlideTexts(
         buildFolie(stil, folie, ctx('de-DE')),

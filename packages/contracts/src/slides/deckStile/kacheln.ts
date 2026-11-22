@@ -5,7 +5,7 @@
  * (110 Rand, 30 Abstand, 28er Ecken fehlen: Formen kennen keinen Radius).
  */
 
-import { type FlowSpec } from '../fitText.js';
+import { type FlowSet } from '../fitText.js';
 import { type FolieSpec, type FolienTypId } from '../folienTypen.js';
 import { SlideBuilder, type SlideLayoutState } from '../slideLayouts.js';
 
@@ -19,6 +19,9 @@ import {
   stoerer,
   stoererOf,
   STOERER_MAGENTA,
+  SYMBOLE_BOXES,
+  symbole,
+  symboleFlows,
   tonesOf,
   type DeckStilCtx,
   bildFolie,
@@ -33,6 +36,9 @@ const GAP = 30;
 /** Oberkante der Kacheln: Platz für eine zweizeilige Überschrift (110 px ab y 100). */
 const KACHEL_Y = 340;
 const WHITE = '#FFFFFF';
+/** Die Kacheln der Symbole-Folie: über den Kreisen (Oberkante 350) beginnend, 55 über der Fußzeile endend. */
+const SYMBOLE_KACHEL_Y = 320;
+const SYMBOLE_KACHEL_BOTTOM = 975;
 
 export function buildKacheln(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutState {
   const t = tonesOf(ctx.locale);
@@ -108,6 +114,15 @@ export function buildKacheln(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutSta
       if (störer) stoerer(b, störer, 1700, 155, STOERER_MAGENTA);
       break;
     }
+    case 'symbole':
+      head(b, 'folie-headline', X, 100, 1300, size(100));
+      symbole(b, folie, {
+        circle: t.grasText,
+        dunkel: t.dunkel,
+        gap: { three: GAP, four: 20 },
+        tile: { fill: t.tanne, top: SYMBOLE_KACHEL_Y, bottom: SYMBOLE_KACHEL_BOTTOM },
+      });
+      break;
     case 'text':
       head(b, 'folie-headline', X, 100, 1700, size(110));
       flaeche('folie-kachel-text', 300, 630);
@@ -173,6 +188,11 @@ export const KACHELN_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
     // Zwei Zeilen à 110 bis vor die Kacheln (`KACHEL_Y`).
     'folie-headline': { maxHeight: 230, minScale: 0.6 },
   },
+  symbole: {
+    ...SYMBOLE_BOXES,
+    // Zwei Zeilen à 100 px ab y 100, vor den Kacheln (320).
+    'folie-headline': { maxHeight: SYMBOLE_KACHEL_Y - 110, minScale: 0.6 },
+  },
   text: {
     'folie-headline': { maxHeight: 180, minScale: 0.6 },
     'folie-spalte-1': { maxHeight: 560, minScale: 0.8 },
@@ -192,7 +212,7 @@ export const KACHELN_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
 };
 
 /** Texte nach gemessener Höhe: in den Flächen mittig statt oben mit leerem Rest. */
-export const KACHELN_FLOWS: Partial<Record<FolienTypId, FlowSpec>> = {
+export const KACHELN_FLOWS: Partial<Record<FolienTypId, FlowSet>> = {
   titel: {
     ids: ['folie-headline', 'folie-text'],
     top: 120,
@@ -201,6 +221,8 @@ export const KACHELN_FLOWS: Partial<Record<FolienTypId, FlowSpec>> = {
     gapEm: 0.3,
     gapAfter: { 'folie-headline': 50 },
   },
+  // Marken und Zeilen enden in der Kachel, mit Luft zu ihrem Rand.
+  symbole: symboleFlows(SYMBOLE_KACHEL_BOTTOM - 20),
   // In der Fläche 200–760 bzw. 200–800, mit 40 Luft zum Rand.
   kernsatz: { ids: ['folie-kernsatz'], top: 240, bottom: 720, align: 'center', gapEm: 0 },
   zitat: { ids: ['folie-zitat'], top: 240, bottom: 760, align: 'center', gapEm: 0 },

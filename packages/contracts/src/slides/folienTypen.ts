@@ -35,6 +35,11 @@ export interface FolienListSlot {
   required: boolean;
   elementIdPrefix: string;
   hint: string;
+  /**
+   * Die Einträge sind Symbol-Schlüssel (`folienIcons.ts`), die Elemente Icons
+   * (`iconStates`) statt Texte; ein unbekannter Schlüssel ist kein Fehler.
+   */
+  iconKeys?: true;
 }
 
 export type FolienSlot = FolienTextSlot | FolienListSlot;
@@ -58,15 +63,18 @@ const list = (
   maxChars: number,
   minItems: number,
   maxItems: number,
-  hint: string
+  hint: string,
+  elementIdPrefix = 'folie-punkt-',
+  iconKeys = false
 ): FolienListSlot => ({
   kind: 'list',
   maxChars,
   minItems,
   maxItems,
   required: minItems > 0,
-  elementIdPrefix: 'folie-punkt-',
+  elementIdPrefix,
   hint,
+  ...(iconKeys ? { iconKeys: true as const } : {}),
 });
 
 export const FOLIEN_TYPEN = {
@@ -86,6 +94,29 @@ export const FOLIEN_TYPEN = {
       headline: text(50, 'folie-headline', 'Überschrift der Folie', true),
       punkte: list(70, 3, 6, 'drei bis sechs Punkte, je eine Zeile'),
       stoerer: text(24, 'folie-stoerer-text', 'kurzer Störer'),
+    },
+  },
+  symbole: {
+    label: 'Symbole',
+    use: 'Überschrift mit drei bis vier gleichrangigen Punkten, je ein Symbol, eine Marke und eine kurze Zeile (Maßnahmen, Angebote, Bausteine) — kein Ersatz für die Liste',
+    slots: {
+      headline: text(50, 'folie-headline', 'Überschrift der Folie', true),
+      symbole: list(
+        40,
+        3,
+        4,
+        'je Punkt ein Symbol-Schlüssel aus der Liste, passend zum Thema des Punkts',
+        'folie-symbol-',
+        true
+      ),
+      labels: list(20, 3, 4, 'je Punkt eine kurze Marke (ein bis drei Wörter)', 'folie-label-'),
+      zeilen: list(
+        70,
+        0,
+        4,
+        'je Punkt eine kurze Zeile, die die Marke erklärt',
+        'folie-symboltext-'
+      ),
     },
   },
   text: {

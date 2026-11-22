@@ -6,7 +6,7 @@
  * rechts wie auf der Titelfolie.
  */
 
-import { LIST_BOX_KEY, type FlowSpec } from '../fitText.js';
+import { LIST_BOX_KEY, type FlowSet } from '../fitText.js';
 import { type FolieSpec, type FolienTypId } from '../folienTypen.js';
 import { removeElement } from '../slideDeckBasics.js';
 import { SlideBuilder, slideKit, type SlideLayoutState } from '../slideLayouts.js';
@@ -23,6 +23,9 @@ import {
   stoerer,
   stoererOf,
   STOERER_MAGENTA,
+  SYMBOLE_BOXES,
+  symbole,
+  symboleFlows,
   textOf,
   tonesOf,
   type DeckStilCtx,
@@ -33,12 +36,15 @@ import {
 import { type DeckStilBox } from './index.js';
 
 const BAND = 640;
+/** Höhe des Bandes der Symbole-Folie, oben über die ganze Breite. */
+const SYMBOLE_BAND = 300;
 const RX = 740;
 const WHITE = '#FFFFFF';
 /** Texte, die je Folientyp auf dem Tannenband stehen; alles andere liegt auf Sand. */
 const BAND_RESIDENT: Record<FolienTypId, string[]> = {
   titel: [],
   liste: ['folie-headline'],
+  symbole: ['folie-headline'],
   text: ['folie-headline'],
   kernsatz: ['folie-headline'],
   zahl: ['folie-zahl', 'folie-quelle'],
@@ -52,7 +58,12 @@ export function buildBand(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutState 
   const b = new SlideBuilder(stilInk(ctx.locale, true, t.sand), null);
   const size = (n: number) => fs(ctx.locale, n);
   const störer = stoererOf(folie);
-  b.shape('folie-band', 'rect', BAND / 2, 540, BAND, 1080, t.tanne);
+  // Die Symbole-Folie braucht die volle Breite für drei bis vier Spalten: ihr Band liegt oben.
+  if (folie.typ === 'symbole') {
+    b.shape('folie-band', 'rect', 960, SYMBOLE_BAND / 2, 1920, SYMBOLE_BAND, t.tanne);
+  } else {
+    b.shape('folie-band', 'rect', BAND / 2, 540, BAND, 1080, t.tanne);
+  }
   b.lock('folie-band');
   // Entwurf: Thema im Band bei (110, 180), 120 px, 440 breit.
   const kopfImBand = (id: string) => head(b, id, 110, 180, 440, size(120), WHITE);
@@ -80,6 +91,10 @@ export function buildBand(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutState 
       if (störer) stoerer(b, störer, 320, 860, STOERER_MAGENTA);
       break;
     }
+    case 'symbole':
+      head(b, 'folie-headline', 110, 80, 1700, size(100), WHITE);
+      symbole(b, folie, { circle: t.gras, dunkel: t.dunkel });
+      break;
     case 'text':
       kopfImBand('folie-headline');
       b.text('folie-spalte-1', '', RX, 150, 1070, 50, { lineHeight: 1.4 });
@@ -139,7 +154,7 @@ export function buildBand(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutState 
     if (el) el.accent = { fill: t.lime };
   }
   // Auf der Bildfolie steht das Datum im hellen Bildband, nicht im Tannenband.
-  if (folie.typ !== 'bild') {
+  if (folie.typ !== 'bild' && folie.typ !== 'symbole') {
     const datum = textOf(b, 'folie-datum');
     datum.fill = WHITE;
     datum.width = 500;
@@ -156,6 +171,11 @@ export const BAND_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
     // Zwei Zeilen à 56 px; wo sie stehen und ob die Liste passt, regelt der Fluss.
     'folie-punkt-*': { maxHeight: 145, minScale: 0.7 },
     'folie-headline': { maxHeight: 530, minScale: 0.6 },
+  },
+  symbole: {
+    ...SYMBOLE_BOXES,
+    // Zwei Zeilen à 100 px im Band (ab y 80).
+    'folie-headline': { maxHeight: SYMBOLE_BAND - 90, minScale: 0.6 },
   },
   text: {
     'folie-headline': { maxHeight: 750, minScale: 0.6 },
@@ -176,7 +196,7 @@ export const BAND_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
 };
 
 /** Rechts neben dem Band: Texte nach gemessener Höhe statt auf festen y-Werten (`fitSlideTexts`). */
-export const BAND_FLOWS: Partial<Record<FolienTypId, FlowSpec>> = {
+export const BAND_FLOWS: Partial<Record<FolienTypId, FlowSet>> = {
   titel: {
     ids: ['folie-headline', 'folie-text'],
     top: 120,
@@ -197,6 +217,7 @@ export const BAND_FLOWS: Partial<Record<FolienTypId, FlowSpec>> = {
       'folie-linie-': { anchor: 'bottom', dy: 25 },
     },
   },
+  symbole: symboleFlows(970),
   kernsatz: {
     ids: ['folie-kernsatz', LIST_BOX_KEY],
     top: 150,
