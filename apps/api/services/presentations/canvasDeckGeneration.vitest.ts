@@ -153,7 +153,62 @@ describe('generateCanvasDeck', () => {
     expect(created().page_count).toBe(2);
   });
 
-  it('names an unknown slot and the allowed ones in the rejection', async () => {
+  it('drops empty slots of another type instead of rejecting the deck', async () => {
+    // Live 22.11.: the model sent `"kontakt": ""` on a Kernsatz in every deck.
+    modelAnswers({
+      title: 'Radwege',
+      slides: [
+        { typ: 'titel', slots: { headline: 'Rad', stoerer: '' } },
+        { typ: 'kernsatz', slots: { ueberschrift: 'Ziel', satz: 'Mehr Rad', kontakt: '' } },
+        { typ: 'kernsatz', slots: { satz: 'Mehr Bus', punkte: [] } },
+      ],
+    });
+    const result = await generateCanvasDeck({ prompt: 'x', userId: 'u1', locale: 'de-DE' });
+    expect(result).not.toBeNull();
+    expect(created().page_count).toBe(3);
+  });
+
+  it('reads „Vielen Dank!“ on the closing slide as its default line', async () => {
+    modelAnswers({
+      title: 'Radwege',
+      slides: [
+        { typ: 'titel', slots: { headline: 'Rad' } },
+        { typ: 'danke', slots: { headline: 'Vielen Dank!' } },
+      ],
+    });
+    await generateCanvasDeck({ prompt: 'x', userId: 'u1', locale: 'de-DE' });
+    const danke = created().initial_state.pages[1]!.state as unknown as {
+      additionalTexts: Array<{ id: string; text: string }>;
+    };
+    const ids = danke.additionalTexts.map((t) => t.id);
+    expect(ids).toContain('folie-text');
+  });
+
+  it('puts a foreign slot into the one missing required slot of its kind', async () => {
+    // Live 22.11.: `zitat` instead of `text` on the Zahl slide, `stichpunkte` for `punkte`.
+    modelAnswers({
+      title: 'Klima',
+      slides: [
+        { typ: 'zahl', slots: { zahl: '46 %', quelle: 'UBA', zitat: 'weniger Emissionen' } },
+        { typ: 'liste', slots: { headline: 'H', stichpunkte: ['a', 'b', 'c'] } },
+        // `kontakt` copying the Kernsatz: nothing is missing, the copy goes.
+        { typ: 'kernsatz', slots: { satz: 'Mehr Rad', kontakt: 'Mehr Rad' } },
+      ],
+    });
+    const result = await generateCanvasDeck({ prompt: 'x', userId: 'u1', locale: 'de-DE' });
+    expect(result).not.toBeNull();
+    const texts = (i: number) =>
+      (
+        created().initial_state.pages[i]!.state as unknown as {
+          additionalTexts: Array<{ id: string; text: string }>;
+        }
+      ).additionalTexts;
+    expect(texts(0).find((t) => t.id === 'folie-zahl-text')?.text).toBe('weniger Emissionen');
+    expect(texts(1).filter((t) => t.id.startsWith('folie-punkt-'))).toHaveLength(3);
+    expect(texts(2).some((t) => t.id === 'folie-kontakt')).toBe(false);
+  });
+
+  it('names the missing slot when a foreign one cannot stand in for it', async () => {
     let error = '';
     mocks.aiObject.mockImplementation(async (call: { validate: Validate }) => {
       const bad = call.validate(
@@ -165,8 +220,71 @@ describe('generateCanvasDeck', () => {
       return { ok: false, error: 'x' };
     });
     await generateCanvasDeck({ prompt: 'x', userId: 'u1', locale: 'de-DE' });
-    expect(error).toContain('Folie 1, Feld stichpunkte');
-    expect(error).toContain('erlaubt: headline, punkte, stoerer');
+    expect(error).toContain('Folie 1, Feld punkte');
+  });
+
+  it('refuses a quote whose author is not in the prompt, and drops the name last', async () => {
+    const spec = {
+      title: 'Klima',
+      slides: [
+        { typ: 'titel', slots: { headline: 'Klima' } },
+        {
+          typ: 'zitat',
+          slots: { zitat: 'Wir sind die erste Generation', name: 'António Guterres' },
+        },
+      ],
+    };
+    const errors: string[] = [];
+    mocks.aiObject.mockImplementation(async (call: { validate: Validate }) => {
+      const first = call.validate(spec, 1, 2) as { ok: boolean; error: string };
+      errors.push(first.error);
+      const last = call.validate(spec, 2, 2) as { ok: boolean; value: unknown };
+      return { ok: true, data: last.value };
+    });
+    await generateCanvasDeck({ prompt: 'Vortrag über Klimaschutz', userId: 'u1', locale: 'de-DE' });
+    expect(errors[0]).toContain('Folie 2: dieses Zitat steht nicht im Auftrag');
+    const zitat = created().initial_state.pages[1]!.state as unknown as {
+      additionalTexts: Array<{ id: string }>;
+    };
+    expect(zitat.additionalTexts.some((t) => t.id === 'folie-zitat-name')).toBe(false);
+  });
+
+  it('asks for a kernsatz instead of a quote without an author', async () => {
+    let error = '';
+    mocks.aiObject.mockImplementation(async (call: { validate: Validate }) => {
+      const first = call.validate(
+        { title: 'T', slides: [{ typ: 'zitat', slots: { zitat: 'Klimaschutz ist Pflicht' } }] },
+        1,
+        2
+      ) as { ok: boolean; error: string };
+      error = first.error;
+      return { ok: false, error: 'x' };
+    });
+    await generateCanvasDeck({ prompt: 'x', userId: 'u1', locale: 'de-DE' });
+    expect(error).toContain('Folie 1: ein Zitat braucht `name`');
+  });
+
+  it('keeps a quote whose author the prompt names', async () => {
+    modelAnswers({
+      title: 'Klima',
+      slides: [
+        {
+          typ: 'zitat',
+          slots: { zitat: 'Klimaschutz ist Menschenschutz', name: 'Katharina Dröge' },
+        },
+      ],
+    });
+    await generateCanvasDeck({
+      prompt: 'Mit dem Zitat von Katharina Dröge: „Klimaschutz ist Menschenschutz“',
+      userId: 'u1',
+      locale: 'de-DE',
+    });
+    const state = created().initial_state.pages[0]!.state as unknown as {
+      additionalTexts: Array<{ id: string; text: string }>;
+    };
+    expect(state.additionalTexts.find((t) => t.id === 'folie-zitat-name')?.text).toBe(
+      'Katharina Dröge'
+    );
   });
 
   it('rejects a deck whose fitted headlines still overflow and retries once', async () => {
@@ -202,7 +320,8 @@ describe('deckSystemPrompt', () => {
     expect(de).toContain('"liste"');
     expect(de).toContain('Für drei bis sechs kurze Punkte nimm `liste`, nicht `text`.');
     expect(de).toContain('`zahl` nur mit einer Zahl aus dem Material und ihrer Quelle');
-    expect(de).toContain('höchstens zwei Wörter mit `==…==` hervor');
+    expect(de).toContain('Höchstens EINE Hervorhebung `==…==` pro Folie');
+    expect(de).toContain('Schreib nie jemandem ein Zitat zu, das nicht im Auftrag steht');
     expect(de).toContain('de-band (Mit Farbband)');
     expect(de).not.toContain('at-band');
     expect(de).not.toContain('ÖSTERREICH');
