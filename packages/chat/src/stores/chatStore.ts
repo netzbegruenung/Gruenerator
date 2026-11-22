@@ -203,7 +203,7 @@ interface AgentState {
   setSelectedNotebook: (notebookId: string) => void;
   setPendingMessage: (message: string | null) => void;
   setPendingDraft: (draft: string | null) => void;
-  setPendingGroup: (groupId: string | null, teamShared?: boolean) => void;
+  setPendingGroup: (groupId: string | null, teamShared?: boolean, ttlMs?: number) => void;
   setPendingAttachments: (attachments: MentionAttachment[]) => void;
   setPendingInitialAssistantMessage: (message: string | null) => void;
   setChatViewMode: (mode: 'overview' | 'thread') => void;
@@ -408,10 +408,10 @@ export const useAgentStore = create<AgentState>()(
 
       setPendingDraft: (draft) => set({ pendingDraft: draft }),
 
-      setPendingGroup: (groupId, teamShared = false) =>
+      setPendingGroup: (groupId, teamShared = false, ttlMs = PENDING_GROUP_TTL_MS) =>
         set({
           pendingGroup: groupId
-            ? { id: groupId, teamShared, expiresAt: Date.now() + PENDING_GROUP_TTL_MS }
+            ? { id: groupId, teamShared, expiresAt: Date.now() + ttlMs }
             : null,
         }),
 
