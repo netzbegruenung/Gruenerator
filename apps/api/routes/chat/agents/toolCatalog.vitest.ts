@@ -457,9 +457,10 @@ describe('toolCatalog domain tool mounting', () => {
     for (const [kind, toolName] of Object.entries(TOOL_FOR)) {
       const names = genCatalog({ kind: kind as 'sharepic' }).toolNames;
       expect(names, `${kind} mounts ${toolName}`).toContain(toolName);
-      // No cross-mount: no OTHER generation tool leaks in.
+      // No cross-mount: no OTHER generation tool leaks in — except the deck tool,
+      // which every loop turn offers unforced (#5956, #5957).
       for (const other of Object.values(TOOL_FOR)) {
-        if (other !== toolName)
+        if (other !== toolName && other !== 'create_presentation')
           expect(names, `${kind} must not mount ${other}`).not.toContain(other);
       }
     }
@@ -501,8 +502,14 @@ describe('toolCatalog domain tool mounting', () => {
     expect(genCatalog({ kind: null }).toolNames).toContain('create_presentation');
     // The guarantee stays with a recognised kind: nothing forces this tool.
     expect(genCatalog({ kind: null }).toolNames).not.toContain('create_sheet');
-    // Another kind keeps its single fat tool (one artefact per turn).
-    expect(genCatalog({ kind: 'sheet' }).toolNames).not.toContain('create_presentation');
+    // Next to another kind too: „Präsentation und dazu ein Sharepic" (#5957).
+    const both = genCatalog({ kind: 'sharepic' }).toolNames;
+    expect(both).toContain('sharepic');
+    expect(both).toContain('create_presentation');
+    // A presentation turn mounts it once, through its kind.
+    expect(
+      genCatalog({ kind: 'presentation' }).toolNames.filter((t) => t === 'create_presentation')
+    ).toHaveLength(1);
     expect(genCatalog({ kind: null, req: false }).toolNames).not.toContain('create_presentation');
     expect(
       genCatalog({ kind: null, enabledTools: { create_presentation: false } }).toolNames
