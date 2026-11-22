@@ -95,12 +95,15 @@ vi.mock('../../../services/subtitler/reelSearch.js', () => ({
   getReelTranscript: (...a: unknown[]) => getReelTranscript(...a),
   reelUrl: (id: string) => `/studio/video?project=${id}`,
 }));
-vi.mock('../services/artifactReader.js', async (importOriginal) => ({
-  // Die echte Zuordnung Untertyp → kind: genau sie prüfen die Trefferzeilen.
-  subtypeToReadKind: (await importOriginal<typeof import('../services/artifactReader.js')>())
-    .subtypeToReadKind,
-  readArtifactContent: (...a: unknown[]) => readArtifactContent(...a),
-}));
+vi.mock('../services/artifactReader.js', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../services/artifactReader.js')>();
+  return {
+    // Die echte Zuordnung Untertyp → kind: genau sie prüfen die Trefferzeilen.
+    subtypeToReadKind: real.subtypeToReadKind,
+    ArtifactNotReadableError: real.ArtifactNotReadableError,
+    readArtifactContent: (...a: unknown[]) => readArtifactContent(...a),
+  };
+});
 vi.mock('../services/pastChatRecallService.js', () => ({
   recallPastChats: (...a: unknown[]) => recallPastChats(...a),
   listRecentThreads: (...a: unknown[]) => listRecentThreads(...a),
@@ -1092,6 +1095,29 @@ describe('read_artifact', () => {
 
     expect(out.error).not.toMatch(/invalid input syntax|Database query failed/);
     expect(out.error).toMatch(/vollständige id/);
+  });
+
+  it('meldet eine Datei, die noch eingelesen wird, nicht als leer', async () => {
+    const { ArtifactNotReadableError } = await import('../services/artifactReader.js');
+    readArtifactContent.mockRejectedValueOnce(
+      new ArtifactNotReadableError('Die Datei wird gerade noch eingelesen.')
+    );
+    const out = (await exec(makeReadArtifactTool(ctx('u1')), {
+      kind: 'file',
+      id: '4b134e8c-1811-4516-bb84-c51399364175',
+    })) as { error?: string };
+    expect(out.error).toBe('Die Datei wird gerade noch eingelesen.');
+  });
+
+  it('ein Ausfall heißt nie „leer"', async () => {
+    readArtifactContent.mockRejectedValueOnce(
+      new Error('Unexpected token\n    at parse (x.js:1:2)')
+    );
+    const out = (await exec(makeReadArtifactTool(ctx('u1')), {
+      kind: 'doc',
+      id: '4b134e8c-1811-4516-bb84-c51399364175',
+    })) as { error?: string };
+    expect(out.error).toMatch(/nicht, dass es leer ist/);
   });
 
   it('lässt eine PDF-Referenz durch, die keine blanke uuid ist', async () => {

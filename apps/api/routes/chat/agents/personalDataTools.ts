@@ -74,6 +74,7 @@ import { hasWriteAccess } from '../confirmController.js';
 import {
   readArtifactContent,
   subtypeToReadKind,
+  ArtifactNotReadableError,
   type ArtifactReadKind,
 } from '../services/artifactReader.js';
 import { emitToolConfirmAction, newActionId } from '../services/confirmActionService.js';
@@ -854,6 +855,9 @@ Lange Inhalte kommen in Teilen zu ${ARTIFACT_READ_CHARS.toLocaleString('de-DE')}
       try {
         content = await readArtifactContent({ id: targetId, kind, userId });
       } catch (error) {
+        // Es gibt das Artefakt, sein Text liegt nur (noch) nicht vor — ein
+        // eigener Satz, kein „nicht gefunden oder leer".
+        if (error instanceof ArtifactNotReadableError) return { error: toUserFacingMessage(error) };
         // A doc/board/sheet id lands in `WHERE cd.id = $2::uuid`. When the model
         // invents one, Postgres answers 22P02 and the raw SQL message went back
         // as the tool's result — "invalid input syntax for type uuid" tells the
@@ -871,7 +875,14 @@ Lange Inhalte kommen in Teilen zu ${ARTIFACT_READ_CHARS.toLocaleString('de-DE')}
             error: `„${targetId}" ist keine gültige id. Nimm die vollständige id aus einem Treffer von 'find_content' oder 'documents' (action="list") — oder lass "id" ganz weg, wenn du das ${noun} aus DIESEM Gespräch meinst.`,
           };
         }
-        return { error: toUserFacingMessage(error, `${noun} konnte nicht gelesen werden.`) };
+        // Ein Ausfall ist nie „leer": sonst antwortet das Modell ohne das Artefakt
+        // so, als stünde nichts darin (dieselbe Regel wie `notebook_quellen`).
+        return {
+          error: toUserFacingMessage(
+            error,
+            `${noun} ließ sich gerade nicht lesen — das heißt nicht, dass es leer ist. Sag das der Person, statt den Inhalt zu raten.`
+          ),
+        };
       }
       if (!content?.trim()) {
         return {

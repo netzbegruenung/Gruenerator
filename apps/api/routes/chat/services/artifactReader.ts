@@ -26,6 +26,7 @@ import { getPostgresInstance } from '../../../database/services/PostgresService.
 import { formatBoardAsContext, loadBoardState } from '../../../services/boards/BoardService.js';
 import { loadCanvasAsContext } from '../../../services/canvas/canvasContext.js';
 import { getQdrantDocumentService } from '../../../services/document-services/DocumentSearchService/DocumentSearchService.js';
+import { readSourceText } from '../../../services/notebook/notebookSources.js';
 import { extractPdfText } from '../../../services/pdf/pdfText.js';
 import {
   formatPresentationAsContext,
@@ -131,18 +132,34 @@ export async function readArtifactContent(opts: {
 }
 
 /**
+ * Ein Artefakt, das es gibt und das die Person lesen darf, dessen Text aber
+ * (noch) nicht vorliegt. Eigene Klasse, damit das Werkzeug es nicht als
+ * „nicht gefunden oder leer" meldet: das Modell schlösse daraus, die Datei
+ * sei leer, und antwortete ohne sie.
+ */
+export class ArtifactNotReadableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ArtifactNotReadableError';
+  }
+}
+
+/**
  * Eine hochgeladene Datei bzw. ein eingefügter Text (`documents`): der eigene
  * oder einer, der in ein Projekt geteilt ist, in dem die Person aktives
  * Mitglied ist — dieselbe Regel wie der Suchbereich der Projekt-Chats
- * (`projectFiles.ts`). Den Text gibt es nur als Chunks in Qdrant (wie
- * `GET /documents/:id/content`); gelesen wird unter der Besitzer-ID, die die
- * Postgres-Prüfung hier eben zugelassen hat.
+ * (`projectFiles.ts`). Gelesen wird wie in `notebook_quellen` read
+ * (`readSourceText`): der gespeicherte Originaltext mit seiner Struktur, sonst
+ * die Chunks unter der Besitzer-ID, die die Prüfung hier eben zugelassen hat.
+ * Ein Ausfall des Chunk-Speichers wirft und wird im Werkzeug als Ausfall
+ * gemeldet, nie als leere Datei.
  */
 let fileTextService: ReturnType<typeof getQdrantDocumentService> | null = null;
 
 async function readUploadedFile(id: string, userId: string): Promise<string | null> {
-  const rows = (await getPostgresInstance().query(
-    `SELECT d.title, d.user_id
+  const db = getPostgresInstance();
+  const rows = (await db.query(
+    `SELECT d.title, d.user_id, d.status
        FROM documents d
       WHERE d.id = $1::uuid AND d.deleted_at IS NULL AND d.user_id IS NOT NULL
         AND (d.user_id = $2::uuid OR EXISTS (
@@ -154,11 +171,32 @@ async function readUploadedFile(id: string, userId: string): Promise<string | nu
                WHERE gcs.content_type = 'documents' AND gcs.content_id = d.id::text))
       LIMIT 1`,
     [id, userId]
-  )) as { title: string | null; user_id: string }[];
+  )) as { title: string | null; user_id: string; status: string | null }[];
   const row = rows[0];
   if (!row) return null;
+  if (row.status === 'failed') {
+    throw new ArtifactNotReadableError(
+      'Die Datei ließ sich beim Hochladen nicht einlesen — ihr Text ist nicht verfügbar. Sag der Person, dass sie die Datei erneut hochladen kann.'
+    );
+  }
+  if (row.status !== 'completed') {
+    throw new ArtifactNotReadableError(
+      'Die Datei wird gerade noch eingelesen — ihr Text ist erst danach lesbar. Das heißt nicht, dass sie leer ist.'
+    );
+  }
   fileTextService ??= getQdrantDocumentService();
-  const result = await fileTextService.getDocumentFullText(row.user_id, id);
-  if (!result.success || !result.fullText.trim()) return null;
-  return row.title ? `# ${row.title}\n\n${result.fullText}` : result.fullText;
+  let text: string;
+  try {
+    ({ text } = await readSourceText(
+      { sourceId: id, ownerUserId: row.user_id },
+      { db, documentService: fileTextService }
+    ));
+  } catch (err) {
+    log.warn(`[readUploadedFile] text of ${id} unavailable:`, err);
+    throw new ArtifactNotReadableError(
+      'Der Text der Datei ließ sich gerade nicht laden — das heißt nicht, dass sie leer ist. Sag das der Person, statt den Inhalt zu raten.'
+    );
+  }
+  if (!text.trim()) return null;
+  return row.title ? `# ${row.title}\n\n${text}` : text;
 }
