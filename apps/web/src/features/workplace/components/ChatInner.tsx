@@ -69,8 +69,8 @@ const PROJECT_PICK_TTL_MS = 60 * 60_000;
 
 interface ChatInnerProps {
   /**
-   * Projekt-Übersicht: der neue Chat entsteht in diesem Projekt (vorgewählt im
-   * Projekt-Picker, `pendingGroup`). Fehlt = Start-Composer ohne Projekt.
+   * Projekt-Übersicht: der neue Chat entsteht in diesem Projekt (`pendingGroup`,
+   * ohne Projekt-Picker). Fehlt = Start-Composer ohne Projekt.
    */
   projectId?: string;
   /** Der Chat wird mit dem Team geteilt (nur mit `projectId`). */
@@ -152,7 +152,9 @@ const ChatInnerReady: React.FC<ChatInnerProps> = ({ projectId, teamShared = fals
         presets={WORKPLACE_PRESETS}
         requireProfileHydration
         enablePastedTextAttachments
-        showProjectPicker
+        // On a project page the page is the choice: a picker there could pick
+        // another project, which the preselect effect would then overwrite.
+        showProjectPicker={!projectId}
       />
     </ThreadPrimitive.Root>
   );
