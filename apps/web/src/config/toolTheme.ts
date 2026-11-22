@@ -154,14 +154,14 @@ export const TOOL_THEME = {
     gradient:
       'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#FAEFE9_0%,#FCF7F4_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#22160F_0%,#170F0A_55%,#0E0906_100%)]',
   },
-  // Projekte — the app's green (same family as profilbild), not a tool-specific hue.
+  // Projekte — the Tanne tone of the project palette (GROUP_COLOR_STYLES.tanne).
   projekte: {
-    tile: 'bg-[#DFEBD9] dark:bg-[#1A2B16]',
-    icon: 'text-[#3D6130] dark:text-[#8FC27E]',
-    title: 'text-[#2F4D25] dark:text-[#B3DAA5]',
-    desc: 'text-[#5E7A53] dark:text-[#7FA672]',
+    tile: 'bg-[#D6EBE8] dark:bg-[#112423]',
+    icon: 'text-[#12504A] dark:text-[#9AD6CF]',
+    title: 'text-[#12504A] dark:text-[#9AD6CF]',
+    desc: 'text-[#34706A] dark:text-[#74B0A9]',
     gradient:
-      'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#EDF5E9_0%,#F6FAF4_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#161F13_0%,#10170E_55%,#0A0F08_100%)]',
+      'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#E8F4F2_0%,#F4FAF9_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#10201F_0%,#0B1716_55%,#070E0D_100%)]',
   },
   weitere: {
     tile: 'bg-[#E7EAE6] dark:bg-[#1C211D]',
