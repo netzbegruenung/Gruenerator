@@ -14,6 +14,8 @@ import { Button, cn } from '@gruenerator/ui';
 import { useEffect, useRef, useState } from 'react';
 import { PiPaperPlaneRight, PiTrash, PiX } from 'react-icons/pi';
 
+import { ReportDialog } from '../../../../components/common/ReportDialog';
+
 import { GroupMentionText, MentionSuggestions, useMentionDraft } from './GroupMentions';
 import { CommentReactions } from './GroupReactions';
 
@@ -52,6 +54,7 @@ export function GroupCommentThread({
   const draft = useMentionDraft(GROUP_COMMENT_MAX);
   const replyDraft = useMentionDraft(GROUP_COMMENT_MAX);
   const [reply, setReply] = useState<ReplyDraft | null>(null);
+  const [reportId, setReportId] = useState<string | null>(null);
 
   const send = () => {
     const body = draft.serialize();
@@ -118,6 +121,15 @@ export function GroupCommentThread({
             >
               Antworten
             </button>
+            {!mine && (
+              <button
+                type="button"
+                className="cursor-pointer border-none bg-transparent p-0 font-bold text-muted-foreground hover:text-foreground"
+                onClick={() => setReportId(c.id)}
+              >
+                Melden
+              </button>
+            )}
             {(mine || isAdmin) && (
               <button
                 type="button"
@@ -198,6 +210,15 @@ export function GroupCommentThread({
         label="Kommentar schreiben"
         error={addComment.isError ? errMessage(addComment.error) : null}
       />
+      {reportId && (
+        <ReportDialog
+          open
+          onOpenChange={(o) => !o && setReportId(null)}
+          kind="group_comment"
+          targetId={reportId}
+          groupId={groupId}
+        />
+      )}
     </div>
   );
 }
