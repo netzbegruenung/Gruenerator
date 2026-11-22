@@ -353,6 +353,27 @@ export async function executeAction(
       };
     }
 
+    case 'add_project_text': {
+      const { addTextToGroup } = await import('../../services/groups/createInGroup.js');
+      const { GroupShareForbiddenError } =
+        await import('../../services/groups/groupShareWriter.js');
+      const { groupId, groupName, title, content } = action.payload;
+      // Das Teilrecht wird beim Klick noch einmal geprüft: zwischen Karte und
+      // Klick kann das Projekt archiviert oder die Person ausgetreten sein.
+      try {
+        await addTextToGroup({ userId: action.userId, groupId, title, content });
+      } catch (err) {
+        if (err instanceof GroupShareForbiddenError) {
+          throw new ConfirmActionRefusal('Du kannst in diesem Projekt nichts anlegen.');
+        }
+        throw err;
+      }
+      return {
+        message: `**„${title}"** liegt jetzt im Projekt **„${groupName}"**.`,
+        url: `/gruppen/${groupId}`,
+      };
+    }
+
     case 'create_recurring_task': {
       const { createRecurringTask } =
         await import('../../services/recurringTasks/recurringTasksRepository.js');

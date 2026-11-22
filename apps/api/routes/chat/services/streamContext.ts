@@ -36,13 +36,16 @@ import {
 } from '../../../config/notebookCollectionMap.js';
 import { acquireThreadRun, type ThreadRunLease } from '../../../services/chat/threadRunLock.js';
 import { readThreadProjectInstructions } from '../../../services/groups/groupInstructions.js';
-import { readThreadProjectLandesverband } from '../../../services/groups/projectLandesverband.js';
 import {
   getProjectCollabDocs,
   getProjectCollabDocumentIds,
   type ProjectCollabDoc,
 } from '../../../services/groups/projectCollabDocs.js';
-import { getProjectFileDocumentIds } from '../../../services/groups/projectFiles.js';
+import {
+  getProjectFileDocumentIds,
+  getThreadProjectId,
+} from '../../../services/groups/projectFiles.js';
+import { readThreadProjectLandesverband } from '../../../services/groups/projectLandesverband.js';
 import { getProjectNotebookIds } from '../../../services/groups/projectNotebooks.js';
 import { getProjectRecipeIds } from '../../../services/groups/projectRecipes.js';
 import { extractLocaleFromRequest } from '../../../services/localization/index.js';
@@ -991,10 +994,14 @@ async function buildStreamContextInner({
   // geprüft, nicht am Thread gespeichert (`projectFiles.ts`). Eine @datei- oder
   // @notebook-Wahl des Turns schlägt die Vorgabe (`agentNotebookDocIds`).
   let projectFileDocumentIds: string[] = [];
+  let projectId: string | null = null;
   if (actualThreadId) {
     try {
-      projectFileDocumentIds = await withTimeout(
-        getProjectFileDocumentIds(actualThreadId, userId),
+      [projectId, projectFileDocumentIds] = await withTimeout(
+        Promise.all([
+          getThreadProjectId(actualThreadId, userId),
+          getProjectFileDocumentIds(actualThreadId, userId),
+        ]),
         EXTERNAL_CONTEXT_TIMEOUT_MS,
         'project files'
       );
@@ -1429,6 +1436,7 @@ async function buildStreamContextInner({
     userInstructions,
     projectInstructions,
     projectDocs,
+    project: projectId ? { id: projectId, documentIds: projectFileDocumentIds } : null,
     ...(projectRecipeIds.length > 0 && { projectRecipeIds }),
     ...(projectLandesverband && { projectLandesverband }),
     contextWindowTokens,

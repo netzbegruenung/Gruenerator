@@ -22,8 +22,10 @@
  */
 import { readFile } from 'node:fs/promises';
 
+import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { formatBoardAsContext, loadBoardState } from '../../../services/boards/BoardService.js';
 import { loadCanvasAsContext } from '../../../services/canvas/canvasContext.js';
+import { getQdrantDocumentService } from '../../../services/document-services/DocumentSearchService/DocumentSearchService.js';
 import { extractPdfText } from '../../../services/pdf/pdfText.js';
 import {
   formatPresentationAsContext,
@@ -45,7 +47,8 @@ const log = createLogger('ArtifactReader');
  * artifact and has its own reader (`getThreadRecallContext`) with its own
  * access rules.
  */
-export type ArtifactReadKind = 'doc' | 'board' | 'sheet' | 'presentation' | 'pdf' | 'canvas';
+export type ArtifactReadKind =
+  'doc' | 'board' | 'sheet' | 'presentation' | 'pdf' | 'canvas' | 'file';
 
 export const ARTIFACT_READ_KINDS: readonly ArtifactReadKind[] = [
   'doc',
@@ -54,6 +57,7 @@ export const ARTIFACT_READ_KINDS: readonly ArtifactReadKind[] = [
   'presentation',
   'pdf',
   'canvas',
+  'file',
 ];
 
 /** `collaborative_documents.document_subtype` → the kind to read it as. */
@@ -107,6 +111,7 @@ export async function readArtifactContent(opts: {
   if (!id.trim()) return null;
 
   if (kind === 'pdf') return readPdfAsset(userId, id);
+  if (kind === 'file') return readUploadedFile(id, userId);
   if (kind === 'board') {
     const board = await loadBoardState(id, userId);
     return board ? formatBoardAsContext(board) : null;
@@ -123,4 +128,37 @@ export async function readArtifactContent(opts: {
   }
   if (kind === 'canvas') return loadCanvasAsContext(id, userId);
   return loadDocumentProse(id, userId);
+}
+
+/**
+ * Eine hochgeladene Datei bzw. ein eingefügter Text (`documents`): der eigene
+ * oder einer, der in ein Projekt geteilt ist, in dem die Person aktives
+ * Mitglied ist — dieselbe Regel wie der Suchbereich der Projekt-Chats
+ * (`projectFiles.ts`). Den Text gibt es nur als Chunks in Qdrant (wie
+ * `GET /documents/:id/content`); gelesen wird unter der Besitzer-ID, die die
+ * Postgres-Prüfung hier eben zugelassen hat.
+ */
+let fileTextService: ReturnType<typeof getQdrantDocumentService> | null = null;
+
+async function readUploadedFile(id: string, userId: string): Promise<string | null> {
+  const rows = (await getPostgresInstance().query(
+    `SELECT d.title, d.user_id
+       FROM documents d
+      WHERE d.id = $1::uuid AND d.deleted_at IS NULL AND d.user_id IS NOT NULL
+        AND (d.user_id = $2::uuid OR EXISTS (
+              SELECT 1 FROM group_content_shares gcs
+                JOIN groups g ON g.id = gcs.group_id AND g.deleted_at IS NULL
+                  AND COALESCE(g.is_active, TRUE) = TRUE
+                JOIN group_memberships gm ON gm.group_id = g.id AND gm.user_id = $2::uuid
+                  AND gm.is_active = TRUE
+               WHERE gcs.content_type = 'documents' AND gcs.content_id = d.id::text))
+      LIMIT 1`,
+    [id, userId]
+  )) as { title: string | null; user_id: string }[];
+  const row = rows[0];
+  if (!row) return null;
+  fileTextService ??= getQdrantDocumentService();
+  const result = await fileTextService.getDocumentFullText(row.user_id, id);
+  if (!result.success || !result.fullText.trim()) return null;
+  return row.title ? `# ${row.title}\n\n${result.fullText}` : result.fullText;
 }

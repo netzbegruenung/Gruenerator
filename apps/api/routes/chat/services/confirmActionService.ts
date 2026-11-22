@@ -112,6 +112,13 @@ export const CONFIRM_ACTION_CONFIG: Record<
     icon: 'eye',
     confirmLabel: 'Ändern',
   },
+  add_project_text: {
+    title: 'Im Projekt speichern',
+    description:
+      'Der Text wird als Datei ins Projekt gelegt. Alle Mitglieder können ihn lesen, und Chats im Projekt finden ihn in ihrer Suche.',
+    icon: 'file-text',
+    confirmLabel: 'Speichern',
+  },
   create_recurring_task: {
     title: 'Wiederkehrende Aufgabe einrichten',
     description:

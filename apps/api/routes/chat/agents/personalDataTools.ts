@@ -539,8 +539,14 @@ NUTZE FÜR: eigene Dokumente auflisten (list), Titel, Art und Link eines Dokumen
           'Dokument-ID (get/rename/delete/share; bei share weglassen für das zuletzt erstellte Dokument)'
         ),
       title: z.string().optional().describe('Neuer Titel (nur bei action="rename")'),
-      groupName: z.string().optional().describe('Zielgruppe (nur bei action="share_to_group")'),
-      permission: z.enum(['viewer', 'editor']).default('viewer'),
+      groupName: z.string().optional().describe('Zielprojekt (nur bei action="share_to_group")'),
+      // Docs, Tabellen, Boards sind zum gemeinsamen Weiterschreiben da: im
+      // Projekt standardmäßig bearbeitbar, wie die Teilen-Absicht im Chat und
+      // „Neu im Projekt anlegen" (`createInGroup`). Nur lesen auf Wunsch.
+      permission: z
+        .enum(['viewer', 'editor'])
+        .default('editor')
+        .describe('editor = Mitglieder bearbeiten mit (Standard), viewer = nur lesen'),
       confirm: z
         .boolean()
         .default(false)
@@ -718,6 +724,7 @@ const READ_KIND_NOUN: Record<ArtifactReadKind, string> = {
   presentation: 'Präsentation',
   pdf: 'PDF',
   canvas: 'Canvas',
+  file: 'Datei',
 };
 
 /**
@@ -765,7 +772,7 @@ export function makeReadArtifactTool(ctx: PersonalToolCtx): Tool {
   const { state, sourceRegistry } = ctx;
   const unchosenForeign = unchosenForeignOf(ctx);
   return tool({
-    description: `Öffnet ein eigenes Artefakt und liest seinen INHALT — Folientexte, Tabellenzellen, Dokumenttext, Board-Karten oder den Text eines erzeugten PDFs.
+    description: `Öffnet ein eigenes Artefakt und liest seinen INHALT — Folientexte, Tabellenzellen, Dokumenttext, Board-Karten, den Text eines erzeugten PDFs oder einer hochgeladenen Datei (auch einer, die in ein Projekt der Person geteilt ist: kind="file").
 
 NUTZE FÜR: "was steht in der Präsentation?", "vergleiche das PDF mit den Folien", "prüfe, ob Folie 5 stimmt", "fasse mein Dokument zusammen". Ohne diesen Aufruf kennst du den Inhalt NICHT — rate ihn niemals.
 
@@ -774,7 +781,7 @@ NUTZE FÜR: "was steht in der Präsentation?", "vergleiche das PDF mit den Folie
 Lange Inhalte kommen in Teilen zu ${ARTIFACT_READ_CHARS.toLocaleString('de-DE')} Zeichen. Steht im Ergebnis "weiter", rufe erneut mit "ab" auf, wenn du den Rest brauchst.`,
     inputSchema: z.object({
       kind: z
-        .enum(['doc', 'board', 'sheet', 'presentation', 'pdf'])
+        .enum(['doc', 'board', 'sheet', 'presentation', 'pdf', 'canvas', 'file'])
         .describe('Art des Artefakts. Bei Unsicherheit: die Art aus dem Suchtreffer übernehmen.'),
       id: z
         .string()

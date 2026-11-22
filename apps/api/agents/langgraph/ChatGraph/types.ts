@@ -714,6 +714,8 @@ export interface ChatGraphInput {
   /** Anweisungen des Projekts, in dem der Chat liegt (`group_instructions`). */
   projectInstructions?: { projectName: string; text: string } | null | undefined;
   projectDocs?: ProjectCollabDoc[] | null | undefined;
+  /** Projekt des Threads samt durchsuchbarer Dokument-IDs. Siehe `ChatGraphState.project`. */
+  project?: ChatProject | null | undefined;
   /** Ins Projekt des Threads geteilte Rezepte (`user_text_forms`-Ids). Siehe `ChatGraphState.projectRecipeIds`. */
   projectRecipeIds?: string[] | undefined;
   contextWindowTokens?: number | undefined;
@@ -1076,6 +1078,13 @@ export interface ChatGraphState {
   projectInstructions: { projectName: string; text: string } | null;
   /** Shared docs of the thread's project, titles only (`projectCollabDocs.ts`). */
   projectDocs: ProjectCollabDoc[] | null;
+  /**
+   * Das Projekt, in dem der Chat liegt (Zugriff wie `projectThreadScopeSql`),
+   * mit den Dokument-IDs seines Suchbereichs (Dateien + indexierte Docs). Der
+   * Loop hält damit die Projekt-Werkzeuge sichtbar (`catalogAssembly`) und
+   * sucht gezielt (`groups` action="search"). `null` außerhalb von Projekten.
+   */
+  project: ChatProject | null;
 
   // Rezepte, die ins Projekt des Threads geteilt sind: der Loop listet sie im
   // Katalog als eigenen Block vor den übrigen (`renderRecipeCatalog`).
@@ -1602,6 +1611,21 @@ export interface CreateGroupPayload {
   description: string | null;
 }
 
+/** Projekt des Chats (`ChatGraphState.project`). */
+export interface ChatProject {
+  id: string;
+  /** Suchbereich: fertige Dateien + indexierte Docs, nach Zugriff geprüft. */
+  documentIds: string[];
+}
+
+/** Bestätigter Text, den der Chat als Datei ins Projekt legt (`groups` action="add_text"). */
+export interface AddProjectTextPayload {
+  groupId: string;
+  groupName: string;
+  title: string;
+  content: string;
+}
+
 /** Eine Antragsgrün-Seite auf antragsgruen.de (`services/antragsgruen/hosting/`). */
 export interface CreateAntragsgruenSitePayload {
   title: string;
@@ -1778,6 +1802,7 @@ export type PendingAction = {
   | { type: 'set_notebook_visibility'; payload: SetNotebookVisibilityPayload }
   | { type: 'share_notebook'; payload: ShareNotebookPayload }
   | { type: 'set_group_visibility'; payload: SetGroupVisibilityPayload }
+  | { type: 'add_project_text'; payload: AddProjectTextPayload }
   | { type: 'create_recurring_task'; payload: CreateRecurringTaskPayload }
   | { type: 'create_user_agent'; payload: CreateUserAgentPayload }
   | { type: 'share_user_agent'; payload: ShareUserAgentPayload }

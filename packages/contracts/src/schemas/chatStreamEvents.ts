@@ -364,6 +364,8 @@ export const confirmActionTypeSchema = z.enum([
   'share_notebook',
   // Projekt-Karte des `groups`-Werkzeugs (09/2026), additiv.
   'set_group_visibility',
+  // Karte des `groups`-Werkzeugs: Text als Datei ins Projekt legen (11/2026), additiv.
+  'add_project_text',
   // Karte des `recurring_tasks`-Werkzeugs (09/2026), additiv. Gleichnamig mit
   // dem stillgelegten Intent, bewusst: es ist dieselbe Handlung, nur mit
   // Bestätigung statt stillem Schreiben.

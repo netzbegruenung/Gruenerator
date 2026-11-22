@@ -1,8 +1,13 @@
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { createLogger } from '../../utils/logger.js';
+import { getDocumentProcessingService } from '../document-services/DocumentProcessingService/index.js';
+import { getPostgresDocumentService } from '../document-services/PostgresDocumentService/index.js';
+import { purgeDocument } from '../document-services/PostgresDocumentService/metadataOperations.js';
 
 import { assertCanShareToGroup } from './groupMembership.js';
-import { addGroupShare } from './groupShareWriter.js';
+import { addGroupShare, GroupShareForbiddenError } from './groupShareWriter.js';
+
+import type { TextProcessingResult } from '../document-services/DocumentProcessingService/types.js';
 
 const log = createLogger('createInGroup');
 
@@ -88,4 +93,36 @@ export async function shareNewDocumentIntoGroup(
     );
     throw error;
   }
+}
+
+/**
+ * Einen eingefügten Text als Datei ins Projekt legen — der eine Weg für
+ * „Hinzufügen → Text" (`POST /documents/add-text`) und die bestätigte Chat-Karte
+ * (`add_project_text`). Teilrecht vorher prüfen, Text samt Vektoren anlegen,
+ * teilen; scheitert das Teilen, geht das Dokument restlos (Papierkorb, dann
+ * sofort endgültig — die Person hat es nie gesehen).
+ *
+ * @throws GroupShareForbiddenError, wenn die Person im Projekt nichts anlegen darf.
+ */
+export async function addTextToGroup(input: {
+  userId: string;
+  groupId: string;
+  title: string;
+  content: string;
+}): Promise<TextProcessingResult> {
+  const { userId, groupId, title, content } = input;
+  if (!(await mayShareIntoGroup(groupId, userId))) {
+    throw new GroupShareForbiddenError(CREATE_IN_GROUP_FORBIDDEN);
+  }
+  const result = await getDocumentProcessingService().processTextContent(
+    userId,
+    title,
+    content,
+    'manual'
+  );
+  await shareNewDocumentIntoGroup({ userId, groupId, documentId: result.id }, async () => {
+    await getPostgresDocumentService().trashDocuments([result.id], userId);
+    await purgeDocument(getPostgresInstance(), result.id, null);
+  });
+  return result;
 }
