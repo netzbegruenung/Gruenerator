@@ -10,6 +10,8 @@ import {
   SHAREPIC_COLOR_HEX,
   type BrandLocale,
 } from '../../brand/grueneBrand.js';
+import { type FlowSpec } from '../fitText.js';
+import { folienIconId } from '../folienIcons.js';
 import { folienSlotsOf, type FolieSpec } from '../folienTypen.js';
 import { removeElement } from '../slideDeckBasics.js';
 import { slideKit, type SlideBuilder } from '../slideLayouts.js';
@@ -284,6 +286,153 @@ export function bildFolie(b: SlideBuilder, folie: FolieSpec) {
 export const BILD_BOXES = {
   'folie-bildunterschrift': { maxHeight: 110, minScale: 0.7 },
 } as const;
+
+// ============================================================================
+// SYMBOLE: 3–4 Kreise mit Piktogramm, Marke und einer Zeile
+// ============================================================================
+
+/** WCAG-Kontrast zweier `#rrggbb`-Farben. */
+export function contrastRatio(a: string, b: string) {
+  const lum = (hex: string) => {
+    const n = parseInt(hex.slice(1), 16);
+    const [r, g, bl] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => {
+      const v = c / 255;
+      return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r! + 0.7152 * g! + 0.0722 * bl!;
+  };
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+  return (hi! + 0.05) / (lo! + 0.05);
+}
+
+/** Weiß, wo es auf dem Kreis 3:1 hält (Grafik, WCAG 1.4.11); sonst das Dunkel des Stils, sonst Schwarz. */
+export function iconInk(fill: string, dunkel: string) {
+  if (contrastRatio(WHITE_INK, fill) >= 3) return WHITE_INK;
+  return contrastRatio(dunkel, fill) >= 3 ? dunkel : '#000000';
+}
+
+const WHITE_INK = '#FFFFFF';
+
+/**
+ * Das Raster der Symbole-Folie, in allen Stilen gleich: die Kreise enden bei
+ * `circleBottom` (egal wie groß), darunter beginnt der Fluss je Spalte
+ * (`symboleFlows`). Beamergrößen: Marke 44 px, Zeile 40 px.
+ */
+export const SYMBOLE = {
+  x: 110,
+  width: 1700,
+  circleBottom: 620,
+  labelTop: 650,
+  labelSize: 44,
+  textSize: 40,
+  /** Höchstens so hoch ist eine Überschrift, damit sie den obersten Kreis nicht berührt. */
+  headBottom: 320,
+} as const;
+
+const SYMBOLE_MAX = 4;
+
+export interface SymboleStil {
+  /** Fläche der Kreise (Akzent des Stils). */
+  circle: string;
+  /** Das Dunkel für das Piktogramm, wo Weiß auf dem Kreis nicht hält. */
+  dunkel: string;
+  /** Abstand der Spalten; Kacheln brauchen weniger. */
+  gap?: { three: number; four: number };
+  /** Kachel hinter jeder Spalte (Stil `kacheln`). */
+  tile?: { fill: string; top: number; bottom: number };
+}
+
+/** Die Spalten der Folie: Mitte, Breite und Kreisdurchmesser je Spalte. */
+export function symboleColumns(n: number, gap?: SymboleStil['gap']) {
+  const g = (n >= 4 ? gap?.four : gap?.three) ?? (n >= 4 ? 40 : 60);
+  const w = (SYMBOLE.width - (n - 1) * g) / n;
+  const d = n >= 4 ? 230 : 270;
+  return Array.from({ length: n }, (_, i) => {
+    const x = SYMBOLE.x + i * (w + g);
+    return { x, width: w, cx: x + w / 2, d, cy: SYMBOLE.circleBottom - d / 2 };
+  });
+}
+
+/**
+ * Drei bis vier Spalten: Kreis in der Akzentfarbe mit Piktogramm, darunter die
+ * Marke (fett) und eine Zeile, beides mittig. Die Überschrift baut der Stil.
+ * Symbol-Schlüssel ohne Treffer ergeben das neutrale Symbol; fehlt eine Zeile,
+ * bleibt nur die Marke stehen.
+ */
+export function symbole(b: SlideBuilder, folie: FolieSpec, o: SymboleStil) {
+  const labels = listItems(folie, 'labels');
+  const icons = listItems(folie, 'symbole');
+  const zeilen = listItems(folie, 'zeilen');
+  const n = Math.min(SYMBOLE_MAX, Math.max(labels.length, 1));
+  const cols = symboleColumns(n, o.gap);
+  if (o.tile) {
+    cols.forEach((c, i) =>
+      b.shape(
+        `folie-kachel-${i + 1}`,
+        'rect',
+        c.x + c.width / 2,
+        (o.tile!.top + o.tile!.bottom) / 2,
+        c.width,
+        o.tile!.bottom - o.tile!.top,
+        o.tile!.fill
+      )
+    );
+  }
+  const ink = iconInk(o.circle, o.dunkel);
+  cols.forEach((c, i) => {
+    b.shape(`folie-kreis-${i + 1}`, 'circle', c.cx, c.cy, c.d, c.d, o.circle);
+    b.icon(`folie-symbol-${i + 1}`, folienIconId(icons[i] ?? ''), c.cx, c.cy, c.d * 0.52, ink);
+  });
+  // Auf einer Kachel bleibt der Text vom Rand weg.
+  const inset = o.tile ? 18 : 0;
+  cols.forEach((c, i) => {
+    b.text(
+      `folie-label-${i + 1}`,
+      labels[i] ?? '',
+      c.x + inset,
+      SYMBOLE.labelTop,
+      c.width - 2 * inset,
+      SYMBOLE.labelSize,
+      {
+        type: 'subheader',
+        family: b.ink.headline,
+        align: 'center',
+        lineHeight: 1.1,
+      }
+    );
+    if (zeilen[i]) {
+      b.text(
+        `folie-symboltext-${i + 1}`,
+        zeilen[i]!,
+        c.x + inset,
+        SYMBOLE.labelTop + 70,
+        c.width - 2 * inset,
+        SYMBOLE.textSize,
+        {
+          align: 'center',
+          lineHeight: 1.25,
+        }
+      );
+    }
+  });
+}
+
+/** Die Boxen der Symbole-Folie: Marken und Zeilen schrumpfen je Gruppe gemeinsam. */
+export const SYMBOLE_BOXES = {
+  'folie-label-*': { maxHeight: 110, minScale: 0.9 },
+  'folie-symboltext-*': { maxHeight: 215, minScale: 0.9 },
+} as const;
+
+/** Je Spalte ein Fluss: Marke, darunter die Zeile nach gemessener Höhe. */
+export function symboleFlows(bottom: number): FlowSpec[] {
+  return Array.from({ length: SYMBOLE_MAX }, (_, i) => ({
+    ids: [`folie-label-${i + 1}`, `folie-symboltext-${i + 1}`],
+    top: SYMBOLE.labelTop,
+    bottom,
+    align: 'top' as const,
+    gapEm: 0.3,
+  }));
+}
 
 /** Slots füllen, Fußzeile, Stil-Kennung und Notizen: das Ende jedes Stil-Builders. */
 export function finishFolie(b: SlideBuilder, folie: FolieSpec, ctx: DeckStilCtx, stil: DeckStilId) {

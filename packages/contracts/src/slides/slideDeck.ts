@@ -14,6 +14,7 @@ import {
   DECK_STIL_IDS,
 } from './deckStile/index.js';
 import { fitSlideTexts, type MeasureText } from './fitText.js';
+import { folienIconKeyOf } from './folienIcons.js';
 import { type DeckSpec, type FolieSpec, folienSlotsOf, type FolienTypId } from './folienTypen.js';
 import { slideKit, slideLayoutConfigId, type SlideLayoutState } from './slideLayouts.js';
 
@@ -105,6 +106,7 @@ function typOf(state: Record<string, unknown>, texts: Map<string, string>): Foli
   if (texts.has('folie-zahl')) return 'zahl';
   if (texts.has('folie-kernsatz')) return 'kernsatz';
   if (texts.has('folie-zitat')) return 'zitat';
+  if (texts.has('folie-label-1')) return 'symbole';
   if (texts.has('folie-punkt-1')) return 'liste';
   if (texts.has('folie-spalte-1')) return 'text';
   if (hasAsset(state, 'folie-logo')) return 'danke';
@@ -127,12 +129,19 @@ export function readFolie(state: Record<string, unknown>): FolieSpec | null {
   if (!typ) return null;
 
   const slots: Record<string, string | string[]> = {};
+  const icons = state['iconStates'];
   for (const [name, slot] of Object.entries(folienSlotsOf(typ))) {
     if (slot.kind === 'list') {
       const items: string[] = [];
       for (let i = 1; i <= slot.maxItems; i++) {
-        const value = texts.get(`${slot.elementIdPrefix}${i}`);
-        const item = value?.replace(BULLET, '').trim();
+        const id = `${slot.elementIdPrefix}${i}`;
+        if (slot.iconKeys) {
+          // Das Symbol einer Spalte steht als Icon, nicht als Text; der Schlüssel folgt der Icon-Id.
+          const iconId = (icons as Record<string, { iconId?: unknown }> | undefined)?.[id]?.iconId;
+          if (typeof iconId === 'string') items.push(folienIconKeyOf(iconId));
+          continue;
+        }
+        const item = texts.get(id)?.replace(BULLET, '').trim();
         if (item) items.push(item);
       }
       if (items.length > 0) slots[name] = items;

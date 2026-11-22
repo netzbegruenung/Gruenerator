@@ -36,6 +36,16 @@ export const LIST_BOX_KEY = 'folie-punkt-*';
 const LIST_ID = /^folie-punkt-\d+$/;
 const STEP = 0.05;
 
+/**
+ * Die Elemente zu einem Box-Schlüssel: `…*` (z. B. `LIST_BOX_KEY`, `folie-label-*`)
+ * steht für alle durchnummerierten Elemente mit diesem Präfix, sonst gilt die Id selbst.
+ */
+function idsOfKey(key: string): (id: string) => boolean {
+  if (!key.endsWith('*')) return (id) => id === key;
+  const prefix = key.slice(0, -1);
+  return (id) => id.startsWith(prefix) && /^\d+$/.test(id.slice(prefix.length));
+}
+
 type TextEl = SlideLayoutState['additionalTexts'][number];
 
 function heightOf(el: TextEl, size: number, measure: MeasureText): number {
@@ -106,12 +116,11 @@ export interface FlowSpec {
   follow?: Readonly<Record<string, { anchor: 'top' | 'bottom'; dy: number }>>;
 }
 
+/** Ein Fluss oder mehrere nebeneinander (je Spalte einer). */
+export type FlowSet = FlowSpec | readonly FlowSpec[];
+
 function flowMembers(state: SlideLayoutState, ids: readonly string[]): TextEl[] {
-  return ids.flatMap((id) =>
-    id === LIST_BOX_KEY
-      ? state.additionalTexts.filter((t) => LIST_ID.test(t.id))
-      : state.additionalTexts.filter((t) => t.id === id)
-  );
+  return ids.flatMap((id) => state.additionalTexts.filter((t) => idsOfKey(id)(t.id)));
 }
 
 /** Setzt die y-Werte der Fluss-Elemente; liefert die Ids, die unter `bottom` hinausragen. */
@@ -161,21 +170,23 @@ export function fitSlideTexts(
    * kürzerer Text wächst auf die Ausgangsgröße zurück.
    */
   baseSizes: Record<string, number> | null = null,
-  /** Nach dem Einpassen: die Elemente nach gemessener Höhe untereinander setzen. */
-  flow: FlowSpec | null = null
+  /**
+   * Nach dem Einpassen: die Elemente nach gemessener Höhe untereinander setzen.
+   * Mehrere Flüsse stehen nebeneinander, etwa je Spalte einer Folie mit Symbolen.
+   */
+  flow: FlowSet | null = null
 ): { state: SlideLayoutState; overflow: string[] } {
   const next = structuredClone(state);
   const overflow: string[] = [];
   for (const [key, box] of Object.entries(boxes)) {
-    const els =
-      key === LIST_BOX_KEY
-        ? next.additionalTexts.filter((t) => LIST_ID.test(t.id))
-        : next.additionalTexts.filter((t) => t.id === key);
+    const els = next.additionalTexts.filter((t) => idsOfKey(key)(t.id));
     if (els.length === 0) continue;
     overflow.push(...fitGroup(els, box, measure, baseSizes));
   }
-  if (flow) {
-    let over = flowSlideTexts(next, flow, measure);
+  const flows: readonly FlowSpec[] = flow ? ('ids' in flow ? [flow] : flow) : [];
+  if (flows.length > 0) {
+    const flowAll = () => flows.flatMap((f) => flowSlideTexts(next, f, measure));
+    let over = flowAll();
     // Passt jeder Punkt in seine Zelle, aber nicht die ganze Liste in den Bereich:
     // die Punkte schrumpfen gemeinsam weiter, bis zum `minScale` ihrer Box.
     const listBox = boxes[LIST_BOX_KEY];
@@ -185,7 +196,7 @@ export function fitSlideTexts(
       const start = items[0]!.fontSize / original[0]!;
       for (const scale of scalesFor(listBox.minScale).filter((s) => s < start - 1e-9)) {
         items.forEach((el, i) => (el.fontSize = Math.round(original[i]! * scale)));
-        over = flowSlideTexts(next, flow, measure);
+        over = flowAll();
         if (over.length === 0) break;
       }
     }

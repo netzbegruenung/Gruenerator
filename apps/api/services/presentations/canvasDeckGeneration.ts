@@ -12,6 +12,8 @@ import {
   composeSlideDeck,
   deckSpecSchema,
   folieSpecSchema,
+  FOLIEN_ICON_FALLBACK,
+  FOLIEN_ICON_KEYS,
   FOLIEN_TYP_IDS,
   FOLIEN_TYPEN,
   folienSlotsOf,
@@ -51,9 +53,11 @@ function typCatalog(withPhoto: boolean): string {
       const def = FOLIEN_TYPEN[id];
       const slots = Object.entries(folienSlotsOf(id))
         .map(([name, slot]) =>
-          slot.kind === 'list'
-            ? `    - ${name}${slot.required ? '' : ' (optional)'}: Array von Texten mit ${slot.minItems} bis ${slot.maxItems} Einträgen, ${slot.hint}, je höchstens ${slot.maxChars} Zeichen`
-            : `    - ${name}${slot.required ? '' : ' (optional)'}: ${slot.hint}, höchstens ${slot.maxChars} Zeichen`
+          slot.kind === 'list' && slot.iconKeys
+            ? `    - ${name}: Array von Symbol-Schlüsseln mit ${slot.minItems} bis ${slot.maxItems} Einträgen, ${slot.hint}; erlaubt sind nur: ${FOLIEN_ICON_KEYS.join(', ')}`
+            : slot.kind === 'list'
+              ? `    - ${name}${slot.required ? '' : ' (optional)'}: Array von Texten mit ${slot.minItems} bis ${slot.maxItems} Einträgen, ${slot.hint}, je höchstens ${slot.maxChars} Zeichen`
+              : `    - ${name}${slot.required ? '' : ' (optional)'}: ${slot.hint}, höchstens ${slot.maxChars} Zeichen`
         )
         .join('\n');
       return `- "${id}" — ${def.label}: ${def.use}\n${slots}`;
@@ -84,6 +88,7 @@ Regeln:
 ${withPhoto ? PHOTO_RULE.trimStart() + '\n' : ''}- Ohne genannte Zahl 5 bis 12 Folien (höchstens ${MAX_SLIDES}); die erste Folie ist eine "titel"-Folie, die letzte darf "danke" sein
 - Nennt die Person eine Folienzahl, ist das die Gesamtzahl — Titel- und Danke-Folie zählen mit. "4 Folien" heißt genau vier Folien insgesamt, keine fünfte als Danke-Folie
 - Wähle je Folie den passenden Typ. Für drei bis sechs kurze Punkte nimm \`liste\`, nicht \`text\`. Wechsle die Typen ab; zwei gleiche Typen hintereinander nur, wenn der Inhalt es verlangt
+- \`symbole\` für drei bis vier gleichrangige, kurze Punkte, die je ein Piktogramm tragen (Maßnahmen, Angebote, Bausteine, Themenfelder): je Punkt ein Symbol-Schlüssel, eine Marke und eine Zeile — die drei Arrays sind gleich lang und gehören nach Position zusammen. Eine Aufzählung ohne Piktogramm-Charakter bleibt eine \`liste\`. Passt kein Schlüssel zum Punkt, nimm \`stern\`
 - \`zahl\` nur mit einer Zahl aus dem Material und ihrer Quelle. Ohne Quelle keine Zahl-Folie. Steht eine belegte Zahl im Auftrag, bekommt sie ihre Zahl-Folie
 - \`zitat\` nur mit einem wörtlichen Zitat aus dem Auftrag samt Urheber*in. Schreib nie jemandem ein Zitat zu, das nicht im Auftrag steht — eine eigene Botschaft ist ein \`kernsatz\`
 - Jede Überschrift sagt schon die Aussage der Folie („Busse alle zehn Minuten“ statt „Unser Vorschlag“). Keine Floskeln wie „Unsere Vision“, „Unser Ziel“, „Gemeinsam voran“, „Ausblick“
@@ -115,8 +120,12 @@ export function deckToolSchema(withPhoto = false): Record<string, unknown> {
         slot.kind === 'list'
           ? {
               type: 'array',
-              items: { type: 'string' },
-              description: `Array von Texten, ein Eintrag je Punkt (Feldname "${name}")`,
+              items: slot.iconKeys
+                ? { type: 'string', enum: [...FOLIEN_ICON_KEYS] }
+                : { type: 'string' },
+              description: slot.iconKeys
+                ? `Array von Symbol-Schlüsseln, ein Eintrag je Punkt (Feldname "${name}")`
+                : `Array von Texten, ein Eintrag je Punkt (Feldname "${name}")`,
             }
           : { type: 'string' };
       const known = slotShapes.get(name);
@@ -188,6 +197,21 @@ function placeForeignSlots(typ: FolienTypId, slots: Record<string, unknown>) {
   }
 }
 
+/**
+ * Die drei Arrays der Symbole-Folie gehören nach Position zusammen, Modelle liefern
+ * sie aber mal länger, mal kürzer. Die Marken geben die Zahl der Spalten vor (höchstens
+ * vier): fehlende Symbole sind das neutrale Symbol, überzählige Symbole und Zeilen entfallen.
+ */
+function alignSymboleSlots(slots: Record<string, unknown>) {
+  const labels = slots['labels'];
+  if (!Array.isArray(labels)) return;
+  const n = Math.min(labels.length, 4);
+  slots['labels'] = labels.slice(0, n);
+  const icons = Array.isArray(slots['symbole']) ? (slots['symbole'] as unknown[]) : [];
+  slots['symbole'] = Array.from({ length: n }, (_, i) => icons[i] ?? FOLIEN_ICON_FALLBACK);
+  if (Array.isArray(slots['zeilen'])) slots['zeilen'] = slots['zeilen'].slice(0, n);
+}
+
 /** Bringt die Antwort des Modells in die Form des strikten Schemas, soweit sie eindeutig ist. */
 function normalizeDeck(input: unknown): unknown {
   if (!input || typeof input !== 'object' || !Array.isArray((input as { slides?: unknown }).slides))
@@ -210,6 +234,7 @@ function normalizeDeck(input: unknown): unknown {
     if ((FOLIEN_TYP_IDS as readonly unknown[]).includes(typ)) {
       placeForeignSlots(typ as FolienTypId, renamed);
     }
+    if (typ === 'symbole') alignSymboleSlots(renamed);
     // „Vielen Dank!“ ist der Standard der Schlussfolie, nur mit Satzzeichen; als eigene
     // Zeile gelesen, fiele „für eure Aufmerksamkeit“ darunter weg.
     const headline = renamed['headline'];

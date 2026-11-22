@@ -342,6 +342,14 @@ export class SlideBuilder {
     this.state.layerOrder.push(id);
   }
 
+  /** Ein Editor-Icon (Tabler), `size` px breit, mittig auf (cx, cy) und einfarbig. */
+  icon(id: string, iconId: string, cx: number, cy: number, size: number, color: string) {
+    this.state.selectedIcons.push(id);
+    // Wie die Sharepics: der Editor zeichnet ein Icon in einer 120er-Box.
+    this.state.iconStates[id] = { iconId, x: cx, y: cy, scale: size / 120, rotation: 0, color };
+    this.state.layerOrder.push(id);
+  }
+
   chart(chart: ChartInstance) {
     this.state.chartInstances.push(chart);
     this.state.layerOrder.push(chart.id);
