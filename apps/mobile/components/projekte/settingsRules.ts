@@ -2,6 +2,7 @@ import { type MenuAction } from '@expo/ui/community/menu';
 
 export const MAKE_ADMIN_ID = 'make-admin';
 export const REMOVE_ADMIN_ID = 'remove-admin';
+export const REMOVE_MEMBER_ID = 'remove-member';
 
 type GroupKind = { group_type?: string | null; is_system?: boolean | null };
 
@@ -44,7 +45,16 @@ export function canShareInviteLink(
 }
 
 export function buildMemberActions(memberRole: string): MenuAction[] {
-  return memberRole === 'admin'
-    ? [{ id: REMOVE_ADMIN_ID, title: 'Admin-Rechte entfernen' }]
-    : [{ id: MAKE_ADMIN_ID, title: 'Zum Admin machen' }];
+  const roleAction: MenuAction =
+    memberRole === 'admin'
+      ? { id: REMOVE_ADMIN_ID, title: 'Admin-Rechte entfernen' }
+      : { id: MAKE_ADMIN_ID, title: 'Zum Admin machen' };
+  return [
+    roleAction,
+    {
+      id: REMOVE_MEMBER_ID,
+      title: 'Aus dem Projekt entfernen',
+      attributes: { destructive: true },
+    },
+  ];
 }

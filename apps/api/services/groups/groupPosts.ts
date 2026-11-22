@@ -25,6 +25,7 @@ import { createLogger } from '../../utils/logger.js';
 
 import { notifyGroupActivity } from './groupActivityNotifications.js';
 import { getViewer, type FeedOutcome } from './groupFeed.js';
+import { ARCHIVED_PROJECT_READ_ONLY } from './groupMembership.js';
 
 import type { PostgresService } from '../../database/services/PostgresService.js';
 
@@ -94,6 +95,7 @@ export async function createGroupPost(
     if (viewer.isPersonal) {
       return { status: 400, message: 'In Projekten gibt es keine Beiträge.' };
     }
+    if (viewer.isArchived) return { status: 403, message: ARCHIVED_PROJECT_READ_ONLY };
     if (!viewer.canShare) {
       return { status: 403, message: 'In diesem Projekt können nur Admins Beiträge schreiben.' };
     }

@@ -1,6 +1,13 @@
 import { type LandesverbandId } from '@gruenerator/contracts';
 import { useAuth } from '@gruenerator/shared/hooks';
-import { landesverbandOptions } from '@gruenerator/shared/groups';
+import {
+  landesverbandOptions,
+  GROUP_COLOR_KEYS,
+  GROUP_COLOR_STYLES,
+  resolveGroupColor,
+  type GroupColor,
+} from '@gruenerator/shared/groups';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import * as Haptics from 'expo-haptics';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -11,6 +18,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useColorScheme,
   View,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
@@ -43,12 +51,15 @@ export default function ProjektBearbeitenScreen() {
   const [landesverband, setLandesverband] = useState<LandesverbandId | null>(null);
   const [seeded, setSeeded] = useState(false);
   const { locale } = useAuth();
+  const [color, setColor] = useState<GroupColor | null>(null);
+  const dark = useColorScheme() === 'dark';
 
   useEffect(() => {
     if (group && !seeded) {
       setName(group.name ?? '');
       setDescription(group.description ?? '');
       setLandesverband(group.landesverband ?? null);
+      setColor(resolveGroupColor(group.color));
       setSeeded(true);
     }
   }, [group, seeded]);
@@ -56,13 +67,14 @@ export default function ProjektBearbeitenScreen() {
   const unchanged =
     name.trim() === (group?.name ?? '') &&
     description.trim() === (group?.description ?? '') &&
-    landesverband === (group?.landesverband ?? null);
+    landesverband === (group?.landesverband ?? null) &&
+    color === resolveGroupColor(group?.color);
   const canSave = seeded && name.trim().length > 0 && !unchanged && !isPending && !!id;
 
   const save = () => {
     if (!canSave) return;
     mutate(
-      { name: name.trim(), description: description.trim(), landesverband },
+      { name: name.trim(), description: description.trim(), landesverband, color },
       {
         onSuccess: () => {
           void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -168,6 +180,35 @@ export default function ProjektBearbeitenScreen() {
                 })}
               </View>
             </ScrollView>
+            <Text style={[styles.label, { color: theme.textSecondary }]}>Farbe der Kachel</Text>
+            <View accessibilityRole="radiogroup" style={styles.swatches}>
+              {[null, ...GROUP_COLOR_KEYS].map((key) => {
+                const tone = key ? GROUP_COLOR_STYLES[key][dark ? 'dark' : 'light'] : null;
+                const selected = key === color;
+                return (
+                  <Pressable
+                    key={key ?? 'standard'}
+                    onPress={() => setColor(key)}
+                    disabled={isPending}
+                    accessibilityRole="radio"
+                    accessibilityLabel={key ? GROUP_COLOR_STYLES[key].label : 'Standard'}
+                    accessibilityState={{ checked: selected, disabled: isPending }}
+                    style={[
+                      styles.swatch,
+                      {
+                        backgroundColor: tone?.bg ?? theme.buttonBackground,
+                        borderColor: selected ? theme.text : theme.cardBorder,
+                        borderWidth: selected ? 2 : StyleSheet.hairlineWidth,
+                      },
+                    ]}
+                  >
+                    {selected ? (
+                      <Ionicons name="checkmark" size={18} color={tone?.title ?? theme.text} />
+                    ) : null}
+                  </Pressable>
+                );
+              })}
+            </View>
             {description.length >= COUNTER_FROM ? (
               <Text style={[styles.counter, { color: theme.textSecondary }]}>
                 {description.length} / {DESCRIPTION_MAX}
@@ -205,5 +246,13 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', gap: 8 },
   chip: { borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8 },
   chipText: { fontFamily: BODY_FONT, fontSize: 14 },
+  swatches: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small },
+  swatch: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   counter: { fontFamily: BODY_FONT, fontSize: 12, textAlign: 'right' },
 });

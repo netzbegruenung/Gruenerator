@@ -1,4 +1,5 @@
 import {
+  type GroupColor,
   type GroupContentType,
   type GroupPostCreatedResponse,
   type GroupStartBody,
@@ -200,6 +201,8 @@ export const useUpdateGroupInfo = (groupId: string) => {
       description?: string | null;
       settings?: Record<string, unknown>;
       landesverband?: LandesverbandId | null;
+      /** `null` clears the colour. */
+      color?: GroupColor | null;
     }) => {
       const res = await getContractsClient().groups.updateInfo({
         params: { groupId },
@@ -221,6 +224,24 @@ export const useUpdateGroupName = (groupId: string) => {
       const res = await getContractsClient().groups.updateName({
         params: { groupId },
         body: { name },
+      });
+      if (res.status !== 200) throw apiErrorFromResponse(res);
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: GROUPS_QUERY_KEY });
+      void qc.invalidateQueries({ queryKey: groupDetailsKey(groupId) });
+    },
+  });
+};
+
+/** Admin archives or restores a project. */
+export const useSetGroupArchived = (groupId: string) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (archived: boolean) => {
+      const res = await getContractsClient().groups.setGroupArchived({
+        params: { groupId },
+        body: { archived },
       });
       if (res.status !== 200) throw apiErrorFromResponse(res);
     },
@@ -289,6 +310,23 @@ export const useUpdateMemberRole = (groupId: string) => {
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: groupMembersKey(groupId) });
+    },
+  });
+};
+
+/** Admin removes another member (not themselves, not the creator, not the last admin). */
+export const useRemoveGroupMember = (groupId: string) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (memberId: string) => {
+      const res = await getContractsClient().groups.removeMember({
+        params: { groupId, memberId },
+      });
+      if (res.status !== 200) throw apiErrorFromResponse(res);
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: groupMembersKey(groupId) });
+      void qc.invalidateQueries({ queryKey: GROUPS_QUERY_KEY });
     },
   });
 };

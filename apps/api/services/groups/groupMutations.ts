@@ -10,6 +10,7 @@ import crypto from 'crypto';
 import {
   type CreateGroupBody,
   type GroupAudience,
+  type GroupColor,
   type LandesverbandId,
 } from '@gruenerator/contracts';
 import { generateSlugSuffix } from '@gruenerator/shared/utils';
@@ -17,6 +18,8 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { type GroupRow } from '../../database/schema/groups.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { closeGroupCollabRooms } from '../collab/collabRooms.js';
+import { dismissGroup } from '../notifications/NotificationService.js';
 import { notifyGroupMembers } from '../notifications/index.js';
 
 import { getPostgresAndCheckMembership } from './groupMembership.js';
@@ -144,6 +147,8 @@ export interface UpdateGroupInfoInput {
   description?: string | null;
   settings?: Record<string, unknown> | null;
   landesverband?: LandesverbandId | null;
+  /** `null` clears the colour, `undefined` leaves it alone. */
+  color?: GroupColor | null;
 }
 
 export interface UpdateGroupInfoOutcome {
@@ -162,7 +167,7 @@ export async function updateGroupInfo(
   userId: string,
   input: UpdateGroupInfoInput
 ): Promise<UpdateGroupInfoOutcome> {
-  const { name, description, settings, landesverband } = input;
+  const { name, description, settings, landesverband, color } = input;
   let postgres: ReturnType<typeof getPostgresInstance>;
   let isAdmin: boolean;
   try {
@@ -200,6 +205,11 @@ export async function updateGroupInfo(
   if (landesverband !== undefined) {
     updateFields.push(`landesverband = $${paramIndex++}`);
     updateValues.push(landesverband);
+  }
+
+  if (color !== undefined) {
+    updateFields.push(`color = $${paramIndex++}`);
+    updateValues.push(color);
   }
 
   if (updateFields.length === 0) {
@@ -241,4 +251,119 @@ export async function setGroupVisibility(
     [input.is_public, input.audience, groupId],
     { table: 'groups' }
   )) as GroupVisibility | null;
+}
+
+export interface RemoveMemberOutcome {
+  status: 200 | 400 | 403 | 404;
+  success: boolean;
+  message: string;
+  /** Projektname für die Benachrichtigung; nur bei 200 gesetzt. */
+  groupName?: string;
+}
+
+/**
+ * Ein anderes Mitglied aus einem Projekt entfernen — nur Admins, nicht sich
+ * selbst (dafür gibt es „Verlassen"), nicht die Gründer*in, nicht den letzten
+ * Admin, nie im System-Projekt. Wie beim Verlassen fällt nur die
+ * Mitgliedszeile weg: Team-Chats bleiben beim Projekt, und die Besitzregel
+ * (`ownsThreadSql`) entzieht der Person über die fehlende Mitgliedschaft die
+ * Rechte; private Projekt-Chats bleiben bei ihr.
+ */
+export async function removeGroupMember(
+  groupId: string,
+  actorId: string,
+  memberId: string
+): Promise<RemoveMemberOutcome> {
+  if (String(memberId) === String(actorId)) {
+    return {
+      status: 400,
+      success: false,
+      message: 'Dich selbst kannst du über „Projekt verlassen" entfernen.',
+    };
+  }
+
+  let postgres: ReturnType<typeof getPostgresInstance>;
+  let isSystem: boolean;
+  try {
+    ({ postgres, isSystem } = await getPostgresAndCheckMembership(groupId, actorId, true));
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Keine Berechtigung für diese Aktion.';
+    return { status: 403, success: false, message };
+  }
+  if (isSystem) return { status: 400, success: false, message: SYSTEM_GROUP_FORBIDDEN };
+
+  const rows = (await postgres.query(
+    `SELECT gm.user_id, gm.role, g.created_by, g.name
+       FROM group_memberships gm
+       JOIN groups g ON g.id = gm.group_id
+      WHERE gm.group_id = $1 AND g.deleted_at IS NULL`,
+    [groupId],
+    { table: 'group_memberships' }
+  )) as Array<{ user_id: string; role: string; created_by: string | null; name: string }>;
+
+  const target = rows.find((r) => String(r.user_id) === String(memberId));
+  if (!target) {
+    return { status: 404, success: false, message: 'Mitglied nicht in dieser Gruppe gefunden.' };
+  }
+  if (target.created_by && String(target.created_by) === String(memberId)) {
+    return {
+      status: 400,
+      success: false,
+      message: 'Die Gruppenersteller*in kann nicht entfernt werden.',
+    };
+  }
+  const otherAdmins = rows.filter(
+    (r) =>
+      String(r.user_id) !== String(memberId) &&
+      (r.role === 'admin' || String(r.created_by) === String(r.user_id))
+  );
+  if (target.role === 'admin' && otherAdmins.length === 0) {
+    return {
+      status: 400,
+      success: false,
+      message: 'Der letzte Admin kann nicht entfernt werden.',
+    };
+  }
+
+  const result = await postgres.exec(
+    'DELETE FROM group_memberships WHERE group_id = $1 AND user_id = $2',
+    [groupId, memberId]
+  );
+  if (result.changes === 0) throw new Error('Mitgliedschaft konnte nicht entfernt werden.');
+  void closeGroupCollabRooms(groupId, memberId);
+  // Die Person soll keine Benachrichtigungen eines Projekts behalten, das sie nicht mehr sieht.
+  void dismissGroup(`group:${groupId}`, memberId).catch(() => {});
+
+  return {
+    status: 200,
+    success: true,
+    message: 'Mitglied entfernt.',
+    groupName: target.name,
+  };
+}
+
+/**
+ * Ein Projekt archivieren bzw. wiederherstellen — nur Admins, nie das
+ * System-Projekt. Archiviert heißt: Chats und Inhalte bleiben, das Projekt
+ * verlässt die Hauptlisten und ist schreibgeschützt (Schreibwege laufen über
+ * `assertCanShareToGroup` bzw. `findViewer`). Wirft bei fehlenden Rechten wie
+ * die Mitgliedsprüfung; der Handler macht daraus ein 403.
+ */
+export async function setGroupArchived(
+  groupId: string,
+  userId: string,
+  archived: boolean
+): Promise<{ status: 200 | 400; success: boolean; message: string }> {
+  const { postgres, isSystem } = await getPostgresAndCheckMembership(groupId, userId, true);
+  if (isSystem) return { status: 400, success: false, message: SYSTEM_GROUP_FORBIDDEN };
+  await postgres.exec(
+    `UPDATE groups SET archived_at = ${archived ? 'COALESCE(archived_at, CURRENT_TIMESTAMP)' : 'NULL'}
+      WHERE id = $1 AND deleted_at IS NULL`,
+    [groupId]
+  );
+  return {
+    status: 200,
+    success: true,
+    message: archived ? 'Projekt archiviert.' : 'Projekt wiederhergestellt.',
+  };
 }

@@ -18,8 +18,17 @@ vi.mock('../../utils/adminAuthz.js', () => ({
 const { assertCanShareToGroup, getPostgresAndCheckMembership, listShareTargetGroups } =
   await import('./groupMembership.js');
 
-function membership(row: { role: string; created_by?: string | null; is_system?: boolean } | null) {
-  queryOne.mockResolvedValue(row && { created_by: null, is_system: false, ...row });
+function membership(
+  row: {
+    role: string;
+    created_by?: string | null;
+    is_system?: boolean;
+    archived_at?: string | null;
+  } | null
+) {
+  queryOne.mockResolvedValue(
+    row && { created_by: null, is_system: false, archived_at: null, ...row }
+  );
 }
 
 beforeEach(() => {
@@ -63,6 +72,26 @@ describe('assertCanShareToGroup', () => {
     await expect(assertCanShareToGroup('g', 'u')).rejects.toThrow('Berechtigung');
     isInstanceAdmin.mockResolvedValue(true);
     await expect(assertCanShareToGroup('g', 'u')).resolves.toMatchObject({ isAdmin: true });
+  });
+});
+
+describe('archived projects are read-only', () => {
+  it('rejects shares and filing into an archived project, even for admins', async () => {
+    membership({ role: 'admin', archived_at: '2026-11-22T10:00:00Z' });
+    await expect(assertCanShareToGroup('g', 'u')).rejects.toThrow('archiviert');
+  });
+
+  it('still lets members read it (the membership check passes, flagged archived)', async () => {
+    membership({ role: 'member', archived_at: '2026-11-22T10:00:00Z' });
+    await expect(getPostgresAndCheckMembership('g', 'u')).resolves.toMatchObject({
+      isArchived: true,
+    });
+  });
+
+  it('leaves archived projects out of the share-target list', async () => {
+    query.mockResolvedValue([]);
+    await listShareTargetGroups('u');
+    expect(query.mock.calls[0][0]).toContain('g.archived_at IS NULL');
   });
 });
 

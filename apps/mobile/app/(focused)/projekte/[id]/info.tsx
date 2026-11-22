@@ -14,6 +14,7 @@ import { FEED_KIND_ICONS } from '../../../../components/projekte/feedIcons';
 import { useProjekteTone } from '../../../../components/projekte/projekteTone';
 import {
   MAKE_ADMIN_ID,
+  REMOVE_MEMBER_ID,
   buildMemberActions,
   canChangeMemberRole,
   canLeaveProject,
@@ -27,6 +28,8 @@ import {
   useGroupMembers,
   useLeaveGroup,
   useSetGroupMute,
+  useRemoveGroupMember,
+  useSetGroupArchived,
   useUpdateMemberRole,
   type GroupMember,
 } from '../../../../hooks/useGroups';
@@ -68,6 +71,8 @@ export default function ProjektInfoScreen() {
   const isAdmin = !!membership?.isAdmin;
   const muteMutation = useSetGroupMute(id ?? '');
   const roleMutation = useUpdateMemberRole(id ?? '');
+  const removeMutation = useRemoveGroupMember(id ?? '');
+  const archiveMutation = useSetGroupArchived(id ?? '');
   const leaveMutation = useLeaveGroup();
   const muted = muteMutation.isPending
     ? (muteMutation.variables ?? false)
@@ -114,6 +119,24 @@ export default function ProjektInfoScreen() {
 
   const selectMemberAction = (actionId: string) => {
     if (!menuMember) return;
+    if (actionId === REMOVE_MEMBER_ID) {
+      const target = menuMember;
+      const name = target.display_name ?? target.first_name ?? target.email ?? 'Das Mitglied';
+      Alert.alert(
+        'Mitglied entfernen',
+        `${name} verliert den Zugriff auf dieses Projekt. Team-Chats bleiben im Projekt.`,
+        [
+          { text: 'Abbrechen', style: 'cancel' },
+          {
+            text: 'Entfernen',
+            style: 'destructive',
+            onPress: () =>
+              removeMutation.mutate(target.user_id, { onSuccess: done, onError: fail }),
+          },
+        ]
+      );
+      return;
+    }
     roleMutation.mutate(
       { memberId: menuMember.user_id, role: actionId === MAKE_ADMIN_ID ? 'admin' : 'member' },
       { onSuccess: done, onError: fail }
@@ -199,7 +222,7 @@ export default function ProjektInfoScreen() {
                 <ListRow
                   icon="create-outline"
                   title="Name und Beschreibung bearbeiten"
-                  last={!canShareLink}
+                  last={group.is_system === true && !canShareLink}
                   onPress={() =>
                     router.push({
                       pathname: '/(focused)/projekte/[id]/bearbeiten',
@@ -211,10 +234,21 @@ export default function ProjektInfoScreen() {
                   <ListRow
                     icon="share-outline"
                     title="Einladungslink teilen"
-                    last
+                    last={group.is_system === true}
                     onPress={shareInvite}
                   />
                 ) : null}
+                {group.is_system ? null : (
+                  <ListRow
+                    icon="archive-outline"
+                    title={group.archived_at ? 'Projekt wiederherstellen' : 'Projekt archivieren'}
+                    last
+                    disabled={archiveMutation.isPending}
+                    onPress={() =>
+                      archiveMutation.mutate(!group.archived_at, { onSuccess: done, onError: fail })
+                    }
+                  />
+                )}
               </ListGroup>
             )
           : null}

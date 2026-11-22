@@ -54,4 +54,8 @@ describe('isTeamProject / buildMemberActions', () => {
     expect(buildMemberActions('member')[0].id).toBe('make-admin');
     expect(buildMemberActions('admin')[0].id).toBe('remove-admin');
   });
+  it('always offers removal as the second action', () => {
+    expect(buildMemberActions('member')[1].id).toBe('remove-member');
+    expect(buildMemberActions('admin')[1].id).toBe('remove-member');
+  });
 });

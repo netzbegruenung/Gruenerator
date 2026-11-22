@@ -43,6 +43,10 @@ export const landesverbandIdSchema = z.enum([
   'oesterreich',
 ]);
 export type LandesverbandId = z.infer<typeof landesverbandIdSchema>;
+/** Fixed tile palette for projects (no colour = the default blue tile); the colour values live with the renderers (shared `groupColors`). */
+export const GROUP_COLORS = ['gruen', 'tanne', 'sonne', 'magenta', 'flieder'] as const;
+export const groupColorSchema = z.enum(GROUP_COLORS);
+export type GroupColor = z.infer<typeof groupColorSchema>;
 
 export const joinRequestStatusSchema = z.enum(['pending', 'approved', 'denied']);
 export type JoinRequestStatus = z.infer<typeof joinRequestStatusSchema>;
@@ -185,6 +189,9 @@ export const groupSummarySchema = z.object({
   content_count: z.number().nullish(),
   // Stable 6-char tail for the Notion-style URL `/gruppen/<name>-<suffix>`.
   slug_suffix: z.string().nullish(),
+  // ISO time the project was archived; null/absent = active.
+  archived_at: z.string().nullish(),
+  color: groupColorSchema.nullish(),
 });
 export type GroupSummaryDto = z.infer<typeof groupSummarySchema>;
 
@@ -207,6 +214,8 @@ export const groupDetailSchema = z.object({
   slug_suffix: z.string().nullish(),
   // Explicit Landesverband: its recipe variants win over the person's active role.
   landesverband: landesverbandIdSchema.nullish(),
+  archived_at: z.string().nullish(),
+  color: groupColorSchema.nullish(),
 });
 export type GroupDetailDto = z.infer<typeof groupDetailSchema>;
 
@@ -250,6 +259,8 @@ export const updateGroupInfoBodySchema = z.object({
   settings: z.record(z.string(), z.unknown()).nullish(),
   // `null` clears the Landesverband, omitted leaves it alone.
   landesverband: landesverbandIdSchema.nullish(),
+  // null clears the colour (back to the default); absent leaves it alone.
+  color: groupColorSchema.nullish(),
 });
 export type UpdateGroupInfoBody = z.infer<typeof updateGroupInfoBodySchema>;
 
@@ -284,6 +295,9 @@ export const memberRoleBodySchema = z.object({
   role: groupRoleSchema,
 });
 export type MemberRoleBody = z.infer<typeof memberRoleBodySchema>;
+
+export const setGroupArchivedBodySchema = z.object({ archived: z.boolean() });
+export type SetGroupArchivedBody = z.infer<typeof setGroupArchivedBodySchema>;
 
 /** Body for muting/unmuting the caller's own notifications for a group. */
 export const setGroupMuteBodySchema = z.object({

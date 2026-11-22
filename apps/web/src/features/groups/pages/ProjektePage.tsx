@@ -1,8 +1,8 @@
-import { buildGroupPath, groupContentKey } from '@gruenerator/shared/groups';
+import { buildGroupPath, groupContentKey, splitArchivedGroups } from '@gruenerator/shared/groups';
 import { extractSlugSuffix } from '@gruenerator/shared/utils';
 import { Button, SectionHeader, StatusBanner } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { HiUser, HiUserGroup } from 'react-icons/hi';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -58,6 +58,10 @@ const ProjektePage = () => {
     createGroupError,
   } = useGroups({ isActive: true });
   const inviteToGroup = useInviteToGroup();
+  const { active: activeGroups, archived: archivedGroups } = useMemo(
+    () => splitArchivedGroups(userGroups ?? []),
+    [userGroups]
+  );
 
   const showSuccess = useCallback((msg: string) => {
     if (successTimer.current) clearTimeout(successTimer.current);
@@ -202,7 +206,7 @@ const ProjektePage = () => {
 
       <WorkplaceHero title={firstName ? `Deine Projekte, ${firstName}` : 'Deine Projekte'}>
         <ProjekteComposer
-          projekte={userGroups}
+          projekte={activeGroups}
           isCreating={isCreatingGroup}
           onCreate={(name, type) => openCreate(type, name)}
         />
@@ -244,16 +248,28 @@ const ProjektePage = () => {
             Erneut versuchen
           </Button>
         </div>
-      ) : userGroups.length === 0 ? (
+      ) : activeGroups.length === 0 && archivedGroups.length === 0 ? (
         <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
           Noch keine Projekte vorhanden. Erstelle dein erstes Projekt über das Feld oben.
         </p>
       ) : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,200px))] gap-3 sm:gap-4">
-          {(userGroups || []).map((g) => (
+          {activeGroups.map((g) => (
             <ProjektTile key={g.id} projekt={g} />
           ))}
         </div>
+      )}
+      {archivedGroups.length > 0 && (
+        <details className="mt-lg">
+          <summary className="cursor-pointer text-sm font-medium text-grey-600 dark:text-grey-300">
+            Archiviert ({archivedGroups.length})
+          </summary>
+          <div className="mt-md grid grid-cols-[repeat(auto-fill,minmax(150px,200px))] gap-3 sm:gap-4">
+            {archivedGroups.map((g) => (
+              <ProjektTile key={g.id} projekt={g} />
+            ))}
+          </div>
+        </details>
       )}
       <PublicGroupsSection onSuccessMessage={showSuccess} onErrorMessage={showError} />
 

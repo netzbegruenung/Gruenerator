@@ -1,6 +1,7 @@
+import { splitArchivedGroups } from '@gruenerator/shared/groups';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
-import { useCallback, type ReactNode } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import {
   View,
   Text,
@@ -46,6 +47,7 @@ export default function ProjekteScreen() {
   const router = useRouter();
   const tone = useProjekteTone();
 
+  const [showArchived, setShowArchived] = useState(false);
   const { data: groups = [], isPending, isRefetching, error, refetch } = useUserGroups();
   // Web's grid: two squares across on a phone, three from tablet width.
   const { width } = useWindowDimensions();
@@ -117,18 +119,44 @@ export default function ProjekteScreen() {
       </View>
     );
   } else {
-    body = (
+    const { active, archived } = splitArchivedGroups(groups);
+    const renderTiles = (list: GroupSummary[]) => (
       <View style={styles.grid}>
-        {groups.map((group) => (
+        {list.map((group) => (
           <ProjektTile
             key={group.id}
             group={group}
-            meta={metaFor(group)}
+            meta={group.archived_at ? 'Archiviert' : metaFor(group)}
             size={tile}
             onPress={() => openGroup(group.id)}
           />
         ))}
       </View>
+    );
+    body = (
+      <>
+        {renderTiles(active)}
+        {archived.length > 0 && (
+          <View style={styles.archived}>
+            <Pressable
+              onPress={() => setShowArchived((v) => !v)}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: showArchived }}
+              style={styles.archivedHeader}
+            >
+              <Ionicons
+                name={showArchived ? 'chevron-down' : 'chevron-forward'}
+                size={16}
+                color={theme.textSecondary}
+              />
+              <Text style={[styles.centeredText, { color: theme.textSecondary }]}>
+                Archiviert ({archived.length})
+              </Text>
+            </Pressable>
+            {showArchived && renderTiles(archived)}
+          </View>
+        )}
+      </>
     );
   }
 
@@ -151,6 +179,8 @@ const GAP = spacing.small;
 
 const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: GAP },
+  archived: { marginTop: spacing.large, gap: GAP },
+  archivedHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.xsmall },
   // Reading measure on a tablet; a phone is narrower than the cap anyway.
   column: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   scrollContent: {

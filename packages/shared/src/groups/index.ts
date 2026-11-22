@@ -1,9 +1,18 @@
 export {
+  GROUP_COLOR_KEYS,
+  GROUP_COLOR_STYLES,
+  resolveGroupColor,
+  type GroupColor,
+  type GroupColorTone,
+} from './groupColors.js';
+export {
   ALLOWED_LINK_ICONS,
   GROUPS_QUERY_KEY,
   buildGroupInviteUrl,
   canManageShare,
   canShareIntoGroup,
+  isGroupArchived,
+  splitArchivedGroups,
   groupContentKey,
   groupShareCommentsKey,
   buildGroupPath,
@@ -47,6 +56,8 @@ export {
   useUpdateGroupInfo,
   useUpdateGroupLink,
   useUpdateGroupName,
+  useRemoveGroupMember,
+  useSetGroupArchived,
   useUpdateMemberRole,
   useUploadGroupAvatar,
   useUserGroups,

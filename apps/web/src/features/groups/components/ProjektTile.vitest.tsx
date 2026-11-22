@@ -74,4 +74,24 @@ describe('ProjektTile', () => {
     const { container } = renderWithProviders(<ProjektTile projekt={teamProjekt} />);
     expect(await axe(container)).toHaveNoViolations();
   });
+
+  it('renders a chosen colour through the audited palette variables', () => {
+    renderWithProviders(<ProjektTile projekt={{ ...teamProjekt, color: 'gruen' }} />);
+    const link = screen.getByRole('link', { name: /Grüne NRW/ });
+    expect(link.style.getPropertyValue('--tile-bg')).toBe('#DDEFD9');
+    expect(link.style.getPropertyValue('--tile-title-dark')).toBe('#A9D8AC');
+  });
+
+  it('ignores an unknown colour key and keeps the default tile', () => {
+    renderWithProviders(<ProjektTile projekt={{ ...teamProjekt, color: 'neon' }} />);
+    const link = screen.getByRole('link', { name: /Grüne NRW/ });
+    expect(link.style.getPropertyValue('--tile-bg')).toBe('');
+  });
+
+  it('marks an archived projekt in the meta line', () => {
+    renderWithProviders(
+      <ProjektTile projekt={{ ...teamProjekt, archived_at: '2026-11-22T10:00:00Z' }} />
+    );
+    expect(screen.getByText('Archiviert')).toBeInTheDocument();
+  });
 });
