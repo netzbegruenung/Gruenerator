@@ -30,6 +30,7 @@ const ICON_MAP: Record<ConfirmActionData['type'], IoniconsIconName> = {
   set_notebook_visibility: 'eye-outline',
   share_notebook: 'share-social-outline',
   set_group_visibility: 'eye-outline',
+  add_project_text: 'document-text-outline',
   create_recurring_task: 'repeat-outline',
   create_user_agent: 'sparkles-outline',
   share_user_agent: 'share-social-outline',

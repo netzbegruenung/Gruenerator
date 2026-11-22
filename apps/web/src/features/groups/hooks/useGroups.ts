@@ -13,6 +13,7 @@ import {
   useSetGroupContentWrite,
   useSetGroupMute,
   useUpdateGroupLink,
+  useRemoveGroupMember as useRemoveGroupMemberShared,
   useUpdateMemberRole as useUpdateMemberRoleShared,
   useUploadGroupAvatar,
   useUserGroups,
@@ -97,11 +98,16 @@ export const useGroups = ({ isActive }: UseGroupsOptions = {}) => {
 
   const createGroup = (
     groupName: string,
-    options: MutationOptions<GroupSummary> & { groupType?: 'standard' | 'personal' } = {}
+    options: MutationOptions<GroupSummary> & {
+      description?: string;
+    } = {}
   ) => {
-    const { groupType, ...cb } = options;
+    const { description, ...cb } = options;
     createMutation.mutate(
-      { name: groupName, ...(groupType ? { groupType } : {}) },
+      {
+        name: groupName,
+        ...(description ? { description } : {}),
+      },
       {
         onSuccess: (group) => cb.onSuccess?.(group),
         onError: (err) => cb.onError?.(err as Error),
@@ -232,6 +238,14 @@ export const useUpdateMemberRole = (groupId: string) => {
   };
 };
 
+export const useRemoveGroupMember = (groupId: string) => {
+  const mutation = useRemoveGroupMemberShared(groupId);
+  return {
+    removeMember: mutation.mutate,
+    isRemovingMember: mutation.isPending,
+  };
+};
+
 // ── Content sharing (web-only — not ported to shared) ─────────────
 // The docs/texts/vorlagen picker depends on web-specific content hooks,
 // so this stays local. Mobile defers this feature.
@@ -252,7 +266,7 @@ export const useGroupSharing = (groupId: string | null, _options: UseGroupsOptio
     }
     const res = await getContractsClient().groups.listGroupContent({ params: { groupId } });
     if (res.status !== 200)
-      throw apiErrorFromResponse(res, 'Fehler beim Laden der Gruppeninhalte.');
+      throw apiErrorFromResponse(res, 'Fehler beim Laden der Projektinhalte.');
     return res.body.content as GroupContentData;
   };
 
@@ -270,7 +284,19 @@ export const useGroupSharing = (groupId: string | null, _options: UseGroupsOptio
     // No local `retry` override: the global predicate in App.tsx skips
     // 401/403/404 and still retries transient 5xx. Overriding it here meant an
     // expected 403 was requested three times (GlitchTip #590).
-    refetchInterval: false,
+    // Solange eine Datei eingelesen wird oder ein Dokument noch nicht im Suchindex
+    // steht, alle 10 s nachladen — danach ruht die Abfrage wieder.
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      const inProgress = [
+        ...(data?.documents ?? []),
+        ...(data?.collaborative_documents ?? []),
+      ].some((r) => {
+        const state = (r as { search_state?: unknown }).search_state;
+        return state === 'indexing' || state === 'pending';
+      });
+      return inProgress ? 10_000 : false;
+    },
     // GroupDetailSection renders this query's failure inline, so the global
     // toast layer stays out of it.
     meta: { silent: true },

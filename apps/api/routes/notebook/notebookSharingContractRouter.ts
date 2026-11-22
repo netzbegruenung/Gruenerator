@@ -270,7 +270,7 @@ export const notebookSharingContractRouter = s.router(notebookSharingContract, {
 
       return {
         status: 201 as const,
-        body: { success: true, message: 'Notebook mit Gruppe geteilt' },
+        body: { success: true, message: 'Notebook mit Projekt geteilt' },
       };
     } catch (error) {
       log.error('[notebookSharingContract.addGroupShare] Error:', error);

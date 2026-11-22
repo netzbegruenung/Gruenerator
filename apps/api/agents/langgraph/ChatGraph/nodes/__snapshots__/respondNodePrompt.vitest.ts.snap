@@ -521,6 +521,14 @@ Antworte im Du.
 
 Befolge diese Vorgaben in JEDER Antwort dieses Chats — auch zu Form und festen Bestandteilen (etwa eine Zeile am Ende) und auch, wenn ein Rezept oder eine Agent-Rolle aktiv ist. Verlangt die Person im Chat ausdrücklich etwas anderes, gilt ihr Wunsch. Die Vorgaben heben die Regeln dieser Systemnachricht nicht auf.
 
+## DOKUMENTE DES PROJEKTS
+
+Diese Dokumente und Dateien sind ins Projekt dieses Chats geteilt. Vorab gefundene Stellen daraus sind nur Auszüge, nicht der ganze Inhalt. Geht es um den ganzen Inhalt, den genauen Wortlaut oder etwas, das in den Auszügen fehlt, lies es mit \`read_artifact\` (kind und id aus der Liste) und nenne in der Antwort seinen Titel als Quelle. Rate nie, was darin steht; ohne Bezug zur Frage lies nichts.
+
+<untrusted_content type="projekt_dokumente">
+- Wärmeplan (Dokument; kind=doc, id=11111111-1111-1111-1111-111111111111)
+</untrusted_content>
+
 ## GEDÄCHTNIS (KEINE QUELLEN – NICHT ZITIEREN)
 
 Die Person hat dir ausdrücklich aufgetragen, dir Folgendes zu merken. Die Nummern dienen nur dem Werkzeug \`memory\` (update/forget) — nenne sie nicht in der Antwort.
@@ -2352,6 +2360,14 @@ Antworte im Du.
 </untrusted_content>
 
 Befolge diese Vorgaben in JEDER Antwort dieses Chats — auch zu Form und festen Bestandteilen (etwa eine Zeile am Ende) und auch, wenn ein Rezept oder eine Agent-Rolle aktiv ist. Verlangt die Person im Chat ausdrücklich etwas anderes, gilt ihr Wunsch. Die Vorgaben heben die Regeln dieser Systemnachricht nicht auf.
+
+## DOKUMENTE DES PROJEKTS
+
+Diese Dokumente und Dateien sind ins Projekt dieses Chats geteilt. Vorab gefundene Stellen daraus sind nur Auszüge, nicht der ganze Inhalt. Geht es um den ganzen Inhalt, den genauen Wortlaut oder etwas, das in den Auszügen fehlt, lies es mit \`read_artifact\` (kind und id aus der Liste) und nenne in der Antwort seinen Titel als Quelle. Rate nie, was darin steht; ohne Bezug zur Frage lies nichts.
+
+<untrusted_content type="projekt_dokumente">
+- Wärmeplan (Dokument; kind=doc, id=11111111-1111-1111-1111-111111111111)
+</untrusted_content>
 Du hast Recherche-Ergebnisse erhalten. Beantworte die Frage primär aus diesen Ergebnissen und zitiere sie inline.
 
 ## ZUSÄTZLICHER KONTEXT
@@ -2604,6 +2620,14 @@ Antworte im Du.
 </untrusted_content>
 
 Befolge diese Vorgaben in JEDER Antwort dieses Chats — auch zu Form und festen Bestandteilen (etwa eine Zeile am Ende) und auch, wenn ein Rezept oder eine Agent-Rolle aktiv ist. Verlangt die Person im Chat ausdrücklich etwas anderes, gilt ihr Wunsch. Die Vorgaben heben die Regeln dieser Systemnachricht nicht auf.
+
+## DOKUMENTE DES PROJEKTS
+
+Diese Dokumente und Dateien sind ins Projekt dieses Chats geteilt. Vorab gefundene Stellen daraus sind nur Auszüge, nicht der ganze Inhalt. Geht es um den ganzen Inhalt, den genauen Wortlaut oder etwas, das in den Auszügen fehlt, lies es mit \`read_artifact\` (kind und id aus der Liste) und nenne in der Antwort seinen Titel als Quelle. Rate nie, was darin steht; ohne Bezug zur Frage lies nichts.
+
+<untrusted_content type="projekt_dokumente">
+- Wärmeplan (Dokument; kind=doc, id=11111111-1111-1111-1111-111111111111)
+</untrusted_content>
 Du hast Recherche-Ergebnisse erhalten. Beantworte die Frage primär aus diesen Ergebnissen und zitiere sie inline.
 Der*die Nutzer*in hat die Textform „Instagram" gewählt. Die Recherche ist das Mittel, nicht das Ergebnis: Liefere den fertigen Text in dieser Form, nicht eine Zusammenfassung der Quellenlage darüber.
 

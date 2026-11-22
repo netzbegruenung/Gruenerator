@@ -14,14 +14,9 @@ export interface DraftFile {
   isImage: boolean;
 }
 
-/** Beiträge schreibt man in Team-Projekten; ins System-Projekt nur Instanz-Admins (wie im Web). */
-export function canWritePost(
-  group: { group_type?: string | null; is_system?: boolean | null },
-  isAdmin: boolean
-): boolean {
-  return (
-    group.group_type !== 'personal' && canShareIntoGroup({ is_system: group.is_system, isAdmin })
-  );
+/** Beiträge schreibt man in jedem Projekt; ins System-Projekt nur Instanz-Admins (wie im Web). */
+export function canWritePost(group: { is_system?: boolean | null }, isAdmin: boolean): boolean {
+  return canShareIntoGroup({ is_system: group.is_system, isAdmin });
 }
 
 /** Ändern darf nur, wer geschrieben hat. */

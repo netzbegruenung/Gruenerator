@@ -13,6 +13,7 @@ import { fieldFiltersFromQdrant } from '../../notebook/remoteSources/filters.js'
 import { type RemoteNotebookSource } from '../../notebook/remoteSources/types.js';
 import { resolveWolkeDisplayUrl } from '../../scrapers/utils/wolkeShareSecrets.js';
 import { parseDatePrecision, type SourceDatePrecision } from '../../search/recency.js';
+import { EXCLUDE_COLLAB_SOURCE } from '../collabSourceType.js';
 
 import type {
   DocumentSearchOptions,
@@ -36,6 +37,15 @@ import type { SearchResponse } from '../../BaseSearchService/types.js';
  * Scoped searches pass authorized `documentIds` and need no stamp check.
  */
 const LIVE_ONLY = { is_empty: { key: 'deleted_at' } } as const;
+
+/**
+ * Collab-document chunks (`source_type: 'collab'`) are reached by document id
+ * only, never by an unscoped search of the owner's own documents.
+ */
+function pinOwnerUploads(filter: QdrantFilter, userId: string): void {
+  filter.must!.push({ key: 'user_id', match: { value: userId } }, LIVE_ONLY);
+  filter.must_not = [...(filter.must_not ?? []), EXCLUDE_COLLAB_SOURCE];
+}
 
 /**
  * Payload-derived fields shared by every search-mode chunk mapper.
@@ -161,7 +171,7 @@ export async function performTextSearch(
     // user_id clause there would return zero hits, which was the original
     // "Volltext changes nothing" symptom on LV notebooks.
     if (searchCollection === 'documents' && !scopedByDocumentIds) {
-      filter.must!.push({ key: 'user_id', match: { value: userId } }, LIVE_ONLY);
+      pinOwnerUploads(filter, userId);
     }
 
     if (scopedByDocumentIds) {
@@ -275,7 +285,7 @@ export async function findSimilarChunks(
   // set; adding a user_id filter on top would exclude documents owned by
   // someone who shared their notebook with us, breaking shared-notebook search.
   if (searchCollection === 'documents' && !scopedByDocumentIds) {
-    filter.must!.push({ key: 'user_id', match: { value: userId as string } }, LIVE_ONLY);
+    pinOwnerUploads(filter, userId as string);
   }
 
   if (scopedByDocumentIds) {
@@ -418,7 +428,7 @@ export async function findHybridChunks(
   // set; adding a user_id filter on top would exclude documents owned by
   // someone who shared their notebook with us, breaking shared-notebook search.
   if (searchCollection === 'documents' && !scopedByDocumentIds) {
-    filter.must!.push({ key: 'user_id', match: { value: userId as string } }, LIVE_ONLY);
+    pinOwnerUploads(filter, userId as string);
   }
 
   if (scopedByDocumentIds) {

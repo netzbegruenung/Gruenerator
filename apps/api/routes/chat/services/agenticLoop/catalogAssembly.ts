@@ -553,6 +553,7 @@ export async function assembleToolCatalog(
             mention,
             agentIdentifier: agentConfig.identifier ?? null,
             activeRole: state.activeRole ?? null,
+            projectLandesverband: state.projectLandesverband ?? null,
             userLocale: state.userLocale ?? null,
           }),
       });
@@ -589,9 +590,16 @@ export async function assembleToolCatalog(
     // Ein Agent mit eigenem Notebook liest es mit `notebook_quellen` — der
     // Prompt sagt ihm das (`buildToolUsageBlock`), also darf das Werkzeug nicht
     // hinter „meine Inhalte" warten.
-    ...((boundSystemNotebook(state) ?? boundUserNotebook(state)) != null && {
-      keepVisible: ['notebook_quellen'],
-    }),
+    keepVisible: [
+      ...((boundSystemNotebook(state) ?? boundUserNotebook(state)) != null
+        ? ['notebook_quellen']
+        : []),
+      // Im Projekt-Chat nennt der Prompt die Docs des Projekts und verweist auf
+      // `read_artifact`; `groups` sucht gezielt im Projekt und legt Texte an.
+      // Beide dürfen nicht hinter „meine Inhalte" warten — „Fasse das Protokoll
+      // zusammen" trifft dessen Hinweis nicht.
+      ...(state.project ? ['read_artifact', 'groups'] : []),
+    ],
     enforce: isToolScopeEnforced() && !toolAllowlist,
   });
   Object.assign(tools, toolScope.loaderTools());

@@ -57,6 +57,9 @@ function deps(over: Partial<AgentConversionDeps> = {}) {
     })),
     trashProject: vi.fn(async () => 'ok'),
     setInstructions: vi.fn(async () => ({})),
+    setLandesverband: vi.fn(async () => ({})),
+    setStart: vi.fn(async () => ({})),
+    handOverTasks: vi.fn(async () => 0),
     share: vi.fn(async () => ({ status: 200 as const, success: true, message: 'ok' })),
     setSuccessor: vi.fn(async () => true),
     ...over,
@@ -219,6 +222,61 @@ describe('convertUserAgent', () => {
     const types = vi.mocked(d.share).mock.calls.map((c) => c[0].contentType);
     expect(types).toEqual(['system_notebooks', 'notebook_collections']);
     expect(out.ok && out.response.result?.path).toBe('/projekte/pressearbeit-kv-abc234');
+    // A plain user agent is no LV agent: the project stays without a Landesverband.
+    expect(d.setLandesverband).not.toHaveBeenCalled();
+  });
+
+  it('an LV agent gives its Landesverband to the new project', async () => {
+    const d = deps({
+      getAgent: vi.fn(async () =>
+        agent({
+          identifier: 'gruenerator-oeffentlichkeitsarbeit-bayern',
+          defaultRecipeMention: '',
+        })
+      ),
+    });
+    await convertUserAgent({ ...RUN, target: 'project' }, d);
+    expect(d.setLandesverband).toHaveBeenCalledWith(PROJECT_ID, 'u1', 'bayern');
+  });
+
+  it('an agent whose default recipe is an LV variant gives that Landesverband', async () => {
+    const d = deps({
+      getAgent: vi.fn(async () => agent({ defaultRecipeMention: 'presse-bayern-partei' })),
+    });
+    await convertUserAgent({ ...RUN, target: 'project' }, d);
+    expect(d.setLandesverband).toHaveBeenCalledWith(PROJECT_ID, 'u1', 'bayern');
+  });
+
+  it('project: carries welcome and start questions, clamped to the project limits', async () => {
+    const d = deps({
+      getAgent: vi.fn(async () =>
+        agent({
+          openingMessage: '  Hallo und willkommen!  ',
+          openingQuestions: ['Eins?', ' ', 'Zwei?', 'Drei?', 'Vier?', 'Fünf?'],
+        })
+      ),
+    });
+    const out = await convertUserAgent({ ...RUN, target: 'project' }, d);
+    expect(d.setStart).toHaveBeenCalledWith(PROJECT_ID, 'u1', {
+      welcomeMessage: 'Hallo und willkommen!',
+      startQuestions: ['Eins?', 'Zwei?', 'Drei?', 'Vier?'],
+    });
+    const opening = out.ok && out.response.items.find((i) => i.part === 'opening');
+    expect(opening).toMatchObject({ outcome: 'carried' });
+    expect(opening && opening.note).toContain('Gekürzt');
+  });
+
+  it('project: an agent without opening writes no start', async () => {
+    const d = deps();
+    await convertUserAgent({ ...RUN, target: 'project' }, d);
+    expect(d.setStart).not.toHaveBeenCalled();
+  });
+
+  it('recipe: the opening stays on the agent (later)', async () => {
+    const d = deps({ getAgent: vi.fn(async () => agent({ openingMessage: 'Hallo' })) });
+    const out = await convertUserAgent({ ...RUN, target: 'recipe' }, d);
+    const opening = out.ok && out.response.items.find((i) => i.part === 'opening');
+    expect(opening).toMatchObject({ outcome: 'later' });
   });
 
   it('project: a recipe stored by id alone is named by its current mention', async () => {
@@ -285,6 +343,71 @@ describe('convertUserAgent', () => {
     expect(out.ok && out.response.items.find((i) => i.part === 'groupShares')?.note).toBe(
       'Das Rezept ist in dasselbe Projekt geteilt.'
     );
+  });
+
+  it('project: hands the agent tasks over to the new project and reports them as carried', async () => {
+    const d = deps({
+      readFacts: vi.fn(async () => ({ ...NO_FACTS, recurringTaskCount: 2 })),
+      handOverTasks: vi.fn(async () => 2),
+    });
+    const out = await convertUserAgent(
+      {
+        userId: 'u1',
+        sharerName: 'Kim',
+        handle: 'pressearbeit-kv',
+        target: 'project',
+        dryRun: false,
+        fresh: false,
+      },
+      d
+    );
+    expect(d.handOverTasks).toHaveBeenCalledWith(
+      'u1',
+      expect.objectContaining({ id: AGENT_ID }),
+      PROJECT_ID
+    );
+    if (!out.ok) throw new Error('expected ok');
+    expect(out.response.items.find((i) => i.part === 'recurringTasks')).toMatchObject({
+      outcome: 'carried',
+    });
+  });
+
+  it('project: a failed hand-over reports the tasks as later, not carried', async () => {
+    const d = deps({
+      readFacts: vi.fn(async () => ({ ...NO_FACTS, recurringTaskCount: 1 })),
+      handOverTasks: vi.fn(async () => {
+        throw new Error('db');
+      }),
+    });
+    const out = await convertUserAgent(
+      {
+        userId: 'u1',
+        sharerName: 'Kim',
+        handle: 'pressearbeit-kv',
+        target: 'project',
+        dryRun: false,
+        fresh: false,
+      },
+      d
+    );
+    if (!out.ok) throw new Error('expected ok');
+    expect(out.response.items.find((i) => i.part === 'recurringTasks')?.outcome).toBe('later');
+  });
+
+  it('recipe: tasks stay with the agent and the note says why', async () => {
+    const d = deps({ readFacts: vi.fn(async () => ({ ...NO_FACTS, recurringTaskCount: 1 })) });
+    await convertUserAgent(
+      {
+        userId: 'u1',
+        sharerName: 'Kim',
+        handle: 'pressearbeit-kv',
+        target: 'recipe',
+        dryRun: false,
+        fresh: false,
+      },
+      d
+    );
+    expect(d.handOverTasks).not.toHaveBeenCalled();
   });
 
   it('unknown agent is a 404', async () => {

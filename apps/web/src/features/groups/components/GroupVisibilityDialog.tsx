@@ -63,8 +63,8 @@ const GroupVisibilityDialog = memo(
           onSuccess: () => {
             onSuccessMessage(
               isPublic
-                ? 'Gruppe ist jetzt öffentlich sichtbar.'
-                : 'Gruppe ist nicht mehr öffentlich.'
+                ? 'Projekt ist jetzt öffentlich sichtbar.'
+                : 'Projekt ist nicht mehr öffentlich.'
             );
             onClose();
           },
@@ -79,7 +79,7 @@ const GroupVisibilityDialog = memo(
           <DialogHeader>
             <DialogTitle>Öffentliche Sichtbarkeit</DialogTitle>
             <DialogDescription>
-              Öffentliche Gruppen erscheinen für andere unter „Öffentliche Gruppen". Nutzer*innen
+              Öffentliche Projekte erscheinen für andere unter „Öffentliche Projekte". Nutzer*innen
               können eine Beitrittsanfrage stellen, die du als Admin bestätigen musst.
             </DialogDescription>
           </DialogHeader>
@@ -107,7 +107,7 @@ const GroupVisibilityDialog = memo(
                 </SelectContent>
               </Select>
               <p className="text-xs text-grey-500">
-                Steuert, wem die Gruppe angezeigt wird – passend zum Land der Nutzer*innen.
+                Steuert, wem das Projekt angezeigt wird – passend zum Land der Nutzer*innen.
               </p>
             </div>
           </div>

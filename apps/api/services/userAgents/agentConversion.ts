@@ -21,6 +21,9 @@
  */
 import {
   GROUP_INSTRUCTIONS_MAX,
+  landesverbandIdSchema,
+  GROUP_START_QUESTIONS_MAX,
+  GROUP_WELCOME_MAX,
   MAX_TEXT_FORM_DESCRIPTION_CHARS,
   MAX_TEXT_FORM_STYLE_CHARS,
   MAX_TEXT_FORM_TITLE_CHARS,
@@ -29,7 +32,9 @@ import {
   type AgentConversionResponse,
   type AgentConversionTarget,
   type GroupContentType,
+  type LandesverbandId,
 } from '@gruenerator/contracts';
+import { SKILLS, lvIdForAgentIdentifier } from '@gruenerator/shared/agents';
 import { getNotebookDefinition } from '@gruenerator/shared/notebooks';
 import { buildGroupSlug } from '@gruenerator/shared/utils';
 
@@ -38,7 +43,8 @@ import { collectTakenMentions } from '../../routes/userTextForms/textFormRouterH
 import { createLogger } from '../../utils/logger.js';
 import { shareContentToGroup, type ShareContentOutcome } from '../groups/groupContent.js';
 import { setProjectInstructions } from '../groups/groupInstructions.js';
-import { createGroupForUser } from '../groups/groupMutations.js';
+import { createGroupForUser, updateGroupInfo } from '../groups/groupMutations.js';
+import { normalizeProjectStart, setProjectStart, type ProjectStart } from '../groups/groupStart.js';
 import { trashGroup } from '../groups/groupTrash.js';
 import { resolveMentionCollision } from '../user/textFormDraftService.js';
 import { deriveRecipeMention } from '../user/textFormKind.js';
@@ -76,6 +82,34 @@ export function projectInstructionsFor(agent: UserAgentRecord): string {
   const role = agent.systemRole.trim();
   const recipe = agent.defaultRecipeMention;
   return recipe ? `${role}\n\nFür Texte nutzt du das Rezept @${recipe}.` : role;
+}
+
+/**
+ * Der Landesverband eines LV-Agents: sein eigener Bezeichner oder, bei einem
+ * Agent mit LV-Rezept als Standard (`presse-berlin-partei`), der Besitzer
+ * dieses Rezepts. `null` für jeden anderen Agent.
+ */
+export function landesverbandOfConvertedAgent(agent: UserAgentRecord): LandesverbandId | null {
+  const fromIdentifier = lvIdForAgentIdentifier(agent.identifier);
+  const mention = agent.defaultRecipeMention?.toLowerCase();
+  const recipe = mention ? SKILLS.find((s) => s.mention.toLowerCase() === mention) : undefined;
+  const id = fromIdentifier ?? (recipe ? lvIdForAgentIdentifier(recipe.identifier) : null);
+  const parsed = landesverbandIdSchema.safeParse(id);
+  return parsed.success ? parsed.data : null;
+}
+
+/** Was von Begrüßung und Startfragen im Projekt ankommt; Kürzungen stehen dabei. */
+function openingCarriedNote(agent: UserAgentRecord, opening: ProjectStart): string {
+  const cut: string[] = [];
+  if (agent.openingMessage.trim().length > GROUP_WELCOME_MAX) {
+    cut.push(`die Begrüßung auf ${GROUP_WELCOME_MAX} Zeichen`);
+  }
+  const questions = agent.openingQuestions.filter((q) => q.trim()).length;
+  if (questions > opening.startQuestions.length) {
+    cut.push(`die Startfragen auf ${GROUP_START_QUESTIONS_MAX}`);
+  }
+  const base = 'Begrüßung und Startfragen erscheinen auf der Projekt-Übersicht.';
+  return cut.length > 0 ? `${base} Gekürzt: ${cut.join(' und ')}.` : base;
 }
 
 function count(n: number, one: string, many: string): string {
@@ -116,7 +150,9 @@ export function planAgentConversion(
     items.push({
       part: 'role',
       outcome: 'carried',
-      note: 'Die Rolle wird zu den Anweisungen des Projekts.',
+      note: landesverbandOfConvertedAgent(agent)
+        ? 'Die Rolle wird zu den Anweisungen des Projekts; das Projekt bekommt den Landesverband des Agents.'
+        : 'Die Rolle wird zu den Anweisungen des Projekts.',
     });
   }
 
@@ -176,15 +212,24 @@ export function planAgentConversion(
     );
   }
 
+  const opening = normalizeProjectStart({
+    welcomeMessage: agent.openingMessage,
+    startQuestions: agent.openingQuestions,
+  });
   if (agent.openingMessage.trim() || agent.openingQuestions.length > 0) {
-    items.push({
-      part: 'opening',
-      outcome: 'later',
-      note:
-        target === 'recipe'
-          ? 'Begrüßung und Startfragen kann ein Rezept noch nicht zeigen.'
-          : 'Begrüßung und Startfragen kann ein Projekt noch nicht zeigen.',
-    });
+    items.push(
+      target === 'recipe'
+        ? {
+            part: 'opening',
+            outcome: 'later',
+            note: 'Begrüßung und Startfragen kann ein Rezept noch nicht zeigen.',
+          }
+        : {
+            part: 'opening',
+            outcome: 'carried',
+            note: openingCarriedNote(agent, opening),
+          }
+    );
   }
 
   if (facts.groupShareCount > 0) {
@@ -231,11 +276,21 @@ export function planAgentConversion(
   }
 
   if (facts.recurringTaskCount > 0) {
-    items.push({
-      part: 'recurringTasks',
-      outcome: 'later',
-      note: `${count(facts.recurringTaskCount, 'wiederkehrende Aufgabe läuft', 'wiederkehrende Aufgaben laufen')} weiter mit dem Agent.`,
-    });
+    items.push(
+      target === 'project'
+        ? {
+            part: 'recurringTasks',
+            outcome: 'carried',
+            note: `${count(facts.recurringTaskCount, 'wiederkehrende Aufgabe läuft', 'wiederkehrende Aufgaben laufen')} künftig im Projekt, mit dessen Anweisungen und Wissen.`,
+          }
+        : {
+            // Eine Aufgabe kennt Projekt, aber noch kein Rezept (kein Rezept-Bezug
+            // in recurring_tasks); sie bleibt deshalb beim Agent.
+            part: 'recurringTasks',
+            outcome: 'later',
+            note: `${count(facts.recurringTaskCount, 'wiederkehrende Aufgabe läuft', 'wiederkehrende Aufgaben laufen')} weiter mit dem Agent; eine Aufgabe kann noch kein Rezept tragen. Wandle in ein Projekt um, wenn die Aufgaben mitziehen sollen.`,
+          }
+    );
   }
 
   return { items, blocked };
@@ -272,6 +327,10 @@ export interface AgentConversionDeps {
   ) => Promise<{ id: string; name: string; slugSuffix: string | null }>;
   trashProject: (userId: string, groupId: string) => Promise<unknown>;
   setInstructions: (groupId: string, userId: string, text: string) => Promise<unknown>;
+  setLandesverband: (groupId: string, userId: string, lv: LandesverbandId) => Promise<unknown>;
+  setStart: (groupId: string, userId: string, start: ProjectStart) => Promise<unknown>;
+  /** Hängt die lebenden Aufgaben des Agents ans Projekt (Agent gelöst); Anzahl. */
+  handOverTasks: (userId: string, agent: UserAgentRecord, groupId: string) => Promise<number>;
   share: (input: {
     userId: string;
     groupId: string;
@@ -452,6 +511,16 @@ async function convertToProject(
 
   try {
     await deps.setInstructions(project.id, userId, projectInstructionsFor(agent));
+    // Ein LV-Agent bindet die Wahl an seinen Verband; das Projekt übernimmt das.
+    const landesverband = landesverbandOfConvertedAgent(agent);
+    if (landesverband) await deps.setLandesverband(project.id, userId, landesverband);
+    const opening = normalizeProjectStart({
+      welcomeMessage: agent.openingMessage,
+      startQuestions: agent.openingQuestions,
+    });
+    if (opening.welcomeMessage || opening.startQuestions.length > 0) {
+      await deps.setStart(project.id, userId, opening);
+    }
   } catch (error) {
     // Ohne Anweisungen ist das Projekt eine leere Hülle: wieder abräumen
     // (Papierkorb, nicht hart), damit kein halbes Projekt liegen bleibt.
@@ -490,6 +559,23 @@ async function convertToProject(
           : ''
       }`,
       missing === 0 ? 'carried' : 'later'
+    );
+  }
+
+  if (items.some((i) => i.part === 'recurringTasks')) {
+    // Die Aufgaben laufen als eigenes Projekt-Material weiter: die Rolle steht
+    // jetzt in den Projekt-Anweisungen, der Agent wird nicht mehr gebraucht.
+    const moved = await deps.handOverTasks(userId, agent, project.id).catch((error) => {
+      log.warn('[convert] task hand-over failed:', error);
+      return 0;
+    });
+    items = withNote(
+      items,
+      'recurringTasks',
+      moved > 0
+        ? `${count(moved, 'wiederkehrende Aufgabe läuft', 'wiederkehrende Aufgaben laufen')} künftig im Projekt, mit dessen Anweisungen und Wissen.`
+        : 'Die wiederkehrenden Aufgaben ließen sich nicht ans Projekt übergeben und laufen weiter mit dem Agent.',
+      moved > 0 ? 'carried' : 'later'
     );
   }
 
@@ -577,12 +663,25 @@ function defaultDeps(): AgentConversionDeps {
       const group = await createGroupForUser(userId, {
         name: input.name,
         description: input.description || null,
-        groupType: 'personal',
       });
       return { id: group.id, name: group.name, slugSuffix: group.slug_suffix ?? null };
     },
     trashProject: (userId, groupId) => trashGroup(userId, groupId),
     setInstructions: setProjectInstructions,
+    setLandesverband: (groupId, userId, landesverband) =>
+      updateGroupInfo(groupId, userId, { landesverband }),
+    setStart: setProjectStart,
+    handOverTasks: async (userId, agent, groupId) => {
+      const rows = (await getPostgresInstance().query(
+        `UPDATE recurring_tasks
+            SET group_id = $1::uuid, agent_identifier = NULL, updated_at = now()
+          WHERE user_id = $2 AND deleted_at IS NULL
+            AND agent_identifier IN ($3, $4)
+          RETURNING id`,
+        [groupId, userId, agent.identifier, agent.id]
+      )) as Array<{ id: string }>;
+      return rows.length;
+    },
     share: (input) =>
       shareContentToGroup({
         ...input,

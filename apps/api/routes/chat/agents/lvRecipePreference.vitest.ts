@@ -24,6 +24,52 @@ const lgs = (bundesland: string) => ({
   bundesland,
 });
 
+describe('preferredLvRecipeMention — Projekt-Landesverband', () => {
+  it('schlägt die aktive Rolle (Berlin-Rolle, Bayern-Projekt → Bayern)', () => {
+    expect(
+      preferredLvRecipeMention({
+        mention: 'presse',
+        activeRole: lgs('Berlin'),
+        projectLandesverband: 'bayern',
+        userLocale: 'de-DE',
+      })
+    ).toBe('presse-bayern-partei');
+  });
+
+  it('greift auch ohne aktive Rolle', () => {
+    expect(
+      preferredLvRecipeMention({
+        mention: 'presse',
+        activeRole: null,
+        projectLandesverband: 'bayern',
+        userLocale: 'de-DE',
+      })
+    ).toBe('presse-bayern-partei');
+  });
+
+  it('weicht einem LV-Agenten (der bindet weiter an seinen Verband)', () => {
+    expect(
+      preferredLvRecipeMention({
+        mention: 'presse',
+        agentIdentifier: 'gruenerator-oeffentlichkeitsarbeit-hessen',
+        projectLandesverband: 'bayern',
+        userLocale: 'de-DE',
+      })
+    ).toBe('presse-hessen-partei');
+  });
+
+  it('ohne Projekt-Landesverband entscheidet weiter die Rolle', () => {
+    expect(
+      preferredLvRecipeMention({
+        mention: 'presse',
+        activeRole: lgs('Berlin'),
+        projectLandesverband: null,
+        userLocale: 'de-DE',
+      })
+    ).toBe('presse-berlin-partei');
+  });
+});
+
 describe('preferredLvRecipeMention — Rollen-Pfad (generischer Agent)', () => {
   it('führt presse zur Partei-Variante des eigenen Landesverbands', () => {
     expect(

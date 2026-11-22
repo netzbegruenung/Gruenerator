@@ -21,6 +21,10 @@ vi.mock('@hocuspocus/provider', () => ({
       off: vi.fn(),
       clientID: 1,
     };
+    // Der Server-Impuls (`turnSignal`, #5700) liest eine Y.Map aus dem Raum.
+    document = {
+      getMap: () => ({ get: () => undefined, observe: vi.fn(), unobserve: vi.fn() }),
+    };
     constructor(opts: { name: string }) {
       constructed.names.push(opts.name);
     }

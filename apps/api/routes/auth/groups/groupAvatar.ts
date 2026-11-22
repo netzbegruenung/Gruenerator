@@ -103,7 +103,7 @@ router.post(
         res.status(403).json({ success: false, error: toUserFacingMessage(error) });
         return;
       }
-      res.status(500).json({ success: false, error: 'Fehler beim Hochladen des Gruppenbildes' });
+      res.status(500).json({ success: false, error: 'Fehler beim Hochladen des Projektbildes' });
     }
   }
 );
@@ -127,7 +127,7 @@ router.get(
       )) as { avatar_url?: string | null } | null;
 
       if (!group?.avatar_url) {
-        res.status(404).json({ success: false, error: 'Kein Gruppenbild vorhanden' });
+        res.status(404).json({ success: false, error: 'Kein Projektbild vorhanden' });
         return;
       }
 
@@ -136,7 +136,7 @@ router.get(
       try {
         await fs.promises.access(filepath);
       } catch {
-        res.status(404).json({ success: false, error: 'Gruppenbild nicht gefunden' });
+        res.status(404).json({ success: false, error: 'Projektbild nicht gefunden' });
         return;
       }
 
@@ -150,7 +150,7 @@ router.get(
         res.status(403).json({ success: false, error: toUserFacingMessage(error) });
         return;
       }
-      res.status(500).json({ success: false, error: 'Fehler beim Laden des Gruppenbildes' });
+      res.status(500).json({ success: false, error: 'Fehler beim Laden des Projektbildes' });
     }
   }
 );
@@ -198,7 +198,7 @@ router.delete(
         res.status(403).json({ success: false, error: toUserFacingMessage(error) });
         return;
       }
-      res.status(500).json({ success: false, error: 'Fehler beim Löschen des Gruppenbildes' });
+      res.status(500).json({ success: false, error: 'Fehler beim Löschen des Projektbildes' });
     }
   }
 );

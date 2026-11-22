@@ -1,11 +1,12 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
 
 import { type GroupSummary } from '../../hooks/useGroups';
 import { useTheme } from '../../hooks/useTheme';
 import { HEADING_FONT_BOLD, BODY_FONT } from '../../theme';
 import { GroupAvatar } from '../workplace/GroupAvatar';
 
+import { groupColorTone } from './groupColorTone';
 import { useProjekteTone } from './projekteTone';
 
 /**
@@ -26,6 +27,8 @@ export function ProjektTile({
 }) {
   const theme = useTheme();
   const tone = useProjekteTone();
+  // A chosen colour replaces the neutral card with the audited palette tone (both modes).
+  const colored = groupColorTone(group.color, useColorScheme() === 'dark');
   return (
     <Pressable
       onPress={onPress}
@@ -36,8 +39,8 @@ export function ProjektTile({
         {
           width: size,
           height: size,
-          backgroundColor: theme.card,
-          borderColor: theme.cardBorder,
+          backgroundColor: colored?.bg ?? theme.card,
+          borderColor: colored?.bg ?? theme.cardBorder,
         },
         pressed && styles.pressed,
       ]}
@@ -45,16 +48,19 @@ export function ProjektTile({
       <View style={styles.top}>
         <GroupAvatar groupId={group.id} name={group.name} avatarUrl={group.avatar_url} size={40} />
         <Ionicons
-          name={group.group_type === 'personal' ? 'person' : 'people'}
+          name={(group.member_count ?? 1) > 1 ? 'people' : 'person'}
           size={18}
-          color={tone.accent}
+          color={colored?.title ?? tone.accent}
         />
       </View>
       <View>
-        <Text style={[styles.name, { color: theme.text }]} numberOfLines={2}>
+        <Text style={[styles.name, { color: colored?.title ?? theme.text }]} numberOfLines={2}>
           {group.name}
         </Text>
-        <Text style={[styles.meta, { color: theme.textSecondary }]} numberOfLines={1}>
+        <Text
+          style={[styles.meta, { color: colored?.desc ?? theme.textSecondary }]}
+          numberOfLines={1}
+        >
           {meta}
         </Text>
       </View>

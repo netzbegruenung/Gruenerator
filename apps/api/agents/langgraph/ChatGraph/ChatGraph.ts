@@ -225,6 +225,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     roleBausteinActive: input.roleBausteinActive === true,
     userRoles: input.userRoles ?? [],
     activeRole: input.activeRole ?? null,
+    projectLandesverband: input.projectLandesverband ?? null,
 
     // Active skill (drives platform-specific prompt fragment in respondNode)
     activeSkillMention: input.activeSkillMention || null,
@@ -236,6 +237,8 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     // User profile instructions (from profiles.custom_prompt)
     userInstructions: input.userInstructions || null,
     projectInstructions: input.projectInstructions ?? null,
+    projectDocs: input.projectDocs ?? null,
+    project: input.project ?? null,
     projectRecipeIds: input.projectRecipeIds ?? [],
 
     // Memory context (will be set by controller before graph execution)

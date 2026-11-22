@@ -469,7 +469,7 @@ const AddTemplateModal = ({
     </div>
   );
 
-  const modalTitle = groupId ? 'Vorlage zur Gruppe hinzufügen' : 'Neue Vorlage erstellen';
+  const modalTitle = groupId ? 'Vorlage zum Projekt hinzufügen' : 'Neue Vorlage erstellen';
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>

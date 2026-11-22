@@ -43,7 +43,7 @@ vi.mock('./groupContent.js', async (importOriginal) => ({
 }));
 
 const { readThreadProjectInstructions } = await import('./groupInstructions.js');
-const { getProjectFileSources } = await import('./projectFiles.js');
+const { getProjectFileDocumentIds } = await import('./projectFiles.js');
 const { getSpaceRecallScope, getThreadRecallContext, recallPastChats } =
   await import('../../routes/chat/services/pastChatRecallService.js');
 
@@ -126,9 +126,9 @@ describe.skipIf(!url)('Projektmaterial nach Mitgliedschaft', () => {
   });
 
   it('files follow the same rule', async () => {
-    expect(await getProjectFileSources(T1, B)).toHaveLength(1);
-    expect(await getProjectFileSources(T2, B)).toHaveLength(0);
-    expect(await getProjectFileSources(T1, C)).toHaveLength(0);
+    expect(await getProjectFileDocumentIds(T1, B)).toHaveLength(1);
+    expect(await getProjectFileDocumentIds(T2, B)).toHaveLength(0);
+    expect(await getProjectFileDocumentIds(T1, C)).toHaveLength(0);
   });
 
   it('recall scope for B in the team chat: own chats plus team chats, never A private', async () => {
@@ -159,7 +159,7 @@ describe.skipIf(!url)('Projektmaterial nach Mitgliedschaft', () => {
       JSON.stringify({ [C]: 'write' }),
     ]);
     expect(await readThreadProjectInstructions(T1, C)).toBeNull();
-    expect(await getProjectFileSources(T1, C)).toHaveLength(0);
+    expect(await getProjectFileDocumentIds(T1, C)).toHaveLength(0);
     expect(await getSpaceRecallScope(T1, C)).toBeNull();
     await pool.query(`UPDATE chat_threads SET permissions = '{}'::jsonb WHERE id = $1`, [T1]);
   });
@@ -175,7 +175,7 @@ describe.skipIf(!url)('Projektmaterial nach Mitgliedschaft', () => {
       [P, T4, A]
     );
     expect(await readThreadProjectInstructions(T4, B)).toBeNull();
-    expect(await getProjectFileSources(T4, B)).toHaveLength(0);
+    expect(await getProjectFileDocumentIds(T4, B)).toHaveLength(0);
   });
 
   it('a legacy share with empty permissions counts as read and write', async () => {
@@ -189,7 +189,7 @@ describe.skipIf(!url)('Projektmaterial nach Mitgliedschaft', () => {
       [P, T5, A]
     );
     expect((await readThreadProjectInstructions(T5, B))?.text).toBe('Im Du schreiben.');
-    expect(await getProjectFileSources(T5, B)).toHaveLength(1);
+    expect(await getProjectFileDocumentIds(T5, B)).toHaveLength(1);
   });
 
   it('a member who leaves loses the material', async () => {
@@ -198,7 +198,7 @@ describe.skipIf(!url)('Projektmaterial nach Mitgliedschaft', () => {
       [P, B]
     );
     expect(await readThreadProjectInstructions(T1, B)).toBeNull();
-    expect(await getProjectFileSources(T1, B)).toHaveLength(0);
+    expect(await getProjectFileDocumentIds(T1, B)).toHaveLength(0);
     expect(await getSpaceRecallScope(T1, B)).toBeNull();
   });
 });

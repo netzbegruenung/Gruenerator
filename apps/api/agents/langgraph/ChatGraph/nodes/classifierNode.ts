@@ -519,8 +519,18 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   let pinnedOwnContentTool: 'notebooks' | 'find_content' | null = null;
   if (intent === 'summary' && !hasMaterialToSummarise && !CURRENT_THREAD_REFERENCE.test(userText)) {
     if (detectedUrls.length === 0 && carriedUrls.length > 0) detectedUrls = carriedUrls;
-    pinnedOwnContentTool = detectedUrls.length === 0 ? ownContentFirstTool(userText) : null;
-    if (pinnedOwnContentTool) {
+    // Im Projekt-Chat sind Dateien und Docs des Projekts das Material („Fasse
+    // das Protokoll zur Plakatierung zusammen"). Live 22.11.2026 ging das ins
+    // Web; der Loop hat im Projekt `read_artifact` und `groups` (search) immer
+    // sichtbar (`catalogAssembly`), die Vorab-Suche liefert die Fundstellen.
+    const inProjectWithMaterial =
+      detectedUrls.length === 0 && (state.project?.documentIds.length ?? 0) > 0;
+    pinnedOwnContentTool =
+      detectedUrls.length === 0 && !inProjectWithMaterial ? ownContentFirstTool(userText) : null;
+    if (inProjectWithMaterial) {
+      log.info('[Classifier] summary in a project chat → loop over the project material');
+      intent = 'agentic';
+    } else if (pinnedOwnContentTool) {
       log.info(`[Classifier] summary of own content → loop with ${pinnedOwnContentTool} pinned`);
       intent = 'agentic';
     } else if (detectedUrls.length > 0) {

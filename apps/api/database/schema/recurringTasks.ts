@@ -36,6 +36,9 @@ export const recurring_tasks = pgTable(
     // Agent to run (own / group-shared / system). TEXT slug, never a UUID.
     // Null → the default universal agent.
     agent_identifier: text('agent_identifier'),
+    // Projekt der Aufgabe (#5939): dessen Anweisungen, Dateien, Notebooks und
+    // Rezepte gelten im Lauf, solange der Besitzer aktives Mitglied ist.
+    group_id: uuid('group_id'),
     title: text('title').notNull(),
     instruction: text('instruction').notNull(),
     delivery: text('delivery').$type<RecurringTaskDelivery>().notNull().default('document'),

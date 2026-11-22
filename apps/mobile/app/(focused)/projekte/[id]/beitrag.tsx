@@ -150,7 +150,7 @@ export default function ProjektBeitragScreen() {
           )}
           <TextInput
             {...mention.inputProps}
-            placeholder={isSystem ? 'Schreib einen Beitrag …' : 'Schreib etwas an die Gruppe …'}
+            placeholder={isSystem ? 'Schreib einen Beitrag …' : 'Schreib etwas an das Projekt …'}
             placeholderTextColor={theme.textSecondary}
             accessibilityLabel="Beitrag"
             editable={!busy}

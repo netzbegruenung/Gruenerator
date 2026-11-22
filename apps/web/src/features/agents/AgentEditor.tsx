@@ -1,3 +1,4 @@
+import { MAX_RECURRING_TASK_INSTRUCTION } from '@gruenerator/contracts';
 import { getAgentSlug, USER_SELECTABLE_TOOLS, type Agent } from '@gruenerator/shared/agents';
 import {
   DEFAULT_SCHEDULE,
@@ -8,18 +9,17 @@ import {
   type Locale,
 } from '@gruenerator/shared/grueneratoren';
 import { isModelEnabledByDefault, TEXT_MODELS } from '@gruenerator/shared/models';
-import { generateSlugSuffix, slugifyName } from '@gruenerator/shared/utils';
 import { Button, Input, Textarea } from '@gruenerator/ui';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { RecipePicker } from '../agentura/recipes/RecipePicker';
-import { useCreateRecurringTask, useUpdateRecurringTask } from '../recurring-tasks/api';
+import { useUpdateRecurringTask } from '../recurring-tasks/api';
 import { RecurrenceFields } from '../recurring-tasks/RecurrenceFields';
 
 import { AgentConversionNotice } from './AgentDeprecationNotice';
 import { AgentPreview } from './AgentPreview';
-import { useCreateUserAgent, useUpdateUserAgent } from './api';
+import { useUpdateUserAgent } from './api';
 import { AgentAvatar } from './icons/AgentAvatar';
 import { IconPicker } from './icons/IconPicker';
 import { OptionToggle } from './OptionToggle';
@@ -28,7 +28,6 @@ import PageContainer from '@/components/common/PageContainer';
 import { UnderlineTabs } from '@/components/common/UnderlineTabs';
 import { useNotebookCollections } from '@/features/auth/hooks/useProfileData';
 import { SYSTEM_NOTEBOOKS } from '@/features/notebook/config/notebooksConfig';
-import { useAuthStore } from '@/stores/authStore';
 
 // The same model set the chat composer offers, single-sourced from the catalog.
 const MODEL_OPTIONS = TEXT_MODELS.filter((m) => isModelEnabledByDefault(m.id));
@@ -37,9 +36,6 @@ const selectCls =
   'h-11 w-full rounded-sm border-0 bg-input-bg px-sm text-sm text-input-text outline-none transition-all focus-visible:ring-[3px] focus-visible:ring-ring/50';
 const labelCls = 'flex flex-col gap-xs text-sm font-medium';
 
-// A recurring task's instruction is the agent's Anleitung; the contract caps it.
-const MAX_TASK_INSTRUCTION = 4000;
-
 type Section = 'grund' | 'tools' | 'wissen' | 'zeitplan';
 
 function toggle(list: string[], value: string): string[] {
@@ -47,71 +43,52 @@ function toggle(list: string[], value: string): string[] {
 }
 
 interface AgentEditorProps {
-  mode: 'create' | 'edit';
-  /** EMPTY_FORM (+AI draft) for create, hydrateFormState(agent) for edit. */
+  /** hydrateFormState(agent). */
   initialState: FormState;
-  /** Edit only — drives the PATCH target and the "Im Chat öffnen" link. */
+  /** Drives the PATCH target and the "Im Chat öffnen" link. */
   identifier?: string;
   onCancel?: () => void;
-  /**
-   * `recurring` (create) surfaces the Zeitplan tab and, on save, also creates a
-   * recurring task bound to the new agent. `agent` (default) is the plain builder.
-   */
-  variant?: 'agent' | 'recurring';
-  /** Edit only — the loaded task's schedule, when this agent already has one. */
+  /** The loaded task's schedule, when this agent already has one. */
   initialSchedule?: ScheduleState | null;
-  /** Edit only — id of the recurring task to PATCH alongside the agent. */
+  /** Id of the recurring task to PATCH alongside the agent. */
   recurringTaskId?: string;
-  /** Edit only — the stored agent, for the conversion notice. */
+  /** The stored agent, for the conversion notice. */
   agent?: Agent;
 }
 
 /**
  * Single-page agent editor: a sticky action header, the form split into
- * Grundlagen / Werkzeuge / Wissen tabs, and a live preview pane alongside. Shared
- * by the create routes and the edit route, so create and edit behave identically.
+ * Grundlagen / Werkzeuge / Wissen tabs, and a live preview pane alongside. Edit
+ * only: new agents are closed, new tasks are built in `RecurringTaskBuilderPage`.
  */
 function AgentEditor({
-  mode,
   initialState,
   identifier,
   onCancel,
-  variant = 'agent',
   initialSchedule = null,
   recurringTaskId,
   agent,
 }: AgentEditorProps) {
   const navigate = useNavigate();
-  const createMut = useCreateUserAgent();
   const updateMut = useUpdateUserAgent(identifier ?? '');
-  const createTaskMut = useCreateRecurringTask();
   const updateTaskMut = useUpdateRecurringTask();
-  const saving =
-    createMut.isPending ||
-    updateMut.isPending ||
-    createTaskMut.isPending ||
-    updateTaskMut.isPending;
+  const saving = updateMut.isPending || updateTaskMut.isPending;
 
   const [form, setForm] = useState<FormState>(initialState);
   const [error, setError] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState(false);
   const [section, setSection] = useState<Section>('grund');
 
-  // The Zeitplan tab shows for recurring create and when editing an agent that
-  // already has a recurring task. Its state is kept outside FormState — it maps to
+  // The Zeitplan tab shows when the agent already has a recurring task. Its state is kept outside FormState — it maps to
   // the recurring-task call, not the user-agent payload.
-  const showSchedule = variant === 'recurring' || initialSchedule != null;
+  const showSchedule = initialSchedule != null;
   const [schedule, setSchedule] = useState<ScheduleState>(initialSchedule ?? DEFAULT_SCHEDULE);
-  // Holds the agent id after a successful create so a failed follow-up task call
-  // can be retried without creating a duplicate agent.
-  const createdIdentifierRef = useRef<string | null>(null);
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => {
     setJustSaved(false);
     setForm((prev) => ({ ...prev, [k]: v }));
   };
 
-  const authorName = useAuthStore((s) => s.user?.display_name);
   const { query: notebooksQuery } = useNotebookCollections({ isActive: true });
   const userNotebooks = notebooksQuery.data ?? [];
 
@@ -124,78 +101,34 @@ function AgentEditor({
     setError(null);
     try {
       // Block early when this save also writes a recurring task whose instruction
-      // (= the Anleitung) would exceed the contract cap — otherwise create mode
-      // would persist the agent and then fail the task on every retry.
-      const writesTask = variant === 'recurring' || recurringTaskId != null;
-      if (writesTask && form.systemRole.trim().length > MAX_TASK_INSTRUCTION) {
+      // (= the Anleitung) would exceed the contract cap.
+      if (
+        recurringTaskId != null &&
+        form.systemRole.trim().length > MAX_RECURRING_TASK_INSTRUCTION
+      ) {
         setError(
-          `Die Anleitung ist zu lang für eine wiederkehrende Aufgabe (max. ${MAX_TASK_INSTRUCTION} Zeichen). Bitte kürze sie.`
+          `Die Anleitung ist zu lang für eine wiederkehrende Aufgabe (max. ${MAX_RECURRING_TASK_INSTRUCTION} Zeichen). Bitte kürze sie.`
         );
         setSection('grund');
         return;
       }
 
       const payload = formToPayload(form);
-      if (mode === 'create') {
-        // Create the agent once; keep its id so a failed follow-up task call can
-        // retry without spawning a duplicate agent.
-        let agentId = createdIdentifierRef.current;
-        if (!agentId) {
-          const slug = slugifyName(form.title, 'agent');
-          // Suffix lowercased to satisfy the identifier regex `^[a-z0-9-]+$`.
-          const created = await createMut.mutateAsync({
-            identifier: `${slug}-${generateSlugSuffix().toLowerCase()}`,
-            author: authorName || 'Eigener Agent',
-            ...payload,
-          });
-          agentId = created.identifier;
-          createdIdentifierRef.current = agentId;
-        }
-        if (variant === 'recurring') {
-          let newTaskId: string | null = null;
-          try {
-            const createdTask = await createTaskMut.mutateAsync({
-              title: form.title.trim(),
-              instruction: form.systemRole.trim(),
-              agentIdentifier: agentId,
-              recurrence: scheduleToRecurrence(schedule),
-              delivery: schedule.delivery,
-              emailNotify: schedule.emailNotify,
-              timezone: schedule.timezone,
-              locale: form.locale,
-              enabled: true,
-            });
-            newTaskId = createdTask.id;
-          } catch {
-            setError(
-              'Agent angelegt, aber der Zeitplan konnte nicht gespeichert werden. Bitte erneut speichern.'
-            );
-            return;
-          }
-          // `wiederkehrend` ist kein AgenturaCategoryKey — der Wert wurde
-          // verworfen und die Person landete auf dem Standardregal statt bei
-          // ihrer neuen Aufgabe. Ziel ist jetzt der Verlauf genau dieser Aufgabe.
-          void navigate(newTaskId != null ? `/wiederkehrend?task=${newTaskId}` : '/wiederkehrend');
-        } else {
-          void navigate(`/agents/${agentId}/edit`);
-        }
-      } else {
-        await updateMut.mutateAsync(payload);
-        if (recurringTaskId) {
-          await updateTaskMut.mutateAsync({
-            id: recurringTaskId,
-            patch: {
-              title: form.title.trim(),
-              instruction: form.systemRole.trim(),
-              recurrence: scheduleToRecurrence(schedule),
-              delivery: schedule.delivery,
-              emailNotify: schedule.emailNotify,
-              timezone: schedule.timezone,
-            },
-          });
-        }
-        setJustSaved(true);
+      await updateMut.mutateAsync(payload);
+      if (recurringTaskId) {
+        await updateTaskMut.mutateAsync({
+          id: recurringTaskId,
+          patch: {
+            title: form.title.trim(),
+            instruction: form.systemRole.trim(),
+            recurrence: scheduleToRecurrence(schedule),
+            delivery: schedule.delivery,
+            emailNotify: schedule.emailNotify,
+            timezone: schedule.timezone,
+          },
+        });
       }
+      setJustSaved(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Speichern fehlgeschlagen.');
     }
@@ -231,12 +164,12 @@ function AgentEditor({
             size="md"
           />
           <h1 className="truncate text-lg font-bold tracking-tight text-foreground-heading">
-            {mode === 'create' ? 'Neuer Agent' : form.title || 'Agent bearbeiten'}
+            {form.title || 'Agent bearbeiten'}
           </h1>
         </div>
         <div className="flex items-center gap-sm">
           {justSaved && <span className="text-sm text-foreground-muted">Gespeichert ✓</span>}
-          {mode === 'edit' && identifier && (
+          {identifier && (
             <Button
               variant="brand-outline"
               size="sm"
@@ -264,7 +197,7 @@ function AgentEditor({
         </div>
       </header>
 
-      {mode === 'edit' && agent && <AgentConversionNotice agent={agent} className="mb-lg" />}
+      {agent && <AgentConversionNotice agent={agent} className="mb-lg" />}
 
       {error && <p className="mb-md text-sm text-destructive">{error}</p>}
 

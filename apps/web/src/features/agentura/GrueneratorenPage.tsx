@@ -284,7 +284,7 @@ function GrueneratorenPage() {
                   <PiFileText />
                   <span>Rezept</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate('/agents/new?mode=recurring')}>
+                <DropdownMenuItem onClick={() => navigate('/wiederkehrend/neu')}>
                   <PiRepeat />
                   <span>Wiederkehrende Aufgabe</span>
                 </DropdownMenuItem>
