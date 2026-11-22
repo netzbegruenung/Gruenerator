@@ -11,6 +11,7 @@ import { type ContentReportKind, type ContentReportReason } from '@gruenerator/c
 import { CONTENT_REPORT_REASON_LABELS } from '@gruenerator/shared/utils';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import { GROUP_POST_CONTENT_TYPE } from '../groups/groupPosts.js';
 import { notifyGroupAdmins } from '../notifications/index.js';
 import { isRowId } from '../trash/ownedRowTrash.js';
 
@@ -30,6 +31,8 @@ export interface ProjectReportTarget {
   groupName: string;
   /** The author or sharer; null once the person is gone. */
   ownerId: string | null;
+  /** The feed card the item sits on (`?beitrag=`), for the admins' deep link. */
+  shareId: string | null;
 }
 
 /** The live project the reporter belongs to, joined to the reported row. */
@@ -38,12 +41,19 @@ const MEMBER_SCOPE = `
   JOIN group_memberships gm ON gm.group_id = g.id AND gm.user_id = $2::uuid AND gm.is_active = TRUE
   WHERE t.id = $1::uuid`;
 
+// A post sits on its own share row (`content_type = 'group_post'`), a comment
+// on the share it belongs to — that share is the card the feed scrolls to.
 const TARGET_SQL: Record<ProjectReportKind, string> = {
-  group_post: `SELECT g.id::text AS group_id, g.name, t.author_id::text AS owner_id
+  group_post: `SELECT g.id::text AS group_id, g.name, t.author_id::text AS owner_id,
+                      (SELECT s.id::text FROM group_content_shares s
+                        WHERE s.content_type = '${GROUP_POST_CONTENT_TYPE}' AND s.content_id = t.id::text
+                        LIMIT 1) AS share_id
                  FROM group_posts t ${MEMBER_SCOPE}`,
-  group_share: `SELECT g.id::text AS group_id, g.name, t.shared_by_user_id::text AS owner_id
+  group_share: `SELECT g.id::text AS group_id, g.name, t.shared_by_user_id::text AS owner_id,
+                       t.id::text AS share_id
                   FROM group_content_shares t ${MEMBER_SCOPE}`,
-  group_comment: `SELECT g.id::text AS group_id, g.name, t.user_id::text AS owner_id
+  group_comment: `SELECT g.id::text AS group_id, g.name, t.user_id::text AS owner_id,
+                         t.share_id::text AS share_id
                     FROM group_share_comments t ${MEMBER_SCOPE}`,
 };
 
@@ -57,9 +67,15 @@ export async function loadProjectReportTarget(
     group_id: string;
     name: string | null;
     owner_id: string | null;
+    share_id: string | null;
   } | null;
   if (!row) return null;
-  return { groupId: row.group_id, groupName: row.name ?? 'Projekt', ownerId: row.owner_id };
+  return {
+    groupId: row.group_id,
+    groupName: row.name ?? 'Projekt',
+    ownerId: row.owner_id,
+    shareId: row.share_id,
+  };
 }
 
 const NOUN: Record<ProjectReportKind, string> = {
@@ -87,7 +103,9 @@ export async function notifyProjectAdminsOfReport(params: {
     type: 'group_content_reported',
     title: 'Inhalt gemeldet',
     body: `${NOUN[kind]} in „${target.groupName}" wurde gemeldet: ${CONTENT_REPORT_REASON_LABELS[reason]}`,
-    actionUrl: `/gruppen/${target.groupId}`,
+    actionUrl: target.shareId
+      ? `/projekte/${target.groupId}?beitrag=${target.shareId}`
+      : `/projekte/${target.groupId}`,
     metadata: { reportKind: kind, targetId },
   });
 }
