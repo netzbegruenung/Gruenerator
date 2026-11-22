@@ -156,7 +156,7 @@ async function insertTemplate(o: { isPrivate?: boolean } = {}): Promise<string> 
 }
 
 /** A project run by `admin`, with `owner` and the first reporter as members and a post by `owner`. */
-async function insertProjectPost(): Promise<{ groupId: string; postId: string }> {
+async function insertProjectPost(): Promise<{ groupId: string; postId: string; shareId: string }> {
   const g = await pool.query<{ id: string }>(
     "INSERT INTO groups (name, created_by) VALUES ('Klima-OV', $1) RETURNING id",
     [admin]
@@ -176,7 +176,14 @@ async function insertProjectPost(): Promise<{ groupId: string; postId: string }>
     "INSERT INTO group_posts (group_id, author_id, body) VALUES ($1, $2, 'Hallo') RETURNING id",
     [groupId, owner]
   );
-  return { groupId, postId: post.rows[0]!.id };
+  const postId = post.rows[0]!.id;
+  // As `createGroupPost` does: the post sits on its own share row, the feed card.
+  const share = await pool.query<{ id: string }>(
+    `INSERT INTO group_content_shares (content_type, content_id, group_id, shared_by_user_id)
+     VALUES ('group_post', $1, $2, $3) RETURNING id`,
+    [postId, groupId, owner]
+  );
+  return { groupId, postId, shareId: share.rows[0]!.id };
 }
 
 const TABLE_OF = {
@@ -319,7 +326,7 @@ describe.skipIf(!url)('Meldungen (contentReportsService)', () => {
 
   it('project content: members only, own refused, admins told without author and reporter (#5948)', async () => {
     notifyGroupAdmins.mockClear();
-    const { groupId, postId } = await insertProjectPost();
+    const { groupId, postId, shareId } = await insertProjectPost();
     const asPost = (o: Partial<ContentReportCreate> = {}): ContentReportCreate => ({
       kind: 'group_post',
       targetId: postId,
@@ -353,11 +360,27 @@ describe.skipIf(!url)('Meldungen (contentReportsService)', () => {
       skipUserIds: [owner],
       type: 'group_content_reported',
       body: 'Ein Beitrag in „Klima-OV" wurde gemeldet: Belästigung',
+      // The feed's deep link: web and app scroll to that card.
+      actionUrl: `/projekte/${groupId}?beitrag=${shareId}`,
     });
 
     // A repeat is stored once and tells nobody again.
     await recordContentReport(reporters[0]!, asPost());
     expect(notifyGroupAdmins).toHaveBeenCalledTimes(1);
+
+    // A comment links to the card it hangs on.
+    const comment = await pool.query<{ id: string }>(
+      "INSERT INTO group_share_comments (share_id, group_id, user_id, body) VALUES ($1, $2, $3, 'Na ja') RETURNING id",
+      [shareId, groupId, owner]
+    );
+    await recordContentReport(
+      reporters[0]!,
+      asPost({ kind: 'group_comment', targetId: comment.rows[0]!.id })
+    );
+    expect(notifyGroupAdmins.mock.calls[1]![0]).toMatchObject({
+      body: 'Ein Kommentar in „Klima-OV" wurde gemeldet: Belästigung',
+      actionUrl: `/projekte/${groupId}?beitrag=${shareId}`,
+    });
   });
 
   it('groups reports per target with reasons, newest notes and the asset', async () => {

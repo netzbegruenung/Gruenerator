@@ -8,7 +8,6 @@
 import { AiProviderError } from '../../../services/providers/providerErrors.js';
 import { captureSseError } from '../../../utils/observability/captureSseError.js';
 
-import type { SharepicVariant } from './sharepicVariantHelpers.js';
 import type {
   SearchIntent,
   SearchSource,
@@ -20,6 +19,7 @@ import type {
   ComputeData,
 } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { StreamRecorder } from '../../../services/chat/resumableStreams.js';
+import type { SharepicVariant } from './sharepicVariantHelpers.js';
 import type {
   CanvasAiSuggestion,
   TriggerDocEdit,
@@ -492,6 +492,11 @@ export class SSEWriter {
   // and handed over on attach. null = this writer is not recordable.
   private recorder: StreamRecorder | null = null;
   private preAttach: string[] | null;
+  // Die Bestätigungskarten, die der Client an diesem Ende darstellt
+  // (`confirmActions` im Chat-Request, gesetzt in `buildStreamContext`). null =
+  // keine Einschränkung: Leitungen ohne Client (`createNullSSE`) und Wege, die
+  // die Meldung nicht tragen.
+  private confirmActionTypes: ReadonlySet<string> | null = null;
 
   constructor(res: Response, opts: { recordable?: boolean } = {}) {
     this.res = res;
@@ -520,6 +525,16 @@ export class SSEWriter {
   private capture(frame: string): void {
     if (this.recorder) this.recorder.record(frame);
     else this.preAttach?.push(frame);
+  }
+
+  /** Which confirm cards the client on this stream renders (see `confirmActions`). */
+  setConfirmActionTypes(types: Iterable<string>): void {
+    this.confirmActionTypes = new Set(types);
+  }
+
+  /** False when the client would drop this card type unseen. */
+  rendersConfirmAction(type: string): boolean {
+    return this.confirmActionTypes === null || this.confirmActionTypes.has(type);
   }
 
   /** Register (or clear) the turn-persistence text tap. */

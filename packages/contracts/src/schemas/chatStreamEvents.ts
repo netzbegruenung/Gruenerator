@@ -355,8 +355,11 @@ export const confirmActionTypeSchema = z.enum([
   'share_doc',
   'create_group',
   'join_group',
-  // Additiv (F0): ausgelieferte Clients kennen den Wert nicht und rendern die
-  // Karte über ihren Fallback — sie fällt nicht aus, sie sieht nur generisch aus.
+  // Additiv (F0). Ein ausgelieferter Client, der einen Wert nicht kennt, hat
+  // KEINEN Fallback: `parseSSEStream` verwirft das ganze Ereignis an diesem
+  // Enum, die Karte erscheint nie. Deshalb meldet jeder Client im Request, was
+  // er darstellt (`confirmActions`), und der Server zeigt nur das; ohne die
+  // Meldung gilt `CONFIRM_ACTION_TYPES_APP_1_7_0` unten.
   'add_cloud_connection',
   // Notebook-Karten des `notebooks`-Werkzeugs (09/2026), ebenfalls additiv.
   'attach_wolke_folder',
@@ -383,6 +386,31 @@ export const confirmActionTypeSchema = z.enum([
   'set_antragsgruen_agenda',
 ]);
 export type ConfirmActionType = z.infer<typeof confirmActionTypeSchema>;
+
+/**
+ * Die Karten, die ein Client ohne `confirmActions` im Request darstellt: das
+ * Enum, wie es in der App 1.7.0 (Commit 7c87c91816, 28.10.2026) ausgeliefert
+ * wurde. Eingefroren — ein neuer Typ kommt NICHT hierher, sondern nur ins Enum;
+ * neue Clients melden ihn selbst. Abräumen erst, wenn keine App vor dem ersten
+ * Build mit `confirmActions` mehr im Umlauf ist.
+ */
+export const CONFIRM_ACTION_TYPES_APP_1_7_0: readonly ConfirmActionType[] = [
+  'save_as_doc',
+  'modify_doc',
+  'modify_board',
+  'share_doc',
+  'create_group',
+  'join_group',
+  'add_cloud_connection',
+  'attach_wolke_folder',
+  'set_notebook_visibility',
+  'share_notebook',
+  'set_group_visibility',
+  'create_recurring_task',
+  'create_user_agent',
+  'share_user_agent',
+  'share_text_form',
+];
 
 /** confirm_action SSE event — the client fills the optionals with defaults. */
 export const confirmActionEventSchema = z.object({

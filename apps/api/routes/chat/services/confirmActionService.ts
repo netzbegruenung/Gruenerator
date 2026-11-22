@@ -7,6 +7,7 @@
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { createLogger } from '../../../utils/logger.js';
+import { EndgueltigerWerkzeugFehler, werkzeugFehler } from '../agents/toolFailure.js';
 
 import { pendingActionStore } from './pendingActionStore.js';
 
@@ -394,6 +395,14 @@ export function newActionId(): string {
   return `action_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+const CONFIRM_CARD_UNSUPPORTED = werkzeugFehler({
+  art: 'nicht_verfuegbar',
+  ursache: 'Diese Bestätigung kann deine App-Version noch nicht anzeigen',
+  befund: 'Aktualisiere die App oder erledige es in der Web-Version',
+  naechsterSchritt:
+    'Nicht erneut versuchen und nichts als angefordert ankündigen; sag der Person, dass es nach einem App-Update oder in der Web-Version geht',
+});
+
 /**
  * Store + emit a `confirm_action` for a TOOL-initiated pending action (agentic
  * loop). Reuses the same `CONFIRM_ACTION_CONFIG` card and Redis store as the
@@ -406,6 +415,14 @@ export async function emitToolConfirmAction(
   action: PendingAction,
   metadata: Array<{ key: string; value: string }>
 ): Promise<void> {
+  // Ein Client, dessen Enum den Typ nicht kennt, verwirft die Karte still —
+  // dann hielte das Modell sie für angezeigt und bäte um eine Bestätigung, die
+  // niemand sieht. Geworfen statt zurückgegeben: alle Werkzeuge rufen hier
+  // durch, und `wrapToolsForLoop` macht daraus die Absage ans Modell.
+  if (!sse.rendersConfirmAction(action.type)) {
+    log.info(`[ChatGraph] Confirm card ${action.type} not supported by this client`);
+    throw new EndgueltigerWerkzeugFehler(CONFIRM_CARD_UNSUPPORTED);
+  }
   const cfg = CONFIRM_ACTION_CONFIG[action.type];
   sse.send('confirm_action', {
     actionId: action.actionId,
