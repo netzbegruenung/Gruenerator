@@ -14,6 +14,7 @@ import { FEED_KIND_ICONS } from '../../../../components/projekte/feedIcons';
 import { useProjekteTone } from '../../../../components/projekte/projekteTone';
 import {
   MAKE_ADMIN_ID,
+  REMOVE_MEMBER_ID,
   buildMemberActions,
   canChangeMemberRole,
   canLeaveProject,
@@ -27,6 +28,7 @@ import {
   useGroupMembers,
   useLeaveGroup,
   useSetGroupMute,
+  useRemoveGroupMember,
   useUpdateMemberRole,
   type GroupMember,
 } from '../../../../hooks/useGroups';
@@ -68,6 +70,7 @@ export default function ProjektInfoScreen() {
   const isAdmin = !!membership?.isAdmin;
   const muteMutation = useSetGroupMute(id ?? '');
   const roleMutation = useUpdateMemberRole(id ?? '');
+  const removeMutation = useRemoveGroupMember(id ?? '');
   const leaveMutation = useLeaveGroup();
   const muted = muteMutation.isPending
     ? (muteMutation.variables ?? false)
@@ -114,6 +117,24 @@ export default function ProjektInfoScreen() {
 
   const selectMemberAction = (actionId: string) => {
     if (!menuMember) return;
+    if (actionId === REMOVE_MEMBER_ID) {
+      const target = menuMember;
+      const name = target.display_name ?? target.first_name ?? target.email ?? 'Das Mitglied';
+      Alert.alert(
+        'Mitglied entfernen',
+        `${name} verliert den Zugriff auf dieses Projekt. Team-Chats bleiben im Projekt.`,
+        [
+          { text: 'Abbrechen', style: 'cancel' },
+          {
+            text: 'Entfernen',
+            style: 'destructive',
+            onPress: () =>
+              removeMutation.mutate(target.user_id, { onSuccess: done, onError: fail }),
+          },
+        ]
+      );
+      return;
+    }
     roleMutation.mutate(
       { memberId: menuMember.user_id, role: actionId === MAKE_ADMIN_ID ? 'admin' : 'member' },
       { onSuccess: done, onError: fail }

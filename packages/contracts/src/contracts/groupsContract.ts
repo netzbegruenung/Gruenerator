@@ -373,6 +373,21 @@ export const groupsContract = c.router({
     summary: 'Change a member role (admin)',
   },
 
+  removeMember: {
+    method: 'DELETE',
+    path: '/api/auth/groups/:groupId/members/:memberId',
+    pathParams: z.object({ groupId: z.string(), memberId: z.string() }),
+    responses: {
+      200: groupSuccessResponseSchema,
+      400: groupErrorResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      404: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Remove another member from a group (admin)',
+  },
+
   addLink: {
     method: 'POST',
     path: '/api/auth/groups/:groupId/links',

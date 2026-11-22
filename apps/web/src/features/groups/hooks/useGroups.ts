@@ -13,6 +13,7 @@ import {
   useSetGroupContentWrite,
   useSetGroupMute,
   useUpdateGroupLink,
+  useRemoveGroupMember as useRemoveGroupMemberShared,
   useUpdateMemberRole as useUpdateMemberRoleShared,
   useUploadGroupAvatar,
   useUserGroups,
@@ -229,6 +230,14 @@ export const useUpdateMemberRole = (groupId: string) => {
   return {
     updateMemberRole: mutation.mutate,
     isUpdatingRole: mutation.isPending,
+  };
+};
+
+export const useRemoveGroupMember = (groupId: string) => {
+  const mutation = useRemoveGroupMemberShared(groupId);
+  return {
+    removeMember: mutation.mutate,
+    isRemovingMember: mutation.isPending,
   };
 };
 

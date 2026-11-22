@@ -45,6 +45,7 @@ export {
   useUpdateGroupInfo,
   useUpdateGroupLink,
   useUpdateGroupName,
+  useRemoveGroupMember,
   useUpdateMemberRole,
   useUploadGroupAvatar,
   useUserGroups,

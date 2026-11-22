@@ -254,6 +254,23 @@ export const useUpdateMemberRole = (groupId: string) => {
   });
 };
 
+/** Admin removes another member (not themselves, not the creator, not the last admin). */
+export const useRemoveGroupMember = (groupId: string) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (memberId: string) => {
+      const res = await getContractsClient().groups.removeMember({
+        params: { groupId, memberId },
+      });
+      if (res.status !== 200) throw apiErrorFromResponse(res);
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: groupMembersKey(groupId) });
+      void qc.invalidateQueries({ queryKey: GROUPS_QUERY_KEY });
+    },
+  });
+};
+
 /**
  * Mute/unmute the caller's own email + push notifications for a group. In-app
  * notifications are unaffected. Operates on the caller's membership, so any

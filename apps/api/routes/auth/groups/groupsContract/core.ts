@@ -20,6 +20,7 @@ import {
 import {
   createGroupForUser,
   joinGroupByToken,
+  removeGroupMember,
   updateGroupInfo,
 } from '../../../../services/groups/groupMutations.js';
 import { trashGroup } from '../../../../services/groups/groupTrash.js';
@@ -800,6 +801,37 @@ export const coreRoutes = {
       };
     } catch (error) {
       return groupErrorResponse('updateMemberRole', 'Fehler beim Aktualisieren der Rolle.', error);
+    }
+  }),
+
+  removeMember: s.route(groupsContract.removeMember, async (args) => {
+    const { groupId, memberId } = args.params;
+    try {
+      const outcome = await removeGroupMember(groupId, getUserId(args.req), memberId);
+      switch (outcome.status) {
+        case 200:
+          return {
+            status: 200 as const,
+            body: { success: true as const, message: outcome.message },
+          };
+        case 400:
+          return {
+            status: 400 as const,
+            body: { success: false as const, message: outcome.message },
+          };
+        case 403:
+          return {
+            status: 403 as const,
+            body: { success: false as const, message: outcome.message },
+          };
+        case 404:
+          return {
+            status: 404 as const,
+            body: { success: false as const, message: outcome.message },
+          };
+      }
+    } catch (error) {
+      return groupErrorResponse('removeMember', 'Fehler beim Entfernen des Mitglieds.', error);
     }
   }),
 

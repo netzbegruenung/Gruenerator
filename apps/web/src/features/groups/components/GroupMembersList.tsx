@@ -1,16 +1,31 @@
 import { validateRobotId } from '@gruenerator/shared/avatar';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   Badge,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@gruenerator/ui';
+import { useState } from 'react';
 import { HiUsers, HiShieldCheck, HiDotsVertical } from 'react-icons/hi';
+import { toast } from 'sonner';
 
 import { RobotAvatar } from '../../../components/common/RobotAvatar';
 import Spinner from '../../../components/common/Spinner';
-import { useGroupMembers, useUpdateMemberRole, type GroupMember } from '../hooks/useGroups';
+import {
+  useGroupMembers,
+  useRemoveGroupMember,
+  useUpdateMemberRole,
+  type GroupMember,
+} from '../hooks/useGroups';
 import { getMemberDisplayName, sortMembersByName } from '../utils/anonymousNames';
 
 interface GroupMembersListProps {
@@ -48,6 +63,8 @@ const GroupMembersList = ({
     onlineUserIds?.has(m.user_id) || String(m.user_id) === String(currentUserId);
   const members = onlineOnly && allMembers ? allMembers.filter(isMemberOnline) : allMembers;
   const { updateMemberRole, isUpdatingRole } = useUpdateMemberRole(groupId);
+  const { removeMember, isRemovingMember } = useRemoveGroupMember(groupId);
+  const [memberToRemove, setMemberToRemove] = useState<GroupMember | null>(null);
 
   const header = !hideHeader && (
     <div className="sticky top-0 z-10 bg-background-pure flex items-center justify-between py-xs -mx-sm px-sm">
@@ -176,6 +193,12 @@ const GroupMembersList = ({
                         Zum Admin machen
                       </DropdownMenuItem>
                     )}
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onClick={() => setMemberToRemove(member)}
+                    >
+                      Aus dem Projekt entfernen
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
@@ -183,6 +206,40 @@ const GroupMembersList = ({
           );
         })}
       </div>
+
+      <AlertDialog
+        open={memberToRemove !== null}
+        onOpenChange={(open) => {
+          if (!open) setMemberToRemove(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mitglied entfernen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {memberToRemove ? getMemberDisplayName(memberToRemove) : 'Das Mitglied'} verliert den
+              Zugriff auf dieses Projekt. Team-Chats und Inhalte bleiben im Projekt.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={isRemovingMember}
+              onClick={() => {
+                if (memberToRemove) {
+                  removeMember(memberToRemove.user_id, {
+                    onError: (error) => toast.error(error.message),
+                  });
+                }
+                setMemberToRemove(null);
+              }}
+            >
+              Entfernen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
