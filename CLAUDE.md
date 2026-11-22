@@ -42,7 +42,7 @@ Single workspace: `pnpm --filter @gruenerator/api test`, `pnpm --filter @gruener
   - **Erstell-Aufträge: das Nomen gibt frei, das Verb erzwingt.**
     - **Freigabe:** Ob ein Turn ein Sharepic bauen DARF, entscheidet das Wort (`hasExplicitSharepicWord`).
     - **Zwang:** Erzwungen wird es nur bei einer erkannten Bestellung (`asksForSharepic` → Einzeldurchlauf bzw. `forceCompoundGeneration`).
-    - **Bloße Nennung:** Ein bloß genanntes Sharepic (`namesSharepicWithoutOrder`) bekommt das Werkzeug ohne Zwang (`compoundGenerationOrdered: false`), und der Planer entscheidet. Dokument, PDF und Tabelle brauchen fürs Montieren weiter das Verb, weil diese Nomen meist vorhandenes Material meinen.
+    - **Bloße Nennung:** Ein bloß genanntes Sharepic (`namesSharepicWithoutOrder`) bekommt das Werkzeug ohne Zwang (`compoundGenerationOrdered: false`), und der Planer entscheidet. Dokument, PDF und Tabelle brauchen fürs Montieren weiter das Verb, weil diese Nomen meist vorhandenes Material meinen. `create_presentation` hängt in jedem Loop-Turn ohne erkannte Art, ebenfalls ohne Zwang: „Ich brauche eine PowerPoint…“ trug kein Verb aus der Liste und bekam sonst eine Gliederung samt „technisch nicht verfügbar“ (#5956).
     - **Anhang:** Ein Anhang, auch der Paste-Chip, schluckt keinen Erstell-Auftrag (`tier2_attachment_create_order`).
     - **Material:** Generatoren bekommen das Material des Turns nur über `turnMaterialBlock`. Die Datei-Teile werden vor der Umwandlung verworfen, ohne den Abschnitt sieht ein Generator nur den Auftragssatz.
     - **Ankündigungen:** Eine Ankündigung ohne Artefakt („Ich erstelle dir jetzt …") streicht `stripPhantomArtifactCreation`.

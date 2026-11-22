@@ -495,6 +495,20 @@ describe('toolCatalog domain tool mounting', () => {
     ).not.toContain('create_board');
   });
 
+  it('offers create_presentation on a loop turn without a kind, unforced (#5956)', () => {
+    // „Ich brauche eine PowerPoint…" carries no verb next to the noun: no kind, but
+    // the model must still be able to build the deck it was asked for.
+    expect(genCatalog({ kind: null }).toolNames).toContain('create_presentation');
+    // The guarantee stays with a recognised kind: nothing forces this tool.
+    expect(genCatalog({ kind: null }).toolNames).not.toContain('create_sheet');
+    // Another kind keeps its single fat tool (one artefact per turn).
+    expect(genCatalog({ kind: 'sheet' }).toolNames).not.toContain('create_presentation');
+    expect(genCatalog({ kind: null, req: false }).toolNames).not.toContain('create_presentation');
+    expect(
+      genCatalog({ kind: null, enabledTools: { create_presentation: false } }).toolNames
+    ).not.toContain('create_presentation');
+  });
+
   it('mounts edit_document for the sharepic studio surface (plan-and-send)', () => {
     const names = genCatalog({
       kind: null,
