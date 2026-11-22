@@ -24,8 +24,12 @@ interface Option {
 
 const MAX_MATCHES = 6;
 
-const PLACEHOLDERS = ['Neues Projekt erstellen …', 'Projekt suchen …', 'Gruppe anlegen …'];
-const PLACEHOLDERS_SHORT = ['Projekt erstellen …', 'Projekt suchen …', 'Gruppe …'];
+const PLACEHOLDERS = [
+  'Neues Projekt erstellen …',
+  'Projekt suchen …',
+  'Projekt oder Gruppe anlegen …',
+];
+const PLACEHOLDERS_SHORT = ['Projekt erstellen …', 'Projekt suchen …', 'Projekt/Gruppe …'];
 
 function TypeIcon({ type }: { type: ProjektType }) {
   const Icon = type === 'standard' ? HiUserGroup : HiUser;

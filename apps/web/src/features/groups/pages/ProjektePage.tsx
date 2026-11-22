@@ -1,6 +1,7 @@
-import { buildGroupPath } from '@gruenerator/shared/groups';
+import { buildGroupPath, groupContentKey } from '@gruenerator/shared/groups';
 import { extractSlugSuffix } from '@gruenerator/shared/utils';
 import { Button, SectionHeader, StatusBanner } from '@gruenerator/ui';
+import { useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback, useRef } from 'react';
 import { HiUser, HiUserGroup } from 'react-icons/hi';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -9,13 +10,15 @@ import withAuthRequired from '../../../components/common/LoginRequired/withAuthR
 import PageContainer from '../../../components/common/PageContainer';
 import { getToolGradient } from '../../../config/toolTheme';
 import { useFirstName } from '../../../hooks/useFirstName';
+import { useDocumentsStore } from '../../../stores/documentsStore';
 import { OFFICE_PILL_ROW, OfficeActionPill } from '../../workplace/components/ToolsSection';
 import { WorkplaceHero } from '../../workplace/components/WorkplaceHero';
 import GroupDetailSection from '../components/GroupDetailSection';
-import GroupsCreateSection from '../components/GroupsCreateSection';
+import GroupsCreateSection, { type CreateGroupExtras } from '../components/GroupsCreateSection';
 import { ProjekteComposer } from '../components/ProjekteComposer';
 import { ProjektTile } from '../components/ProjektTile';
 import PublicGroupsSection from '../components/PublicGroupsSection';
+import { serverMessage } from '../serverMessage';
 import { useGroupResolver } from '../hooks/useGroupResolver';
 import { useGroups, useInviteToGroup, type GroupSummary } from '../hooks/useGroups';
 
@@ -37,6 +40,8 @@ const ProjektePage = () => {
   const resolvedGroupId = isUuid ? idOrSlug : (groupResolver.data?.id ?? null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createType, setCreateType] = useState<ProjektType>('personal');
+  const [createName, setCreateName] = useState('');
+  const queryClient = useQueryClient();
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -66,15 +71,45 @@ const ProjektePage = () => {
     errorTimer.current = setTimeout(() => setErrorMessage(''), 7000);
   }, []);
 
-  const openCreate = useCallback((type: ProjektType) => {
+  const openCreate = useCallback((type: ProjektType, name = '') => {
     setCreateType(type);
+    setCreateName(name);
     setCreateDialogOpen(true);
     setSuccessMessage('');
     setErrorMessage('');
   }, []);
 
+  // Nach dem Anlegen, im Hintergrund: dieselbe Tür wie „Datei hinzufügen" im
+  // Projekt (Hochladen und im selben Zug ins Projekt teilen).
+  const uploadFiles = useCallback(
+    async (groupId: string, files: File[]) => {
+      const upload = useDocumentsStore.getState().uploadFileOnly;
+      let added = 0;
+      let lastError: string | null = null;
+      for (const file of files) {
+        try {
+          await upload(file, undefined, undefined, groupId);
+          added += 1;
+        } catch (err) {
+          lastError = serverMessage(err, 'Datei konnte nicht hinzugefügt werden.');
+        }
+      }
+      if (added > 0) {
+        void queryClient.invalidateQueries({ queryKey: groupContentKey(groupId) });
+        showSuccess(`${added} ${added === 1 ? 'Datei' : 'Dateien'} zum Projekt hinzugefügt.`);
+      }
+      if (lastError) showError(lastError);
+    },
+    [queryClient, showSuccess, showError]
+  );
+
   const handleCreateGroup = useCallback(
-    (groupName: string, groupType: ProjektType, inviteEmails: string[] = []) => {
+    (
+      groupName: string,
+      groupType: ProjektType,
+      inviteEmails: string[] = [],
+      extras: CreateGroupExtras = { description: '', files: [] }
+    ) => {
       if (isCreatingGroup) return;
       const name = groupName.trim();
       const noun = groupType === 'standard' ? 'Gruppe' : 'Projekt';
@@ -82,6 +117,7 @@ const ProjektePage = () => {
       setErrorMessage('');
       createGroup(name, {
         groupType,
+        description: extras.description,
         onSuccess: (newGroup: GroupSummary) => {
           setCreateDialogOpen(false);
           // Navigate to the new group immediately; the target is the same
@@ -89,6 +125,7 @@ const ProjektePage = () => {
           // invites resolve in the background.
           showSuccess(`${noun} „${name}" erfolgreich erstellt!`);
           void navigate(buildGroupPath(newGroup));
+          if (extras.files.length > 0) void uploadFiles(newGroup.id, extras.files);
           if (inviteEmails.length > 0) {
             inviteToGroup.mutate(
               { groupId: newGroup.id, emails: inviteEmails },
@@ -108,7 +145,7 @@ const ProjektePage = () => {
         },
       });
     },
-    [isCreatingGroup, createGroup, inviteToGroup, navigate, showSuccess, showError]
+    [isCreatingGroup, createGroup, inviteToGroup, navigate, showSuccess, showError, uploadFiles]
   );
 
   const banners = (successMessage || errorMessage) && (
@@ -127,6 +164,7 @@ const ProjektePage = () => {
       isCreateGroupError={isCreateGroupError}
       createGroupError={createGroupError}
       initialProjektType={createType}
+      initialName={createName}
     />
   );
 
@@ -166,7 +204,7 @@ const ProjektePage = () => {
         <ProjekteComposer
           projekte={userGroups}
           isCreating={isCreatingGroup}
-          onCreate={handleCreateGroup}
+          onCreate={(name, type) => openCreate(type, name)}
         />
       </WorkplaceHero>
 
