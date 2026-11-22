@@ -15,6 +15,11 @@ import {
   CanvasLiveStateUnavailableError,
 } from '../../../services/canvas/canvasWriteErrors.js';
 import {
+  appendProjectDocParts,
+  PROJECT_COLLAB_DOC_CHAR_CAP,
+  type ProjectCollabDocs,
+} from '../../../services/groups/projectCollabDocs.js';
+import {
   formatPresentationAsContext,
   loadPresentationState,
 } from '../../../services/presentations/PresentationGenerationService.js';
@@ -61,6 +66,89 @@ export async function readMentionedDocs(
   );
 }
 
+type MentionedDoc = Awaited<ReturnType<typeof readMentionedDocs>>[number];
+
+/** One referenced collaborative document as a titled text block, cut to `perDocBudget`. */
+async function docContextPart(
+  d: MentionedDoc,
+  userId: string,
+  perDocBudget: number,
+  mentionQuery: string
+): Promise<string | null> {
+  const { getDocumentHtml } = await import('../../../services/docs/docContentService.js');
+  // A deck has no BlockNote HTML; its slides come from its own reader.
+  if (d.document_subtype === 'presentations') {
+    const loaded = await loadPresentationState(d.id, userId);
+    const slidesText = loaded ? formatPresentationAsContext(loaded).trim() : '';
+    if (!slidesText) return null;
+    const truncated = truncateDocument(slidesText, perDocBudget, mentionQuery);
+    log.info(
+      `[ChatGraph] Presentation context loaded: "${d.title}" (${slidesText.length} → ${truncated.length} chars)`
+    );
+    return `### ${d.title}\n\n${truncated}`;
+  }
+  if (d.document_subtype === 'canvas') {
+    let canvasText: string;
+    try {
+      canvasText = ((await loadCanvasAsContext(d.id, userId)) ?? '').trim();
+    } catch (err) {
+      // Without this the whole context build fails. The model gets the reason as the
+      // content instead of a silent gap, so it does not answer about a partial canvas.
+      if (
+        err instanceof CanvasDocumentNewerReadError ||
+        err instanceof CanvasLiveStateUnavailableError
+      ) {
+        log.warn(`[ChatGraph] Canvas ${d.id} not readable: ${err.message}`);
+        return `### ${d.title}\n\n(${err.message})`;
+      }
+      throw err;
+    }
+    if (!canvasText) return null;
+    const truncated = truncateDocument(canvasText, perDocBudget, mentionQuery);
+    log.info(
+      `[ChatGraph] Canvas context loaded: "${d.title}" (${canvasText.length} → ${truncated.length} chars)`
+    );
+    return `### ${d.title}\n\n${truncated}`;
+  }
+  // The SQL above is the access gate; the CONTENT comes from Yjs.
+  // `content` is a 2000-char preview the Hocuspocus store hook
+  // derives — reading it as the document silently truncated every
+  // doc the editor had ever touched, and a modify_doc turn then
+  // rewrote the whole document from that stump. It stays as the
+  // fallback for the one case it is complete: a document created
+  // server-side and never opened.
+  const fromYjs = await getDocumentHtml(d.id).catch((err: unknown) => {
+    log.warn(`[ChatGraph] Yjs read for doc ${d.id} failed: ${String(err)}`);
+    return null;
+  });
+  const raw = fromYjs?.html?.trim() ? fromYjs.html : (d.content ?? '');
+  if (!raw.trim()) return null;
+
+  let plainText = raw;
+  let prevText: string;
+  do {
+    prevText = plainText;
+    plainText = plainText.replace(/<[^>]+>/g, '');
+  } while (plainText !== prevText);
+  plainText = plainText
+    .replace(/&[a-zA-Z]+;/g, ' ')
+    .replace(/&#x?[0-9a-fA-F]+;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!plainText) return null;
+
+  const truncated = truncateDocument(plainText, perDocBudget, mentionQuery);
+  const origin = fromYjs?.html?.trim() ? `yjs${fromYjs.live ? '/live' : ''}` : 'preview';
+  if (truncated.length < plainText.length) {
+    log.info(
+      `[ChatGraph] Doc context truncated: "${d.title}" (${plainText.length} → ${truncated.length} chars, budget: ${perDocBudget}, ${origin})`
+    );
+  } else {
+    log.info(`[ChatGraph] Doc context loaded: "${d.title}" (${plainText.length} chars, ${origin})`);
+  }
+  return `### ${d.title}\n\n${truncated}`;
+}
+
 export async function enrichContext(opts: {
   initialState: ChatGraphState;
   userId: string;
@@ -71,6 +159,8 @@ export async function enrichContext(opts: {
   rawBoardIds?: string[];
   rawSheetIds?: string[];
   rawDocMentionIds?: string[];
+  /** Shared docs/sheets/boards of the thread's project (read as carried material, no route). */
+  projectCollabDocs?: ProjectCollabDocs;
   docAttachments: ProcessedAttachment[];
   processedMeta: ProcessedAttachmentMeta[];
   contextWindowTokens: number;
@@ -87,6 +177,7 @@ export async function enrichContext(opts: {
     rawBoardIds,
     rawSheetIds,
     rawDocMentionIds,
+    projectCollabDocs,
     docAttachments,
     processedMeta,
     contextWindowTokens,
@@ -235,86 +326,9 @@ export async function enrichContext(opts: {
         // Modell ankommt, entscheidet allein dieser Schnitt. Ohne Frage bleibt
         // es beim Kopf-und-Schluss.
         const mentionQuery = lastUserText(initialState);
-        const { getDocumentHtml } = await import('../../../services/docs/docContentService.js');
         const docParts = (
           await Promise.all(
-            docResults.map(async (d) => {
-              // A deck has no BlockNote HTML; its slides come from its own reader.
-              if (d.document_subtype === 'presentations') {
-                const loaded = await loadPresentationState(d.id, userId);
-                const slidesText = loaded ? formatPresentationAsContext(loaded).trim() : '';
-                if (!slidesText) return null;
-                const truncated = truncateDocument(slidesText, perDocBudget, mentionQuery);
-                log.info(
-                  `[ChatGraph] Presentation context loaded: "${d.title}" (${slidesText.length} → ${truncated.length} chars)`
-                );
-                return `### ${d.title}\n\n${truncated}`;
-              }
-              if (d.document_subtype === 'canvas') {
-                let canvasText: string;
-                try {
-                  canvasText = ((await loadCanvasAsContext(d.id, userId)) ?? '').trim();
-                } catch (err) {
-                  // Without this the whole context build fails. The model gets the reason as the
-                  // content instead of a silent gap, so it does not answer about a partial canvas.
-                  if (
-                    err instanceof CanvasDocumentNewerReadError ||
-                    err instanceof CanvasLiveStateUnavailableError
-                  ) {
-                    log.warn(`[ChatGraph] Canvas ${d.id} not readable: ${err.message}`);
-                    return `### ${d.title}\n\n(${err.message})`;
-                  }
-                  throw err;
-                }
-                if (!canvasText) return null;
-                const truncated = truncateDocument(canvasText, perDocBudget, mentionQuery);
-                log.info(
-                  `[ChatGraph] Canvas context loaded: "${d.title}" (${canvasText.length} → ${truncated.length} chars)`
-                );
-                return `### ${d.title}\n\n${truncated}`;
-              }
-              // The SQL above is the access gate; the CONTENT comes from Yjs.
-              // `content` is a 2000-char preview the Hocuspocus store hook
-              // derives — reading it as the document silently truncated every
-              // doc the editor had ever touched, and a modify_doc turn then
-              // rewrote the whole document from that stump. It stays as the
-              // fallback for the one case it is complete: a document created
-              // server-side and never opened.
-              const fromYjs = await getDocumentHtml(d.id).catch((err: unknown) => {
-                log.warn(`[ChatGraph] Yjs read for doc ${d.id} failed: ${String(err)}`);
-                return null;
-              });
-              const raw = fromYjs?.html?.trim() ? fromYjs.html : (d.content ?? '');
-              if (!raw.trim()) return null;
-
-              let plainText = raw;
-              let prevText: string;
-              do {
-                prevText = plainText;
-                plainText = plainText.replace(/<[^>]+>/g, '');
-              } while (plainText !== prevText);
-              plainText = plainText
-                .replace(/&[a-zA-Z]+;/g, ' ')
-                .replace(/&#x?[0-9a-fA-F]+;/g, ' ')
-                .replace(/\s+/g, ' ')
-                .trim();
-              if (!plainText) return null;
-
-              const truncated = truncateDocument(plainText, perDocBudget, mentionQuery);
-              const origin = fromYjs?.html?.trim()
-                ? `yjs${fromYjs.live ? '/live' : ''}`
-                : 'preview';
-              if (truncated.length < plainText.length) {
-                log.info(
-                  `[ChatGraph] Doc context truncated: "${d.title}" (${plainText.length} → ${truncated.length} chars, budget: ${perDocBudget}, ${origin})`
-                );
-              } else {
-                log.info(
-                  `[ChatGraph] Doc context loaded: "${d.title}" (${plainText.length} chars, ${origin})`
-                );
-              }
-              return `### ${d.title}\n\n${truncated}`;
-            })
+            docResults.map((d) => docContextPart(d, userId, perDocBudget, mentionQuery))
           )
         ).filter((part): part is string => part !== null);
 
@@ -338,6 +352,56 @@ export async function enrichContext(opts: {
         `[ChatGraph] Doc mention context failed: ${err instanceof Error ? err.message : String(err)}`
       );
       failedMentions.push('Dokument');
+    }
+  }
+
+  // Shared docs, presentations, sheets and boards of the project: material,
+  // never a route (no mention ids, no anchors), cut small because it is read on
+  // every turn of the project chat. A doc already @-mentioned above is skipped.
+  if (
+    projectCollabDocs &&
+    projectCollabDocs.docIds.length +
+      projectCollabDocs.sheetIds.length +
+      projectCollabDocs.boardIds.length >
+      0
+  ) {
+    try {
+      const budget = Math.max(
+        2000,
+        Math.min(PROJECT_COLLAB_DOC_CHAR_CAP, Math.floor(contextWindowTokens * 0.25))
+      );
+      const query = lastUserText(initialState);
+      const mentioned = new Set(rawDocMentionIds ?? []);
+      const docIds = projectCollabDocs.docIds.filter((id) => !mentioned.has(id));
+      const docs = docIds.length > 0 ? await readMentionedDocs(docIds, userId) : [];
+      const parts: Array<string | null> = await Promise.all([
+        ...docs.map((d) => docContextPart(d, userId, budget, query)),
+        ...projectCollabDocs.sheetIds
+          .filter((id) => !mentioned.has(id))
+          .map(async (id) => {
+            const { loadSheetState, formatSheetAsContext } =
+              await import('../../../services/sheets/SheetGenerationService.js');
+            const state = await loadSheetState(id, userId);
+            return state ? truncateDocument(formatSheetAsContext(state), budget, query) : null;
+          }),
+        ...projectCollabDocs.boardIds
+          .filter((id) => !mentioned.has(id))
+          .map(async (id) => {
+            const { loadBoardState, formatBoardAsContext } =
+              await import('../../../services/boards/BoardService.js');
+            const state = await loadBoardState(id, userId);
+            return state ? truncateDocument(formatBoardAsContext(state), budget, query) : null;
+          }),
+      ]);
+      initialState.documentMentionContext = appendProjectDocParts(
+        initialState.documentMentionContext ?? null,
+        parts.filter((p): p is string => p !== null)
+      );
+    } catch (err) {
+      // Not a failed mention: nobody asked for these, so no warning to the user.
+      log.warn(
+        `[ChatGraph] Project docs context failed (continuing): ${err instanceof Error ? err.message : String(err)}`
+      );
     }
   }
 

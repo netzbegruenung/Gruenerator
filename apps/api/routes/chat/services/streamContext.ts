@@ -36,6 +36,10 @@ import {
 } from '../../../config/notebookCollectionMap.js';
 import { acquireThreadRun, type ThreadRunLease } from '../../../services/chat/threadRunLock.js';
 import { readThreadProjectInstructions } from '../../../services/groups/groupInstructions.js';
+import {
+  getProjectCollabDocs,
+  type ProjectCollabDocs,
+} from '../../../services/groups/projectCollabDocs.js';
 import { getProjectFileDocumentIds } from '../../../services/groups/projectFiles.js';
 import { getProjectNotebookIds } from '../../../services/groups/projectNotebooks.js';
 import { getProjectRecipeIds } from '../../../services/groups/projectRecipes.js';
@@ -997,6 +1001,22 @@ async function buildStreamContextInner({
     }
   }
 
+  // === Docs, Tabellen, Boards des Projekts ===
+  // Nicht indexiert: gelesen wird im Volltext, mit Budget, als Material ohne
+  // Route (`projectCollabDocs.ts`, `enrichContext`).
+  let projectCollabDocs: ProjectCollabDocs | null = null;
+  if (actualThreadId) {
+    try {
+      projectCollabDocs = await withTimeout(
+        getProjectCollabDocs(actualThreadId, userId),
+        EXTERNAL_CONTEXT_TIMEOUT_MS,
+        'project docs'
+      );
+    } catch (err) {
+      log.warn('[StreamContext] Could not load project docs (continuing):', err);
+    }
+  }
+
   // === Notebooks des Projekts ===
   // Ins Projekt geteilte Notebooks sind Vorgabe-Suche jedes Turns, wie die
   // `defaultNotebookIds` eines Agents; gebunden (Tor, Lesezugriff) werden sie
@@ -1463,6 +1483,7 @@ async function buildStreamContextInner({
     ...(mergedBoardIds.length > 0 && { rawBoardIds: mergedBoardIds }),
     ...(mergedSheetIds.length > 0 && { rawSheetIds: mergedSheetIds }),
     ...(turnDocContextIds.length > 0 && { rawDocMentionIds: turnDocContextIds }),
+    ...(projectCollabDocs && { projectCollabDocs }),
     docAttachments,
     processedMeta,
     contextWindowTokens,
