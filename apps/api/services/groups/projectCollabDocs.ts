@@ -2,9 +2,10 @@
  * Die Docs, Präsentationen, Tabellen und Boards eines Projekts — als Titelliste
  * im Prompt seiner Chats, nicht als Inhalt.
  *
- * Kollaborative Dokumente sind nicht in Qdrant indexiert; ihr Text liegt in
- * Yjs. Ihn bei jedem Turn mitzuschicken kostete rund 8k Token auch dort, wo die
- * Frage kein Dokument braucht. Stattdessen sieht das Modell nur Titel, Art und
+ * Der Text kollaborativer Dokumente liegt in Yjs. Ihn bei jedem Turn
+ * mitzuschicken kostete rund 8k Token auch dort, wo die Frage kein Dokument
+ * braucht. Fundstellen kommen aus der Suche (`getProjectCollabDocumentIds`,
+ * Index in `services/docs/collabSearchIndex.ts`). Stattdessen sieht das Modell nur Titel, Art und
  * id (ein paar Dutzend Token) und liest bei Bedarf mit `read_artifact`
  * (`personalDataTools.ts`) — dessen Lader prüfen den Zugriff je Aufruf selbst.
  * Die ids kommen ausschliesslich aus dieser Abfrage, nie aus dem Modell.
@@ -24,6 +25,13 @@ import { projectThreadScopeSql } from './projectThreadScope.js';
  */
 export const PROJECT_COLLAB_DOC_CAP = 20;
 
+/**
+ * Wie viele indexierte Dokumente höchstens in den Dokument-Scope des Projekts
+ * gehen (neueste zuerst). Wie `PROJECT_FILE_DOCUMENT_CAP` ein Sicherheitsdeckel
+ * für den Qdrant-Filter, kein Auswahlkriterium.
+ */
+export const PROJECT_COLLAB_SEARCH_CAP = 50;
+
 const TITLE_MAX_CHARS = 80;
 
 /** Art, wie `read_artifact` sie als `kind` nimmt. */
@@ -36,7 +44,7 @@ export interface ProjectCollabDoc {
 }
 
 /** Welche Arten gelistet werden — `video` hat keinen Text. */
-const LISTED_SUBTYPES = [
+export const PROJECT_COLLAB_SUBTYPES = [
   'blank',
   'docs',
   'antrag',
@@ -75,7 +83,7 @@ export async function getProjectCollabDocs(
         AND COALESCE(cd.document_subtype, 'docs') = ANY($4::text[])
       ORDER BY gcs.shared_at DESC
       LIMIT $3`,
-    [threadId, userId, PROJECT_COLLAB_DOC_CAP, [...LISTED_SUBTYPES]]
+    [threadId, userId, PROJECT_COLLAB_DOC_CAP, [...PROJECT_COLLAB_SUBTYPES]]
   )) as { id: string; title: string | null; subtype: string }[];
 
   const seen = new Set<string>();
@@ -90,6 +98,31 @@ export async function getProjectCollabDocs(
     });
   }
   return out;
+}
+
+/**
+ * Die ins Projekt geteilten Dokumente, die in Qdrant stehen (`collab_search_index`,
+ * siehe `services/docs/collabSearchIndex.ts`), als Dokument-IDs für den Suchbereich
+ * des Chats — neben den Projekt-Dateien. Gleiche Zugriffsregel wie die Titelliste;
+ * ein noch nicht indexiertes Dokument fehlt hier und bleibt über `read_artifact`
+ * lesbar.
+ */
+export async function getProjectCollabDocumentIds(
+  threadId: string,
+  userId: string
+): Promise<string[]> {
+  const rows = (await getPostgresInstance().query(
+    `SELECT cd.id
+       FROM ${projectThreadScopeSql('$1', '$2')}
+       JOIN group_content_shares gcs ON gcs.group_id = g.id AND gcs.content_type = 'collaborative_documents'
+       JOIN collaborative_documents cd ON cd.id::text = gcs.content_id
+       JOIN collab_search_index ci ON ci.document_id = cd.id AND ci.chunk_count > 0
+      WHERE cd.deleted_at IS NULL AND cd.is_deleted = false
+      ORDER BY gcs.shared_at DESC
+      LIMIT $3`,
+    [threadId, userId, PROJECT_COLLAB_SEARCH_CAP]
+  )) as { id: string }[];
+  return [...new Set(rows.map((r) => r.id))];
 }
 
 const KIND_NOUN: Record<ProjectCollabReadKind, string> = {

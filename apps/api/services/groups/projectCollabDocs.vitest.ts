@@ -6,8 +6,13 @@ vi.mock('../../database/services/PostgresService.js', () => ({
   getPostgresInstance: () => ({ query: mockQuery }),
 }));
 
-const { getProjectCollabDocs, formatProjectDocs, PROJECT_COLLAB_DOC_CAP } =
-  await import('./projectCollabDocs.js');
+const {
+  getProjectCollabDocs,
+  getProjectCollabDocumentIds,
+  formatProjectDocs,
+  PROJECT_COLLAB_DOC_CAP,
+  PROJECT_COLLAB_SEARCH_CAP,
+} = await import('./projectCollabDocs.js');
 
 describe('getProjectCollabDocs', () => {
   beforeEach(() => mockQuery.mockReset());
@@ -78,5 +83,32 @@ describe('formatProjectDocs', () => {
       kind: 'doc' as const,
     }));
     expect(formatProjectDocs(docs).length).toBeLessThan(3000);
+  });
+});
+
+describe('getProjectCollabDocumentIds', () => {
+  beforeEach(() => mockQuery.mockReset());
+
+  it('returns each indexed document once, newest share first', async () => {
+    mockQuery.mockResolvedValue([{ id: 'a' }, { id: 'b' }, { id: 'a' }]);
+    expect(await getProjectCollabDocumentIds('thread-1', 'viewer')).toEqual(['a', 'b']);
+  });
+
+  it('opens the documents only to an active member in the thread scope, live and indexed', async () => {
+    mockQuery.mockResolvedValue([]);
+    await getProjectCollabDocumentIds('thread-1', 'viewer');
+    const [sql, params] = mockQuery.mock.calls[0] as [string, unknown[]];
+    expect(sql).toMatch(/gm\.user_id = \$2[^]*gm\.is_active = TRUE/);
+    expect(sql).toMatch(/t\.user_id::text = \$2::text OR EXISTS/);
+    expect(sql).toMatch(/g\.deleted_at IS NULL/);
+    expect(sql).toMatch(/cd\.deleted_at IS NULL AND cd\.is_deleted = false/);
+    expect(sql).toMatch(/JOIN collab_search_index ci[^]*ci\.chunk_count > 0/);
+    expect(sql).toMatch(/ORDER BY gcs\.shared_at DESC/);
+    expect(params).toEqual(['thread-1', 'viewer', PROJECT_COLLAB_SEARCH_CAP]);
+  });
+
+  it('returns nothing for a chat outside any project or for a non-member', async () => {
+    mockQuery.mockResolvedValue([]);
+    expect(await getProjectCollabDocumentIds('thread-1', 'stranger')).toEqual([]);
   });
 });
