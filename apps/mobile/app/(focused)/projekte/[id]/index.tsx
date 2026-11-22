@@ -80,7 +80,7 @@ export default function ProjektDetailScreen() {
   const isSystem = group?.is_system === true;
   // Ein Projekt ist allein oder mit anderen nutzbar, unabhängig vom gespeicherten
   // `group_type`: Austausch und „Für das Team“ erscheinen erst, wenn jemand dabei ist.
-  const hasOthers = isSystem || (group?.member_count ?? 0) > 1;
+  const hasOthers = isSystem || (membersQuery.data?.length ?? 0) > 1;
   const isTeam = !!group && !isSystem;
   // Wie im Web: ins System-Projekt teilen nur Instanz-Admins.
   const isAdmin = !!detailsQuery.data?.membership.isAdmin;
