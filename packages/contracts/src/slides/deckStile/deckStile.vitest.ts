@@ -365,7 +365,10 @@ describe('cd kernsatz', () => {
       expect(items).toHaveLength(3);
       for (const it of items) {
         expect(it.fontSize, it.id).toBeGreaterThanOrEqual(48);
-        expect(it.y + cell, it.id).toBeLessThanOrEqual(1028 - 40);
+        // Eine Zeile passt in die Box, ohne zu schrumpfen; sie endet mit Luft über der Fußzeile.
+        const line = it.fontSize * (it.lineHeight ?? 1.2);
+        expect(line, it.id).toBeLessThanOrEqual(cell);
+        expect(it.y + line, it.id).toBeLessThanOrEqual(1028 - 40);
         expect(it.y, it.id).toBeGreaterThanOrEqual(kernsatz.y + kernsatzBox);
       }
     });

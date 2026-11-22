@@ -157,7 +157,7 @@ function zahlFolie(b: SlideBuilder) {
     ...(b.ink.accent ? { fill: b.ink.accent.fill } : {}),
   });
   b.text('folie-zahl-text', '', M, 600, 1500, 60, { lineHeight: 1.25 });
-  b.text('folie-quelle', '', M, 900, W - 2 * M - 120, 34);
+  b.text('folie-quelle', '', M, 900, W - 2 * M - 120, 40);
 }
 
 function dankeFolie(b: SlideBuilder, folie: FolieSpec, locale: BrandLocale) {
@@ -233,7 +233,8 @@ export const CD_BOXES: Record<
     'folie-spalte-1': { maxHeight: 620, minScale: 0.8 },
   },
   kernsatz: {
-    'folie-punkt-*': { maxHeight: 60, minScale: 0.7 },
+    // Eine Zeile à 52 px (65 hoch): bei 60 schrumpfte jeder Stichpunkt auf 46 px.
+    'folie-punkt-*': { maxHeight: 70, minScale: 0.7 },
     'folie-headline': { maxHeight: 70, minScale: 0.6 },
     'folie-kernsatz': { maxHeight: KERNSATZ.satzHeight, minScale: 0.6 },
   },

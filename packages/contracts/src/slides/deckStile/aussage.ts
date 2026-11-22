@@ -62,8 +62,10 @@ export function buildAussage(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutSta
     case 'liste': {
       head(b, 'folie-headline', X, 110, 1300, size(110));
       const items = listItems(folie, 'punkte');
-      reihe(items, 470, 44, items.length === 4 ? 2 : 3, 300);
-      if (störer) stoerer(b, störer, 1595, 305, t.gras);
+      // Spalten in Beamergröße; bei bis zu drei Punkten eine Reihe, größer.
+      reihe(items, 430, items.length <= 3 ? 60 : 50, items.length === 4 ? 2 : 3, 280);
+      // Oben rechts neben der Überschrift (endet bei 1410): bei 305 hing er auf der dritten Spalte.
+      if (störer) stoerer(b, störer, 1700, 200, t.gras);
       break;
     }
     case 'text':
@@ -115,7 +117,8 @@ export const AUSSAGE_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
     'folie-text': { maxHeight: 130, minScale: 0.8 },
   },
   liste: {
-    'folie-punkt-*': { maxHeight: 200, minScale: 0.7 },
+    // Bis zum Balken der nächsten Reihe (280) bzw. vor die Fußzeile.
+    'folie-punkt-*': { maxHeight: 230, minScale: 0.7 },
     'folie-headline': { maxHeight: 330, minScale: 0.6 },
   },
   text: {
