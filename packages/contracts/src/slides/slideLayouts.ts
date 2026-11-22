@@ -208,7 +208,9 @@ function inkFor(locale: BrandLocale, grund: Grund): Ink {
     text: DE.colors.textOnDark,
     accent: grund === 'foto' ? null : { fill: brand('grashalm') },
     quote: brand('grashalm'),
-    watermark: { assetId: 'sunflower-weiss', opacity: 0.12 },
+    // 25 %: bei 12 % ging die Blume auf dem Beamer unter (Design-Review 22.11.); weiße
+    // Headline auf der Blume hält rechnerisch 4,6:1 (Tanne mit 25 % Weiß).
+    watermark: { assetId: 'sunflower-weiss', opacity: 0.25 },
     mark: { circle: SHAREPIC_COLOR_HEX.weiss, assetId: 'sunflower-green', size: MARK.flower },
     // Die Farbfassung (sandfarbene Schrift, gelbe Blume) ist für dunkle Gründe.
     logoAssetId: 'gruene-de-logo',

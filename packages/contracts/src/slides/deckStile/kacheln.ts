@@ -5,6 +5,7 @@
  * (110 Rand, 30 Abstand, 28er Ecken fehlen: Formen kennen keinen Radius).
  */
 
+import { type FlowSpec } from '../fitText.js';
 import { type FolieSpec, type FolienTypId } from '../folienTypen.js';
 import { SlideBuilder, type SlideLayoutState } from '../slideLayouts.js';
 
@@ -29,6 +30,8 @@ import { type DeckStilBox } from './index.js';
 const X = 110;
 const AREA_W = 1700;
 const GAP = 30;
+/** Oberkante der Kacheln: Platz für eine zweizeilige Überschrift (110 px ab y 100). */
+const KACHEL_Y = 340;
 const WHITE = '#FFFFFF';
 
 export function buildKacheln(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutState {
@@ -56,7 +59,7 @@ export function buildKacheln(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutSta
       const th = 300;
       items.forEach((_, i) => {
         const x = X + (i % cols) * (tw + GAP);
-        const y = 300 + Math.floor(i / cols) * (th + GAP);
+        const y = KACHEL_Y + Math.floor(i / cols) * (th + GAP);
         const big = n > 1 && (i === 0 || i === n - 1);
         b.shape(
           `folie-kachel-${i + 1}`,
@@ -84,7 +87,7 @@ export function buildKacheln(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutSta
       });
       items.forEach((item, i) => {
         const x = X + (i % cols) * (tw + GAP);
-        const y = 300 + Math.floor(i / cols) * (th + GAP);
+        const y = KACHEL_Y + Math.floor(i / cols) * (th + GAP);
         // Entwurf setzt den Text unten in die Kachel; hier fest bei +150, damit zwei Zeilen à 44 px passen.
         b.text(`folie-punkt-${i + 1}`, item, x + 40, y + 150, tw - 80, 44, { lineHeight: 1.25 });
       });
@@ -151,7 +154,8 @@ export const KACHELN_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
   },
   liste: {
     'folie-punkt-*': { maxHeight: 120, minScale: 0.7 },
-    'folie-headline': { maxHeight: 200, minScale: 0.6 },
+    // Zwei Zeilen à 110 bis vor die Kacheln (`KACHEL_Y`).
+    'folie-headline': { maxHeight: 230, minScale: 0.6 },
   },
   text: {
     'folie-headline': { maxHeight: 180, minScale: 0.6 },
@@ -169,4 +173,19 @@ export const KACHELN_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
   zitat: { 'folie-zitat': { maxHeight: 520, minScale: 0.6 } },
   danke: { 'folie-headline': { maxHeight: 330, minScale: 0.6 } },
   bild: BILD_BOXES,
+};
+
+/** Texte nach gemessener Höhe: in den Flächen mittig statt oben mit leerem Rest. */
+export const KACHELN_FLOWS: Partial<Record<FolienTypId, FlowSpec>> = {
+  titel: {
+    ids: ['folie-headline', 'folie-text'],
+    top: 120,
+    bottom: 960,
+    align: 'center',
+    gapEm: 0.3,
+    gapAfter: { 'folie-headline': 50 },
+  },
+  // In der Fläche 200–760 bzw. 200–800, mit 40 Luft zum Rand.
+  kernsatz: { ids: ['folie-kernsatz'], top: 240, bottom: 720, align: 'center', gapEm: 0 },
+  zitat: { ids: ['folie-zitat'], top: 240, bottom: 760, align: 'center', gapEm: 0 },
 };

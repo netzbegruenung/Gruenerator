@@ -97,6 +97,13 @@ export interface FlowSpec {
   gapEm: number;
   /** Abweichender Abstand nach bestimmten Elementen, in px. */
   gapAfter?: Readonly<Record<string, number>>;
+  /**
+   * Begleiter der Listenpunkte (Marke, Nummer, Trennlinie): Präfix der Id, die
+   * Nummer des Punkts hängt daran. `top`/`bottom`: an Ober- bzw. Unterkante des
+   * gesetzten Punkts, plus `dy`. Bei Formen ist `y` die Mitte. Ohne sie blieben
+   * die Marken auf dem alten Raster, während der Text wandert.
+   */
+  follow?: Readonly<Record<string, { anchor: 'top' | 'bottom'; dy: number }>>;
 }
 
 function flowMembers(state: SlideLayoutState, ids: readonly string[]): TextEl[] {
@@ -133,6 +140,13 @@ export function flowSlideTexts(
     el.y = Math.round(y);
     y += heights[i]! + gaps[i]!;
     if (el.y + heights[i]! > flow.bottom) over.push(el.id);
+    const n = LIST_ID.test(el.id) ? el.id.slice('folie-punkt-'.length) : null;
+    for (const [prefix, f] of Object.entries(n ? (flow.follow ?? {}) : {})) {
+      const mate =
+        state.additionalTexts.find((t) => t.id === `${prefix}${n}`) ??
+        state.shapeInstances.find((s) => s.id === `${prefix}${n}`);
+      if (mate) mate.y = Math.round((f.anchor === 'top' ? el.y : el.y + heights[i]!) + f.dy);
+    }
   });
   return over;
 }

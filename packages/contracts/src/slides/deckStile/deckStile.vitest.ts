@@ -306,7 +306,7 @@ describe('deck stile box limits', () => {
   it('keeps every list cell within the item pitch of its style', () => {
     for (const stil of STILE) {
       for (const typ of ['liste', 'kernsatz'] as const) {
-        // Mit Fluss stehen die Punkte nach gemessener Höhe; das prüft `cd flow`.
+        // Mit Fluss stehen die Punkte nach gemessener Höhe; das prüft `deck flow`.
         if (deckStilFlow(stil, typ)) continue;
         const cell = deckStilBoxes(stil, typ)['folie-punkt-*']?.maxHeight;
         expect(cell, `${stil} ${typ}`).toBeGreaterThan(0);
@@ -460,7 +460,7 @@ describe('Bildfolie', () => {
   });
 });
 
-describe('cd flow', () => {
+describe('deck flow', () => {
   /** Fake: Zeilen = ⌈Zeichen × 0,5 × Größe / Breite⌉. */
   const measure: MeasureText = (text, font, width) => ({
     height:
@@ -470,33 +470,67 @@ describe('cd flow', () => {
     measure(t.text, { family: 'x', size: t.fontSize, lineHeight: t.lineHeight ?? 1.2 }, t.width)
       .height;
 
-  for (const locale of LOCALES) {
-    for (const typ of FOLIEN_TYP_IDS) {
-      const flow = deckStilFlow('cd', typ);
-      if (!flow) continue;
-      it(`stacks the measured ${typ} texts without overlap, above the footer (${locale})`, () => {
-        const built = buildFolie('cd', fullFolie(typ), ctx(locale));
-        const { state } = fitSlideTexts(built, deckStilBoxes('cd', typ), measure, null, flow);
-        const ids = new Set(
-          flow.ids.flatMap((id) =>
-            id === 'folie-punkt-*'
-              ? state.additionalTexts.filter((t) => /^folie-punkt-\d+$/.test(t.id)).map((t) => t.id)
-              : [id]
-          )
-        );
-        const els = state.additionalTexts
-          .filter((t) => ids.has(t.id) && t.text.trim() !== '')
-          .sort((a, b) => a.y - b.y);
-        expect(els.length, typ).toBeGreaterThan(0);
-        els.forEach((el, i) => {
-          const bottom = el.y + heightOf(el);
-          expect(bottom, `${el.id} above footer`).toBeLessThanOrEqual(1028);
-          const next = els[i + 1];
-          if (next) expect(bottom, `${el.id} clear of ${next.id}`).toBeLessThanOrEqual(next.y);
+  for (const stil of STILE) {
+    for (const locale of LOCALES) {
+      for (const typ of FOLIEN_TYP_IDS) {
+        const flow = deckStilFlow(stil, typ);
+        if (!flow) continue;
+        it(`${stil}: stacks the measured ${typ} texts without overlap, above the footer (${locale})`, () => {
+          const built = buildFolie(stil, fullFolie(typ), ctx(locale));
+          const { state } = fitSlideTexts(built, deckStilBoxes(stil, typ), measure, null, flow);
+          const ids = new Set(
+            flow.ids.flatMap((id) =>
+              id === 'folie-punkt-*'
+                ? state.additionalTexts
+                    .filter((t) => /^folie-punkt-\d+$/.test(t.id))
+                    .map((t) => t.id)
+                : [id]
+            )
+          );
+          const els = state.additionalTexts
+            .filter((t) => ids.has(t.id) && t.text.trim() !== '')
+            .sort((a, b) => a.y - b.y);
+          expect(els.length, typ).toBeGreaterThan(0);
+          els.forEach((el, i) => {
+            const bottom = el.y + heightOf(el);
+            expect(bottom, `${el.id} above footer`).toBeLessThanOrEqual(1028);
+            const next = els[i + 1];
+            if (next) expect(bottom, `${el.id} clear of ${next.id}`).toBeLessThanOrEqual(next.y);
+          });
         });
-      });
+      }
     }
   }
+
+  it('moves list markers, numbers and rules with their items', () => {
+    const folie: FolieSpec = {
+      typ: 'liste',
+      slots: { headline: 'Eine Überschrift über zwei Zeilen', punkte: ['Eins', 'Zwei', 'Drei'] },
+    };
+    for (const [stil, prefix] of [
+      ['ruhig', 'folie-marke-'],
+      ['band', 'folie-nummer-'],
+      ['band', 'folie-linie-'],
+    ] as const) {
+      const flow = deckStilFlow(stil, 'liste')!;
+      const f = flow.follow![prefix]!;
+      const { state } = fitSlideTexts(
+        buildFolie(stil, folie, ctx('de-DE')),
+        deckStilBoxes(stil, 'liste'),
+        measure,
+        null,
+        flow
+      );
+      for (const n of [1, 2, 3]) {
+        const item = state.additionalTexts.find((t) => t.id === `folie-punkt-${n}`)!;
+        const mate =
+          state.additionalTexts.find((t) => t.id === `${prefix}${n}`) ??
+          state.shapeInstances.find((x) => x.id === `${prefix}${n}`)!;
+        const edge = f.anchor === 'top' ? item.y : item.y + heightOf(item);
+        expect(mate.y, `${stil} ${prefix}${n}`).toBe(Math.round(edge + f.dy));
+      }
+    }
+  });
 
   it('moves the titel subline below a headline that wraps to two lines (AT live case)', () => {
     const folie: FolieSpec = {
