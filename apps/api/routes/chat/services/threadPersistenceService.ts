@@ -9,6 +9,7 @@ import { type NotebookSourceRef, type RoleRef } from '@gruenerator/contracts';
 import { generateSlugSuffix } from '@gruenerator/shared/utils';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
+import { signalTeamChatTurn } from '../../../services/collab/chatTurnSignal.js';
 
 import { type PersistedStep } from './agenticLoop/types.js';
 import { type ArtifactKindId } from './artifactKindRegistry.js';
@@ -156,6 +157,7 @@ export async function createMessage(
      RETURNING id`,
     [threadId, role, toTextParam(content), toJsonbParam(metadata), userId || null]
   )) as { id: string }[];
+  void signalTeamChatTurn(threadId, 'message', userId || null);
   return result[0]!.id;
 }
 
@@ -178,6 +180,7 @@ export async function createPendingAssistantMessage(
      RETURNING id`,
     [threadId, userId || null]
   )) as { id: string }[];
+  void signalTeamChatTurn(threadId, 'started', userId || null);
   return result[0].id;
 }
 
@@ -232,9 +235,11 @@ export async function finalizeAssistantMessage(
          END,
          status = 'complete'
      WHERE id = $1
-     RETURNING id`,
+     RETURNING id, thread_id, user_id`,
     [messageId, toTextParam(content), toJsonbParam(metadata)]
-  )) as unknown[];
+  )) as { thread_id?: string; user_id?: string | null }[];
+  const row = result[0];
+  if (row?.thread_id) void signalTeamChatTurn(row.thread_id, 'message', row.user_id ?? null);
   return result.length === 1;
 }
 
