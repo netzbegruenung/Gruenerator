@@ -13,6 +13,8 @@ export {
   canShareIntoGroup,
   isGroupArchived,
   splitArchivedGroups,
+  sortGroups,
+  type GroupSort,
   groupContentKey,
   groupShareCommentsKey,
   buildGroupPath,
@@ -70,6 +72,7 @@ export { landesverbandOptions, type LandesverbandOption } from './landesverbandO
 export {
   GROUP_FEED_KINDS,
   austauschItems,
+  hasAustauschContent,
   fileExtensionLabel,
   filterGroupFeed,
   formatFeedDate,
@@ -88,6 +91,12 @@ export {
   type GroupPostFile,
   type ToGroupFeedItemsOptions,
 } from './feed.js';
+
+export {
+  PROJECT_SEARCH_STATE_LABELS,
+  hasSearchStateInProgress,
+  searchSummary,
+} from './searchState.js';
 
 export { projectChatThreads } from './projectChats.js';
 

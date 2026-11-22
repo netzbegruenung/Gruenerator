@@ -9,6 +9,7 @@ import { HiUser, HiUserGroup } from 'react-icons/hi';
 import { Link } from 'react-router-dom';
 
 import { getToolTheme } from '../../../config/toolTheme';
+import { formatRelativeDate } from '../../../utils/dateFormatter';
 import { resolveApiAssetUrl } from '../../../utils/platform';
 
 // Square projekte-blue tile mirroring the OfficeTile idiom (aspect-square,
@@ -90,6 +91,13 @@ export function ProjektTile({ projekt }: { projekt: GroupSummary }) {
         >
           {projektMeta(projekt)}
         </span>
+        {projekt.last_activity_at && !projekt.archived_at && (
+          <span
+            className={`block truncate text-[12px] leading-snug sm:text-[13px] ${theme?.desc ?? 'text-muted-foreground'}`}
+          >
+            {formatRelativeDate(projekt.last_activity_at)}
+          </span>
+        )}
       </span>
     </Link>
   );

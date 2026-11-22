@@ -1,4 +1,10 @@
-import { filterGroupFeed, groupFeedKindMeta, type GroupFeedItem } from '@gruenerator/shared/groups';
+import {
+  PROJECT_SEARCH_STATE_LABELS,
+  filterGroupFeed,
+  groupFeedKindMeta,
+  searchSummary,
+  type GroupFeedItem,
+} from '@gruenerator/shared/groups';
 import {
   Button,
   DropdownMenu,
@@ -43,6 +49,7 @@ export function ProjectKnowledgeList({
 }: ProjectKnowledgeListProps) {
   const [query, setQuery] = useState('');
   const visible = filterGroupFeed(items, query);
+  const { searchable, total } = searchSummary(items);
 
   return (
     <section
@@ -55,6 +62,12 @@ export function ProjectKnowledgeList({
         </h2>
         {items.length > 0 && <span className="text-sm text-muted-foreground">{items.length}</span>}
       </div>
+
+      {total > 0 && (
+        <p className="m-0 text-[13px] text-muted-foreground">
+          {searchable} von {total} durchsuchbar
+        </p>
+      )}
 
       {items.length === 0 ? (
         <p className="m-0 text-[15px] text-muted-foreground">
@@ -115,6 +128,17 @@ function KnowledgeRow({
     <>
       <Icon aria-hidden className="size-[18px] shrink-0 text-primary-600 dark:text-primary-400" />
       <span className="min-w-0 flex-1 truncate text-[15px]">{item.title}</span>
+      {item.searchState && item.searchState !== 'ready' && (
+        <span className="flex shrink-0 items-center gap-1 text-[13px] text-muted-foreground">
+          <span
+            aria-hidden
+            className={`size-2 shrink-0 rounded-full ${
+              item.searchState === 'failed' ? 'bg-red-600' : 'bg-amber-500'
+            }`}
+          />
+          {PROJECT_SEARCH_STATE_LABELS[item.searchState]}
+        </span>
+      )}
       <span className="shrink-0 text-[13px] text-muted-foreground">
         {[groupFeedKindMeta(item.kind).label, projectRoleLabel(item)].filter(Boolean).join(' · ')}
       </span>

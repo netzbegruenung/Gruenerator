@@ -192,6 +192,8 @@ export const groupSummarySchema = z.object({
   // ISO time the project was archived; null/absent = active.
   archived_at: z.string().nullish(),
   color: groupColorSchema.nullish(),
+  // Latest post, share, comment or visible chat in the project (ISO); absent on old servers.
+  last_activity_at: z.string().nullish(),
 });
 export type GroupSummaryDto = z.infer<typeof groupSummarySchema>;
 
@@ -547,6 +549,17 @@ const groupContentBucketSchema = z.array(z.record(z.string(), z.unknown()));
  * subtype enum. `.passthrough()` keeps the extra hydrated fields the frontend
  * reads (name/slug/thumbnail_url/…) without enumerating every one.
  */
+export const projectSearchStateSchema = z.enum([
+  'ready',
+  'indexing',
+  'failed',
+  'not_searchable',
+  'stale',
+  'pending',
+  'over_cap',
+]);
+export type ProjectSearchState = z.infer<typeof projectSearchStateSchema>;
+
 export const groupCollabDocItemSchema = z
   .object({
     id: z.union([z.string(), z.number()]),
@@ -557,6 +570,8 @@ export const groupCollabDocItemSchema = z
     shared_by_id: z.string().nullish(),
     thumbnail_url: z.string().nullish(),
     share: groupShareMetaSchema.nullish(),
+    /** Ob das Dokument im Suchbereich des Projekts liegt; `null`: Art wird nicht indexiert. */
+    search_state: projectSearchStateSchema.nullish(),
   })
   .passthrough();
 

@@ -26,6 +26,7 @@ import {
 } from '../../../../services/groups/groupMutations.js';
 import { getProjectStart, setProjectStart } from '../../../../services/groups/groupStart.js';
 import { trashGroup } from '../../../../services/groups/groupTrash.js';
+import { teamChatShareExistsSql } from '../../../../services/groups/projectThreadScope.js';
 import { SYSTEM_GROUP_FORBIDDEN } from '../../../../services/groups/systemGroup.js';
 import {
   createNotification,
@@ -69,10 +70,19 @@ export const coreRoutes = {
       const groupsData = (await postgres.query(
         `SELECT g.id, g.name, g.description, g.created_at, g.created_by, g.join_token, g.settings,
                 g.avatar_url, g.links, g.slug_suffix, g.group_type, g.is_system, g.archived_at, g.color,
-                (SELECT COUNT(*)::int FROM group_memberships gm WHERE gm.group_id = g.id) AS member_count
+                (SELECT COUNT(*)::int FROM group_memberships gm WHERE gm.group_id = g.id) AS member_count,
+                GREATEST(
+                  g.created_at,
+                  (SELECT MAX(gp.created_at) FROM group_posts gp WHERE gp.group_id = g.id),
+                  (SELECT MAX(gcs.shared_at) FROM group_content_shares gcs WHERE gcs.group_id = g.id),
+                  (SELECT MAX(gsc.created_at) FROM group_share_comments gsc WHERE gsc.group_id = g.id),
+                  (SELECT MAX(ct.updated_at) FROM chat_threads ct
+                    WHERE ct.group_id = g.id AND ct.deleted_at IS NULL
+                      AND (ct.user_id::text = $2::text OR ${teamChatShareExistsSql('ct', 'g.id')}))
+                ) AS last_activity_at
            FROM groups g WHERE g.id = ANY($1) AND g.deleted_at IS NULL
-          ORDER BY g.created_at DESC`, // neuestes Projekt zuerst — ohne das ist die Reihenfolge beliebig
-        [groupIds],
+          ORDER BY last_activity_at DESC, g.created_at DESC`, // zuletzt aktives Projekt zuerst
+        [groupIds, userId],
         { table: 'groups' }
       )) as Array<{
         id: string;
@@ -90,6 +100,7 @@ export const coreRoutes = {
         archived_at: string | Date | null;
         color: GroupColor | null;
         member_count: number;
+        last_activity_at: string | Date | null;
       }>;
 
       // The system group has no group admins; only instance admins act there.
@@ -122,6 +133,7 @@ export const coreRoutes = {
           slug_suffix: group.slug_suffix ?? null,
           archived_at: toIsoOrNull(group.archived_at),
           color: group.color ?? null,
+          last_activity_at: toIsoOrNull(group.last_activity_at),
         };
       });
 

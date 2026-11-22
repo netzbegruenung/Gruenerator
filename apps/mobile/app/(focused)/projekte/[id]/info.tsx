@@ -4,7 +4,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState, type ReactNode } from 'react';
-import { Alert, Platform, Share, Switch, View, Text, StyleSheet, ScrollView } from 'react-native';
+import { Alert, Switch, View, Text, StyleSheet, ScrollView } from 'react-native';
 
 import { MenuActionSheet } from '../../../../components/chat/MenuActionSheet';
 import { ListGroup, ListRow, SkeletonRows } from '../../../../components/common';
@@ -20,10 +20,10 @@ import {
   canLeaveProject,
   canShareInviteLink,
 } from '../../../../components/projekte/settingsRules';
+import { shareProjectInvite } from '../../../../components/projekte/shareInvite';
 import { GroupAvatar } from '../../../../components/workplace/GroupAvatar';
 import { useGroupFeed } from '../../../../hooks/useGroupContent';
 import {
-  buildGroupInviteUrl,
   useGroupDetails,
   useGroupMembers,
   useLeaveGroup,
@@ -85,12 +85,7 @@ export default function ProjektInfoScreen() {
     muteMutation.mutate(value, { onSuccess: done, onError: fail });
 
   const shareInvite = () => {
-    if (!group?.join_token) return;
-    const url = buildGroupInviteUrl(group.join_token);
-    const title = group.name;
-    void Share.share(Platform.OS === 'ios' ? { url, title } : { message: url, title }).catch(
-      (error: Error) => fail(error)
-    );
+    if (group) shareProjectInvite(group, fail);
   };
 
   const confirmLeave = () => {

@@ -3,6 +3,7 @@ import {
   type GroupFeedItem,
   addableKey,
   canManageShare,
+  hasAustauschContent,
   sharedContentKeys,
   useGroupStart,
   useSetGroupArchived,
@@ -322,7 +323,8 @@ const GroupInfoSection = memo(
     // `group_type`; members can be invited at any time.
     const isSystem = data?.groupInfo?.is_system === true;
     const isTeam = !isSystem;
-    // Austausch and „Für das Team" only make sense once somebody else is in.
+    // „Für das Team" only makes sense once somebody else is in; the Austausch tab also stays
+    // while posts exist (a project back to one member keeps its history).
     const hasOthers = memberCount > 1;
     // Archived projects stay readable but take no new content (the server enforces it too).
     const isArchived = !!data?.groupInfo?.archived_at;
@@ -665,6 +667,16 @@ const GroupInfoSection = memo(
                 </PopoverContent>
               </Popover>
             )}
+            {data?.isAdmin && isTeam && !isArchived && (
+              <Button
+                variant="outline"
+                onClick={openInviteDialog}
+                className="max-sm:size-9 max-sm:rounded-full max-sm:p-0"
+              >
+                <HiOutlineMail aria-hidden />
+                <span className="max-sm:sr-only">Einladen</span>
+              </Button>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -722,13 +734,13 @@ const GroupInfoSection = memo(
                         Bild entfernen
                       </DropdownMenuItem>
                     )}
-                    {isTeam && (
+                    {isTeam && !isArchived && (
                       <DropdownMenuItem onClick={openInviteDialog}>
                         <HiOutlineMail className="size-4 mr-xs" />
                         Per E-Mail einladen
                       </DropdownMenuItem>
                     )}
-                    {isTeam && data?.joinToken && (
+                    {isTeam && !isArchived && data?.joinToken && (
                       <DropdownMenuItem onClick={copyJoinLink}>
                         <HiOutlineLink className="size-4 mr-xs" />
                         {joinLinkCopied ? 'Kopiert!' : 'Einladungslink kopieren'}
@@ -794,7 +806,7 @@ const GroupInfoSection = memo(
           items={feedItems}
           isLoading={isLoadingSharedContent}
           isAdmin={!!data?.isAdmin}
-          hasAustausch={isSystem || hasOthers}
+          hasAustausch={isSystem || hasOthers || hasAustauschContent(feedItems)}
           isSystem={isSystem}
           currentUserId={currentUserId ?? null}
           currentUserName={currentUserName ?? null}
@@ -980,6 +992,12 @@ const GroupInfoSection = memo(
                   <span className="text-xs text-grey-500">Mit Enter oder Komma hinzufügen.</span>
                 )}
               </div>
+              {data?.joinToken && (
+                <Button variant="outline" onClick={copyJoinLink} className="self-start">
+                  <HiOutlineLink aria-hidden />
+                  {joinLinkCopied ? 'Kopiert!' : 'Einladungslink kopieren'}
+                </Button>
+              )}
               <DialogFooter className="gap-xs">
                 <Button variant="outline" onClick={() => setShowInviteDialog(false)}>
                   Abbrechen

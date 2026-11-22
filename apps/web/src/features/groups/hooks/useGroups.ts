@@ -284,7 +284,19 @@ export const useGroupSharing = (groupId: string | null, _options: UseGroupsOptio
     // No local `retry` override: the global predicate in App.tsx skips
     // 401/403/404 and still retries transient 5xx. Overriding it here meant an
     // expected 403 was requested three times (GlitchTip #590).
-    refetchInterval: false,
+    // Solange eine Datei eingelesen wird oder ein Dokument noch nicht im Suchindex
+    // steht, alle 10 s nachladen — danach ruht die Abfrage wieder.
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      const inProgress = [
+        ...(data?.documents ?? []),
+        ...(data?.collaborative_documents ?? []),
+      ].some((r) => {
+        const state = (r as { search_state?: unknown }).search_state;
+        return state === 'indexing' || state === 'pending';
+      });
+      return inProgress ? 10_000 : false;
+    },
     // GroupDetailSection renders this query's failure inline, so the global
     // toast layer stays out of it.
     meta: { silent: true },

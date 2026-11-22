@@ -1,6 +1,21 @@
-import { buildGroupPath, groupContentKey, splitArchivedGroups } from '@gruenerator/shared/groups';
+import {
+  buildGroupPath,
+  groupContentKey,
+  sortGroups,
+  splitArchivedGroups,
+  type GroupSort,
+} from '@gruenerator/shared/groups';
 import { extractSlugSuffix } from '@gruenerator/shared/utils';
-import { Button, SectionHeader, StatusBanner } from '@gruenerator/ui';
+import {
+  Button,
+  SectionHeader,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  StatusBanner,
+} from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback, useMemo, useRef } from 'react';
 import { HiUser } from 'react-icons/hi';
@@ -55,10 +70,11 @@ const ProjektePage = () => {
     createGroupError,
   } = useGroups({ isActive: true });
   const inviteToGroup = useInviteToGroup();
-  const { active: activeGroups, archived: archivedGroups } = useMemo(
-    () => splitArchivedGroups(userGroups ?? []),
-    [userGroups]
-  );
+  const [sort, setSort] = useState<GroupSort>('activity');
+  const { active: activeGroups, archived: archivedGroups } = useMemo(() => {
+    const split = splitArchivedGroups(userGroups ?? []);
+    return { active: sortGroups(split.active, sort), archived: split.archived };
+  }, [userGroups, sort]);
 
   const showSuccess = useCallback((msg: string) => {
     if (successTimer.current) clearTimeout(successTimer.current);
@@ -215,7 +231,23 @@ const ProjektePage = () => {
         </div>
       </section>
 
-      <SectionHeader title="Deine Projekte" />
+      <SectionHeader
+        title="Deine Projekte"
+        actions={
+          activeGroups.length > 1 ? (
+            <Select value={sort} onValueChange={(v) => setSort(v as GroupSort)}>
+              <SelectTrigger size="sm" className="w-auto gap-xs" aria-label="Projekte sortieren">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="end">
+                <SelectItem value="activity">Zuletzt aktiv</SelectItem>
+                <SelectItem value="name">Name</SelectItem>
+                <SelectItem value="newest">Neueste</SelectItem>
+              </SelectContent>
+            </Select>
+          ) : undefined
+        }
+      />
       {/* „Noch keine Projekte" ist die härteste Aussage dieser Fläche und darf
           nur aus einer bestätigt leeren Liste kommen. `userGroups` ist
           `query.data ?? []`, also auch dann leer, wenn noch geladen wird oder

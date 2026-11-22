@@ -70,9 +70,10 @@ export function GroupContentArea({
   const [searchParams] = useSearchParams();
   const linkedShareId = searchParams.get('beitrag');
   // Die System-Gruppe lebt von den Beiträgen der Admins; sonst ist die Übersicht der Einstieg.
-  const [view, setView] = useState<View>(
-    hasAustausch && (linkedShareId || isSystem) ? 'austausch' : 'uebersicht'
-  );
+  // Der Reiter kann erst später erscheinen (Beiträge laden nach): bis jemand wählt, entscheidet der Stand.
+  const [chosenView, setView] = useState<View | null>(null);
+  const view: View =
+    chosenView ?? (hasAustausch && (linkedShareId || isSystem) ? 'austausch' : 'uebersicht');
   const [focusShareId, setFocusShareId] = useState<string | null>(linkedShareId);
   // Wissen-Elemente, die jemand aus der Liste in den Austausch geholt hat.
   const [discussed, setDiscussed] = useState<ReadonlySet<string>>(new Set());

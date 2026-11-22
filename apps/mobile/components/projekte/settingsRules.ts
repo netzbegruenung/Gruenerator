@@ -36,12 +36,12 @@ export function canLeaveProject(
   );
 }
 
-/** Den Einladungslink teilen Admins in jedem Projekt, solange es einen Token gibt. */
+/** Den Einladungslink teilen Admins in jedem Projekt, solange es einen Token gibt und es nicht archiviert ist. */
 export function canShareInviteLink(
-  group: GroupKind & { join_token?: string | null },
+  group: GroupKind & { join_token?: string | null; archived_at?: string | null },
   isAdmin: boolean
 ): boolean {
-  return isAdmin && !group.is_system && !!group.join_token;
+  return isAdmin && !group.is_system && !!group.join_token && !group.archived_at;
 }
 
 export function buildMemberActions(memberRole: string): MenuAction[] {

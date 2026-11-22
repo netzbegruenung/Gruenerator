@@ -1,4 +1,4 @@
-import { splitArchivedGroups } from '@gruenerator/shared/groups';
+import { sortGroups, splitArchivedGroups } from '@gruenerator/shared/groups';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
 import { useCallback, useState, type ReactNode } from 'react';
@@ -29,6 +29,7 @@ import {
   BODY_FONT,
 } from '../../../theme';
 import { CONTENT_MAX_WIDTH } from '../../../theme/layout';
+import { formatRelativeDate } from '../../../utils/date';
 import { roleLabel } from '../../../utils/groups';
 import { goBackOr } from '../../../utils/navigation';
 
@@ -68,10 +69,12 @@ export default function ProjekteScreen() {
   // Web's meta rule, kept verbatim so a project reads the same on both surfaces.
   const metaFor = (group: GroupSummary): string => {
     if (group.is_system) return 'Für alle';
-    if (group.member_count) {
-      return `${group.member_count} ${group.member_count === 1 ? 'Mitglied' : 'Mitglieder'}`;
-    }
-    return roleLabel(group.role);
+    const base = group.member_count
+      ? `${group.member_count} ${group.member_count === 1 ? 'Mitglied' : 'Mitglieder'}`
+      : roleLabel(group.role);
+    return group.last_activity_at
+      ? `${base} · ${formatRelativeDate(group.last_activity_at)}`
+      : base;
   };
 
   let body: ReactNode;
@@ -118,7 +121,9 @@ export default function ProjekteScreen() {
       </View>
     );
   } else {
-    const { active, archived } = splitArchivedGroups(groups);
+    const split = splitArchivedGroups(groups);
+    const active = sortGroups(split.active, 'activity');
+    const archived = split.archived;
     const renderTiles = (list: GroupSummary[]) => (
       <View style={styles.grid}>
         {list.map((group) => (

@@ -42,6 +42,7 @@ describe('canShareInviteLink', () => {
     expect(canShareInviteLink(g, false)).toBe(false);
     expect(canShareInviteLink({ ...g, join_token: null }, true)).toBe(false);
     expect(canShareInviteLink({ ...g, is_system: true }, true)).toBe(false);
+    expect(canShareInviteLink({ ...g, archived_at: '2026-11-22T10:00:00Z' }, true)).toBe(false);
     // A project stored as personal can be invited into like any other.
     expect(canShareInviteLink({ ...g, group_type: 'personal' }, true)).toBe(true);
   });

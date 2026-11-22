@@ -71,6 +71,8 @@ export interface GroupSummary {
   archived_at?: string | null;
   /** Optional tile colour (key of the fixed palette); null/absent = default. */
   color?: string | null;
+  /** ISO time of the latest post, share, comment or chat in the project (server-computed). */
+  last_activity_at?: string | null;
   [key: string]: unknown;
 }
 
@@ -141,6 +143,26 @@ export const splitArchivedGroups = <T extends { archived_at?: string | null }>(
   active: groups.filter((g) => !isGroupArchived(g)),
   archived: groups.filter(isGroupArchived),
 });
+
+export type GroupSort = 'activity' | 'name' | 'newest';
+
+const timeOf = (value: string | null | undefined): number => {
+  const t = value ? Date.parse(value) : NaN;
+  return Number.isNaN(t) ? 0 : t;
+};
+
+/** Sorts a project list without mutating it: by last activity, name (de) or creation date, newest first. */
+export const sortGroups = <
+  T extends { name: string; created_at?: string; last_activity_at?: string | null },
+>(
+  groups: readonly T[],
+  sort: GroupSort
+): T[] =>
+  [...groups].sort((a, b) => {
+    if (sort === 'name') return a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
+    if (sort === 'newest') return timeOf(b.created_at) - timeOf(a.created_at);
+    return timeOf(b.last_activity_at ?? b.created_at) - timeOf(a.last_activity_at ?? a.created_at);
+  });
 
 /**
  * Wer eine Freigabe verwalten (Rolle ändern, entfernen) darf — dieselbe Regel wie auf dem

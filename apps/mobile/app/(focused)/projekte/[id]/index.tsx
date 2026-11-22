@@ -2,6 +2,7 @@ import {
   austauschItems,
   canShareIntoGroup,
   filterGroupFeed,
+  hasAustauschContent,
   type GroupFeedItem,
 } from '@gruenerator/shared/groups';
 import { useAuthStore } from '@gruenerator/shared/stores';
@@ -41,6 +42,8 @@ import { ProjectKnowledgeList } from '../../../../components/projekte/ProjectKno
 import { ProjectLinks } from '../../../../components/projekte/ProjectLinks';
 import { ProjectMembersPreview } from '../../../../components/projekte/ProjectMembersPreview';
 import { useProjekteTone } from '../../../../components/projekte/projekteTone';
+import { canShareInviteLink } from '../../../../components/projekte/settingsRules';
+import { shareProjectInvite } from '../../../../components/projekte/shareInvite';
 import { openGroupFeedItem, useBearerToken, useGroupFeed } from '../../../../hooks/useGroupContent';
 import { useGroupDetails, useGroupMembers } from '../../../../hooks/useGroups';
 import { useHiddenMemberIds } from '../../../../hooks/useHiddenMembers';
@@ -48,6 +51,7 @@ import { useProjectAddActions } from '../../../../hooks/useProjectAddActions';
 import { useProjectChats } from '../../../../hooks/useProjectChats';
 import { useShareItemActions } from '../../../../hooks/useShareItemActions';
 import { useTheme } from '../../../../hooks/useTheme';
+import { useNoticeStore } from '../../../../stores/noticeStore';
 import { colors, spacing, typography, borderRadius, BODY_FONT } from '../../../../theme';
 import { CONTENT_MAX_WIDTH } from '../../../../theme/layout';
 import { filterHiddenFeed } from '../../../../utils/hiddenMembers';
@@ -81,6 +85,8 @@ export default function ProjektDetailScreen() {
   // Ein Projekt ist allein oder mit anderen nutzbar, unabhängig vom gespeicherten
   // `group_type`: Austausch und „Für das Team“ erscheinen erst, wenn jemand dabei ist.
   const hasOthers = isSystem || (membersQuery.data?.length ?? 0) > 1;
+  // Der Austausch bleibt sichtbar, solange es Beiträge gibt — auch wenn nur noch eine Person im Projekt ist.
+  const hasAustausch = hasOthers || hasAustauschContent(feedQuery.data ?? []);
   const isTeam = !!group && !isSystem;
   // Wie im Web: ins System-Projekt teilen nur Instanz-Admins.
   const isAdmin = !!detailsQuery.data?.membership.isAdmin;
@@ -91,6 +97,8 @@ export default function ProjektDetailScreen() {
       isAdmin,
       archived_at: group.archived_at ?? null,
     });
+  const canInvite = !!group && canShareInviteLink(group, isAdmin);
+  const fail = (error: Error) => useNoticeStore.getState().show('error', error.message);
   const shareActions = useShareItemActions(id ?? null, isAdmin, hasOthers);
   const addActions = useProjectAddActions(id ?? null);
   const userName = useAuthStore((s) => s.user?.display_name ?? null);
@@ -130,7 +138,7 @@ export default function ProjektDetailScreen() {
     });
   };
 
-  const activeView: ViewMode = !hasOthers
+  const activeView: ViewMode = !hasAustausch
     ? 'uebersicht'
     : (chosenView ?? (beitrag || isSystem ? 'austausch' : 'uebersicht'));
   const hiddenIds = useHiddenMemberIds();
@@ -146,7 +154,7 @@ export default function ProjektDetailScreen() {
   const members = membersQuery.data ?? [];
   const showChats = canAdd && !isSystem;
   const chatsQuery = useProjectChats(id, showChats);
-  const onDiscuss = !hasOthers
+  const onDiscuss = !hasAustausch
     ? null
     : (item: GroupFeedItem) => {
         const shareId = item.share?.shareId;
@@ -180,6 +188,17 @@ export default function ProjektDetailScreen() {
               ) : (
                 <Ionicons name="add" size={22} color={theme.text} />
               )}
+            </Pressable>
+          ) : null}
+          {canInvite && group ? (
+            <Pressable
+              onPress={() => shareProjectInvite(group, fail)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Einladen"
+              style={[styles.headerButton, { backgroundColor: theme.card }]}
+            >
+              <Ionicons name="person-add-outline" size={20} color={theme.text} />
             </Pressable>
           ) : null}
           <Pressable
@@ -259,7 +278,7 @@ export default function ProjektDetailScreen() {
           />
         }
       >
-        {hasOthers && (
+        {hasAustausch && (
           <View style={styles.padded}>
             <SegmentedControl
               accessibilityLabel="Ansicht"
