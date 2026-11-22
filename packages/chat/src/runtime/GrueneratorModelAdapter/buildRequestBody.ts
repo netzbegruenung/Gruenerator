@@ -1,13 +1,17 @@
-import { EDITOR_EDIT_TOOL_KEYS, VISUAL_BLOCK_KINDS } from '@gruenerator/contracts';
+import {
+  confirmActionTypeSchema,
+  EDITOR_EDIT_TOOL_KEYS,
+  VISUAL_BLOCK_KINDS,
+} from '@gruenerator/contracts';
 
 import { DEFAULT_NOTEBOOK_DEPTH } from '../../lib/notebookDepth';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useLastComputeStore } from '../../stores/lastComputeStore';
 import { getAvailableClientTools } from '../clientTools';
 
-import type { GrueneratorAdapterConfig } from './types';
 import type { parseAllMentions } from '../../lib/mentionParser';
 import type { ThreadMode } from '../../stores/chatStore';
+import type { GrueneratorAdapterConfig } from './types';
 import type {
   CurrentBoard,
   CurrentCanvas,
@@ -304,6 +308,10 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     // Every client of this adapter (web, editor sidebars, mobile) draws all of
     // them; see VisualBlock.tsx and the app's visual-blocks renderers.
     visualBlocks: [...VISUAL_BLOCK_KINDS],
+    // The card types this bundle's stream parser accepts — exactly the enum it
+    // was built with. A type missing here would be dropped at the parser, so
+    // the server must not promise a card for it (see `confirmActions`).
+    confirmActions: [...confirmActionTypeSchema.options],
     defaultNotebookId: config.selectedNotebookId || undefined,
     initialAssistantMessage: seededInitialAssistantMessage,
     // Typed mention first: the store's value is ambient (set on popover select,

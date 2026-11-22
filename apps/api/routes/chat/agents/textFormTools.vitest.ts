@@ -144,6 +144,7 @@ function makeCtx(opts: CtxOptions = {}) {
   const sseEvents: Array<[string, unknown]> = [];
   const sse = {
     send: (event: string, data: unknown) => sseEvents.push([event, data]),
+    rendersConfirmAction: () => true,
   } as unknown as SSEWriter;
   const state = {
     agentConfig: { userId: opts.userId === undefined ? 'user-1' : opts.userId },

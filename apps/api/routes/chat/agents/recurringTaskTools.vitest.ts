@@ -96,6 +96,7 @@ function makeCtx(opts: CtxOptions = {}) {
     } as unknown as SourceRegistry);
   const sse = {
     send: (event: string, payload: unknown) => sseEvents.push([event, payload]),
+    rendersConfirmAction: () => true,
   } as unknown as SSEWriter;
   const state = {
     agentConfig: {

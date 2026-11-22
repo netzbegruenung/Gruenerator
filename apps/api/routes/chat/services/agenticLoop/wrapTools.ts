@@ -20,7 +20,11 @@
  */
 import { recordDecision } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { beschreibeWurf, klassifiziereWurf } from '../../agents/toolFailure.js';
+import {
+  beschreibeWurf,
+  EndgueltigerWerkzeugFehler,
+  klassifiziereWurf,
+} from '../../agents/toolFailure.js';
 
 import { LOOP_CLIENT_TOOLS } from './clientToolRegistry.js';
 import { truncateResultForModel, wasShortened } from './truncate.js';
@@ -681,15 +685,21 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
             () => abandoned.abort(new DOMException('Tool call timed out', 'TimeoutError'))
           );
         } catch (err) {
-          const message = beschreibeWurf(err);
-          const timedOut = err instanceof ToolTimeoutError;
-          thrown = { error: message, timedOut };
-          // Das Modell bekommt Ursache, Befund und nächsten Schritt; der Hook
-          // (GlitchTip) behält die rohe Meldung.
-          output = klassifiziereWurf(err, {
-            timedOut,
-            timeoutMs: err instanceof ToolTimeoutError ? err.ms : null,
-          });
+          if (err instanceof EndgueltigerWerkzeugFehler) {
+            // Kein Absturz, sondern „geht hier nicht": fertige Meldung, als
+            // Weisung markiert (keine Wiederholungs-Nudge), kein Fehler-Hook.
+            output = { ...err.fehler, guard: 'endgueltig' };
+          } else {
+            const message = beschreibeWurf(err);
+            const timedOut = err instanceof ToolTimeoutError;
+            thrown = { error: message, timedOut };
+            // Das Modell bekommt Ursache, Befund und nächsten Schritt; der Hook
+            // (GlitchTip) behält die rohe Meldung.
+            output = klassifiziereWurf(err, {
+              timedOut,
+              timeoutMs: err instanceof ToolTimeoutError ? err.ms : null,
+            });
+          }
         } finally {
           ctx.toolActivity?.end();
         }

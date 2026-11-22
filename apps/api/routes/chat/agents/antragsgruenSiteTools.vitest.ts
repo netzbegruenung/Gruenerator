@@ -30,6 +30,7 @@ function makeCtx(deps: Partial<SiteToolDeps> = {}) {
   const sseEvents: Array<[string, unknown]> = [];
   const sse = {
     send: (event: string, payload: unknown) => sseEvents.push([event, payload]),
+    rendersConfirmAction: () => true,
   } as unknown as SSEWriter;
   const state = {
     agentConfig: { userId: 'user-1' },
@@ -121,7 +122,10 @@ describe('antragsgruen_antrag_stellen', () => {
 
   function motionCtx(sites: (typeof SITE)[]) {
     const sseEvents: Array<[string, unknown]> = [];
-    const sse = { send: (e: string, p: unknown) => sseEvents.push([e, p]) } as unknown as SSEWriter;
+    const sse = {
+      send: (e: string, p: unknown) => sseEvents.push([e, p]),
+      rendersConfirmAction: () => true,
+    } as unknown as SSEWriter;
     const state = { agentConfig: { userId: 'user-1' }, messages: [] } as unknown as ChatGraphState;
     const tool = makeAntragsgruenMotionTool(
       {
@@ -177,7 +181,10 @@ describe('antragsgruen_tagesordnung', () => {
 
   function agendaCtx(read = vi.fn(async () => [{ id: 1, code: '1.', title: 'Begrüßung' }])) {
     const sseEvents: Array<[string, unknown]> = [];
-    const sse = { send: (e: string, p: unknown) => sseEvents.push([e, p]) } as unknown as SSEWriter;
+    const sse = {
+      send: (e: string, p: unknown) => sseEvents.push([e, p]),
+      rendersConfirmAction: () => true,
+    } as unknown as SSEWriter;
     const state = { agentConfig: { userId: 'user-1' }, messages: [] } as unknown as ChatGraphState;
     const tool = makeAntragsgruenAgendaTool(
       {
@@ -265,7 +272,7 @@ describe('antragsgruen_seite_lesen', () => {
     const tool = makeAntragsgruenReadTool(
       {
         state,
-        sse: { send: () => {} } as unknown as SSEWriter,
+        sse: { send: () => {}, rendersConfirmAction: () => true } as unknown as SSEWriter,
         threadId: 'thread-1',
         sourceRegistry: {
           note: (n: { content?: string }) => notes.push(String(n.content ?? '')),

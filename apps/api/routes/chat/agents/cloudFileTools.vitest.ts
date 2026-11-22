@@ -96,6 +96,7 @@ function makeCtx(
   } as unknown as SourceRegistry;
   const sse = {
     send: (event: string, payload: unknown) => sseEvents.push([event, payload]),
+    rendersConfirmAction: () => true,
   } as unknown as SSEWriter;
   const state = {
     agentConfig: { userId: opts.userId === undefined ? 'user-1' : opts.userId },
@@ -607,7 +608,7 @@ describe('was der Schreiber im split-Modus wirklich sieht', () => {
         agentConfig: { userId: 'user-1' },
         attachedWebpageUrls: [],
       } as unknown as ChatGraphState,
-      sse: { send: () => {} } as unknown as SSEWriter,
+      sse: { send: () => {}, rendersConfirmAction: () => true } as unknown as SSEWriter,
       threadId: 'thread-1',
       sourceRegistry,
       provider: { id: 'nextcloud-share' } as CloudFileProvider,
@@ -680,7 +681,7 @@ describe('mehrere Anbieter', () => {
         agentConfig: { userId: 'user-1' },
         attachedWebpageUrls: [],
       } as unknown as ChatGraphState,
-      sse: { send: () => {} } as unknown as SSEWriter,
+      sse: { send: () => {}, rendersConfirmAction: () => true } as unknown as SSEWriter,
       threadId: 'thread-1',
       sourceRegistry,
       providers: Object.fromEntries(

@@ -62,6 +62,23 @@ export function werkzeugFehler(input: WerkzeugFehlerInput): WerkzeugFehler {
   };
 }
 
+/**
+ * Für den Fall, dass ein Werkzeug tief im Aufruf feststellt, dass es HIER
+ * grundsätzlich nicht geht — kein Defekt, und ein neuer Versuch ändert nichts.
+ * `wrapToolsForLoop` reicht die fertige Fehlerform ans Modell, markiert sie als
+ * Weisung (`guard`, keine Wiederholungs-Nudge) und meldet sie nicht als Absturz
+ * (kein `onToolCallError`). So muss nicht jeder Aufrufer einer gemeinsamen
+ * Hilfsfunktion denselben Rückgabewert prüfen.
+ */
+export class EndgueltigerWerkzeugFehler extends Error {
+  readonly fehler: WerkzeugFehler;
+  constructor(fehler: WerkzeugFehler) {
+    super(fehler.error);
+    this.name = 'EndgueltigerWerkzeugFehler';
+    this.fehler = fehler;
+  }
+}
+
 /** Ein echtes Leer: kein `error`, aber der Satz sagt, welche Filter gegriffen haben. */
 export function leeresErgebnis(opts: { filter?: string | null; hinweis?: string | null } = {}): {
   resultCount: 0;
