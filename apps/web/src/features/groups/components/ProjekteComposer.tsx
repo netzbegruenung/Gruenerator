@@ -31,7 +31,7 @@ const PLACEHOLDERS_SHORT = ['Projekt anlegen …', 'Projekt suchen …'];
 
 function ProjektIcon() {
   return (
-    <span className="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-lg bg-[#DFEBD9] text-[#3D6130] dark:bg-[#1A2B16] dark:text-[#8FC27E]">
+    <span className="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-lg bg-[#D6EBE8] text-[#12504A] dark:bg-[#112423] dark:text-[#9AD6CF]">
       <HiUserGroup className="h-[15px] w-[15px]" />
     </span>
   );
