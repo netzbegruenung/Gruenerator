@@ -410,9 +410,7 @@ export const useAgentStore = create<AgentState>()(
 
       setPendingGroup: (groupId, teamShared = false, ttlMs = PENDING_GROUP_TTL_MS) =>
         set({
-          pendingGroup: groupId
-            ? { id: groupId, teamShared, expiresAt: Date.now() + ttlMs }
-            : null,
+          pendingGroup: groupId ? { id: groupId, teamShared, expiresAt: Date.now() + ttlMs } : null,
         }),
 
       setPendingAttachments: (attachments) => set({ pendingAttachments: attachments }),

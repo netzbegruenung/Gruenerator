@@ -6,7 +6,6 @@ import {
 } from '@gruenerator/shared/groups';
 import { HiCheck } from 'react-icons/hi';
 
-
 interface GroupColorPickerProps {
   value: string | null | undefined;
   onChange: (color: GroupColor | null) => void;
