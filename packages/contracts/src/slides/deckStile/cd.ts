@@ -5,7 +5,7 @@
  */
 
 import { type BrandLocale } from '../../brand/grueneBrand.js';
-import { LIST_BOX_KEY, type FlowSpec } from '../fitText.js';
+import { LIST_BOX_KEY, type FlowSet } from '../fitText.js';
 import { type FolieSpec, type FolienTypId } from '../folienTypen.js';
 import { removeElement } from '../slideDeckBasics.js';
 import { slideKit, SlideBuilder, type SlideLayoutState } from '../slideLayouts.js';
@@ -18,7 +18,12 @@ import {
   renderList,
   stoerer,
   STOERER_MAGENTA,
+  SYMBOLE,
+  SYMBOLE_BOXES,
+  symbole,
+  symboleFlows,
   textOf,
+  tonesOf,
   type DeckStilCtx,
   bildFolie,
   BILD_BOXES,
@@ -80,6 +85,13 @@ function listeFolie(b: SlideBuilder, folie: FolieSpec) {
     ),
   });
   if (withStoerer) stoerer(b, s.stoerer!.trim(), 1685, 230, STOERER_MAGENTA);
+}
+
+/** Drei bis vier Kreise in Grasgrün auf dem Grün des CD; Überschrift wie die der Liste, eine Stufe kleiner. */
+function symboleFolie(b: SlideBuilder, folie: FolieSpec, locale: BrandLocale) {
+  b.headline('folie-headline', '', M, HEAD.y, HEAD.width, 110);
+  const t = tonesOf(locale);
+  symbole(b, folie, { circle: t.gras, dunkel: t.dunkel });
 }
 
 function textFolie(b: SlideBuilder) {
@@ -186,6 +198,9 @@ export function buildCd(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutState {
     case 'liste':
       listeFolie(b, folie);
       break;
+    case 'symbole':
+      symboleFolie(b, folie, ctx.locale);
+      break;
     case 'text':
       textFolie(b);
       break;
@@ -228,6 +243,10 @@ export const CD_BOXES: Record<
     'folie-headline': { maxHeight: 260, minScale: 0.6 },
     'folie-stoerer-text': { maxHeight: 140, minScale: 0.6 },
   },
+  symbole: {
+    ...SYMBOLE_BOXES,
+    'folie-headline': { maxHeight: SYMBOLE.headBottom - HEAD.y, minScale: 0.6 },
+  },
   text: {
     'folie-headline': { maxHeight: 260, minScale: 0.6 },
     'folie-spalte-1': { maxHeight: 620, minScale: 0.8 },
@@ -256,7 +275,7 @@ export const CD_BOXES: Record<
 /** Text und Liste hängen an der Überschrift; mittig schwebend wirkten sie losgelöst. */
 const underHead = { id: 'folie-headline', gap: 100 } as const;
 
-export const CD_FLOWS: Partial<Record<FolienTypId, FlowSpec>> = {
+export const CD_FLOWS: Partial<Record<FolienTypId, FlowSet>> = {
   titel: {
     ids: ['folie-headline', 'folie-text'],
     top: 120,
@@ -273,6 +292,7 @@ export const CD_FLOWS: Partial<Record<FolienTypId, FlowSpec>> = {
     align: 'top',
     gapEm: 0.8,
   },
+  symbole: symboleFlows(CONTENT_BOTTOM),
   text: {
     ids: ['folie-spalte-1'],
     top: 260,

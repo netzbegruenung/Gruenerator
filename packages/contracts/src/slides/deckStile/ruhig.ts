@@ -5,7 +5,7 @@
  * Überschriftengrösse der Listenfolie und die große Schrift der Titel-/Zitatfolie.
  */
 
-import { LIST_BOX_KEY, type FlowSpec } from '../fitText.js';
+import { LIST_BOX_KEY, type FlowSet } from '../fitText.js';
 import { type FolieSpec, type FolienTypId } from '../folienTypen.js';
 import { SlideBuilder, type SlideLayoutState } from '../slideLayouts.js';
 
@@ -20,6 +20,10 @@ import {
   stoerer,
   stoererOf,
   STOERER_MAGENTA,
+  SYMBOLE,
+  SYMBOLE_BOXES,
+  symbole,
+  symboleFlows,
   tonesOf,
   type DeckStilCtx,
   bildFolie,
@@ -54,6 +58,10 @@ export function buildRuhig(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutState
       if (störer) stoerer(b, störer, 1700, 190, STOERER_MAGENTA);
       break;
     }
+    case 'symbole':
+      head(b, 'folie-headline', X, 110, 1700, size(110));
+      symbole(b, folie, { circle: t.lime, dunkel: t.dunkel });
+      break;
     case 'text':
       head(b, 'folie-headline', X, 110, 1700, size(130));
       b.text('folie-spalte-1', '', X, 340, 1500, 60, { lineHeight: 1.35 });
@@ -112,6 +120,10 @@ export const RUHIG_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
     'folie-punkt-*': { maxHeight: 165, minScale: 0.65 },
     'folie-headline': { maxHeight: 220, minScale: 0.6 },
   },
+  symbole: {
+    ...SYMBOLE_BOXES,
+    'folie-headline': { maxHeight: SYMBOLE.headBottom - 110, minScale: 0.6 },
+  },
   text: {
     'folie-headline': { maxHeight: 220, minScale: 0.6 },
     'folie-spalte-1': { maxHeight: 640, minScale: 0.8 },
@@ -133,7 +145,7 @@ export const RUHIG_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
 /** Texte nach gemessener Höhe statt auf festen y-Werten (`fitSlideTexts`). */
 const underHead = { id: 'folie-headline', gap: 70 } as const;
 
-export const RUHIG_FLOWS: Partial<Record<FolienTypId, FlowSpec>> = {
+export const RUHIG_FLOWS: Partial<Record<FolienTypId, FlowSet>> = {
   titel: {
     ids: ['folie-headline', 'folie-text'],
     top: 120,
@@ -151,6 +163,7 @@ export const RUHIG_FLOWS: Partial<Record<FolienTypId, FlowSpec>> = {
     gapEm: 0.6,
     follow: { 'folie-marke-': { anchor: 'top', dy: MARKE_DY } },
   },
+  symbole: symboleFlows(970),
   text: {
     ids: ['folie-spalte-1'],
     top: 280,

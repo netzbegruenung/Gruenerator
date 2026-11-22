@@ -142,7 +142,7 @@ function typCatalog(): string {
     const slots = Object.entries(folienSlotsOf(id))
       .map(([name, s]) =>
         s.kind === 'list'
-          ? `${name}${s.required ? '' : '?'} (Array von Texten, ${s.minItems}–${s.maxItems} Punkte je ≤${s.maxChars})`
+          ? `${name}${s.required ? '' : '?'} (Array von ${s.iconKeys ? 'Symbol-Schlüsseln' : 'Texten'}, ${s.minItems}–${s.maxItems} Punkte je ≤${s.maxChars})`
           : `${name}${s.required ? '' : '?'} (≤${s.maxChars})`
       )
       .join(', ');

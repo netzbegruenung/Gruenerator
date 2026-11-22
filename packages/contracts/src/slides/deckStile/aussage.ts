@@ -7,7 +7,7 @@
  * und die großen Schriften des Entwurfs.
  */
 
-import { type FlowSpec } from '../fitText.js';
+import { type FlowSet } from '../fitText.js';
 import { type FolieSpec, type FolienTypId } from '../folienTypen.js';
 import { SlideBuilder, type SlideLayoutState } from '../slideLayouts.js';
 
@@ -20,6 +20,10 @@ import {
   stilInk,
   stoerer,
   stoererOf,
+  SYMBOLE,
+  SYMBOLE_BOXES,
+  symbole,
+  symboleFlows,
   textOf,
   tonesOf,
   type DeckStilCtx,
@@ -68,6 +72,10 @@ export function buildAussage(folie: FolieSpec, ctx: DeckStilCtx): SlideLayoutSta
       if (störer) stoerer(b, störer, 1700, 200, t.gras);
       break;
     }
+    case 'symbole':
+      head(b, 'folie-headline', X, 110, 1700, size(100));
+      symbole(b, folie, { circle: t.gras, dunkel: t.dunkel });
+      break;
     case 'text':
       head(b, 'folie-headline', X, 110, 1700, size(80), akzent);
       b.text('folie-spalte-1', '', X, 300, 1500, 54, { lineHeight: 1.35 });
@@ -121,6 +129,10 @@ export const AUSSAGE_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
     'folie-punkt-*': { maxHeight: 230, minScale: 0.7 },
     'folie-headline': { maxHeight: 330, minScale: 0.6 },
   },
+  symbole: {
+    ...SYMBOLE_BOXES,
+    'folie-headline': { maxHeight: SYMBOLE.headBottom - 110, minScale: 0.6 },
+  },
   text: {
     'folie-headline': { maxHeight: 170, minScale: 0.6 },
     'folie-spalte-1': { maxHeight: 680, minScale: 0.8 },
@@ -140,7 +152,7 @@ export const AUSSAGE_BOXES: Record<FolienTypId, Record<string, DeckStilBox>> = {
 };
 
 /** Texte nach gemessener Höhe statt auf festen y-Werten (`fitSlideTexts`). */
-export const AUSSAGE_FLOWS: Partial<Record<FolienTypId, FlowSpec>> = {
+export const AUSSAGE_FLOWS: Partial<Record<FolienTypId, FlowSet>> = {
   titel: {
     ids: ['folie-headline', 'folie-text'],
     top: 120,
@@ -149,6 +161,7 @@ export const AUSSAGE_FLOWS: Partial<Record<FolienTypId, FlowSpec>> = {
     gapEm: 0.3,
     gapAfter: { 'folie-headline': 40 },
   },
+  symbole: symboleFlows(970),
   text: {
     ids: ['folie-spalte-1'],
     top: 260,

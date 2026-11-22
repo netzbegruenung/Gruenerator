@@ -11,6 +11,15 @@ export const DECK_FOLIE_SAMPLES: Record<FolienTypId, FolieSpec> = {
     typ: 'liste',
     slots: { headline: 'Überschrift', punkte: ['Erster Punkt', 'Zweiter Punkt', 'Dritter Punkt'] },
   },
+  symbole: {
+    typ: 'symbole',
+    slots: {
+      headline: 'Überschrift',
+      symbole: ['bahn', 'schule', 'haus'],
+      labels: ['Erste Marke', 'Zweite Marke', 'Dritte Marke'],
+      zeilen: ['Eine kurze Zeile dazu', 'Eine kurze Zeile dazu', 'Eine kurze Zeile dazu'],
+    },
+  },
   text: {
     typ: 'text',
     slots: { headline: 'Überschrift', text: 'Hier steht ein kurzer Fließtext zum Thema.' },

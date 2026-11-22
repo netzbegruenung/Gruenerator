@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   composeSlideDeck,
   DECK_STILE,
+  FOLIEN_ICON_KEYS,
   FOLIEN_TYPEN,
   FOLIEN_TYP_IDS,
   folienSlotsOf,
@@ -27,7 +28,9 @@ function fullFolie(typ: FolienTypId): FolieSpec {
         ? name === 'text' && typ === 'text'
           ? 'Ein ==wichtiger== Absatz.'
           : `T-${name}`
-        : Array.from({ length: slot.maxItems }, (_, i) => `P-${name}-${i + 1}`);
+        : Array.from({ length: slot.maxItems }, (_, i) =>
+            slot.iconKeys ? FOLIEN_ICON_KEYS[i]! : `P-${name}-${i + 1}`
+          );
   }
   return { typ, slots, notes: `Notiz ${typ}` } as FolieSpec;
 }
