@@ -11,7 +11,8 @@ const SHOWN = 3;
  * Aufgabe gehört der Person, nicht dem Projekt — andere Mitglieder sehen ihre
  * eigenen). „+ Aufgabe" öffnet den Editor mit vorgewähltem Projekt.
  */
-export function ProjectTasksCard({ groupId }: { groupId: string }) {
+/** `archived`: ein archiviertes Projekt nimmt nichts Neues an, also keine neue Aufgabe. */
+export function ProjectTasksCard({ groupId, archived }: { groupId: string; archived: boolean }) {
   const { data: tasks = [] } = useRecurringTasks();
   const own = tasks.filter((t) => t.groupId === groupId);
 
@@ -25,13 +26,15 @@ export function ProjectTasksCard({ groupId }: { groupId: string }) {
         <h2 id="projekt-geplant-titel" className="m-0 min-w-0 flex-1 text-[15px] font-semibold">
           Geplant
         </h2>
-        <Link
-          to={`/wiederkehrend/neu?projekt=${groupId}`}
-          className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-primary-600 hover:bg-muted"
-        >
-          <PiPlus aria-hidden className="size-4" />
-          Aufgabe
-        </Link>
+        {!archived && (
+          <Link
+            to={`/wiederkehrend/neu?projekt=${groupId}`}
+            className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-primary-600 hover:bg-muted"
+          >
+            <PiPlus aria-hidden className="size-4" />
+            Aufgabe
+          </Link>
+        )}
       </div>
       {own.length === 0 ? (
         <p className="m-0 text-sm text-muted-foreground">

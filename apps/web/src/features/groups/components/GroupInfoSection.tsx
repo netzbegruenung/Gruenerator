@@ -846,7 +846,9 @@ const GroupInfoSection = memo(
                     onErrorMessage={onErrorMessage}
                   />
                 )}
-                {!isSystem && <ProjectTasksCard groupId={groupId} />}
+                {!isSystem && (
+                  <ProjectTasksCard groupId={groupId} archived={!!data?.groupInfo?.archived_at} />
+                )}
                 <ProjectKnowledgeList
                   items={knowledgeItems}
                   onUseTemplate={handleCloneTemplate}

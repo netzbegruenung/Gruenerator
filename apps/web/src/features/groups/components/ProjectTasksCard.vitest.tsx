@@ -23,7 +23,7 @@ const task = (id: string, groupId: string | null): RecurringTask =>
 describe('ProjectTasksCard', () => {
   it('lists only the tasks of this project and links „+ Aufgabe“ with the project preselected', async () => {
     tasks.value = [task('a', 'g1'), task('b', 'g2'), task('c', null)];
-    const { container } = renderWithProviders(<ProjectTasksCard groupId="g1" />);
+    const { container } = renderWithProviders(<ProjectTasksCard groupId="g1" archived={false} />);
     expect(screen.getByText('Aufgabe a')).toBeInTheDocument();
     expect(screen.queryByText('Aufgabe b')).not.toBeInTheDocument();
     expect(screen.queryByText('Aufgabe c')).not.toBeInTheDocument();
@@ -36,7 +36,13 @@ describe('ProjectTasksCard', () => {
 
   it('shows an invitation when the project has no task yet', () => {
     tasks.value = [task('b', 'g2')];
-    renderWithProviders(<ProjectTasksCard groupId="g1" />);
+    renderWithProviders(<ProjectTasksCard groupId="g1" archived={false} />);
     expect(screen.getByText(/regelmäßig etwas für dieses Projekt/)).toBeInTheDocument();
+  });
+
+  it('offers no new task in an archived project', () => {
+    tasks.value = [];
+    renderWithProviders(<ProjectTasksCard groupId="g1" archived />);
+    expect(screen.queryByRole('link', { name: /Aufgabe$/ })).not.toBeInTheDocument();
   });
 });
