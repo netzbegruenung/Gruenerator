@@ -184,6 +184,42 @@ describe('generateCanvasDeck', () => {
     expect(ids).toContain('folie-text');
   });
 
+  it('keeps the deck without a broken slide on the last attempt', async () => {
+    // Live 22.11. (chat probe p12): attempt 1 had a too-long `zahl`, the repair dropped
+    // `text` and `quelle` — the whole deck was lost for one slide.
+    const good = [
+      { typ: 'titel', slots: { headline: 'Haushalt 2027' } },
+      { typ: 'liste', slots: { headline: 'Was wir ändern', punkte: ['a', 'b', 'c'] } },
+    ];
+    modelAnswers(
+      {
+        title: 'Haushalt',
+        slides: [
+          good[0],
+          { typ: 'zahl', slots: { zahl: '41,3 Mio. €', text: 't', quelle: 'q' } },
+          good[1],
+        ],
+      },
+      { title: 'Haushalt', slides: [good[0], { typ: 'zahl', slots: { zahl: '41 Mio' } }, good[1]] }
+    );
+    const result = await generateCanvasDeck({ prompt: 'x', userId: 'u1', locale: 'de-DE' });
+    expect(result).not.toBeNull();
+    expect(created().page_count).toBe(2);
+  });
+
+  it('still rejects a broken slide while a retry is left', async () => {
+    modelAnswers({
+      title: 'Haushalt',
+      slides: [
+        { typ: 'titel', slots: { headline: 'Haushalt 2027' } },
+        { typ: 'zahl', slots: { zahl: '41 Mio' } },
+        { typ: 'liste', slots: { headline: 'H', punkte: ['a', 'b', 'c'] } },
+      ],
+    });
+    const result = await generateCanvasDeck({ prompt: 'x', userId: 'u1', locale: 'de-DE' });
+    expect(result).toBeNull();
+  });
+
   it('drops a stock kicker above the Kernsatz but keeps a real one', async () => {
     modelAnswers({
       title: 'Radwege',

@@ -11,6 +11,7 @@
 import {
   composeSlideDeck,
   deckSpecSchema,
+  folieSpecSchema,
   FOLIEN_TYP_IDS,
   FOLIEN_TYPEN,
   folienSlotsOf,
@@ -230,6 +231,22 @@ function normalizeDeck(input: unknown): unknown {
   return { ...deck, slides };
 }
 
+/**
+ * Das Deck ohne die Folien, die das Schema nicht bestehen; null, wenn danach
+ * keine zwei Folien bleiben (ein Deck aus Titel allein ist kein Ergebnis).
+ */
+function withoutBrokenSlides(input: unknown) {
+  if (!input || typeof input !== 'object') return null;
+  const slides = (input as { slides?: unknown }).slides;
+  if (!Array.isArray(slides)) return null;
+  const kept = slides.filter((folie) => folieSpecSchema.safeParse(folie).success);
+  if (kept.length < 2 || kept.length === slides.length) return null;
+  const parsed = deckSpecSchema.safeParse({ ...input, slides: kept });
+  if (!parsed.success) return null;
+  log.warn(`Deck kept without ${slides.length - kept.length} invalid slide(s) on the last attempt`);
+  return parsed;
+}
+
 /** Floskeln als ganze Zeile: „Unser Ziel“, „Unsere Vision:“, „Fazit“, „Kernbotschaft“ … */
 const STOCK_KICKER =
   /^\s*(?:(?:unser(?:e|er)?|meine?|das|die|der)\s+)?(?:ziel|ziele|vision|versprechen|anspruch|auftrag|plan|weg|botschaft|kernbotschaft|kernaussage|haltung|überzeugung|forderung|fazit|ausblick|zusammenfassung|fokus)\s*[.:!]?\s*$/i;
@@ -363,7 +380,14 @@ export async function generateCanvasDeck(opts: {
     schema: deckToolSchema(photo !== null),
     validate: (raw, attempt, attempts) => {
       const input = normalizeDeck(raw);
-      const parsed = deckSpecSchema.safeParse(input);
+      let parsed = deckSpecSchema.safeParse(input);
+      if (!parsed.success && attempt === attempts) {
+        // Letzter Versuch: eine kaputte Folie kostet nicht das ganze Deck. Live 22.11.: Runde 1
+        // „Feld zahl: höchstens 8 Zeichen“, die Reparatur ließ `text` und `quelle` weg, und die
+        // Person bekam statt sieben guter Folien die Bitte, ihren Auftrag zu wiederholen.
+        const salvaged = withoutBrokenSlides(input);
+        if (salvaged) parsed = salvaged;
+      }
       if (!parsed.success) {
         return { ok: false as const, error: describeIssues(parsed.error, input) };
       }
