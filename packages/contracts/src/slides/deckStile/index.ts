@@ -5,12 +5,13 @@
  * Welcher Stil eine Seite gebaut hat, steht in `state.deckStil`.
  */
 
+import { type FlowSpec } from '../fitText.js';
 import { type FolieSpec, type FolienTypId } from '../folienTypen.js';
 import { type SlideLayoutState } from '../slideLayouts.js';
 
 import { AUSSAGE_BOXES, buildAussage } from './aussage.js';
 import { BAND_BOXES, buildBand } from './band.js';
-import { buildCd, CD_BOXES } from './cd.js';
+import { buildCd, CD_BOXES, CD_FLOWS } from './cd.js';
 import { buildKacheln, KACHELN_BOXES } from './kacheln.js';
 import { buildRuhig, RUHIG_BOXES } from './ruhig.js';
 import { type DeckStilCtx } from './shared.js';
@@ -68,4 +69,12 @@ export function deckStilBoxes(stil: DeckStilId, typ: FolienTypId): Record<string
     case 'aussage':
       return AUSSAGE_BOXES[typ];
   }
+}
+
+/**
+ * Der senkrechte Fluss eines Folientyps (`fitSlideTexts`), wo der Stil einen hat:
+ * die Texte stehen dann nach gemessener Höhe untereinander statt auf festen y-Werten.
+ */
+export function deckStilFlow(stil: DeckStilId, typ: FolienTypId): FlowSpec | null {
+  return stil === 'cd' ? (CD_FLOWS[typ] ?? null) : null;
 }

@@ -76,6 +76,67 @@ function fitGroup(
   return over;
 }
 
+/**
+ * Ein senkrechter Fluss: die Elemente stehen in dieser Reihenfolge untereinander,
+ * jedes so hoch, wie sein umbrochener Text gemessen ist. Feste y-Werte im Stil
+ * kennen die Zeilenzahl nicht; eine zweizeilige Überschrift lief so in die Zeile
+ * darunter, und drei kurze Listenpunkte ließen die halbe Folie leer.
+ */
+export interface FlowSpec {
+  /** Element-Ids von oben nach unten; `LIST_BOX_KEY` steht für alle Listenpunkte. Fehlende entfallen. */
+  ids: readonly string[];
+  /** Oberkante des Bereichs. */
+  top: number;
+  /** Beginnt der Bereich erst unter einem Element (meist der Überschrift): dessen Id und der Abstand. */
+  below?: { id: string; gap: number };
+  /** Unterkante des Bereichs (über der Fußzeile). */
+  bottom: number;
+  /** `top`: ab der Oberkante; `center`: mittig im Bereich. */
+  align: 'top' | 'center';
+  /** Abstand nach einem Element, als Faktor seiner Schriftgröße. */
+  gapEm: number;
+  /** Abweichender Abstand nach bestimmten Elementen, in px. */
+  gapAfter?: Readonly<Record<string, number>>;
+}
+
+function flowMembers(state: SlideLayoutState, ids: readonly string[]): TextEl[] {
+  return ids.flatMap((id) =>
+    id === LIST_BOX_KEY
+      ? state.additionalTexts.filter((t) => LIST_ID.test(t.id))
+      : state.additionalTexts.filter((t) => t.id === id)
+  );
+}
+
+/** Setzt die y-Werte der Fluss-Elemente; liefert die Ids, die unter `bottom` hinausragen. */
+export function flowSlideTexts(
+  state: SlideLayoutState,
+  flow: FlowSpec,
+  measure: MeasureText
+): string[] {
+  const els = flowMembers(state, flow.ids).filter((el) => stripInlineMarks(el.text).trim() !== '');
+  if (els.length === 0) return [];
+  const anchor = flow.below
+    ? state.additionalTexts.find((t) => t.id === flow.below!.id)
+    : undefined;
+  const top = anchor
+    ? Math.max(flow.top, anchor.y + heightOf(anchor, anchor.fontSize, measure) + flow.below!.gap)
+    : flow.top;
+  const heights = els.map((el) => heightOf(el, el.fontSize, measure));
+  const gaps = els.map((el, i) =>
+    i === els.length - 1 ? 0 : (flow.gapAfter?.[el.id] ?? Math.round(el.fontSize * flow.gapEm))
+  );
+  const total = heights.reduce((a, h) => a + h, 0) + gaps.reduce((a, g) => a + g, 0);
+  const room = flow.bottom - top;
+  let y = flow.align === 'center' && total < room ? top + Math.round((room - total) / 2) : top;
+  const over: string[] = [];
+  els.forEach((el, i) => {
+    el.y = Math.round(y);
+    y += heights[i]! + gaps[i]!;
+    if (el.y + heights[i]! > flow.bottom) over.push(el.id);
+  });
+  return over;
+}
+
 export function fitSlideTexts(
   state: SlideLayoutState,
   boxes: Record<string, FitBox>,
@@ -85,7 +146,9 @@ export function fitSlideTexts(
    * Ausgang; mit ihr schrumpft wiederholtes Bearbeiten nicht kumulativ, und ein
    * kürzerer Text wächst auf die Ausgangsgröße zurück.
    */
-  baseSizes: Record<string, number> | null = null
+  baseSizes: Record<string, number> | null = null,
+  /** Nach dem Einpassen: die Elemente nach gemessener Höhe untereinander setzen. */
+  flow: FlowSpec | null = null
 ): { state: SlideLayoutState; overflow: string[] } {
   const next = structuredClone(state);
   const overflow: string[] = [];
@@ -96,6 +159,25 @@ export function fitSlideTexts(
         : next.additionalTexts.filter((t) => t.id === key);
     if (els.length === 0) continue;
     overflow.push(...fitGroup(els, box, measure, baseSizes));
+  }
+  if (flow) {
+    let over = flowSlideTexts(next, flow, measure);
+    // Passt jeder Punkt in seine Zelle, aber nicht die ganze Liste in den Bereich:
+    // die Punkte schrumpfen gemeinsam weiter, bis zum `minScale` ihrer Box.
+    const listBox = boxes[LIST_BOX_KEY];
+    const items = next.additionalTexts.filter((t) => LIST_ID.test(t.id));
+    if (over.length > 0 && listBox && items.length > 0) {
+      const original = items.map((el) => baseSizes?.[el.id] ?? el.fontSize);
+      const start = items[0]!.fontSize / original[0]!;
+      for (const scale of scalesFor(listBox.minScale).filter((s) => s < start - 1e-9)) {
+        items.forEach((el, i) => (el.fontSize = Math.round(original[i]! * scale)));
+        over = flowSlideTexts(next, flow, measure);
+        if (over.length === 0) break;
+      }
+    }
+    for (const id of over) {
+      if (!overflow.includes(id)) overflow.push(id);
+    }
   }
   return { state: next, overflow };
 }

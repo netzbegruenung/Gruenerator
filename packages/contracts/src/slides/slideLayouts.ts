@@ -115,7 +115,8 @@ const PANEL = 960;
 /** Innenabstand der Texte in der Farbfläche. */
 const PANEL_PAD = 80;
 const HEAD_TOP = 60;
-const FOOTER = { y: 1028, size: 20 } as const;
+/** Fußzeile: 24 px, die kleinste Größe, die auf dem Beamer noch lesbar ist. */
+const FOOTER = { y: 1028, size: 24 } as const;
 const STOERER = { diameter: 300, size: 46 } as const;
 const MARK = { x: 1852, y: 62, diameter: 60, flower: 44, atLogo: 96 } as const;
 
