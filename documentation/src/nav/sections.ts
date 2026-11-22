@@ -80,7 +80,7 @@ export const SECTIONS: DocSection[] = [
         to: '/docs/guides/einsteigerinnen/sharepic-erstellen',
       },
       {
-        label: 'Wie erstelle ich ein gemeinsames Projekt?',
+        label: 'Wie erstelle ich ein Projekt und lade andere ein?',
         to: '/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen',
       },
       {
