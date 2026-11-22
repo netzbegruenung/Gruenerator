@@ -5,7 +5,6 @@ import {
   canManageShare,
   hasAustauschContent,
   sharedContentKeys,
-  useGroupStart,
   useSetGroupArchived,
   useUpdateGroupInfo,
 } from '@gruenerator/shared/groups';
@@ -80,7 +79,6 @@ import { ProjectInstructionsCard } from './ProjectInstructionsCard';
 import { ProjectKnowledgeList } from './ProjectKnowledgeList';
 import { ProjectLandesverbandSelect } from './ProjectLandesverbandSelect';
 import { ProjectMembersCard } from './ProjectMembersCard';
-import { ProjectStartCard } from './ProjectStartCard';
 import { ProjectTasksCard } from './ProjectTasksCard';
 import { type ShareActions } from './shareActions';
 import { ShareNoteDialog } from './ShareNoteDialog';
@@ -255,7 +253,6 @@ const GroupInfoSection = memo(
     }, [inviteDraft, inviteEmails, inviteToGroup, groupId, onSuccessMessage, onErrorMessage]);
 
     const isMuted = data?.membership?.notifications_muted ?? false;
-    const { data: projectStart } = useGroupStart(groupId);
     const setGroupMute = useSetGroupMute(groupId);
     const handleToggleMute = useCallback(() => {
       if (setGroupMute.isPending) return;
@@ -667,16 +664,6 @@ const GroupInfoSection = memo(
                 </PopoverContent>
               </Popover>
             )}
-            {data?.isAdmin && isTeam && !isArchived && (
-              <Button
-                variant="outline"
-                onClick={openInviteDialog}
-                className="max-sm:size-9 max-sm:rounded-full max-sm:p-0"
-              >
-                <HiOutlineMail aria-hidden />
-                <span className="max-sm:sr-only">Einladen</span>
-              </Button>
-            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -826,13 +813,7 @@ const GroupInfoSection = memo(
             <div className="flex flex-col gap-lg min-[900px]:flex-row min-[900px]:items-start min-[900px]:gap-xl">
               {showChats && (
                 <div className="flex min-w-0 flex-1 flex-col gap-md">
-                  <ProjectChatComposer
-                    groupId={groupId}
-                    groupName={data?.groupInfo?.name ?? ''}
-                    solo={isSystem || !hasOthers}
-                    welcomeMessage={projectStart?.welcomeMessage}
-                    startQuestions={projectStart?.startQuestions}
-                  />
+                  <ProjectChatComposer groupId={groupId} solo={isSystem || !hasOthers} />
                   <SpaceChatsSection groupId={groupId} />
                 </div>
               )}
@@ -842,14 +823,6 @@ const GroupInfoSection = memo(
                   showChats ? 'min-[900px]:w-[340px] min-[900px]:shrink-0' : 'flex-1'
                 )}
               >
-                {showChats && (
-                  <ProjectStartCard
-                    groupId={groupId}
-                    isAdmin={!!data?.isAdmin}
-                    onSuccessMessage={onSuccessMessage}
-                    onErrorMessage={onErrorMessage}
-                  />
-                )}
                 {!isSystem && (
                   <ProjectInstructionsCard
                     groupId={groupId}

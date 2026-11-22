@@ -58,7 +58,6 @@ function deps(over: Partial<AgentConversionDeps> = {}) {
     trashProject: vi.fn(async () => 'ok'),
     setInstructions: vi.fn(async () => ({})),
     setLandesverband: vi.fn(async () => ({})),
-    setStart: vi.fn(async () => ({})),
     handOverTasks: vi.fn(async () => 0),
     share: vi.fn(async () => ({ status: 200 as const, success: true, message: 'ok' })),
     setSuccessor: vi.fn(async () => true),
@@ -247,29 +246,13 @@ describe('convertUserAgent', () => {
     expect(d.setLandesverband).toHaveBeenCalledWith(PROJECT_ID, 'u1', 'bayern');
   });
 
-  it('project: carries welcome and start questions, clamped to the project limits', async () => {
+  it('project: welcome and start questions are not carried (dropped)', async () => {
     const d = deps({
-      getAgent: vi.fn(async () =>
-        agent({
-          openingMessage: '  Hallo und willkommen!  ',
-          openingQuestions: ['Eins?', ' ', 'Zwei?', 'Drei?', 'Vier?', 'Fünf?'],
-        })
-      ),
+      getAgent: vi.fn(async () => agent({ openingMessage: 'Hallo', openingQuestions: ['Eins?'] })),
     });
     const out = await convertUserAgent({ ...RUN, target: 'project' }, d);
-    expect(d.setStart).toHaveBeenCalledWith(PROJECT_ID, 'u1', {
-      welcomeMessage: 'Hallo und willkommen!',
-      startQuestions: ['Eins?', 'Zwei?', 'Drei?', 'Vier?'],
-    });
     const opening = out.ok && out.response.items.find((i) => i.part === 'opening');
-    expect(opening).toMatchObject({ outcome: 'carried' });
-    expect(opening && opening.note).toContain('Gekürzt');
-  });
-
-  it('project: an agent without opening writes no start', async () => {
-    const d = deps();
-    await convertUserAgent({ ...RUN, target: 'project' }, d);
-    expect(d.setStart).not.toHaveBeenCalled();
+    expect(opening).toMatchObject({ outcome: 'dropped' });
   });
 
   it('recipe: the opening stays on the agent (later)', async () => {

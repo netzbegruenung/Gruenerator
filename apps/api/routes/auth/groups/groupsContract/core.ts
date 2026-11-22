@@ -24,7 +24,6 @@ import {
   setGroupArchived,
   updateGroupInfo,
 } from '../../../../services/groups/groupMutations.js';
-import { getProjectStart, setProjectStart } from '../../../../services/groups/groupStart.js';
 import { trashGroup } from '../../../../services/groups/groupTrash.js';
 import { teamChatShareExistsSql } from '../../../../services/groups/projectThreadScope.js';
 import { SYSTEM_GROUP_FORBIDDEN } from '../../../../services/groups/systemGroup.js';
@@ -416,28 +415,6 @@ export const coreRoutes = {
       return groupErrorResponse(
         'setGroupInstructions',
         'Fehler beim Speichern der Anweisungen.',
-        error
-      );
-    }
-  }),
-
-  getGroupStart: s.route(groupsContract.getGroupStart, async (args) => {
-    try {
-      const result = await getProjectStart(args.params.groupId, getUserId(args.req));
-      return { status: 200 as const, body: { success: true as const, ...result } };
-    } catch (error) {
-      return groupErrorResponse('getGroupStart', 'Fehler beim Laden des Projekt-Starts.', error);
-    }
-  }),
-
-  setGroupStart: s.route(groupsContract.setGroupStart, async (args) => {
-    try {
-      const result = await setProjectStart(args.params.groupId, getUserId(args.req), args.body);
-      return { status: 200 as const, body: { success: true as const, ...result } };
-    } catch (error) {
-      return groupErrorResponse(
-        'setGroupStart',
-        'Fehler beim Speichern des Projekt-Starts.',
         error
       );
     }
