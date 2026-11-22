@@ -148,14 +148,10 @@ describe.skipIf(!url)('threads create — team chat', () => {
     expect(after).toBe(before);
   });
 
-  it('refuses a personal project with team_chat_needs_team_project and creates nothing', async () => {
-    const before = (await pool.query('SELECT count(*)::int AS n FROM chat_threads')).rows[0].n;
+  it('allows a team chat in a project stored as personal (type does not matter)', async () => {
     const res = await create(ada, { groupId: personalProject, teamShared: true });
-    expect(res.status).toBe(400);
-    expect(res.body).toMatchObject({ code: 'team_chat_needs_team_project' });
-    expect((await pool.query('SELECT count(*)::int AS n FROM chat_threads')).rows[0].n).toBe(
-      before
-    );
+    expect(res.status).toBe(201);
+    expect(await sharesOf(res.body.id as string)).toHaveLength(1);
   });
 
   it('refuses teamShared without a project', async () => {

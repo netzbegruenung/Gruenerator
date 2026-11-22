@@ -42,13 +42,13 @@ describe('GroupComposer', () => {
       })
     );
     const { user, container } = renderWithProviders(<GroupComposer {...props} />);
-    await user.click(screen.getByRole('button', { name: 'Schreib etwas an die Gruppe …' }));
+    await user.click(screen.getByRole('button', { name: 'Schreib etwas an das Projekt …' }));
     expect(screen.getByText(/alle 9 Mitglieder sehen den Beitrag/)).toBeInTheDocument();
 
     const post = screen.getByRole('button', { name: 'Posten' });
     expect(post).toBeDisabled();
 
-    await user.type(screen.getByRole('textbox', { name: 'Beitrag an die Gruppe' }), 'Infostand');
+    await user.type(screen.getByRole('textbox', { name: 'Beitrag an das Projekt' }), 'Infostand');
     const input = container.querySelector<HTMLInputElement>('input[type="file"]')!;
     await user.upload(input, new File(['%PDF'], 'Plan.pdf', { type: 'application/pdf' }));
     expect(screen.getByText('Plan.pdf')).toBeInTheDocument();
@@ -57,7 +57,7 @@ describe('GroupComposer', () => {
     await user.click(post);
     await waitFor(() => expect(received).toEqual({ body: 'Infostand', files: 1 }));
     expect(
-      await screen.findByRole('button', { name: 'Schreib etwas an die Gruppe …' })
+      await screen.findByRole('button', { name: 'Schreib etwas an das Projekt …' })
     ).toBeInTheDocument();
   });
 
@@ -80,8 +80,8 @@ describe('GroupComposer', () => {
       )
     );
     const { user } = renderWithProviders(<GroupComposer {...props} />);
-    await user.click(screen.getByRole('button', { name: 'Schreib etwas an die Gruppe …' }));
-    await user.type(screen.getByRole('textbox', { name: 'Beitrag an die Gruppe' }), 'x');
+    await user.click(screen.getByRole('button', { name: 'Schreib etwas an das Projekt …' }));
+    await user.type(screen.getByRole('textbox', { name: 'Beitrag an das Projekt' }), 'x');
     await user.click(screen.getByRole('button', { name: 'Posten' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Dateityp nicht erlaubt: tool.exe');
   });
@@ -89,8 +89,8 @@ describe('GroupComposer', () => {
   it('hands the draft to the share dialog', async () => {
     const onOpenShare = vi.fn();
     const { user } = renderWithProviders(<GroupComposer {...props} onOpenShare={onOpenShare} />);
-    await user.click(screen.getByRole('button', { name: 'Schreib etwas an die Gruppe …' }));
-    await user.type(screen.getByRole('textbox', { name: 'Beitrag an die Gruppe' }), ' Lest das ');
+    await user.click(screen.getByRole('button', { name: 'Schreib etwas an das Projekt …' }));
+    await user.type(screen.getByRole('textbox', { name: 'Beitrag an das Projekt' }), ' Lest das ');
     await user.click(screen.getByRole('button', { name: 'Aus meinen Inhalten' }));
     expect(onOpenShare).toHaveBeenCalledWith('Lest das');
   });
@@ -118,8 +118,8 @@ describe('GroupComposer mentions', () => {
         <GroupComposer {...props} />
       </GroupMentionProvider>
     );
-    await user.click(screen.getByRole('button', { name: 'Schreib etwas an die Gruppe …' }));
-    const box = screen.getByRole('textbox', { name: 'Beitrag an die Gruppe' });
+    await user.click(screen.getByRole('button', { name: 'Schreib etwas an das Projekt …' }));
+    const box = screen.getByRole('textbox', { name: 'Beitrag an das Projekt' });
 
     await user.type(box, 'Hallo @');
     const list = screen.getByRole('listbox', { name: 'Erwähnen' });
@@ -162,8 +162,8 @@ describe('GroupComposer mentions', () => {
         <GroupComposer {...props} />
       </GroupMentionProvider>
     );
-    await user.click(screen.getByRole('button', { name: 'Schreib etwas an die Gruppe …' }));
-    const box = screen.getByRole('textbox', { name: 'Beitrag an die Gruppe' });
+    await user.click(screen.getByRole('button', { name: 'Schreib etwas an das Projekt …' }));
+    const box = screen.getByRole('textbox', { name: 'Beitrag an das Projekt' });
     const free = Number(box.getAttribute('maxlength'));
 
     await user.type(box, '@an{ArrowDown}{Enter}');
@@ -184,8 +184,8 @@ describe('GroupComposer mentions', () => {
         <GroupComposer {...props} memberCount={null} />
       </GroupMentionProvider>
     );
-    await user.click(screen.getByRole('button', { name: 'Schreib etwas an die Gruppe …' }));
-    await user.type(screen.getByRole('textbox', { name: 'Beitrag an die Gruppe' }), '@');
+    await user.click(screen.getByRole('button', { name: 'Schreib etwas an das Projekt …' }));
+    await user.type(screen.getByRole('textbox', { name: 'Beitrag an das Projekt' }), '@');
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
   });
 });

@@ -76,10 +76,10 @@ import GroupVisibilityDialog from './GroupVisibilityDialog';
 import { ProjectAddMenu } from './ProjectAddMenu';
 import { ProjectChatComposer } from './ProjectChatComposer';
 import { ProjectInstructionsCard } from './ProjectInstructionsCard';
-import { ProjectStartCard } from './ProjectStartCard';
 import { ProjectKnowledgeList } from './ProjectKnowledgeList';
 import { ProjectLandesverbandSelect } from './ProjectLandesverbandSelect';
 import { ProjectMembersCard } from './ProjectMembersCard';
+import { ProjectStartCard } from './ProjectStartCard';
 import { ProjectTasksCard } from './ProjectTasksCard';
 import { type ShareActions } from './shareActions';
 import { ShareNoteDialog } from './ShareNoteDialog';
@@ -316,13 +316,14 @@ const GroupInfoSection = memo(
     );
     const onlineCount = onlineMembers.length;
     const memberCount = members?.length ?? 0;
-    // Personal Space: a solo workspace — hide team collaboration chrome
-    // (invite link, visibility, join requests).
-    const isPersonal = data?.groupInfo?.group_type === 'personal';
     // System group: every user is a member, no member info, only instance
-    // admins (`isAdmin` there) share. Hides all team chrome, like personal.
+    // admins (`isAdmin` there) share. Hides all team chrome. Every other project
+    // offers it — a project is used alone or with others, whatever its stored
+    // `group_type`; members can be invited at any time.
     const isSystem = data?.groupInfo?.is_system === true;
-    const isTeam = !isPersonal && !isSystem;
+    const isTeam = !isSystem;
+    // Austausch and „Für das Team" only make sense once somebody else is in.
+    const hasOthers = memberCount > 1;
     // Archived projects stay readable but take no new content (the server enforces it too).
     const isArchived = !!data?.groupInfo?.archived_at;
     const canShare = (!isSystem || !!data?.isAdmin) && !isArchived;
@@ -405,11 +406,11 @@ const GroupInfoSection = memo(
       setShowLeaveConfirm(false);
       leaveGroup.mutate(groupId, {
         onSuccess: () => {
-          onSuccessMessage?.('Gruppe verlassen.');
+          onSuccessMessage?.('Projekt verlassen.');
           void navigate('/');
         },
         onError: (err: Error) =>
-          onErrorMessage?.(err.message || 'Gruppe konnte nicht verlassen werden.'),
+          onErrorMessage?.(err.message || 'Projekt konnte nicht verlassen werden.'),
       });
     }, [leaveGroup, groupId, navigate, onSuccessMessage, onErrorMessage]);
 
@@ -585,11 +586,9 @@ const GroupInfoSection = memo(
                   </h1>
                 </div>
                 <p className="text-[15px] text-muted-foreground mt-xs m-0">
-                  {isPersonal
-                    ? data?.groupInfo?.description || 'Dein persönliches Projekt.'
-                    : isSystem
-                      ? 'Für alle im Grünerator'
-                      : `Gruppe · ${memberCount} ${memberCount === 1 ? 'Mitglied' : 'Mitglieder'}`}
+                  {isSystem
+                    ? 'Für alle im Grünerator'
+                    : `Projekt · ${memberCount} ${memberCount === 1 ? 'Mitglied' : 'Mitglieder'}`}
                 </p>
                 {isTeam && data?.groupInfo?.description && (
                   <p className="m-0 mt-xs line-clamp-2 whitespace-pre-wrap text-sm text-muted-foreground">
@@ -672,7 +671,7 @@ const GroupInfoSection = memo(
                   variant="outline"
                   size="icon"
                   className="rounded-full"
-                  aria-label={isPersonal ? 'Projektoptionen' : 'Gruppenoptionen'}
+                  aria-label="Projektoptionen"
                 >
                   <HiDotsVertical />
                 </Button>
@@ -771,7 +770,7 @@ const GroupInfoSection = memo(
                       className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
                     >
                       <HiOutlineLogout className="size-4 mr-xs" />
-                      Gruppe verlassen
+                      Projekt verlassen
                     </DropdownMenuItem>
                   </>
                 )}
@@ -795,7 +794,7 @@ const GroupInfoSection = memo(
           items={feedItems}
           isLoading={isLoadingSharedContent}
           isAdmin={!!data?.isAdmin}
-          isPersonal={isPersonal}
+          hasAustausch={isSystem || hasOthers}
           isSystem={isSystem}
           currentUserId={currentUserId ?? null}
           currentUserName={currentUserName ?? null}
@@ -818,7 +817,7 @@ const GroupInfoSection = memo(
                   <ProjectChatComposer
                     groupId={groupId}
                     groupName={data?.groupInfo?.name ?? ''}
-                    isPersonal={isPersonal || isSystem}
+                    solo={isSystem || !hasOthers}
                     welcomeMessage={projectStart?.welcomeMessage}
                     startQuestions={projectStart?.startQuestions}
                   />
@@ -928,13 +927,13 @@ const GroupInfoSection = memo(
           />
         )}
 
-        {!isPersonal && (
+        {isTeam && (
           <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
             <DialogContent className="sm:max-w-[28rem]">
               <DialogHeader>
                 <DialogTitle>Per E-Mail einladen</DialogTitle>
                 <DialogDescription>
-                  Eingeladene erhalten eine E-Mail mit einem Beitrittslink zu dieser Gruppe.
+                  Eingeladene erhalten eine E-Mail mit einem Beitrittslink zu diesem Projekt.
                 </DialogDescription>
               </DialogHeader>
               <div className="flex flex-col gap-xs">
@@ -1002,7 +1001,7 @@ const GroupInfoSection = memo(
               <DialogTitle>Projekt löschen</DialogTitle>
               <DialogDescription>
                 {`${data?.groupInfo?.name ? `„${data.groupInfo.name}“` : 'Dieses Projekt'} wird ${
-                  isPersonal ? '' : 'für alle Mitglieder '
+                  hasOthers ? 'für alle Mitglieder ' : ''
                 }in den Papierkorb verschoben und kann 30 Tage lang wiederhergestellt werden.`}
               </DialogDescription>
             </DialogHeader>
@@ -1027,10 +1026,10 @@ const GroupInfoSection = memo(
         <Dialog open={showLeaveConfirm} onOpenChange={setShowLeaveConfirm}>
           <DialogContent className="sm:max-w-[24rem]">
             <DialogHeader>
-              <DialogTitle>Gruppe verlassen</DialogTitle>
+              <DialogTitle>Projekt verlassen</DialogTitle>
               <DialogDescription>
-                Du verlierst den Zugriff auf alle Inhalte dieser Gruppe, auch auf Team-Chats, die du
-                begonnen hast: sie bleiben in der Gruppe. Die Gruppe selbst und deine privaten
+                Du verlierst den Zugriff auf alle Inhalte dieses Projekts, auch auf Team-Chats, die
+                du begonnen hast: sie bleiben in dem Projekt. Das Projekt selbst und deine privaten
                 Inhalte bleiben bestehen. Ein erneuter Beitritt ist nur über eine neue Einladung
                 möglich.
               </DialogDescription>

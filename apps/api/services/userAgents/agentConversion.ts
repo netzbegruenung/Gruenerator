@@ -663,7 +663,6 @@ function defaultDeps(): AgentConversionDeps {
       const group = await createGroupForUser(userId, {
         name: input.name,
         description: input.description || null,
-        groupType: 'personal',
       });
       return { id: group.id, name: group.name, slugSuffix: group.slug_suffix ?? null };
     },

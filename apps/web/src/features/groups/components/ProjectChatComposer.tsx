@@ -7,8 +7,8 @@ import { useNavigate } from 'react-router-dom';
 interface ProjectChatComposerProps {
   groupId: string;
   groupName: string;
-  /** Personal Projekt: a solo workspace, there is no team to share with. */
-  isPersonal?: boolean;
+  /** Nobody else in the Projekt (or the system Projekt): there is no team to share with. */
+  solo?: boolean;
   /** Kurze Begrüßung der Projekt-Admins über dem Eingabefeld. */
   welcomeMessage?: string;
   /** Startfragen: ein Klick startet einen Projekt-Chat mit der Frage. */
@@ -24,7 +24,7 @@ interface ProjectChatComposerProps {
 export function ProjectChatComposer({
   groupId,
   groupName,
-  isPersonal = false,
+  solo = false,
   welcomeMessage = '',
   startQuestions = [],
 }: ProjectChatComposerProps) {
@@ -39,7 +39,7 @@ export function ProjectChatComposer({
     // den Konnektor, die zuletzt in einem anderen Thread gewählt waren (#5676).
     store.resetChatContext();
     store.setPendingMessage(message);
-    store.setPendingGroup(groupId, !isPersonal && teamShared);
+    store.setPendingGroup(groupId, !solo && teamShared);
     store.setChatViewMode('thread');
     void navigate('/chat');
   };
@@ -108,7 +108,7 @@ export function ProjectChatComposer({
             <PiArrowUp aria-hidden />
           </Button>
         </div>
-        {isPersonal ? null : (
+        {solo ? null : (
           <label className="flex w-fit cursor-pointer items-center gap-xs px-xs text-[13px] text-muted-foreground">
             <input
               type="checkbox"

@@ -194,7 +194,7 @@ export async function executeAction(
       const group = await createGroupForUser(action.userId, action.payload);
       const slug = group.slug_suffix ? buildGroupSlug(group.name, group.slug_suffix) : group.id;
       return {
-        message: `Gruppe **„${group.name}"** wurde erstellt.`,
+        message: `Projekt **„${group.name}"** wurde erstellt.`,
         url: `/gruppen/${slug}`,
       };
     }
@@ -216,7 +216,7 @@ export async function executeAction(
       return {
         message: outcome.alreadyMember
           ? `Du bist bereits Mitglied von **„${outcome.group.name}"**.`
-          : `Du bist der Gruppe **„${outcome.group.name}"** beigetreten.`,
+          : `Du bist dem Projekt **„${outcome.group.name}"** beigetreten.`,
         url: `/gruppen/${outcome.group.id}`,
       };
     }
@@ -344,7 +344,7 @@ export async function executeAction(
       } catch (err) {
         throw new ConfirmActionRefusal(err instanceof Error ? err.message : String(err));
       }
-      if (!updated) throw new ConfirmActionRefusal('Gruppe nicht gefunden.');
+      if (!updated) throw new ConfirmActionRefusal('Projekt nicht gefunden.');
       return {
         message: updated.is_public
           ? `Projekt **„${groupName}"** ist jetzt öffentlich gelistet.`

@@ -33,9 +33,10 @@ describe('ProjektTile', () => {
     );
   });
 
-  it('shows "Nur für dich" for a personal projekt', () => {
-    renderWithProviders(<ProjektTile projekt={personalProjekt} />);
-    expect(screen.getByText('Nur für dich')).toBeInTheDocument();
+  it('treats a projekt stored as personal like any other (no "Nur für dich")', () => {
+    renderWithProviders(<ProjektTile projekt={{ ...personalProjekt, member_count: 1 }} />);
+    expect(screen.queryByText('Nur für dich')).not.toBeInTheDocument();
+    expect(screen.getByText('1 Mitglied')).toBeInTheDocument();
   });
 
   it('shows the pluralized member count for a team projekt', () => {

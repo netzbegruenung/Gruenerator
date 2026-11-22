@@ -246,7 +246,7 @@ export async function shareContentToGroup(
     };
   }
 
-  return { status: 200, success: true, message: 'Inhalt erfolgreich mit der Gruppe geteilt.' };
+  return { status: 200, success: true, message: 'Inhalt erfolgreich mit dem Projekt geteilt.' };
 }
 
 /**

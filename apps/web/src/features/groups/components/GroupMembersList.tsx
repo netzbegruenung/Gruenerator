@@ -104,7 +104,9 @@ const GroupMembersList = ({
         {header}
         <div className="text-xs text-grey-500 italic">
           <p>
-            {onlineOnly ? 'Aktuell ist niemand online.' : 'Noch keine Mitglieder in dieser Gruppe.'}
+            {onlineOnly
+              ? 'Aktuell ist niemand online.'
+              : 'Noch keine Mitglieder in diesem Projekt.'}
           </p>
         </div>
       </div>

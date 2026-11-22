@@ -18,11 +18,11 @@ function dataUrlToFile(dataUrl: string, name: string): File {
 
 /**
  * Sub-page "Ins Projekt": posts the current page as an image into a project's
- * feed. Personal projects have no feed, so they are not offered.
+ * feed. Every project has one, whatever its stored type.
  */
 export function CanvasShareToProject({ nav }: { nav: ShareNav }) {
   const groups = useUserGroups();
-  const projects = (groups.data ?? []).filter((g) => g.group_type !== 'personal');
+  const projects = groups.data ?? [];
 
   const [groupId, setGroupId] = useState('');
   const [body, setBody] = useState('');

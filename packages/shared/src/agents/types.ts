@@ -269,7 +269,7 @@ export interface Agent {
 export type AgentCategory = 'gruppen';
 
 export const AGENT_CATEGORY_LABELS: Record<AgentCategory, string> = {
-  gruppen: 'Geteilt mit Gruppen',
+  gruppen: 'Geteilt mit Projekten',
 };
 
 export type SkillCategory = 'presse' | 'social' | 'dokumente' | 'recherche' | 'sonstiges';

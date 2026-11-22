@@ -49,7 +49,7 @@ export default function ProjektHinzufuegenScreen() {
 
   const group = useGroupDetails(id).data?.group;
   // Wie im Web: im Team dürfen Mitglieder geteilte Docs bearbeiten, sonst nur lesen.
-  const isTeam = !!group && group.group_type !== 'personal' && group.is_system !== true;
+  const isTeam = !!group && group.is_system !== true;
   const feed = useGroupFeed(id);
   const { sections, isPending } = useAddableContent();
   const alreadyShared = useMemo(() => sharedContentKeys(feed.data ?? []), [feed.data]);

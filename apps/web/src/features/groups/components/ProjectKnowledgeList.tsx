@@ -22,7 +22,7 @@ interface ProjectKnowledgeListProps {
   onUseTemplate: (id: string) => void;
   /** Rolle ändern und entfernen; null: der Viewer verwaltet hier nichts. */
   actions: ShareActions | null;
-  /** null: no Austausch here (personal project, system project). */
+  /** null: no Austausch here (nobody else in the project). */
   onDiscuss: ((item: GroupFeedItem) => void) | null;
 }
 

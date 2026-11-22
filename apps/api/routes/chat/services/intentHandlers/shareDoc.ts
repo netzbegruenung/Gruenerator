@@ -63,7 +63,7 @@ export async function handleShareDoc(opts: {
   const { targetGroupName } = classifiedState;
   if (!targetGroupName) {
     await sendShareDocError(
-      'Bitte gib an, mit welcher Gruppe du das Dokument teilen möchtest. Beispiel: „Teile das mit AG Umwelt"'
+      'Bitte gib an, mit welchem Projekt du das Dokument teilen möchtest. Beispiel: „Teile das mit AG Umwelt"'
     );
     return true;
   }
@@ -100,7 +100,7 @@ export async function handleShareDoc(opts: {
 
   if (userGroups.length === 0) {
     await sendShareDocError(
-      'Du bist noch keiner Gruppe beigetreten. Erstelle oder tritt einer Gruppe bei, um Dokumente zu teilen.'
+      'Du bist noch keinem Projekt beigetreten. Erstelle oder tritt einem Projekt bei, um Dokumente zu teilen.'
     );
     return true;
   }
@@ -112,7 +112,7 @@ export async function handleShareDoc(opts: {
   if (!matchedGroup) {
     const groupList = groupNames.map((n) => `• ${n}`).join('\n');
     await sendShareDocError(
-      `Keine passende Gruppe für „${targetGroupName}" gefunden.\n\nDeine Gruppen:\n${groupList}`
+      `Kein passendes Projekt für „${targetGroupName}" gefunden.\n\nDeine Projekte:\n${groupList}`
     );
     return true;
   }
@@ -156,7 +156,7 @@ export async function handleShareDoc(opts: {
     icon: ssePayload.icon,
     metadata: [
       { key: 'Dokument', value: docTitle },
-      { key: 'Gruppe', value: matchedGroup.name },
+      { key: 'Projekt', value: matchedGroup.name },
       { key: 'Berechtigung', value: permissionLabel },
     ],
     confirmLabel: ssePayload.confirmLabel,

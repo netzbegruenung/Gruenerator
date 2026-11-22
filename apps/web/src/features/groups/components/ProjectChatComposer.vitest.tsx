@@ -7,14 +7,12 @@ import { axe, renderWithProviders } from '../../../test-utils';
 
 import { ProjectChatComposer } from './ProjectChatComposer';
 
-function renderComposer(isPersonal = false) {
+function renderComposer(solo = false) {
   return renderWithProviders(
     <Routes>
       <Route
         path="/"
-        element={
-          <ProjectChatComposer groupId="g1" groupName="Wärmewende" isPersonal={isPersonal} />
-        }
+        element={<ProjectChatComposer groupId="g1" groupName="Wärmewende" solo={solo} />}
       />
       <Route path="/chat" element={<p>Chat-Seite</p>} />
     </Routes>
@@ -65,7 +63,7 @@ describe('ProjectChatComposer', () => {
     expect(useAgentStore.getState().pendingGroup).toMatchObject({ id: 'g1', teamShared: false });
   });
 
-  it('has no switch in a personal project and never asks for a team chat', async () => {
+  it('has no switch when nobody else is in the project and never asks for a team chat', async () => {
     const { user } = renderComposer(true);
     expect(screen.queryByRole('switch')).not.toBeInTheDocument();
     await user.type(screen.getByRole('textbox'), 'Hallo{Enter}');

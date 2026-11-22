@@ -92,9 +92,6 @@ export async function createGroupPost(
   const outcome = await (async (): Promise<FeedOutcome<{ postId: string; shareId: string }>> => {
     const viewer = await getViewer(postgres, groupId, userId, deps.isInstanceAdmin);
     isSystem = viewer.isSystem;
-    if (viewer.isPersonal) {
-      return { status: 400, message: 'In Projekten gibt es keine Beiträge.' };
-    }
     if (viewer.isArchived) return { status: 403, message: ARCHIVED_PROJECT_READ_ONLY };
     if (!viewer.canShare) {
       return { status: 403, message: 'In diesem Projekt können nur Admins Beiträge schreiben.' };

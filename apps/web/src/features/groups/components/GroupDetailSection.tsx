@@ -259,7 +259,7 @@ const GroupDetailSection = memo(
               Kein Zugriff auf dieses Projekt
             </p>
             <p className="mt-xs text-sm text-grey-600 dark:text-grey-400">
-              {errorDetails?.message || 'Du bist nicht Mitglied dieser Gruppe.'}
+              {errorDetails?.message || 'Du bist nicht Mitglied dieses Projekts.'}
             </p>
             <button
               type="button"
@@ -273,7 +273,7 @@ const GroupDetailSection = memo(
       }
       return (
         <div className="rounded-md border border-red-200 bg-red-50 p-md text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
-          Fehler beim Laden der Gruppendetails: {errorDetails?.message || 'Unbekannter Fehler'}
+          Fehler beim Laden der Projektdetails: {errorDetails?.message || 'Unbekannter Fehler'}
         </div>
       );
     }

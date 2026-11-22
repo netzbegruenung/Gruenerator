@@ -4,13 +4,17 @@ Stand: 22.11.2026. Produktname: **Projekte**; technische IDs, Tabellen und API-P
 
 ## Projektarten
 
+**Seit 22.11.2026 gibt es eine Art Projekt** (Produktentscheidung): man legt es auf einem Weg an, nutzt es allein oder mit anderen, und Mitglieder lassen sich jederzeit einladen. „Gruppe“ ist kein Produktwort mehr (auch nicht für Team-Projekte). Die früheren Regeln „Persönlich“ vs. „Team“ (Revision 11.11.) sind zurückgenommen.
+
+- **Gespeichert wird `group_type = 'standard'`**; der Server ignoriert ein mitgeschicktes `groupType` (ausgelieferte Mobile-Binaries senden es noch). `'personal'` bleibt als F0-Altwert in Zeilen, Contract-Enum und Binaries lesbar, **verhält sich aber überall wie `'standard'`**: kein Server-Guard und keine UI-Weiche liest ihn mehr, ein Umkippen beim ersten Einladen braucht es deshalb nicht (Beitritt per Token und E-Mail-Einladung prüfen den Typ nie).
+- **Das Verhalten folgt der Mitgliedschaft:** Beiträge, Kommentare, Reaktionen, Mitglieder, Einladen, Beitrittsanfragen und „Öffentlich machen“ gibt es in jedem Projekt außer dem System-Projekt. Was nur mit anderen Sinn ergibt — der Tab **Austausch** und der Schalter **„Für das Team“** beim neuen Projekt-Chat — zeigt die UI erst bei mehr als einer Person (`member_count > 1`); der Einladen-Eintrag ist immer da. Der Server lehnt nichts mehr nach Typ ab (Team-Chat in jedem Projekt, `team_chat_needs_team_project` kommt nur noch, wenn die Projektzeile fehlt).
+
 | Art | Kennzeichen | Übersicht | Austausch |
 | --- | --- | --- | --- |
-| Persönlich | `group_type = 'personal'` | Chat-Composer, eigene Chats, Anweisungen, Wissen | nein (auch serverseitig: keine eigenen Beiträge, keine neuen Kommentare) |
-| Team | `group_type = 'standard'` | wie persönlich, dazu Links und **Mitglieder** (ab zwei Personen) | ja |
+| Projekt | `group_type` egal (neu: `standard`) | Chat-Composer, eigene Chats, Anweisungen, Wissen, Links, **Mitglieder** | ab zwei Personen |
 | System „Grünerator“ | `is_system = true` | nur Wissen (keine Chats, keine Anweisungen, keine Mitgliederkarte) | ja, öffnet zuerst dort |
 
-Das System-Projekt beschreibt der Abschnitt „Erwähnungen und Benachrichtigungen“ unten. Persönliche Projekte haben keinen Team-Chat (`team_chat_needs_team_project`, 400).
+Das System-Projekt beschreibt der Abschnitt „Erwähnungen und Benachrichtigungen“ unten.
 
 ## Projektseite (Web und Mobile)
 
@@ -51,7 +55,7 @@ Eine Zeile in `group_content_shares` ist der Feed-Anker: `note`, `pinned_at`, `p
 | Beitrag löschen | Verfassende Person oder Projekt-Admin |
 | Anheften / lösen | Projekt-Admins oder Ersteller*in; System-Projekt nur Instanz-Admins |
 | Freigabe-Notiz ändern | Teilende Person oder Projekt-Admin |
-| Kommentieren / antworten | Mitglieder, außer in persönlichen Projekten |
+| Kommentieren / antworten | Mitglieder |
 | Kommentar löschen | Verfassende Person oder Projekt-Admin |
 | Beitragsdatei lesen | Nur Mitglieder; kein öffentlicher Upload-Link |
 | Inhalt teilen / „Neu im Projekt“ | Mitglieder; System-Projekt nur Instanz-Admins (`assertCanShareToGroup`) |

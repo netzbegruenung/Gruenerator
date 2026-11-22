@@ -35,7 +35,7 @@ const PAGE_NAMES: Record<string, string> = {
   voice: 'Sprach-zu-Text',
   chat: 'KI-Chat',
   profile: 'Profil',
-  groups: 'Gruppen',
+  groups: 'Projekte',
   campaigns: 'Kampagnen',
   search: 'Suche',
   documents: 'Dokumente',

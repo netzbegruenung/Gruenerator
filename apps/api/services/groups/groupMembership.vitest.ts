@@ -114,13 +114,13 @@ describe('listShareTargetGroups', () => {
     expect((await listShareTargetGroups('u')).map((g) => g.id)).toEqual(['sys', 'g1']);
   });
 
-  it('marks team projects, not personal ones or the system project', async () => {
+  it('marks every project as team, except the system project', async () => {
     query.mockResolvedValue([
       ...rows,
       { id: 'me', name: 'Meins', role: 'admin', is_system: false, group_type: 'personal' },
     ]);
     isInstanceAdmin.mockResolvedValue(true);
     const team = Object.fromEntries((await listShareTargetGroups('u')).map((g) => [g.id, g.team]));
-    expect(team).toEqual({ sys: false, g1: true, me: false });
+    expect(team).toEqual({ sys: false, g1: true, me: true });
   });
 });

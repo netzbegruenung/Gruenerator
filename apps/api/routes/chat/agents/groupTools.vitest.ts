@@ -367,7 +367,7 @@ describe('groups: create / join (Karten, unverändert)', () => {
     expect(deps.getGroupByToken).toHaveBeenCalledWith('tok123');
     const [, payload] = sseEvents[0] as [string, { type: string; metadata: unknown[] }];
     expect(payload.type).toBe('join_group');
-    expect(payload.metadata).toEqual([{ key: 'Gruppe', value: 'Klima' }]);
+    expect(payload.metadata).toEqual([{ key: 'Projekt', value: 'Klima' }]);
   });
 });
 
@@ -477,11 +477,11 @@ describe('groups: set_visibility', () => {
     expect(notes[0][1]).toContain('schon');
   });
 
-  it('refuses to list a personal space', async () => {
+  it('lists a project stored as personal like any other (type does not matter)', async () => {
     const { run, sseEvents } = makeCtx({ group: detail({ group_type: 'personal' }) });
     const out = await run({ action: 'set_visibility', groupId: 'g1', isPublic: true });
-    expect(out.error).toMatch(/persönlicher Space/);
-    expect(sseEvents).toHaveLength(0);
+    expect(out.error).toBeUndefined();
+    expect(sseEvents).toHaveLength(1);
   });
 
   it('is refused outside a thread', async () => {

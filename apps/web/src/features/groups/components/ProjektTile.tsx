@@ -21,7 +21,6 @@ const TILE_BASE =
 
 function projektMeta(projekt: GroupSummary): string {
   if (projekt.archived_at) return 'Archiviert';
-  if (projekt.group_type === 'personal') return 'Nur für dich';
   if (projekt.is_system) return 'Für alle';
   if (projekt.member_count != null) {
     return `${projekt.member_count} Mitglied${projekt.member_count === 1 ? '' : 'er'}`;
@@ -53,7 +52,7 @@ export function ProjektTile({ projekt }: { projekt: GroupSummary }) {
         '--tile-desc-dark': palette.dark.desc,
       } as React.CSSProperties)
     : undefined;
-  const TypeIcon = projekt.group_type === 'personal' ? HiUser : HiUserGroup;
+  const TypeIcon = (projekt.member_count ?? 1) > 1 ? HiUserGroup : HiUser;
   return (
     <Link
       to={buildGroupPath(projekt)}

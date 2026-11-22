@@ -77,10 +77,11 @@ export default function ProjektDetailScreen() {
   const membersQuery = useGroupMembers(id);
   const token = useBearerToken();
   const group = detailsQuery.data?.group;
-  const isPersonal = group?.group_type === 'personal';
   const isSystem = group?.is_system === true;
-  // „Gruppe“ gibt es nur als Team-Projekt; persönlich und System heißen Projekt.
-  const isTeam = !!group && !isPersonal && !isSystem;
+  // Ein Projekt ist allein oder mit anderen nutzbar, unabhängig vom gespeicherten
+  // `group_type`: Austausch und „Für das Team“ erscheinen erst, wenn jemand dabei ist.
+  const hasOthers = isSystem || (group?.member_count ?? 0) > 1;
+  const isTeam = !!group && !isSystem;
   // Wie im Web: ins System-Projekt teilen nur Instanz-Admins.
   const isAdmin = !!detailsQuery.data?.membership.isAdmin;
   const canAdd =
@@ -90,7 +91,7 @@ export default function ProjektDetailScreen() {
       isAdmin,
       archived_at: group.archived_at ?? null,
     });
-  const shareActions = useShareItemActions(id ?? null, isAdmin, !isPersonal);
+  const shareActions = useShareItemActions(id ?? null, isAdmin, hasOthers);
   const addActions = useProjectAddActions(id ?? null);
   const userName = useAuthStore((s) => s.user?.display_name ?? null);
   const canPost = !!group && canWritePost(group, isAdmin);
@@ -129,7 +130,7 @@ export default function ProjektDetailScreen() {
     });
   };
 
-  const activeView: ViewMode = isPersonal
+  const activeView: ViewMode = !hasOthers
     ? 'uebersicht'
     : (chosenView ?? (beitrag || isSystem ? 'austausch' : 'uebersicht'));
   const hiddenIds = useHiddenMemberIds();
@@ -145,7 +146,7 @@ export default function ProjektDetailScreen() {
   const members = membersQuery.data ?? [];
   const showChats = canAdd && !isSystem;
   const chatsQuery = useProjectChats(id, showChats);
-  const onDiscuss = isPersonal
+  const onDiscuss = !hasOthers
     ? null
     : (item: GroupFeedItem) => {
         const shareId = item.share?.shareId;
@@ -187,7 +188,7 @@ export default function ProjektDetailScreen() {
             }
             hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel={isTeam ? 'Gruppen-Info anzeigen' : 'Projekt-Info anzeigen'}
+            accessibilityLabel="Projekt-Info anzeigen"
             style={[styles.headerButton, { backgroundColor: theme.card }]}
           >
             <Ionicons name="people-outline" size={20} color={theme.text} />
@@ -235,7 +236,7 @@ export default function ProjektDetailScreen() {
   const emptyText = query.trim()
     ? `Kein Beitrag passt zu „${query.trim()}“.`
     : canAdd
-      ? `Noch nichts im Austausch. Schreib etwas${isTeam ? ' an die Gruppe' : ''} oder teile einen Inhalt mit einer Notiz.`
+      ? `Noch nichts im Austausch. Schreib etwas an das Projekt oder teile einen Inhalt mit einer Notiz.`
       : 'Noch keine Beiträge.';
 
   return scaffold(
@@ -258,7 +259,7 @@ export default function ProjektDetailScreen() {
           />
         }
       >
-        {!isPersonal && (
+        {hasOthers && (
           <View style={styles.padded}>
             <SegmentedControl
               accessibilityLabel="Ansicht"
@@ -287,7 +288,7 @@ export default function ProjektDetailScreen() {
           <View style={styles.padded}>
             {showChats && id ? (
               <>
-                <ProjectChatComposer groupId={id} groupName={group.name} solo={isPersonal} />
+                <ProjectChatComposer groupId={id} groupName={group.name} solo={!hasOthers} />
                 <ProjectChatList groupId={id} />
               </>
             ) : null}
@@ -328,7 +329,7 @@ export default function ProjektDetailScreen() {
                 <PostComposerRow
                   userName={userName}
                   onPress={writePost}
-                  placeholder={isTeam ? 'Schreib etwas an die Gruppe …' : 'Schreib einen Beitrag …'}
+                  placeholder="Schreib etwas an das Projekt …"
                 />
               ) : null}
             </View>
@@ -364,7 +365,7 @@ export default function ProjektDetailScreen() {
                       item={item}
                       groupId={id ?? ''}
                       token={token}
-                      canComment={!isPersonal}
+                      canComment
                       shareActions={shareActions}
                       onOpen={open}
                       onShowComments={setCommentsFor}

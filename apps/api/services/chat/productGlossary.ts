@@ -139,7 +139,7 @@ export const PRODUCT_GLOSSARY = [
     terms: /\bprojekte?\b/i,
     routes: null,
     definition:
-      'Gemeinsame Arbeitsbereiche fürs Team mit Feed, Kommentaren und geteilten Inhalten (Notebooks, Dokumente, Agents …); persönliche Projekte sind nur für dich.',
+      'Arbeitsbereiche mit Chats, Anweisungen und geteilten Inhalten (Notebooks, Dokumente, Agents …), allein oder mit anderen: Mitglieder lassen sich jederzeit einladen, und sobald jemand dabei ist, gibt es Feed und Kommentare.',
     docsPath: '/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen',
   },
   {

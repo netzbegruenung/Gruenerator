@@ -79,7 +79,7 @@ export async function trashGroup(userId: string, groupId: string): Promise<Group
     groupId,
     excludeUserId: userId,
     type: 'group_deleted',
-    title: 'Gruppe aufgelöst',
+    title: 'Projekt aufgelöst',
     body: `„${group.name}" wurde aufgelöst`,
     actionUrl: '/gruppen',
   });

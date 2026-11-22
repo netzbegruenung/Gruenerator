@@ -48,7 +48,7 @@ export function ProjektTile({
       <View style={styles.top}>
         <GroupAvatar groupId={group.id} name={group.name} avatarUrl={group.avatar_url} size={40} />
         <Ionicons
-          name={group.group_type === 'personal' ? 'person' : 'people'}
+          name={(group.member_count ?? 1) > 1 ? 'people' : 'person'}
           size={18}
           color={colored?.title ?? tone.accent}
         />

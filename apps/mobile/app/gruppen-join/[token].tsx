@@ -88,7 +88,7 @@ export default function JoinGroupScreen() {
             </View>
             <Text style={[styles.heading, { color: theme.text }]}>{verify.data?.group.name}</Text>
             <Text style={[styles.text, { color: theme.textSecondary }]}>
-              Möchtest du dieser Gruppe beitreten?
+              Möchtest du diesem Projekt beitreten?
             </Text>
             <Pressable
               onPress={confirm}

@@ -140,7 +140,7 @@ export const ConfirmActionCard = memo(function ConfirmActionCard({
                           : action.type === 'create_user_agent'
                             ? 'Grünerator-Agent öffnen'
                             : GROUP_ACTION_TYPES.has(action.type)
-                              ? 'Gruppe öffnen'
+                              ? 'Projekt öffnen'
                               : NOTEBOOK_ACTION_TYPES.has(action.type)
                                 ? 'Notebook öffnen'
                                 : 'Dokument öffnen'}

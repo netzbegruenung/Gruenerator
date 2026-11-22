@@ -56,7 +56,7 @@ export interface GroupSummary {
   content_count?: number;
   role: string;
   isAdmin?: boolean;
-  /** 'personal' = solo Space (lean UI); else team Space. */
+  /** F0 stored value; the UI no longer branches on it (one kind of project, behaviour follows membership). */
   group_type?: 'standard' | 'personal' | null;
   /** The one group every user belongs to: no member info, only instance admins share. */
   is_system?: boolean | null;

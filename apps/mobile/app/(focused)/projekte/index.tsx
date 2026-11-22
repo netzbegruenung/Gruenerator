@@ -67,7 +67,6 @@ export default function ProjekteScreen() {
 
   // Web's meta rule, kept verbatim so a project reads the same on both surfaces.
   const metaFor = (group: GroupSummary): string => {
-    if (group.group_type === 'personal') return 'Nur für dich';
     if (group.is_system) return 'Für alle';
     if (group.member_count) {
       return `${group.member_count} ${group.member_count === 1 ? 'Mitglied' : 'Mitglieder'}`;
@@ -92,7 +91,7 @@ export default function ProjekteScreen() {
       <View style={styles.centered}>
         <Ionicons name="alert-circle" size={44} color={colors.semantic.error} />
         {/* Deliberately not the hook's own message: it comes from the shared
-            groups client and still says "Gruppen", web's word for this. */}
+            groups client and still says "Projekte", web's word for this. */}
         <Text style={[styles.centeredText, { color: colors.semantic.error }]}>
           Projekte konnten nicht geladen werden.
         </Text>

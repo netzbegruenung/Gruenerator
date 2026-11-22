@@ -8,7 +8,7 @@
  *   System-Gruppe nur Instanz-Admins). Mehr als
  *   `GROUP_PIN_LIMIT` Anheftungen verdrängen die älteste.
  * - Notiz ändern: wer geteilt hat, oder Admins.
- * - Kommentieren: alle Mitglieder, nicht in Projekten (`group_type='personal'`).
+ * - Kommentieren: alle Mitglieder (der Projekttyp spielt keine Rolle).
  * - Kommentar löschen: wer ihn geschrieben hat, oder Admins. Antworten darauf
  *   bleiben stehen (`parent_id ON DELETE SET NULL`).
  *
@@ -51,7 +51,6 @@ export type FeedOutcome<T = null> =
 
 export interface Viewer {
   isAdmin: boolean;
-  isPersonal: boolean;
   isSystem: boolean;
   /** May put new content into the group (post, share). */
   canShare: boolean;
@@ -66,7 +65,7 @@ export async function getViewer(
   checkInstanceAdmin: (userId: string) => Promise<boolean> = isInstanceAdmin
 ): Promise<Viewer> {
   const viewer = await findViewer(postgres, groupId, userId, checkInstanceAdmin);
-  if (!viewer) throw new Error('Du bist nicht Mitglied dieser Gruppe.');
+  if (!viewer) throw new Error('Du bist nicht Mitglied dieses Projekts.');
   return viewer;
 }
 
@@ -78,7 +77,7 @@ export async function findViewer(
   checkInstanceAdmin: (userId: string) => Promise<boolean> = isInstanceAdmin
 ): Promise<Viewer | null> {
   const row = (await postgres.queryOne(
-    `SELECT gm.role, g.group_type, g.created_by, g.is_system, g.archived_at
+    `SELECT gm.role, g.created_by, g.is_system, g.archived_at
        FROM group_memberships gm
        JOIN groups g ON g.id = gm.group_id
       WHERE gm.group_id = $1 AND gm.user_id = $2 AND g.deleted_at IS NULL`,
@@ -86,7 +85,6 @@ export async function findViewer(
     { table: 'group_memberships' }
   )) as {
     role: string;
-    group_type: string | null;
     created_by: string | null;
     is_system: boolean | null;
     archived_at?: string | Date | null;
@@ -99,7 +97,6 @@ export async function findViewer(
     isAdmin,
     // Same rule as `assertCanShareToGroup`: in the system group only admins post.
     canShare: (!row.is_system || isAdmin) && row.archived_at == null,
-    isPersonal: row.group_type === 'personal',
     isSystem: !!row.is_system,
     isArchived: row.archived_at != null,
   };
@@ -246,9 +243,6 @@ export async function createShareComment(
   const body = input.body.trim();
   const { postgres } = deps;
   const viewer = await getViewer(postgres, groupId, userId, deps.isInstanceAdmin);
-  if (viewer.isPersonal) {
-    return { status: 400, message: 'In Projekten gibt es keine Kommentare.' };
-  }
   if (viewer.isArchived) return { status: 403, message: ARCHIVED_PROJECT_READ_ONLY };
   const share = await getShare(postgres, groupId, shareId);
   if (!share) return SHARE_NOT_FOUND;

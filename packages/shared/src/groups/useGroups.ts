@@ -36,7 +36,7 @@ export const useUserGroups = (options: { enabled?: boolean } = {}) =>
     queryKey: GROUPS_QUERY_KEY,
     queryFn: async (): Promise<GroupSummary[]> => {
       const res = await getContractsClient().groups.listUserGroups();
-      if (res.status !== 200) throw apiErrorFromResponse(res, 'Fehler beim Laden der Gruppen.');
+      if (res.status !== 200) throw apiErrorFromResponse(res, 'Fehler beim Laden der Projekte.');
       return res.body.groups as GroupSummary[];
     },
     staleTime: 2 * 60 * 1000,
@@ -52,7 +52,7 @@ export const useGroupDetails = (groupId: string | null | undefined) =>
         params: { groupId: groupId ?? '' },
       });
       if (res.status !== 200)
-        throw apiErrorFromResponse(res, 'Fehler beim Laden der Gruppendetails.');
+        throw apiErrorFromResponse(res, 'Fehler beim Laden der Projektdetails.');
       return {
         group: res.body.group,
         membership: res.body.membership as GroupMembership,
@@ -76,7 +76,7 @@ export const useGroupMembers = (groupId: string | null | undefined) =>
         params: { groupId: groupId ?? '' },
       });
       if (res.status !== 200)
-        throw apiErrorFromResponse(res, 'Fehler beim Laden der Gruppenmitglieder.');
+        throw apiErrorFromResponse(res, 'Fehler beim Laden der Projektmitglieder.');
       return res.body.members as GroupMember[];
     },
     enabled: !!groupId,
@@ -156,19 +156,15 @@ export const useSetGroupStart = (groupId: string) => {
 export const useCreateGroup = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: {
-      name: string;
-      description?: string;
-      groupType?: 'standard' | 'personal';
-    }) => {
+    mutationFn: async (input: { name: string; description?: string }) => {
       const res = await getContractsClient().groups.createGroup({
         body: {
           name: input.name,
           description: input.description,
-          ...(input.groupType ? { groupType: input.groupType } : {}),
         },
       });
-      if (res.status !== 200) throw apiErrorFromResponse(res, 'Fehler beim Erstellen des Space.');
+      if (res.status !== 200)
+        throw apiErrorFromResponse(res, 'Fehler beim Erstellen des Projekts.');
       return res.body.group as GroupSummary;
     },
     onSuccess: () => {

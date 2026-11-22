@@ -6,9 +6,9 @@ export const REMOVE_MEMBER_ID = 'remove-member';
 
 type GroupKind = { group_type?: string | null; is_system?: boolean | null };
 
-/** Team-Projekt = weder persönlich noch das System-Projekt (wie `isTeam` im Web). */
+/** Team-Funktionen (Mitglieder, Einladen, Verlassen) in jedem Projekt außer dem System-Projekt (wie `isTeam` im Web). */
 export function isTeamProject(group: GroupKind): boolean {
-  return group.group_type !== 'personal' && !group.is_system;
+  return !group.is_system;
 }
 
 /** Rollen ändert nur, wer Admin ist — nie bei sich selbst und nie beim Ersteller (wie im Web). */
@@ -36,12 +36,12 @@ export function canLeaveProject(
   );
 }
 
-/** Den Einladungslink teilen Admins in Team-Projekten, solange es einen Token gibt. */
+/** Den Einladungslink teilen Admins in jedem Projekt, solange es einen Token gibt. */
 export function canShareInviteLink(
   group: GroupKind & { join_token?: string | null },
   isAdmin: boolean
 ): boolean {
-  return isAdmin && group.group_type === 'standard' && !group.is_system && !!group.join_token;
+  return isAdmin && !group.is_system && !!group.join_token;
 }
 
 export function buildMemberActions(memberRole: string): MenuAction[] {

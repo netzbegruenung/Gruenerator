@@ -19,8 +19,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { type GroupRow } from '../../database/schema/groups.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { closeGroupCollabRooms } from '../collab/collabRooms.js';
-import { dismissGroup } from '../notifications/NotificationService.js';
 import { notifyGroupMembers } from '../notifications/index.js';
+import { dismissGroup } from '../notifications/NotificationService.js';
 
 import { getPostgresAndCheckMembership } from './groupMembership.js';
 import { SYSTEM_GROUP_FORBIDDEN } from './systemGroup.js';
@@ -58,16 +58,13 @@ export async function createGroupForUser(
   const postgres = getPostgresInstance();
   await postgres.ensureInitialized();
 
-  // A personal Space is a solo group: hidden from team discovery, lean UI.
-  const groupType = input.groupType === 'personal' ? 'personal' : 'standard';
-
   return postgres.transaction(async (client) => {
     const group = (await postgres.transactionQueryOne(
       client,
       `INSERT INTO groups (id, name, created_by, join_token, description, slug_suffix, group_type)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         VALUES ($1, $2, $3, $4, $5, $6, 'standard')
        RETURNING id, name, description, created_at, created_by, join_token, slug_suffix`,
-      [groupId, name, userId, joinToken, input.description ?? null, slugSuffix, groupType]
+      [groupId, name, userId, joinToken, input.description ?? null, slugSuffix]
     )) as CreatedGroupRow | null;
 
     if (!group) throw new Error('Failed to create group');
@@ -173,13 +170,13 @@ export async function updateGroupInfo(
   try {
     ({ postgres, isAdmin } = await getPostgresAndCheckMembership(groupId, userId));
   } catch {
-    return { status: 403, success: false, message: 'Du bist nicht Mitglied dieser Gruppe.' };
+    return { status: 403, success: false, message: 'Du bist nicht Mitglied dieses Projekts.' };
   }
   if (!isAdmin) {
     return {
       status: 403,
       success: false,
-      message: 'Keine Berechtigung zum Ändern der Gruppendetails.',
+      message: 'Keine Berechtigung zum Ändern der Projektdetails.',
     };
   }
 
@@ -189,7 +186,7 @@ export async function updateGroupInfo(
 
   if (name != null) {
     if (!name.trim()) {
-      return { status: 400, success: false, message: 'Gruppenname darf nicht leer sein.' };
+      return { status: 400, success: false, message: 'Projektname darf nicht leer sein.' };
     }
     updateFields.push(`name = $${paramIndex++}`);
     updateValues.push(name.trim());
@@ -223,7 +220,7 @@ export async function updateGroupInfo(
   );
   if (result.changes === 0) throw new Error('Group not found or no changes made');
 
-  return { status: 200, success: true, message: 'Gruppendetails erfolgreich aktualisiert.' };
+  return { status: 200, success: true, message: 'Projektdetails erfolgreich aktualisiert.' };
 }
 
 export interface GroupVisibility {
@@ -303,13 +300,13 @@ export async function removeGroupMember(
 
   const target = rows.find((r) => String(r.user_id) === String(memberId));
   if (!target) {
-    return { status: 404, success: false, message: 'Mitglied nicht in dieser Gruppe gefunden.' };
+    return { status: 404, success: false, message: 'Mitglied nicht in diesem Projekt gefunden.' };
   }
   if (target.created_by && String(target.created_by) === String(memberId)) {
     return {
       status: 400,
       success: false,
-      message: 'Die Gruppenersteller*in kann nicht entfernt werden.',
+      message: 'Die Projektersteller*in kann nicht entfernt werden.',
     };
   }
   const otherAdmins = rows.filter(

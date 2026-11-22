@@ -2,18 +2,16 @@ import { buildGroupPath } from '@gruenerator/shared/groups';
 import { TypingAnimation, useIsMobile } from '@gruenerator/ui';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { FiCornerDownLeft, FiSearch } from 'react-icons/fi';
-import { HiUser, HiUserGroup } from 'react-icons/hi';
+import { HiUserGroup } from 'react-icons/hi';
 import { useNavigate } from 'react-router-dom';
 
 import { type GroupSummary } from '../hooks/useGroups';
-
-type ProjektType = 'personal' | 'standard';
 
 interface ProjekteComposerProps {
   /** The user's own projects — the corpus the composer searches across. */
   projekte: GroupSummary[];
   isCreating: boolean;
-  onCreate: (name: string, type: ProjektType) => void;
+  onCreate: (name: string) => void;
 }
 
 interface Option {
@@ -25,17 +23,16 @@ interface Option {
 const MAX_MATCHES = 6;
 
 const PLACEHOLDERS = [
+  'Projekt anlegen oder suchen …',
   'Neues Projekt erstellen …',
   'Projekt suchen …',
-  'Projekt oder Gruppe anlegen …',
 ];
-const PLACEHOLDERS_SHORT = ['Projekt erstellen …', 'Projekt suchen …', 'Projekt/Gruppe …'];
+const PLACEHOLDERS_SHORT = ['Projekt anlegen …', 'Projekt suchen …'];
 
-function TypeIcon({ type }: { type: ProjektType }) {
-  const Icon = type === 'standard' ? HiUserGroup : HiUser;
+function ProjektIcon() {
   return (
     <span className="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-lg bg-[#DCE6F2] text-[#2E4E7A] dark:bg-[#14202E] dark:text-[#7CA2CB]">
-      <Icon className="h-[15px] w-[15px]" />
+      <HiUserGroup className="h-[15px] w-[15px]" />
     </span>
   );
 }
@@ -43,8 +40,7 @@ function TypeIcon({ type }: { type: ProjektType }) {
 /**
  * Create-or-search pill for the Projekte landing — same visual shell as the office
  * `DocsComposer`, pared down to two jobs: filter the user's own projects (jump to
- * one) and create a new one, either as a "Projekt" (personal) or a
- * "Gruppe" (standard/team). No doc kinds, templates, backend search or
+ * one) and create a new one (one kind of project, members can join later). No doc kinds, templates, backend search or
  * imports.
  */
 export function ProjekteComposer({ projekte, isCreating, onCreate }: ProjekteComposerProps) {
@@ -70,9 +66,9 @@ export function ProjekteComposer({ projekte, isCreating, onCreate }: ProjekteCom
   // No name match → the user is naming a new project, so the create actions lead.
   const promptMode = query.length > 0 && matches.length === 0;
 
-  const runCreate = (type: ProjektType) => {
+  const runCreate = () => {
     if (!query || isCreating) return;
-    onCreate(query, type);
+    onCreate(query);
   };
 
   const searchOptions: Option[] = matches.map((s) => ({
@@ -80,7 +76,7 @@ export function ProjekteComposer({ projekte, isCreating, onCreate }: ProjekteCom
     onSelect: () => navigate(buildGroupPath(s)),
     render: () => (
       <div className="flex w-full min-w-0 items-center gap-3">
-        <TypeIcon type="standard" />
+        <ProjektIcon />
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-medium text-[#22382E] dark:text-foreground">
             {s.name}
@@ -93,26 +89,23 @@ export function ProjekteComposer({ projekte, isCreating, onCreate }: ProjekteCom
 
   const createOptions: Option[] = query
     ? [
-        { type: 'personal' as const, label: 'als Projekt erstellen' },
-        { type: 'standard' as const, label: 'als Gruppe erstellen' },
-      ].map(({ type, label }) => ({
-        key: `create-${type}`,
-        onSelect: () => runCreate(type),
-        render: () => (
-          <div className="flex w-full min-w-0 items-center gap-3">
-            <TypeIcon type={type} />
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-semibold text-[#22382E] dark:text-foreground">
-                {`„${query}" ${label}`}
+        {
+          key: 'create',
+          onSelect: runCreate,
+          render: () => (
+            <div className="flex w-full min-w-0 items-center gap-3">
+              <ProjektIcon />
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-semibold text-[#22382E] dark:text-foreground">
+                  {`„${query}" als Projekt erstellen`}
+                </div>
+                <div className="text-xs text-muted-brand">Allein oder mit anderen</div>
               </div>
-              <div className="text-xs text-muted-brand">
-                {type === 'standard' ? 'Mit Team — Mitglieder & geteilte Inhalte' : 'Nur für dich'}
-              </div>
+              <FiCornerDownLeft size={14} className="flex-none text-muted-brand" />
             </div>
-            <FiCornerDownLeft size={14} className="flex-none text-muted-brand" />
-          </div>
-        ),
-      }))
+          ),
+        },
+      ]
     : [];
 
   const options: Option[] = promptMode

@@ -126,7 +126,6 @@ describe('createGroupPost', () => {
 
   it.each([
     ['empty', { body: '   ', files: [] as UploadedPostFile[] }, {}],
-    ['a personal project', { body: 'x', files: [file('a.pdf')] }, { groupType: 'personal' }],
     ['an unknown file type', { body: 'x', files: [file('a.pdf'), file('run.exe')] }, {}],
     [
       'too many files',
@@ -139,6 +138,12 @@ describe('createGroupPost', () => {
     expect(out.status).toBe(400);
     expect(txQueryOne).not.toHaveBeenCalled();
     expect(deleteFile).toHaveBeenCalledTimes(input.files.length);
+  });
+
+  it('lets members post in a project stored as personal (type does not matter)', async () => {
+    const { deps } = fakeDeps({ groupType: 'personal' });
+    const out = await createGroupPost({ ...base, body: 'Hallo', files: [file('a.png')] }, deps);
+    expect(out.status).toBe(201);
   });
 
   it('lets only instance admins post in the system group, and removes the files', async () => {

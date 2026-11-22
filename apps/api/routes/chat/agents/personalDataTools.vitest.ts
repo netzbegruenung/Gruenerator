@@ -1214,7 +1214,7 @@ describe('search_threads', () => {
       threadIds: ['th1', 'th2'],
     });
     // Ein leerer Space ist keine leere Chat-Historie — das Ergebnis sagt es.
-    expect(out.durchsucht).toContain('nur die Chats dieses Space');
+    expect(out.durchsucht).toContain('nur die Chats dieses Projekts');
   });
 
   it('outside a Space the result says all chats were searched', async () => {

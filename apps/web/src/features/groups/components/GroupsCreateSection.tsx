@@ -10,9 +10,7 @@ import {
   Textarea,
 } from '@gruenerator/ui';
 import React, { useState, useEffect, useCallback } from 'react';
-import { PiPaperclip, PiUser, PiUsersThree, PiX } from 'react-icons/pi';
-
-type ProjektType = 'personal' | 'standard';
+import { PiPaperclip, PiX } from 'react-icons/pi';
 
 /** Was die Erstellung über den Namen hinaus mitgibt. */
 export interface CreateGroupExtras {
@@ -27,43 +25,15 @@ export const GROUP_DESCRIPTION_MAX = 500;
 interface GroupsCreateSectionProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreateGroup: (
-    groupName: string,
-    groupType: ProjektType,
-    inviteEmails: string[],
-    extras: CreateGroupExtras
-  ) => void;
+  onCreateGroup: (groupName: string, inviteEmails: string[], extras: CreateGroupExtras) => void;
   isCreatingGroup: boolean;
   isCreateGroupError: boolean;
   createGroupError: Error | null;
-  /** Type the dialog opens on — lets the "Projekt" / "Gruppe" tile preselect
-   *  its type. Defaults to 'personal'. */
-  initialProjektType?: ProjektType;
   /** Name, mit dem das Feld startet (aus dem Erstellen-Feld der Übersicht). */
   initialName?: string;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-const TYPE_OPTIONS: {
-  value: ProjektType;
-  title: string;
-  desc: string;
-  icon: React.ComponentType<{ className?: string }>;
-}[] = [
-  {
-    value: 'personal',
-    title: 'Projekt',
-    desc: 'Nur für dich — organisiere deine Chats & Inhalte.',
-    icon: PiUser,
-  },
-  {
-    value: 'standard',
-    title: 'Gruppe',
-    desc: 'Mit Team — Mitglieder, geteilte Inhalte & Beitritt.',
-    icon: PiUsersThree,
-  },
-];
 
 const GroupsCreateSection: React.FC<GroupsCreateSectionProps> = ({
   isOpen,
@@ -72,11 +42,8 @@ const GroupsCreateSection: React.FC<GroupsCreateSectionProps> = ({
   isCreatingGroup,
   isCreateGroupError,
   createGroupError,
-  initialProjektType = 'personal',
   initialName = '',
 }) => {
-  const [step, setStep] = useState<1 | 2>(2);
-  const [projektType, setProjektType] = useState<ProjektType>(initialProjektType);
   const [groupName, setGroupName] = useState('');
   const [description, setDescription] = useState('');
   const [files, setFiles] = useState<File[]>([]);
@@ -86,13 +53,9 @@ const GroupsCreateSection: React.FC<GroupsCreateSectionProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      // The landing tiles already pick Projekt vs. Gruppe, so open on the name
-      // step; "Zurück" still exposes the type choice.
       // Reset as a reaction to the modal opening (isOpen toggle), not a
       // render-derived value.
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setProjektType(initialProjektType);
-      setStep(2);
       setGroupName(initialName);
       setDescription('');
       setFiles([]);
@@ -100,14 +63,7 @@ const GroupsCreateSection: React.FC<GroupsCreateSectionProps> = ({
       setEmailDraft('');
       setEmailError('');
     }
-  }, [isOpen, initialProjektType, initialName]);
-
-  const isTeam = projektType === 'standard';
-
-  const chooseType = useCallback((value: ProjektType) => {
-    setProjektType(value);
-    setStep(2);
-  }, []);
+  }, [isOpen, initialName]);
 
   const addEmail = useCallback(() => {
     const value = emailDraft.trim().toLowerCase();
@@ -143,23 +99,21 @@ const GroupsCreateSection: React.FC<GroupsCreateSectionProps> = ({
       // Fold a half-typed address into the invite list before submitting.
       const pending = emailDraft.trim().toLowerCase();
       const finalEmails =
-        isTeam && pending && EMAIL_RE.test(pending) && !emails.includes(pending)
+        pending && EMAIL_RE.test(pending) && !emails.includes(pending)
           ? [...emails, pending]
           : emails;
-      onCreateGroup(groupName, projektType, isTeam ? finalEmails : [], {
+      onCreateGroup(groupName, finalEmails, {
         description: description.trim(),
         files,
       });
     },
-    [emailDraft, emails, groupName, description, files, projektType, isTeam, onCreateGroup]
+    [emailDraft, emails, groupName, description, files, onCreateGroup]
   );
 
   const submitLabel = isCreatingGroup
     ? 'Wird erstellt...'
-    : isTeam
-      ? emails.length > 0
-        ? 'Erstellen & einladen'
-        : 'Gruppe erstellen'
+    : emails.length > 0
+      ? 'Erstellen & einladen'
       : 'Projekt erstellen';
 
   return (
@@ -171,15 +125,10 @@ const GroupsCreateSection: React.FC<GroupsCreateSectionProps> = ({
     >
       <DialogContent className="sm:max-w-[28rem]">
         <DialogHeader>
-          <DialogTitle>
-            {step === 1 ? 'Neu erstellen' : `Neue${isTeam ? ' Gruppe' : 's Projekt'}`}
-          </DialogTitle>
+          <DialogTitle>Neues Projekt</DialogTitle>
           <DialogDescription>
-            {step === 1
-              ? 'Wähle, ob du alleine oder mit einem Team arbeiten möchtest.'
-              : isTeam
-                ? 'Eine Gruppe bündelt Chats, Anweisungen und Wissen für dein Team.'
-                : 'Ein Projekt bündelt deine Chats, Anweisungen und Inhalte an einem Ort.'}
+            Ein Projekt bündelt Chats, Anweisungen und Wissen — allein oder mit anderen. Mitglieder
+            kannst du jederzeit einladen.
           </DialogDescription>
         </DialogHeader>
 
@@ -189,176 +138,142 @@ const GroupsCreateSection: React.FC<GroupsCreateSectionProps> = ({
           </div>
         )}
 
-        {step === 1 ? (
-          <div className="grid grid-cols-1 gap-sm" role="radiogroup" aria-label="Art">
-            {TYPE_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => chooseType(opt.value)}
-                className="flex items-start gap-sm rounded-lg border border-grey-300 p-md text-left transition-colors hover:border-primary-500 hover:bg-primary-50 dark:border-grey-600 dark:hover:bg-primary-950/30"
-              >
-                <opt.icon className="mt-0.5 h-5 w-5 shrink-0 text-primary-600 dark:text-primary-400" />
-                <span className="flex flex-col gap-0.5">
-                  <span className="text-sm font-medium">{opt.title}</span>
-                  <span className="text-xs text-grey-500">{opt.desc}</span>
-                </span>
-              </button>
-            ))}
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} id="create-group-form" className="flex flex-col gap-md">
-            <label className="flex flex-col gap-xs">
-              <span className="text-sm font-medium">Name</span>
-              <input
-                type="text"
-                value={groupName}
-                onChange={(e) => setGroupName(e.target.value)}
-                className="w-full rounded-md border border-grey-300 dark:border-grey-600 bg-background px-sm py-xs text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
-                placeholder={isTeam ? 'Name der Gruppe' : 'Name des Projekts'}
-                maxLength={100}
-                required
-                autoFocus
-                disabled={isCreatingGroup}
-              />
-            </label>
+        <form onSubmit={handleSubmit} id="create-group-form" className="flex flex-col gap-md">
+          <label className="flex flex-col gap-xs">
+            <span className="text-sm font-medium">Name</span>
+            <input
+              type="text"
+              value={groupName}
+              onChange={(e) => setGroupName(e.target.value)}
+              className="w-full rounded-md border border-grey-300 dark:border-grey-600 bg-background px-sm py-xs text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+              placeholder="Name des Projekts"
+              maxLength={100}
+              required
+              autoFocus
+              disabled={isCreatingGroup}
+            />
+          </label>
 
-            <label className="flex flex-col gap-xs">
-              <span className="text-sm font-medium">
-                Worum geht es in diesem Projekt?{' '}
-                <span className="font-normal text-grey-500">(optional)</span>
-              </span>
-              <Textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={3}
-                maxLength={GROUP_DESCRIPTION_MAX}
-                placeholder="Zum Beispiel: Material und Texte für den Kommunalwahlkampf im Ortsverband."
-                disabled={isCreatingGroup}
-              />
-            </label>
+          <label className="flex flex-col gap-xs">
+            <span className="text-sm font-medium">
+              Worum geht es in diesem Projekt?{' '}
+              <span className="font-normal text-grey-500">(optional)</span>
+            </span>
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+              maxLength={GROUP_DESCRIPTION_MAX}
+              placeholder="Zum Beispiel: Material und Texte für den Kommunalwahlkampf im Ortsverband."
+              disabled={isCreatingGroup}
+            />
+          </label>
 
-            <div className="flex flex-col gap-xs">
-              <span className="text-sm font-medium">
-                Dateien <span className="font-normal text-grey-500">(optional)</span>
-              </span>
-              {files.length > 0 && (
-                <ul className="m-0 flex list-none flex-col gap-1 p-0">
-                  {files.map((file, index) => (
-                    <li
-                      key={`${file.name}-${file.size}-${index}`}
-                      className="flex items-center justify-between gap-sm rounded-md bg-grey-100 px-sm py-1 text-sm dark:bg-grey-800"
+          <div className="flex flex-col gap-xs">
+            <span className="text-sm font-medium">
+              Dateien <span className="font-normal text-grey-500">(optional)</span>
+            </span>
+            {files.length > 0 && (
+              <ul className="m-0 flex list-none flex-col gap-1 p-0">
+                {files.map((file, index) => (
+                  <li
+                    key={`${file.name}-${file.size}-${index}`}
+                    className="flex items-center justify-between gap-sm rounded-md bg-grey-100 px-sm py-1 text-sm dark:bg-grey-800"
+                  >
+                    <span className="min-w-0 truncate">{file.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setFiles((prev) => prev.filter((_, i) => i !== index))}
+                      disabled={isCreatingGroup}
+                      aria-label={`${file.name} entfernen`}
+                      className="rounded-full p-0.5 hover:bg-grey-300/50"
                     >
-                      <span className="min-w-0 truncate">{file.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => setFiles((prev) => prev.filter((_, i) => i !== index))}
-                        disabled={isCreatingGroup}
-                        aria-label={`${file.name} entfernen`}
-                        className="rounded-full p-0.5 hover:bg-grey-300/50"
-                      >
-                        <PiX className="h-3 w-3" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <label className="inline-flex w-fit cursor-pointer items-center gap-xs rounded-md border border-grey-300 px-sm py-xs text-sm hover:bg-grey-100 dark:border-grey-600 dark:hover:bg-grey-800">
-                <PiPaperclip aria-hidden />
-                Dateien auswählen
-                <input
-                  type="file"
-                  multiple
-                  hidden
-                  accept={DOCUMENT_UPLOAD_EXTENSIONS.join(',')}
-                  aria-label="Dateien für das Projekt auswählen"
-                  disabled={isCreatingGroup}
-                  onChange={(e) => {
-                    const picked = Array.from(e.target.files ?? []);
-                    e.target.value = '';
-                    setFiles((prev) => [...prev, ...picked]);
-                  }}
-                />
-              </label>
-              <span className="text-xs text-grey-500">
-                Kommen nach dem Anlegen ins Projekt; Chats darin nutzen sie, sobald sie eingelesen
-                sind.
-              </span>
-            </div>
-
-            {isTeam && (
-              <div className="flex flex-col gap-xs">
-                <span className="text-sm font-medium">
-                  Mitglieder einladen <span className="font-normal text-grey-500">(optional)</span>
-                </span>
-                <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-grey-300 dark:border-grey-600 bg-background px-sm py-xs focus-within:ring-2 focus-within:ring-primary-500/20 focus-within:border-primary-500">
-                  {emails.map((email) => (
-                    <span
-                      key={email}
-                      className="inline-flex items-center gap-1 rounded-full bg-primary-100 px-2 py-0.5 text-xs text-primary-800 dark:bg-primary-900/40 dark:text-primary-200"
-                    >
-                      {email}
-                      <button
-                        type="button"
-                        onClick={() => removeEmail(email)}
-                        disabled={isCreatingGroup}
-                        aria-label={`${email} entfernen`}
-                        className="rounded-full p-0.5 hover:bg-primary-500/20"
-                      >
-                        <PiX className="h-3 w-3" />
-                      </button>
-                    </span>
-                  ))}
-                  <input
-                    type="email"
-                    value={emailDraft}
-                    onChange={(e) => {
-                      setEmailDraft(e.target.value);
-                      if (emailError) setEmailError('');
-                    }}
-                    onKeyDown={handleEmailKeyDown}
-                    onBlur={addEmail}
-                    className="min-w-[8rem] flex-1 bg-transparent py-0.5 text-sm focus:outline-none"
-                    placeholder={emails.length === 0 ? 'name@beispiel.de' : ''}
-                    disabled={isCreatingGroup}
-                  />
-                </div>
-                {emailError ? (
-                  <span className="text-xs text-red-600 dark:text-red-400">{emailError}</span>
-                ) : (
-                  <span className="text-xs text-grey-500">
-                    Mit Enter oder Komma hinzufügen. Eingeladene erhalten eine E-Mail mit
-                    Beitrittslink.
-                  </span>
-                )}
-              </div>
+                      <PiX className="h-3 w-3" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
             )}
-          </form>
-        )}
+            <label className="inline-flex w-fit cursor-pointer items-center gap-xs rounded-md border border-grey-300 px-sm py-xs text-sm hover:bg-grey-100 dark:border-grey-600 dark:hover:bg-grey-800">
+              <PiPaperclip aria-hidden />
+              Dateien auswählen
+              <input
+                type="file"
+                multiple
+                hidden
+                accept={DOCUMENT_UPLOAD_EXTENSIONS.join(',')}
+                aria-label="Dateien für das Projekt auswählen"
+                disabled={isCreatingGroup}
+                onChange={(e) => {
+                  const picked = Array.from(e.target.files ?? []);
+                  e.target.value = '';
+                  setFiles((prev) => [...prev, ...picked]);
+                }}
+              />
+            </label>
+            <span className="text-xs text-grey-500">
+              Kommen nach dem Anlegen ins Projekt; Chats darin nutzen sie, sobald sie eingelesen
+              sind.
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-xs">
+            <span className="text-sm font-medium">
+              Mitglieder einladen <span className="font-normal text-grey-500">(optional)</span>
+            </span>
+            <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-grey-300 dark:border-grey-600 bg-background px-sm py-xs focus-within:ring-2 focus-within:ring-primary-500/20 focus-within:border-primary-500">
+              {emails.map((email) => (
+                <span
+                  key={email}
+                  className="inline-flex items-center gap-1 rounded-full bg-primary-100 px-2 py-0.5 text-xs text-primary-800 dark:bg-primary-900/40 dark:text-primary-200"
+                >
+                  {email}
+                  <button
+                    type="button"
+                    onClick={() => removeEmail(email)}
+                    disabled={isCreatingGroup}
+                    aria-label={`${email} entfernen`}
+                    className="rounded-full p-0.5 hover:bg-primary-500/20"
+                  >
+                    <PiX className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+              <input
+                type="email"
+                value={emailDraft}
+                onChange={(e) => {
+                  setEmailDraft(e.target.value);
+                  if (emailError) setEmailError('');
+                }}
+                onKeyDown={handleEmailKeyDown}
+                onBlur={addEmail}
+                className="min-w-[8rem] flex-1 bg-transparent py-0.5 text-sm focus:outline-none"
+                placeholder={emails.length === 0 ? 'name@beispiel.de' : ''}
+                disabled={isCreatingGroup}
+              />
+            </div>
+            {emailError ? (
+              <span className="text-xs text-red-600 dark:text-red-400">{emailError}</span>
+            ) : (
+              <span className="text-xs text-grey-500">
+                Mit Enter oder Komma hinzufügen. Eingeladene erhalten eine E-Mail mit Beitrittslink.
+              </span>
+            )}
+          </div>
+        </form>
 
         <DialogFooter>
-          {step === 1 ? (
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isCreatingGroup}
-            >
-              Abbrechen
-            </Button>
-          ) : (
-            <>
-              <Button variant="outline" onClick={() => setStep(1)} disabled={isCreatingGroup}>
-                Zurück
-              </Button>
-              <Button
-                type="submit"
-                form="create-group-form"
-                disabled={isCreatingGroup || !groupName.trim()}
-              >
-                {submitLabel}
-              </Button>
-            </>
-          )}
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isCreatingGroup}>
+            Abbrechen
+          </Button>
+          <Button
+            type="submit"
+            form="create-group-form"
+            disabled={isCreatingGroup || !groupName.trim()}
+          >
+            {submitLabel}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -63,9 +63,8 @@ export default function ProjektInfoScreen() {
 
   const group = detailsQuery.data?.group;
   const membership = detailsQuery.data?.membership;
-  const isPersonal = group?.group_type === 'personal';
   // The system group holds every user and never shows its members.
-  const showMembers = !isPersonal && !group?.is_system;
+  const showMembers = !group?.is_system;
   const members = membersQuery.data ?? [];
 
   const isAdmin = !!membership?.isAdmin;
@@ -255,7 +254,7 @@ export default function ProjektInfoScreen() {
 
         {group?.description
           ? section(
-              showMembers ? 'Über die Gruppe' : 'Über das Projekt',
+              'Über das Projekt',
               <View style={[styles.card, { backgroundColor: theme.card }]}>
                 <Text style={[styles.description, { color: theme.text }]}>{group.description}</Text>
               </View>

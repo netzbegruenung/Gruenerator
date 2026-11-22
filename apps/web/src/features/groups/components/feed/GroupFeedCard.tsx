@@ -408,7 +408,7 @@ export function GroupFeedCard({
             <AlertDialogHeader>
               <AlertDialogTitle>Beitrag löschen?</AlertDialogTitle>
               <AlertDialogDescription>
-                Der Beitrag verschwindet mit allen Dateien und Kommentaren aus der Gruppe.
+                Der Beitrag verschwindet mit allen Dateien und Kommentaren aus dem Projekt.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

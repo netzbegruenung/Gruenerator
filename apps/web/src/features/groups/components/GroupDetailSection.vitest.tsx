@@ -20,7 +20,7 @@ import type * as SharedApi from '@gruenerator/shared/api';
 
 const FORBIDDEN = {
   status: 403,
-  body: { message: 'Du bist nicht Mitglied dieser Gruppe.' },
+  body: { message: 'Du bist nicht Mitglied dieses Projekts.' },
 };
 
 const SERVER_ERROR = { status: 500, body: { message: 'Datenbank nicht erreichbar.' } };
@@ -75,7 +75,7 @@ describe('GroupDetailSection', () => {
 
     expect(await screen.findByText('Kein Zugriff auf dieses Projekt')).toBeInTheDocument();
     // The backend's own wording, which the old bare `Error` threw away.
-    expect(screen.getByText('Du bist nicht Mitglied dieser Gruppe.')).toBeInTheDocument();
+    expect(screen.getByText('Du bist nicht Mitglied dieses Projekts.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Zu meinen Projekten' })).toBeInTheDocument();
   });
 
@@ -84,7 +84,7 @@ describe('GroupDetailSection', () => {
 
     renderSection();
 
-    expect(await screen.findByText(/Fehler beim Laden der Gruppendetails/)).toBeInTheDocument();
+    expect(await screen.findByText(/Fehler beim Laden der Projektdetails/)).toBeInTheDocument();
     expect(screen.queryByText('Kein Zugriff auf dieses Projekt')).not.toBeInTheDocument();
   });
 

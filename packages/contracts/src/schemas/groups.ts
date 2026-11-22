@@ -180,7 +180,7 @@ export const groupSummarySchema = z.object({
   role: z.string(),
   joined_at: z.string().nullish(),
   isAdmin: z.boolean(),
-  // 'personal' = solo Space (lean UI, hidden from discovery); else team Space.
+  // F0 stored value; behaviour follows membership, not this type.
   group_type: z.enum(['standard', 'personal']).nullish(),
   // The one system group every user belongs to: no member info, only instance
   // admins share. member_count is 0 there.
@@ -207,7 +207,7 @@ export const groupDetailSchema = z.object({
   links: z.array(groupLinkSchema).nullish(),
   is_public: z.boolean().nullish(),
   audience: groupAudienceSchema.nullish(),
-  // 'personal' = solo Space (lean UI, hidden from discovery); else team Space.
+  // F0 stored value; behaviour follows membership, not this type.
   group_type: z.enum(['standard', 'personal']).nullish(),
   is_system: z.boolean().nullish(),
   // Stable 6-char tail for the Notion-style URL `/gruppen/<name>-<suffix>`.
@@ -243,10 +243,10 @@ export const groupTokenRefSchema = z.object({ id: z.string(), name: z.string() }
 // ── Request bodies ─────────────────────────────────────────────────────────────
 
 export const createGroupBodySchema = z.object({
-  name: z.string().min(1, 'Space-Name ist erforderlich.'),
+  name: z.string().min(1, 'Projektname ist erforderlich.'),
   description: z.string().nullish(),
-  // 'personal' = a solo Space (hidden from team discovery, lean UI). Omitted =
-  // a normal team Space.
+  // F0: shipped mobile builds still send it. The server ignores it — every new
+  // project is stored as 'standard' (one kind of project, members can join any time).
   groupType: z.enum(['standard', 'personal']).optional(),
 });
 export type CreateGroupBody = z.infer<typeof createGroupBodySchema>;

@@ -99,16 +99,14 @@ export const useGroups = ({ isActive }: UseGroupsOptions = {}) => {
   const createGroup = (
     groupName: string,
     options: MutationOptions<GroupSummary> & {
-      groupType?: 'standard' | 'personal';
       description?: string;
     } = {}
   ) => {
-    const { groupType, description, ...cb } = options;
+    const { description, ...cb } = options;
     createMutation.mutate(
       {
         name: groupName,
         ...(description ? { description } : {}),
-        ...(groupType ? { groupType } : {}),
       },
       {
         onSuccess: (group) => cb.onSuccess?.(group),
@@ -268,7 +266,7 @@ export const useGroupSharing = (groupId: string | null, _options: UseGroupsOptio
     }
     const res = await getContractsClient().groups.listGroupContent({ params: { groupId } });
     if (res.status !== 200)
-      throw apiErrorFromResponse(res, 'Fehler beim Laden der Gruppeninhalte.');
+      throw apiErrorFromResponse(res, 'Fehler beim Laden der Projektinhalte.');
     return res.body.content as GroupContentData;
   };
 

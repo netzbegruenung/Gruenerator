@@ -243,7 +243,7 @@ export function makeGroupsTool(ctx: GroupToolCtx): Tool {
   const deps = resolveDeps(ctx.deps);
 
   return tool({
-    description: `Zugriff auf die Projekte (Gruppen) der Person — gemeinsame Arbeitsbereiche im Team, in denen Dokumente, Notebooks und Agenten geteilt werden.
+    description: `Zugriff auf die Projekte der Person — Arbeitsbereiche, allein oder gemeinsam mit anderen, in denen Chats, Dokumente, Notebooks und Agents gebündelt und geteilt werden. Es gibt nur eine Art Projekt; Mitglieder lassen sich jederzeit einladen.
 
 NUTZE FÜR: eigene Projekte auflisten (list), ein Projekt per Name finden (find mit query), Details eines Projekts — Beschreibung, Rolle, Mitgliederzahl, Sichtbarkeit, Anzahl geteilter Inhalte — ansehen (get), die geteilten Inhalte eines Projekts mit Links auflisten (content — „was liegt im Projekt X?"), ein neues Projekt anlegen (create, braucht name), per Einladungslink/-token beitreten (join, braucht joinToken), Name oder Beschreibung ändern (update, nur Admins), ein Projekt öffentlich listen oder privat stellen (set_visibility mit isPublic, nur Admins).
 
@@ -309,15 +309,15 @@ Ein Projekt wird über groupId (aus list/find, Feld ref) oder groupName benannt.
           actionId: newActionId(),
           threadId,
           userId,
-          title: 'Gruppe erstellen',
+          title: 'Projekt erstellen',
           preview: `„${groupName}" anlegen`,
           createdAt: Date.now(),
           type: 'create_group',
           payload: { name: groupName, description: args.description?.trim() || null },
         };
-        await emitToolConfirmAction(sse, pending, [{ key: 'Gruppe', value: groupName }]);
-        const note = `Bestätigung zum Erstellen der Gruppe „${groupName}" angefordert.`;
-        groundNote(sourceRegistry, 'Gruppe erstellen', note);
+        await emitToolConfirmAction(sse, pending, [{ key: 'Projekt', value: groupName }]);
+        const note = `Bestätigung zum Erstellen des Projekts „${groupName}" angefordert.`;
+        groundNote(sourceRegistry, 'Projekt erstellen', note);
         return { ok: true, note };
       }
 
@@ -331,15 +331,15 @@ Ein Projekt wird über groupId (aus list/find, Feld ref) oder groupName benannt.
           actionId: newActionId(),
           threadId,
           userId,
-          title: 'Gruppe beitreten',
+          title: 'Projekt beitreten',
           preview: `„${group.name}" beitreten`,
           createdAt: Date.now(),
           type: 'join_group',
           payload: { joinToken: token, groupName: group.name },
         };
-        await emitToolConfirmAction(sse, pending, [{ key: 'Gruppe', value: group.name }]);
-        const note = `Bestätigung zum Beitritt zur Gruppe „${group.name}" angefordert.`;
-        groundNote(sourceRegistry, 'Gruppe beitreten', note);
+        await emitToolConfirmAction(sse, pending, [{ key: 'Projekt', value: group.name }]);
+        const note = `Bestätigung zum Beitritt zum Projekt „${group.name}" angefordert.`;
+        groundNote(sourceRegistry, 'Projekt beitreten', note);
         return { ok: true, note };
       }
 
@@ -459,9 +459,7 @@ Ein Projekt wird über groupId (aus list/find, Feld ref) oder groupName benannt.
     const lines = [
       `Projekt „${group.name}" — ${url}`,
       group.description ? `Beschreibung: ${group.description}` : null,
-      group.group_type === 'personal'
-        ? 'Persönlicher Space (nur du)'
-        : `${group.member_count} Mitglied(er); deine Rolle: ${group.isAdmin ? 'Admin' : 'Mitglied'}`,
+      `${group.member_count} Mitglied(er); deine Rolle: ${group.isAdmin ? 'Admin' : 'Mitglied'}`,
       `Sichtbarkeit: ${visibilityLabel(group.is_public, group.audience)}`,
       contentCount
         ? `${contentCount} geteilte(r) Inhalt(e) — action="content" listet sie mit Links`
@@ -502,11 +500,6 @@ Ein Projekt wird über groupId (aus list/find, Feld ref) oder groupName benannt.
     if (forbidden) return forbidden;
     if (isPublic === undefined) return { error: 'set_visibility braucht isPublic (true/false).' };
     if (!group.isAdmin) return { error: ADMIN_ONLY };
-    // „Projekte entdecken" blendet persönliche Spaces aus — eine Karte, die
-    // nichts Sichtbares bewirkt, wäre eine Lüge.
-    if (isPublic && group.group_type === 'personal') {
-      return { error: 'Ein persönlicher Space kann nicht öffentlich gelistet werden.' };
-    }
     const audience = audienceArg ?? group.audience;
     if (isPublic === group.is_public && audience === group.audience) {
       const note = `Projekt „${group.name}" ist schon ${visibilityLabel(isPublic, audience)}.`;

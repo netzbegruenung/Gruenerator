@@ -435,7 +435,7 @@ export function makeSearchThreadsTool(ctx: PersonalToolCtx): Tool {
 
 NUTZE WENN nach früheren Gesprächen gefragt wird ("worüber haben wir letztens gesprochen", "such in diesem Projekt", "was hatten wir zu X besprochen").
 - Ohne query: listet die zuletzt aktiven Chats (für "worüber haben wir zuletzt gechattet").
-- scope="space": nur die Chats des aktuellen Space durchsuchen (Standard, wenn der Chat in einem Space liegt).
+- scope="space": nur die Chats des aktuellen Projekts durchsuchen (Standard, wenn der Chat in einem Projekt liegt).
 - scope="all": alle eigenen Chats durchsuchen.
 - action="read": den Verlauf EINES Threads lesen (threadId aus einem Suchergebnis) — seine Zusammenfassung oder die letzten 10 Nachrichten, höchstens 4.000 Zeichen.`,
     inputSchema: z.object({
@@ -513,7 +513,7 @@ NUTZE WENN nach früheren Gesprächen gefragt wird ("worüber haben wir letztens
         results,
         durchsucht:
           threadIds != null
-            ? 'nur die Chats dieses Space (scope="all" durchsucht alle eigenen Chats)'
+            ? 'nur die Chats dieses Projekts (scope="all" durchsucht alle eigenen Chats)'
             : 'alle eigenen Chats',
       };
     },
@@ -529,7 +529,7 @@ export function makeDocumentsTool(ctx: PersonalToolCtx): Tool {
   return tool({
     description: `Zugriff auf die EIGENEN Dokumente, Tabellen und Präsentationen (nicht Boards — dafür 'boards_tasks').
 
-NUTZE FÜR: eigene Dokumente auflisten (list), Titel, Art und Link eines Dokuments per id holen (get — den INHALT liest read_artifact), umbenennen (rename), löschen (delete), mit einer Gruppe teilen (share_to_group). Umbenennen wirkt sofort; Löschen und Teilen werden der Person zur Bestätigung angezeigt. Um das GERADE ERSTELLTE Dokument zu teilen, share_to_group nur mit groupName aufrufen (id weglassen).`,
+NUTZE FÜR: eigene Dokumente auflisten (list), Titel, Art und Link eines Dokuments per id holen (get — den INHALT liest read_artifact), umbenennen (rename), löschen (delete), mit einem Projekt teilen (share_to_group). Umbenennen wirkt sofort; Löschen und Teilen werden der Person zur Bestätigung angezeigt. Um das GERADE ERSTELLTE Dokument zu teilen, share_to_group nur mit groupName aufrufen (id weglassen).`,
     inputSchema: z.object({
       action: z.enum(['list', 'get', 'rename', 'delete', 'share_to_group']),
       id: z
@@ -670,7 +670,7 @@ NUTZE FÜR: eigene Dokumente auflisten (list), Titel, Art und Link eines Dokumen
       // public non-member groups with an empty role — never fall back to those).
       const groups = await findGroups(userId, groupName.trim(), 5);
       const group = groups.find((g) => g.role);
-      if (!group) return { error: `Keine Gruppe „${groupName}" gefunden, der du angehörst.` };
+      if (!group) return { error: `Kein Projekt „${groupName}" gefunden, der du angehörst.` };
       const action_: PendingAction = {
         actionId: newActionId(),
         threadId,
@@ -689,7 +689,7 @@ NUTZE FÜR: eigene Dokumente auflisten (list), Titel, Art und Link eines Dokumen
       };
       await emitToolConfirmAction(sse, action_, [
         { key: 'Dokument', value: shareTarget.title },
-        { key: 'Gruppe', value: group.name },
+        { key: 'Projekt', value: group.name },
         { key: 'Berechtigung', value: permission === 'editor' ? 'Bearbeiten' : 'Nur lesen' },
       ]);
       const note = `Bestätigung zum Teilen von „${shareTarget.title}" mit „${group.name}" angefordert.`;

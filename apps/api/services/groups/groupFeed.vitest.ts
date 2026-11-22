@@ -268,11 +268,10 @@ describe('comments', () => {
     expect(notify).not.toHaveBeenCalled();
   });
 
-  it('refuses comments in personal projects', async () => {
-    const { deps, notify } = fakeDeps({ groupType: 'personal' });
+  it('lets members comment in a project stored as personal (type does not matter)', async () => {
+    const { deps } = fakeDeps({ groupType: 'personal' });
     const out = await createShareComment({ ...ids, body: 'x', authorName: 'M' }, deps);
-    expect(out.status).toBe(400);
-    expect(notify).not.toHaveBeenCalled();
+    expect(out.status).toBe(201);
   });
 
   it('lets only the author or an admin delete', async () => {

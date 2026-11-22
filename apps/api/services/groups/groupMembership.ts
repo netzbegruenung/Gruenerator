@@ -55,7 +55,7 @@ export async function getPostgresAndCheckMembership(
   } | null;
 
   if (!row) {
-    throw new Error('Du bist nicht Mitglied dieser Gruppe.');
+    throw new Error('Du bist nicht Mitglied dieses Projekts.');
   }
 
   const isSystem = Boolean(row.is_system);
@@ -98,7 +98,7 @@ export interface ShareTargetGroup {
   id: string;
   name: string;
   role: string;
-  /** Team-Projekt (weder persönlich noch System): Docs gehen dort mit Schreibrecht hinein. */
+  /** Projekt (nicht das System-Projekt): Docs gehen dort mit Schreibrecht hinein. */
   team: boolean;
 }
 
@@ -110,16 +110,14 @@ export interface ShareTargetGroup {
 export async function listShareTargetGroups(userId: string): Promise<ShareTargetGroup[]> {
   const postgres = getPostgresInstance();
   const rows = (await postgres.query(
-    `SELECT g.id, g.name, gm.role, g.is_system, g.group_type
+    `SELECT g.id, g.name, gm.role, g.is_system
        FROM groups g
        INNER JOIN group_memberships gm ON gm.group_id = g.id
       WHERE gm.user_id = $1 AND gm.is_active = TRUE AND g.deleted_at IS NULL
         AND g.archived_at IS NULL
       ORDER BY g.name ASC`,
     [userId]
-  )) as Array<
-    Omit<ShareTargetGroup, 'team'> & { is_system: boolean | null; group_type: string | null }
-  >;
+  )) as Array<Omit<ShareTargetGroup, 'team'> & { is_system: boolean | null }>;
   const canShareToSystem = rows.some((r) => r.is_system) && (await isInstanceAdmin(userId));
   return rows
     .filter((r) => !r.is_system || canShareToSystem)
@@ -127,6 +125,6 @@ export async function listShareTargetGroups(userId: string): Promise<ShareTarget
       id: String(r.id),
       name: String(r.name),
       role: String(r.role ?? 'member'),
-      team: !r.is_system && (r.group_type ?? 'standard') !== 'personal',
+      team: !r.is_system,
     }));
 }

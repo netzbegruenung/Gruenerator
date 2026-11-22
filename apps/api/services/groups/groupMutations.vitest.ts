@@ -72,6 +72,8 @@ describe('createGroupForUser', () => {
     expect(insertParams[1]).toBe('Klima-AG'); // name trimmed
     expect(insertParams[2]).toBe('u1'); // created_by
     expect(insertParams[4]).toBe('desc'); // description persisted (old handler hard-coded null)
+    expect(insertParams).toHaveLength(6); // no group_type param: always stored as 'standard'
+    expect(transactionQueryOne.mock.calls[0][1]).toContain("'standard'");
     expect(transactionExec).toHaveBeenCalledWith(
       expect.anything(),
       expect.stringContaining('INSERT INTO group_memberships'),
@@ -98,6 +100,20 @@ describe('createGroupForUser', () => {
 });
 
 describe('joinGroupByToken', () => {
+  it('lets a person join a project stored as personal (type does not matter)', async () => {
+    queryOne
+      .mockResolvedValueOnce({ id: 'g1', name: 'Solo' }) // getGroupByToken
+      .mockResolvedValueOnce(null); // no membership yet
+    const out = await joinGroupByToken('u2', 'tok', 'Mia');
+    expect(out).toEqual({ group: { id: 'g1', name: 'Solo' }, alreadyMember: false });
+    expect(exec).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO group_memberships'), [
+      'g1',
+      'u2',
+      'member',
+    ]);
+    expect(queryOne.mock.calls[0][0]).not.toContain('group_type');
+  });
+
   it('returns null for an unknown token and does not write', async () => {
     queryOne.mockResolvedValueOnce(null); // getGroupByToken lookup
     const out = await joinGroupByToken('u1', 'bad', 'Mia');
