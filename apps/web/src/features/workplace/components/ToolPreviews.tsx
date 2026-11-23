@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react';
 
 /**
- * Small pictures on the „Mach mehr mit deinem Grünerator" cards, shown instead of the tool icon.
+ * Small pictures on the „Mehr Produktivität mit dem Grünerator" cards, shown instead of the tool icon.
  *
  * All from Unsplash (Unsplash licence: free use, no attribution required), cut to the sheet:
  * - video.jpg       — film reels, Noom Peerapong (unsplash.com/photos/2uwFEAGUm6E)

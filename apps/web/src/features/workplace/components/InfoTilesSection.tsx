@@ -45,7 +45,7 @@ const TILES: ToolCard[] = [
 export function InfoTilesSection() {
   return (
     <ToolCardsSection
-      title="Transparenz, MCP & Co"
+      title="Alles Weitere"
       tools={TILES}
       gridClassName="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4"
     />

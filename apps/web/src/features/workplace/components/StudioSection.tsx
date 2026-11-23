@@ -1,6 +1,5 @@
-import { useAgentStore } from '@gruenerator/chat/stores';
 import { sharepicVorlageThumbPath } from '@gruenerator/contracts';
-import { Button, cn } from '@gruenerator/ui';
+import { cn } from '@gruenerator/ui';
 import { type ReactNode, useEffect, useRef } from 'react';
 import { HiPlay } from 'react-icons/hi2';
 import { PiFilmSlate, PiMusicNotes, PiTextT } from 'react-icons/pi';
@@ -13,9 +12,6 @@ import { SECTION_LINK } from './arbeitenGrid';
 import { ArbeitenSection } from './ArbeitenSections';
 
 import { getToolTheme } from '@/config/toolTheme';
-
-/** What the Sharepic button types into the chat composer; the person adds the topic. */
-const SHAREPIC_DRAFT = 'Erstelle ein Sharepic zum Thema ';
 
 const HEADING = 'm-0 text-xl font-bold leading-tight text-foreground-heading md:text-2xl';
 const SUB = 'm-0 mt-1.5 text-base text-(--dash-mg-sub)';
@@ -201,19 +197,17 @@ function VorlagenFan() {
   );
 }
 
-/** One promotion card: the picture on a tinted stage on top, then heading, line and button. */
+/** One promotion card: the picture on a tinted stage on top, then heading and line. */
 function PromoCard({
   title,
   badge,
   text,
-  action,
   picture,
   theme,
 }: {
   title: string;
   badge?: string;
   text: string;
-  action: ReactNode;
   picture: ReactNode;
   /** `toolTheme` key for the stage's tint. */
   theme: string;
@@ -243,20 +237,19 @@ function PromoCard({
           )}
         </h3>
         <p className={SUB}>{text}</p>
-        <div className="mt-auto pt-5">{action}</div>
       </div>
     </div>
   );
 }
 
 /**
- * „Studio" on the Arbeiten tab: three cards of equal weight, Sharepics from the chat,
- * the Vorlagen and the Video-Editor, each with a button to start.
+ * „Gestalte grüne Inhalte" on the Arbeiten tab: three cards of equal weight, Sharepics
+ * from the chat, the Vorlagen and the Video-Editor. One way in: „Zum Studio".
  */
 export function StudioSection() {
   return (
     <ArbeitenSection
-      title="Studio"
+      title="Gestalte grüne Inhalte"
       action={
         <Link to="/studio" className={SECTION_LINK}>
           Zum Studio
@@ -267,28 +260,12 @@ export function StudioSection() {
         <PromoCard
           title="Sharepics im Chat"
           text="Thema nennen, Entwürfe bekommen und im Editor anpassen."
-          action={
-            <Button asChild variant="brand" size="lg">
-              {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- Link ist auf 'a' gemappt, jsx-a11y prüft dabei nur href statt to; Enter auf dem Link löst denselben Klick aus */}
-              <Link
-                to="/chat"
-                onClick={() => useAgentStore.getState().setPendingDraft(SHAREPIC_DRAFT)}
-              >
-                Sharepic erstellen
-              </Link>
-            </Button>
-          }
           picture={<SharepicPhone />}
           theme="canvas-ki"
         />
         <PromoCard
           title="Vorlagen"
           text="Fertige Designs für Sharepics und Drucksachen: aussuchen und anpassen."
-          action={
-            <Button asChild variant="brand" size="lg">
-              <Link to="/vorlagen">Vorlagen ansehen</Link>
-            </Button>
-          }
           picture={<VorlagenFan />}
           theme="docs"
         />
@@ -296,11 +273,6 @@ export function StudioSection() {
           title="Video-Editor"
           badge="Neu"
           text="Reels schneiden, mit Text und Musik. Direkt im Browser."
-          action={
-            <Button asChild variant="brand" size="lg">
-              <Link to="/studio/videoeditor">Video schneiden</Link>
-            </Button>
-          }
           picture={<EditorMock />}
           theme="studio-videoeditor"
         />

@@ -58,7 +58,7 @@ export function BriefingSection() {
 
   return (
     <ArbeitenSection
-      title="Grünerator Briefing"
+      title="Bleib informiert"
       action={
         <Link to={briefingPath} className={SECTION_LINK}>
           Ganzes Briefing
@@ -112,7 +112,7 @@ function pickTools(entries: readonly { id: ToolId; theme: string; title?: string
 }
 
 /**
- * „Mach mehr mit deinem Grünerator": six cards in a 3 × 2 grid (two columns on phones).
+ * „Mehr Produktivität mit dem Grünerator": six cards in a 3 × 2 grid (two columns on phones).
  * Six different hues from the `toolTheme` palette, so the row reads colourful even
  * though most of these tools are green in their own right: a card borrows another
  * theme's colours where its own would repeat a neighbour's (only the colours — the
@@ -251,7 +251,7 @@ export function ToolCardsSection({
 }: {
   title: string;
   tools: ToolCard[];
-  /** Defaults to the page grid; „Mach mehr mit deinem Grünerator" uses 3 × 2. */
+  /** Defaults to the page grid; „Mehr Produktivität mit dem Grünerator" uses 3 × 2. */
   gridClassName?: string;
   'data-tour'?: string;
 }) {
