@@ -59,6 +59,8 @@ const services = () => ({
 });
 
 beforeEach(() => {
+  // Every manual upload here keeps its original; never into the real uploads dir.
+  vi.stubEnv('DOCUMENT_ORIGINALS_DIR', fs.mkdtempSync(path.join(os.tmpdir(), 'originals-')));
   extractDocumentFromFile.mockReset();
   chunkAndEmbedText.mockReset().mockResolvedValue({ chunks: ['c'], embeddings: [[0.1]] });
   saveDocumentMetadata.mockReset().mockResolvedValue({ id: 'doc-1', title: 'datenschutz.pdf' });
