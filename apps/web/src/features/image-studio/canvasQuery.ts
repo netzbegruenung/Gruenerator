@@ -2,8 +2,7 @@ import './canvasHost';
 import { isValidCanvasType, loadCanvasConfig } from '@gruenerator/canvas-editor/config-loader';
 import { type CanvasDocument } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
-import { type QueryClient, queryOptions, useQueryClient } from '@tanstack/react-query';
-import { useCallback } from 'react';
+import { type QueryClient, queryOptions } from '@tanstack/react-query';
 
 import { loadCanvasStudioPage } from './routeChunks';
 
@@ -38,12 +37,6 @@ export const canvasQueryOptions = (id: string) =>
 export function prefetchCanvasEditor(queryClient: QueryClient, id: string) {
   void loadCanvasStudioPage();
   void queryClient.prefetchQuery(canvasQueryOptions(id));
-}
-
-/** Für Hover/Fokus auf Canvas-Links. */
-export function useCanvasEditorPrefetch() {
-  const queryClient = useQueryClient();
-  return useCallback((id: string) => prefetchCanvasEditor(queryClient, id), [queryClient]);
 }
 
 /** Nach dem Anlegen: das frische Dokument direkt in den Cache legen. */
