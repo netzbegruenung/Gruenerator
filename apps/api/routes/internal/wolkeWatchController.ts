@@ -1,6 +1,7 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
 
 import { env } from '../../config/env.js';
+import { runAllProjectWolkeFolders } from '../../services/groups/projectWolkeFolders.js';
 import { getWolkeWatchService } from '../../services/sync/WolkeWatchService.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -30,7 +31,7 @@ const requireAdmin = (req: AdminRequest, res: Response, next: NextFunction): voi
 /**
  * POST /internal/wolke-watch/run
  * Scan every auto_sync notebook for new Wolke files, record them as pending,
- * and notify owners. Triggered hourly by .github/workflows/wolke-watch-hourly.yml.
+ * and notify owners; then sync the Wolke folders attached to projects. Triggered hourly by .github/workflows/wolke-watch-hourly.yml.
  * Runs synchronously so the workflow can report the result.
  */
 router.post('/run', requireAdmin, async (_req: AdminRequest, res: Response): Promise<void> => {
@@ -39,7 +40,19 @@ router.post('/run', requireAdmin, async (_req: AdminRequest, res: Response): Pro
     log.info(
       `Wolke watch run complete: ${result.totalNewFiles} new across ${result.collectionsWithNewFiles} notebooks (${result.durationMs}ms)`
     );
-    res.json({ success: true, ...result });
+    // Projekt-Ordner (#5945): anders als Notebooks werden sie direkt eingelesen,
+    // gedeckelt je Lauf. Ein Fehler hier kostet den Notebook-Teil nicht.
+    let projects: Awaited<ReturnType<typeof runAllProjectWolkeFolders>> | { error: string };
+    try {
+      projects = await runAllProjectWolkeFolders();
+      log.info(
+        `Project wolke sync: ${projects.imported} imported, ${projects.removed} removed, ${projects.pending} pending across ${projects.scannedFolders} folders (${projects.durationMs}ms)`
+      );
+    } catch (error) {
+      projects = { error: error instanceof Error ? error.message : String(error) };
+      log.error(`Project wolke sync failed: ${projects.error}`);
+    }
+    res.json({ success: true, ...result, projects });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     log.error(`Wolke watch run failed: ${message}`);

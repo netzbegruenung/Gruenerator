@@ -140,6 +140,24 @@ export const group_instructions = pgTable('group_instructions', {
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
+// Laufzeit-DDL in schema.sql / zz_20261123c_group_wolke_folders.sql. Unique (group_id, share_link_id, folder_path).
+export const group_wolke_folders = pgTable('group_wolke_folders', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  group_id: uuid('group_id').notNull(),
+  user_id: uuid('user_id').notNull(),
+  share_link_id: text('share_link_id').notNull(),
+  folder_path: text('folder_path').notNull().default('/'),
+  folder_name: text('folder_name').notNull(),
+  include_subfolders: boolean('include_subfolders').notNull().default(true),
+  /** WebDAV-href → `documents.id` der zuletzt gesehenen Dateien. */
+  synced_files: jsonb('synced_files').$type<Record<string, string>>().notNull().default({}),
+  file_count: integer('file_count').notNull().default(0),
+  pending_count: integer('pending_count').notNull().default(0),
+  last_synced_at: timestamp('last_synced_at', { withTimezone: true }),
+  last_error: text('last_error'),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type GroupRow = InferSelectModel<typeof groups>;
 export type GroupMembershipRow = InferSelectModel<typeof group_memberships>;
 export type GroupJoinRequestRow = InferSelectModel<typeof group_join_requests>;
@@ -148,3 +166,4 @@ export type GroupShareCommentRow = InferSelectModel<typeof group_share_comments>
 export type GroupPostRow = InferSelectModel<typeof group_posts>;
 export type GroupPostFileRow = InferSelectModel<typeof group_post_files>;
 export type GroupInstructionsRow = InferSelectModel<typeof group_instructions>;
+export type GroupWolkeFolderRow = InferSelectModel<typeof group_wolke_folders>;

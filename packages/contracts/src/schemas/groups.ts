@@ -629,3 +629,57 @@ export const groupInstructionsResponseSchema = z.object({
   updatedAt: z.string().nullable(),
 });
 export type GroupInstructionsResponse = z.infer<typeof groupInstructionsResponseSchema>;
+
+// ── Wolke-Ordner als Projektwissen (#5945, experimentell) ─────────────────────
+
+/** Ein an ein Projekt gehängter Wolke-Ordner. Lesen dürfen Mitglieder, ändern Projekt-Admins. */
+export const groupWolkeFolderSchema = z.object({
+  id: z.string(),
+  folderName: z.string(),
+  folderPath: z.string(),
+  includeSubfolders: z.boolean(),
+  /** Dateien aus dem Ordner, die gerade im Projektwissen liegen. */
+  fileCount: z.number(),
+  /** Noch nicht eingelesen — der stündliche Abgleich holt sie nach. */
+  pendingCount: z.number(),
+  lastSyncedAt: z.string().nullable(),
+  lastError: z.string().nullable(),
+  attachedById: z.string(),
+  attachedByName: z.string().nullable(),
+});
+export type GroupWolkeFolder = z.infer<typeof groupWolkeFolderSchema>;
+
+export const groupWolkeFoldersResponseSchema = z.object({
+  success: z.literal(true),
+  folders: z.array(groupWolkeFolderSchema),
+});
+export type GroupWolkeFoldersResponse = z.infer<typeof groupWolkeFoldersResponseSchema>;
+
+export const attachGroupWolkeFolderBodySchema = z.object({
+  url: z.string().trim().min(1).max(2000),
+  includeSubfolders: z.boolean(),
+  /** Anzeigename im Projekt; leer → Label des Freigabelinks bzw. „Wolke-Ordner". */
+  name: z.string().trim().max(120).optional(),
+});
+export type AttachGroupWolkeFolderBody = z.infer<typeof attachGroupWolkeFolderBodySchema>;
+
+/** Was ein Abgleich getan hat. */
+export const groupWolkeSyncSummarySchema = z.object({
+  /** Neu oder geändert eingelesen. */
+  imported: z.number(),
+  /** Aus dem Ordner verschwunden und aus dem Projekt genommen. */
+  removed: z.number(),
+  /** Aufgeschoben (Zeitbudget) — kommt beim nächsten Abgleich. */
+  pending: z.number(),
+  /** Ohne lesbaren Text, zu groß oder über der Ordnergrenze. */
+  skipped: z.number(),
+  failed: z.number(),
+});
+export type GroupWolkeSyncSummary = z.infer<typeof groupWolkeSyncSummarySchema>;
+
+export const groupWolkeFolderSyncResponseSchema = z.object({
+  success: z.literal(true),
+  folder: groupWolkeFolderSchema,
+  summary: groupWolkeSyncSummarySchema,
+});
+export type GroupWolkeFolderSyncResponse = z.infer<typeof groupWolkeFolderSyncResponseSchema>;

@@ -20,6 +20,7 @@ import { contentRoutes } from './content.js';
 import { coreRoutes } from './core.js';
 import { discoveryRoutes } from './discovery.js';
 import { s, log } from './shared.js';
+import { wolkeFolderRoutes } from './wolkeFolders.js';
 
 import type { Application } from 'express';
 
@@ -27,6 +28,7 @@ export const groupsContractRouter = s.router(groupsContract, {
   ...discoveryRoutes,
   ...coreRoutes,
   ...contentRoutes,
+  ...wolkeFolderRoutes,
 });
 
 export function mountGroupsContractRouter(app: Application): void {

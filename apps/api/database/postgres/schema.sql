@@ -298,6 +298,24 @@ CREATE TABLE IF NOT EXISTS group_post_files (
     position SMALLINT NOT NULL DEFAULT 0
 );
 
+-- Wolke-Ordner als Projektwissen (#5945, experimentell); Kommentar in der Migration.
+CREATE TABLE IF NOT EXISTS group_wolke_folders (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    share_link_id TEXT NOT NULL,
+    folder_path TEXT NOT NULL DEFAULT '/',
+    folder_name TEXT NOT NULL,
+    include_subfolders BOOLEAN NOT NULL DEFAULT TRUE,
+    synced_files JSONB NOT NULL DEFAULT '{}'::jsonb,
+    file_count INTEGER NOT NULL DEFAULT 0,
+    pending_count INTEGER NOT NULL DEFAULT 0,
+    last_synced_at TIMESTAMPTZ,
+    last_error TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (group_id, share_link_id, folder_path)
+);
+
 CREATE TABLE IF NOT EXISTS group_instructions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
@@ -900,6 +918,7 @@ CREATE INDEX IF NOT EXISTS idx_group_share_comments_parent ON group_share_commen
 CREATE INDEX IF NOT EXISTS idx_group_posts_group ON group_posts(group_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_group_post_files_post ON group_post_files(post_id, position);
 CREATE INDEX IF NOT EXISTS idx_group_instructions_group_id ON group_instructions(group_id);
+CREATE INDEX IF NOT EXISTS idx_group_wolke_folders_group ON group_wolke_folders(group_id);
 CREATE INDEX IF NOT EXISTS idx_group_instructions_is_active ON group_instructions(is_active);
 CREATE INDEX IF NOT EXISTS idx_group_instructions_group_active ON group_instructions(group_id, is_active);
 

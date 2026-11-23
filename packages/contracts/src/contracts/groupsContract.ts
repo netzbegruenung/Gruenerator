@@ -11,6 +11,7 @@ import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
 
 import {
+  attachGroupWolkeFolderBodySchema,
   contentPermissionsBodySchema,
   createGroupBodySchema,
   createGroupShareCommentBodySchema,
@@ -33,6 +34,8 @@ import {
   groupSuccessResponseSchema,
   groupVisibilityResponseSchema,
   groupVorlagenResponseSchema,
+  groupWolkeFolderSyncResponseSchema,
+  groupWolkeFoldersResponseSchema,
   updateGroupPostBodySchema,
   updateGroupShareBodySchema,
   inviteToGroupBodySchema,
@@ -661,5 +664,63 @@ export const groupsContract = c.router({
       500: groupErrorResponseSchema,
     },
     summary: 'Write the Projekt instructions (Projekt admins; empty text removes them)',
+  },
+  listGroupWolkeFolders: {
+    method: 'GET',
+    path: '/api/auth/groups/:groupId/wolke-folders',
+    pathParams: z.object({ groupId: z.string() }),
+    responses: {
+      200: groupWolkeFoldersResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'List the Wolke folders synced into a Projekt (members; experimental)',
+  },
+
+  attachGroupWolkeFolder: {
+    method: 'POST',
+    path: '/api/auth/groups/:groupId/wolke-folders',
+    pathParams: z.object({ groupId: z.string() }),
+    body: attachGroupWolkeFolderBodySchema,
+    responses: {
+      200: groupWolkeFolderSyncResponseSchema,
+      400: groupErrorResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      409: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary:
+      'Attach a Wolke folder (share link) as Projekt knowledge and run a first sync (admins)',
+  },
+
+  syncGroupWolkeFolder: {
+    method: 'POST',
+    path: '/api/auth/groups/:groupId/wolke-folders/:folderId/sync',
+    pathParams: z.object({ groupId: z.string(), folderId: z.string().guid() }),
+    body: c.noBody(),
+    responses: {
+      200: groupWolkeFolderSyncResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      404: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Sync an attached Wolke folder now (admins)',
+  },
+
+  detachGroupWolkeFolder: {
+    method: 'DELETE',
+    path: '/api/auth/groups/:groupId/wolke-folders/:folderId',
+    pathParams: z.object({ groupId: z.string(), folderId: z.string().guid() }),
+    responses: {
+      200: groupOkResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      404: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Detach a Wolke folder; its files leave the Projekt, the Wolke is untouched (admins)',
   },
 });

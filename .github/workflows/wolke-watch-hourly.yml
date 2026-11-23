@@ -75,6 +75,10 @@ jobs:
           WITH_NEW=$(echo "$RESULT" | jq -r '.collectionsWithNewFiles // "?"')
           NEW_FILES=$(echo "$RESULT" | jq -r '.totalNewFiles // "?"')
           NOTIFIED=$(echo "$RESULT" | jq -r '.notificationsSent // "?"')
+          P_FOLDERS=$(echo "$RESULT" | jq -r '.projects.scannedFolders // "?"')
+          P_IMPORTED=$(echo "$RESULT" | jq -r '.projects.imported // "?"')
+          P_REMOVED=$(echo "$RESULT" | jq -r '.projects.removed // "?"')
+          P_FAILED=$(echo "$RESULT" | jq -r '.projects.failedFolders // "?"')
 
           {
             echo "## :cloud: Wolke Watch"
@@ -88,6 +92,10 @@ jobs:
             echo "| With new files | $WITH_NEW |"
             echo "| New files detected | $NEW_FILES |"
             echo "| Notifications sent | $NOTIFIED |"
+            echo "| Project folders synced | $P_FOLDERS |"
+            echo "| Project files imported | $P_IMPORTED |"
+            echo "| Project files removed | $P_REMOVED |"
+            echo "| Project folders with errors | $P_FAILED |"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Fail if watch run errored
