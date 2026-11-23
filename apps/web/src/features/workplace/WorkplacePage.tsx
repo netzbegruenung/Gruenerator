@@ -59,6 +59,12 @@ const WorkplacePage = () => {
   // The path names the tab; bare `/start` opens the one from the start-page setting.
   const tab: WorkplaceTab = isWorkplaceTab(tabParam) ? tabParam : home;
 
+  // One page: the chat view lives at /start/chat only. It mounts on its first visit and
+  // then stays (a draft survives switching); hidden from the start, it would build a
+  // second composer and its runtime on every visit to /start.
+  const [chatMounted, setChatMounted] = useState(!combined || tab === 'chat');
+  if ((!combined || tab === 'chat') && !chatMounted) setChatMounted(true);
+
   // Arbeiten mounts once — on idle or when first shown — and then stays.
   const [arbeitenMounted, setArbeitenMounted] = useState(tab === 'arbeiten');
   if (tab === 'arbeiten' && !arbeitenMounted) setArbeitenMounted(true);
@@ -129,9 +135,11 @@ const WorkplacePage = () => {
               which the composer reads via inheritance (workplace-chat-accent,
               chat-thread-glow). `contents` keeps it out of the layout; its paint
               and entrance animation belong to the fixed layer above. */}
-          <div className={cn(chatBackgroundClass, 'contents animate-none!')}>
-            <WorkplaceChatTab />
-          </div>
+          {chatMounted && (
+            <div className={cn(chatBackgroundClass, 'contents animate-none!')}>
+              <WorkplaceChatTab />
+            </div>
+          )}
         </div>
         <div
           hidden={tab !== 'arbeiten'}

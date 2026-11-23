@@ -368,7 +368,12 @@ const RecurringTaskBuilderPage = lazy(
   () => import('../features/recurring-tasks/RecurringTaskBuilderPage')
 );
 const TrashPage = lazy(() => import('../features/trash/TrashPage'));
-const WorkplacePage = lazy(() => import('../features/workplace/WorkplacePage'));
+// /start shows Arbeiten first (one-page layout) or mounts it on idle (tabs): fetch its
+// chunk alongside the page instead of after it, which cost a full round trip on phones.
+const WorkplacePage = lazy(() => {
+  void import('../features/workplace/tabs/ArbeitenTab');
+  return import('../features/workplace/WorkplacePage');
+});
 const ProjektePage = lazy(() => import('../features/groups/pages/ProjektePage'));
 const OfficeSuiteLandingPage = lazy(() => import('../features/docs/OfficeSuiteLandingPage'));
 // The per-type office overviews are consolidated into the /office hub; keep the

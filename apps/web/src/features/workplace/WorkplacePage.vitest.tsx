@@ -46,8 +46,9 @@ const renderAt = (url: string) =>
 
 // Which view shows: Chat (the composer) or Arbeiten. The sidebar switches them
 // by path; its entries are tested with the menu data.
+// One page: the chat view is not built until /start/chat is first opened.
 const shows = () =>
-  screen.getByLabelText('Composer').closest('[hidden]') === null ? 'Chat' : 'Arbeiten';
+  screen.queryByLabelText('Composer')?.closest('[hidden]') === null ? 'Chat' : 'Arbeiten';
 const url = () => screen.getByTestId('url').textContent;
 
 describe('WorkplacePage', () => {
@@ -62,6 +63,8 @@ describe('WorkplacePage', () => {
     expect(await screen.findByText('Arbeiten-Inhalt')).toBeVisible();
     expect(shows()).toBe('Arbeiten');
     expect(screen.queryByRole('navigation', { name: 'Workplace-Bereiche' })).toBeNull();
+    // The hidden chat view is not built: it would cost a second composer and runtime.
+    expect(screen.queryByLabelText('Composer')).toBeNull();
   });
 
   it('still opens Chat by path', () => {
