@@ -3,12 +3,13 @@ import {
   TooltipProvider,
   preloadChatRuntime,
   type ChatConfig,
+  type ChatVoice,
   type SharepicVariant,
 } from '@gruenerator/chat';
 import { type RoleRef } from '@gruenerator/contracts';
 import { ApiError, getContractsClient, type UnauthorizedInfo } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { handleUnauthorized } from '../components/utils/apiClient';
@@ -25,7 +26,6 @@ import { useNotebookChatStore } from '../features/notebook/stores/notebookChatSt
 import { resolveNotebookChatEntries } from '../features/notebook/utils/notebookChatResolver';
 import { useTrashUndoToast } from '../features/trash/trashUndoToast';
 import { useSetUserDefault } from '../features/user-defaults/userDefaultsQueries';
-import { mistralChatVoice } from '../features/voice-agent-test/chatVoice';
 import { sessionDebug } from '../lib/sessionDebug';
 import { runPython } from '../services/pythonInterpreter';
 import { useAuthStore } from '../stores/authStore';
@@ -80,6 +80,20 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { enabledModelIds } = useModelPreferences({ enabled: !!userId });
+
+  // The Mistral voice adapter is for instance admins only; loaded on demand so
+  // it stays out of the entry's static closure (#5891).
+  const [chatVoice, setChatVoice] = useState<ChatVoice | undefined>(undefined);
+  useEffect(() => {
+    if (!isInstanceAdmin) return;
+    let live = true;
+    void import('../features/voice-agent-test/chatVoice').then((m) => {
+      if (live) setChatVoice(m.mistralChatVoice);
+    });
+    return () => {
+      live = false;
+    };
+  }, [isInstanceAdmin]);
 
   // Rollenwahl im Composer → Konto-Voreinstellung. Über einen Ref, weil
   // `chatConfig` nur bei einem Wechsel von `isInstanceAdmin` neu gebaut wird
@@ -215,7 +229,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
           }
         : undefined,
       // Interner Test: Mistrals Voice-Agent geht über den globalen Endpunkt.
-      voice: isInstanceAdmin ? mistralChatVoice : undefined,
+      voice: isInstanceAdmin ? chatVoice : undefined,
       // The render stack (canvas composer, ggraphic, screenshot, zip) is ~340 kB
       // of minified JS. This provider sits at the app root, so a static import
       // ships it on every first load; load it on the first sharepic instead.
@@ -366,7 +380,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
         }
       },
     }),
-    [isInstanceAdmin]
+    [isInstanceAdmin, chatVoice]
   );
 
   return (
