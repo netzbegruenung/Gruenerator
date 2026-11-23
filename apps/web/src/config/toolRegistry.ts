@@ -34,8 +34,8 @@ export type ToolIconRef =
 export type OfficeCreateKind = 'doc' | 'board' | 'sheet' | 'pres' | 'gallery';
 
 /** Which tile strip a tool's colored tile lives in: the Arbeiten tab's
- * area/organise rows or the /studio landing strip (`studio`) or its "Weitere Tools" menu (`studio-werkzeuge`). */
-export type WorkplaceTileGroup = 'bereiche' | 'organisieren' | 'studio' | 'studio-werkzeuge';
+ * area/organise rows or the /studio landing strip (`studio`). */
+export type WorkplaceTileGroup = 'bereiche' | 'organisieren' | 'studio';
 
 /** Who sees a tool. Omitted means `'all'`. */
 export type ToolAudience = 'de-DE' | 'de-AT' | 'all';
@@ -136,7 +136,7 @@ const TOOLS = [
     title: 'Studio',
     path: '/studio',
     icon: { navigation: 'sharepic' },
-    tile: { group: 'bereiche', description: 'KI-Bilder, Sharepics & Reels' },
+    tile: { group: 'bereiche', description: 'Videos, Sharepics, KI-Bilder & Uploads' },
     search: {
       id: 'tool-studio',
       subtitle: 'Sharepics, KI-Bilder & Videos',
@@ -324,6 +324,7 @@ const TOOLS = [
         'tts',
       ],
     },
+    theme: true,
   },
   {
     id: 'newsletter',
@@ -346,29 +347,19 @@ const TOOLS = [
     icon: { navigation: 'transparenz' },
     menuItem: { description: 'Verbrauch & CO₂ des Grünerators' },
   },
-  {
-    id: 'canvas-vorlagen',
-    title: 'Vorlagen',
-    path: '/vorlagen',
-    icon: { navigation: 'vorlagen' },
-    tile: { group: 'studio', description: 'Sharepics & Designs' },
-    search: {
-      id: 'tool-vorlagen',
-      subtitle: 'Fertige Sharepic- und Design-Vorlagen',
-      keywords: ['vorlagen', 'vorlage', 'template', 'design', 'sharepic'],
-    },
-    theme: true,
-  },
+  // F1: id of the former KI-Bilder tile. Sharepics and KI-Bilder are made in
+  // the chat now: the Studio's first card and the KI-Bild search hit open it.
   {
     id: 'canvas-ki',
-    title: 'KI-Bilder',
-    path: '/studio',
-    icon: { navigation: 'imagine' },
-    tile: { group: 'studio', description: 'Erstellen & bearbeiten' },
+    title: 'Sharepic im Chat erstellen',
+    path: '/chat',
+    icon: { navigation: 'messenger' },
+    // The Studio card opens the chat with a Sharepic order already typed in (StudioPage).
+    tile: { group: 'studio', description: 'Thema nennen, Entwürfe bekommen' },
     search: {
       id: 'tool-imagine',
       title: 'KI-Bild erstellen',
-      subtitle: 'Bilder mit KI erstellen & bearbeiten',
+      subtitle: 'Bilder mit KI im Chat erstellen & bearbeiten',
       keywords: [
         'imagine',
         'ki-bild',
@@ -384,25 +375,11 @@ const TOOLS = [
     theme: true,
   },
   {
-    id: 'reels-untertitel',
-    title: 'Untertitel',
-    path: '/studio/video',
-    icon: { navigation: 'reel' },
-    tile: { group: 'studio', description: 'Untertitel für Clips' },
-    search: {
-      id: 'tool-reel',
-      title: 'Untertitel',
-      subtitle: 'Social-Clips untertiteln',
-      keywords: ['reel', 'video', 'untertitel', 'subtitle', 'clip', 'social', 'tiktok', 'story'],
-    },
-    theme: true,
-  },
-  {
     id: 'studio-videoeditor',
     title: 'Video-Editor',
     path: '/studio/videoeditor',
     icon: { navigation: 'videoEditor' },
-    tile: { group: 'studio', description: 'Clips schneiden & gestalten' },
+    tile: { group: 'studio', description: 'Reels mit Schnitt, Text & Musik', badge: 'Neu' },
     search: {
       id: 'tool-videoeditor',
       title: 'Video-Editor',
@@ -421,44 +398,36 @@ const TOOLS = [
     theme: true,
   },
   {
-    id: 'studio-ki-schnitt',
-    title: 'KI-Schnitt',
-    path: '/studio/ki-schnitt',
-    icon: { navigation: 'kiSchnitt' },
-    tile: { group: 'studio', description: 'Rohvideos automatisch schneiden' },
-    search: {
-      id: 'tool-ki-schnitt',
-      title: 'KI-Schnitt',
-      subtitle: 'Aus Rohvideos einen fertigen Clip schneiden lassen',
-      keywords: ['ki-schnitt', 'ki schnitt', 'schnitt', 'schneiden', 'rohvideo', 'reel', 'video'],
-    },
-  },
-  {
-    id: 'parteitage',
-    title: 'Parteitage',
-    path: '/parteitage',
+    id: 'reels-untertitel',
+    title: 'Auto-Untertitel',
+    path: '/studio/video',
     icon: { navigation: 'reel' },
-    tile: { group: 'studio', description: 'Reden als Reels' },
+    tile: { group: 'studio', description: 'Videos automatisch untertiteln' },
     search: {
-      id: 'tool-parteitage',
-      title: 'Parteitage',
-      subtitle: 'Reden vom Parteitag untertiteln und schneiden',
-      keywords: ['parteitag', 'ldk', 'bdk', 'rede', 'reel'],
+      id: 'tool-reel',
+      title: 'Untertitel',
+      subtitle: 'Social-Clips untertiteln',
+      keywords: ['reel', 'video', 'untertitel', 'subtitle', 'clip', 'social', 'tiktok', 'story'],
     },
+    theme: true,
   },
   {
-    id: 'studio-voice',
-    title: 'Voice',
-    path: '/voice',
-    icon: { navigation: 'voice' },
-    tile: { group: 'studio', description: 'Text vertonen' },
+    id: 'canvas-vorlagen',
+    title: 'Vorlagen',
+    path: '/vorlagen',
+    icon: { navigation: 'vorlagen' },
+    search: {
+      id: 'tool-vorlagen',
+      subtitle: 'Fertige Sharepic- und Design-Vorlagen',
+      keywords: ['vorlagen', 'vorlage', 'template', 'design', 'sharepic'],
+    },
+    theme: true,
   },
   {
     id: 'profilbild',
     title: 'Profilbild',
     path: '/studio/profilbild',
     icon: { navigation: 'profilbild' },
-    tile: { group: 'studio-werkzeuge', description: 'Freistellen & Hintergrund wechseln' },
     search: {
       id: 'tool-profilbild',
       subtitle: 'Profilbild freistellen und Hintergrund wechseln',
@@ -479,7 +448,6 @@ const TOOLS = [
     title: 'Sticker & Hintergründe',
     path: '/studio/sticker',
     icon: { navigation: 'sticker' },
-    tile: { group: 'studio-werkzeuge', description: 'Sticker erstellen, teilen & entdecken' },
     search: {
       id: 'tool-sticker',
       subtitle: 'Sticker und Hintergründe erstellen, teilen und entdecken',
@@ -487,53 +455,35 @@ const TOOLS = [
     },
   },
   {
-    id: 'bild-erweitern',
-    title: 'Bild erweitern',
-    path: '/studio/erweitern',
-    icon: { navigation: 'bild-erweitern' },
-    tile: { group: 'studio-werkzeuge', description: 'Auf ein neues Format ergänzen' },
+    id: 'studio-ki-schnitt',
+    title: 'KI-Schnitt',
+    path: '/studio/ki-schnitt',
+    icon: { navigation: 'kiSchnitt' },
     search: {
-      id: 'tool-bild-erweitern',
-      subtitle: 'KI ergänzt dein Bild auf ein neues Format',
-      keywords: [
-        'erweitern',
-        'bild erweitern',
-        'outpaint',
-        'format',
-        'seitenverhaeltnis',
-        'ergaenzen',
-        'bild',
-      ],
+      id: 'tool-ki-schnitt',
+      title: 'KI-Schnitt',
+      subtitle: 'Aus Rohvideos einen fertigen Clip schneiden lassen',
+      keywords: ['ki-schnitt', 'ki schnitt', 'schnitt', 'schneiden', 'rohvideo', 'reel', 'video'],
     },
-    theme: true,
   },
   {
-    id: 'freisteller',
-    title: 'Hintergrund entfernen',
-    path: '/studio/freistellen',
-    icon: { navigation: 'freisteller' },
-    tile: { group: 'studio-werkzeuge', description: 'Person oder Motiv freistellen' },
+    id: 'parteitage',
+    title: 'Parteitage',
+    path: '/parteitage',
+    icon: { navigation: 'reel' },
     search: {
-      id: 'tool-freisteller',
-      subtitle: 'Person oder Motiv in Sekunden freistellen',
-      keywords: [
-        'freistellen',
-        'freisteller',
-        'hintergrund',
-        'entfernen',
-        'transparent',
-        'ausschneiden',
-        'bild',
-      ],
+      id: 'tool-parteitage',
+      title: 'Parteitage',
+      subtitle: 'Reden vom Parteitag untertiteln und schneiden',
+      keywords: ['parteitag', 'ldk', 'bdk', 'rede', 'reel'],
     },
-    theme: true,
   },
+  // The Mediathek is the /studio page now; kept for its search hit (F1 id).
   {
     id: 'mediathek',
     title: 'Mediathek',
-    path: '/studio/mediathek',
+    path: '/studio',
     icon: { navigation: 'mediathek' },
-    tile: { group: 'studio-werkzeuge', description: 'Deine Bilder, Videos & Audios' },
     search: {
       id: 'tool-mediathek',
       subtitle: 'Alle deine Bilder, Sharepics, KI-Bilder, Videos und Audios',
@@ -548,15 +498,6 @@ const TOOLS = [
         'galerie',
       ],
     },
-    theme: true,
-  },
-  {
-    id: 'bildgenerator-at',
-    title: 'Bildgenerator',
-    href: 'https://bildgenerator.gruene.at/',
-    audience: 'de-AT',
-    icon: { actions: 'link' },
-    tile: { group: 'studio-werkzeuge', description: 'Sharepics der Grünen Österreich' },
   },
   {
     id: 'tool-notebooks',
@@ -668,6 +609,10 @@ export const LEGACY_TOOL_ID_ALIASES: Record<string, ToolId> = {
   spaces: 'projekte',
   // „Alte Vorlagen" (the retired template wizard) became Grünerator-Vorlagen.
   'canvas-sharepics': 'canvas-vorlagen',
+  // „Hintergrund entfernen" lives in the canvas editor now; its tile left the Studio.
+  freisteller: 'canvas',
+  // „Bild erweitern" is the canvas editor's „Erweitern" on a selected image now.
+  'bild-erweitern': 'canvas',
 };
 
 // Legacy ids kept ONLY so already-pinned favourites still resolve — they are
@@ -695,6 +640,32 @@ const LEGACY_FAVOURITE_ITEMS: readonly {
   { id: 'spaces', title: 'Projekte', path: '/projekte', icon: { navigation: 'projekte' } },
   // The Grüneratoren tile left the Arbeiten strip for the Marktplatz (the overview is in the sidebar).
   { id: 'agents', title: 'Grüneratoren', path: '/grueneratoren', icon: { component: RiSpyLine } },
+  // The Mediathek tile left with the merge into the /studio page (11/2026).
+  { id: 'mediathek', title: 'Mediathek', path: '/studio', icon: { navigation: 'mediathek' } },
+  // KI-Schnitt and Parteitage left with the Studio's „Weitere Werkzeuge" menu (11/2026).
+  {
+    id: 'studio-ki-schnitt',
+    title: 'KI-Schnitt',
+    path: '/studio/ki-schnitt',
+    icon: { navigation: 'kiSchnitt' },
+  },
+  { id: 'parteitage', title: 'Parteitage', path: '/parteitage', icon: { navigation: 'reel' } },
+  // Voice left with it too; the Arbeiten tab links it (see ArbeitenSections).
+  { id: 'studio-voice', title: 'Voice', path: '/vertonen', icon: { navigation: 'voice' } },
+  // Vorlagen, Profilbild and Sticker left the Studio row (Sticker is a hero icon there now).
+  { id: 'canvas-vorlagen', title: 'Vorlagen', path: '/vorlagen', icon: { navigation: 'vorlagen' } },
+  {
+    id: 'profilbild',
+    title: 'Profilbild',
+    path: '/studio/profilbild',
+    icon: { navigation: 'profilbild' },
+  },
+  {
+    id: 'sticker',
+    title: 'Sticker & Hintergründe',
+    path: '/studio/sticker',
+    icon: { navigation: 'sticker' },
+  },
 ];
 
 // Row order of the "Weitere" menu — reorder the menu here, not in TOOLS. Every
@@ -721,8 +692,6 @@ const SEARCH_ORDER = [
   'tool-imagine',
   'tool-profilbild',
   'tool-sticker',
-  'tool-bild-erweitern',
-  'tool-freisteller',
   'tool-mediathek',
   'tool-scanner',
   'tool-transkription',
@@ -759,6 +728,20 @@ export interface DerivedTile {
   audience?: ToolAudience;
   icon: IconType;
   badge?: string;
+}
+
+/** Title, target and icon of one tool, with or without a tile — for cards that pick tools by id. */
+export function toolLink(id: ToolId): Omit<DerivedTile, 'description' | 'badge'> {
+  const tool = ALL_TOOLS.find((t) => t.id === id);
+  if (!tool) throw new Error(`unknown tool id: ${id}`);
+  return {
+    id: tool.id,
+    title: tool.title,
+    ...(tool.path != null ? { path: tool.path } : {}),
+    ...(tool.href != null ? { href: tool.href } : {}),
+    ...(tool.audience != null ? { audience: tool.audience } : {}),
+    icon: resolveToolIcon(tool.icon),
+  };
 }
 
 export function toolsWithTile(group: WorkplaceTileGroup): DerivedTile[] {
@@ -910,7 +893,7 @@ export function legacyFavouriteItems(): DerivedFavouriteItem[] {
  * strip — mirroring the old `[...WORKPLACE_TOOLS, ...CANVAS_TOOLS]` order. */
 export function gridFavouriteItems(): DerivedFavouriteItem[] {
   const out: DerivedFavouriteItem[] = [];
-  for (const group of ['organisieren', 'studio', 'studio-werkzeuge'] as const) {
+  for (const group of ['organisieren', 'studio'] as const) {
     for (const tile of toolsWithTile(group)) {
       if (tile.path == null || tile.href != null) continue;
       out.push({ id: tile.id, title: tile.title, path: tile.path, icon: tile.icon });

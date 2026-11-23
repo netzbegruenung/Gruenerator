@@ -154,7 +154,7 @@ describe('VoicePage', () => {
 
     expect(screen.getByRole('link', { name: 'Mediathek' })).toHaveAttribute(
       'href',
-      '/studio/mediathek'
+      '/studio?typ=audio'
     );
     expect(screen.getByRole('button', { name: /Link kopieren/ })).toBeInTheDocument();
   });

@@ -16,7 +16,6 @@ import {
   CANVAS_TOOLS,
   OFFICE_SUITE_TOOLS,
   OFFICE_TOOLS,
-  STUDIO_WERKZEUGE,
   TOOL_MENUS,
   WORKPLACE_TOOLS,
 } from './workplaceToolsConfig';
@@ -71,9 +70,9 @@ describe('toolRegistry invariants', () => {
     }
   });
 
-  it('studio offers two video paths: Untertitel and the full video editor', () => {
+  it('studio offers two video paths: Auto-Untertitel and the full video editor', () => {
     const simple = tools.find((t) => t.id === 'reels-untertitel');
-    expect(simple?.title).toBe('Untertitel');
+    expect(simple?.title).toBe('Auto-Untertitel');
     expect(simple?.path).toBe('/studio/video');
     expect(simple?.search?.id).toBe('tool-reel');
 
@@ -94,13 +93,12 @@ describe('literal mirrors stay in lockstep with the registry', () => {
     expect(OFFICE_TOOLS).toEqual(toolsWithTile('bereiche'));
     expect(WORKPLACE_TOOLS).toEqual(toolsWithTile('organisieren'));
     expect(CANVAS_TOOLS).toEqual(toolsWithTile('studio'));
-    expect(STUDIO_WERKZEUGE).toEqual(toolsWithTile('studio-werkzeuge'));
     expect(OFFICE_SUITE_TOOLS).toEqual(officeSuiteTools());
     expect(TOOL_MENUS).toEqual(toolMenus());
   });
 
   it('every internal-path grid tile resolves as a favourite item', () => {
-    const tiles = (['organisieren', 'studio', 'studio-werkzeuge'] as const).flatMap((g) =>
+    const tiles = (['organisieren', 'studio'] as const).flatMap((g) =>
       toolsWithTile(g).filter((t) => t.path != null && t.href == null)
     );
     expect(tiles.length).toBeGreaterThan(0);

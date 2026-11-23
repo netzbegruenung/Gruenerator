@@ -1,4 +1,5 @@
-import { type Driver } from 'driver.js';
+import { type StartLayout } from '@gruenerator/contracts';
+import { type Driver, type DriveStep } from 'driver.js';
 
 import useSidebarStore from '../../stores/sidebarStore';
 
@@ -38,46 +39,67 @@ function collapseSidebar(after?: () => void) {
   if (after) setTimeout(after, SIDEBAR_EXPAND_MS);
 }
 
-export function startWorkplaceTour(navigate: NavigateFn): void {
+/**
+ * The Workplace tour. With tabs it starts on the Chat view and crosses to
+ * Arbeiten via the tab bar; on the one-page layout the composer sits on top of
+ * Arbeiten, so it simply walks down the page.
+ */
+export function startWorkplaceTour(navigate: NavigateFn, layout: StartLayout = 'combined'): void {
   const crossTab =
     (path: string, selector: string, move: (drv: Driver) => void) =>
     (_el: Element | undefined, _step: unknown, opts: { driver: Driver }) => {
       navigate(path);
       void waitForElement(selector).then(() => move(opts.driver));
     };
+  const onePage = layout === 'combined';
+
+  const composerStep: DriveStep = {
+    element: SEL.composer,
+    popover: {
+      title: 'Dein Chat-Einstieg',
+      description:
+        'Stell Fragen oder lass Texte schreiben — mit @ holst du Agents, Notebooks und Dateien ins Feld, im Plus-Menü findest du fertige Vorlagen. Beim Absenden geht es nahtlos im Chat weiter.',
+      side: 'bottom',
+    },
+  };
+
+  const tabSteps: DriveStep[] = [
+    {
+      element: SEL.tabs,
+      popover: {
+        title: 'Chat und Arbeiten',
+        description:
+          'Oben wechselst du zwischen den beiden Bereichen. Lieber wieder alles auf einer Seite? Das stellst du in den Einstellungen unter „Aufbau der Startseite“ ein.',
+        side: 'bottom',
+        onNextClick: crossTab(startTabLink('arbeiten'), SEL.arbeitenCreate, (drv) =>
+          drv.moveNext()
+        ),
+      },
+    },
+    {
+      element: SEL.arbeitenCreate,
+      popover: {
+        title: 'Arbeiten: Alles finden',
+        description:
+          'Such hier nach deinen Dokumenten, Boards, Tabellen, Präsentationen und Werkzeugen. Neues legst du über „Neu erstellen“ an.',
+        side: 'bottom',
+        onPrevClick: crossTab(startTabLink('chat'), SEL.tabs, (drv) => drv.movePrevious()),
+      },
+    },
+  ];
 
   runTour(
     'workplace',
     [
+      composerStep,
+      ...(onePage ? [] : tabSteps),
       {
-        element: SEL.composer,
+        element: SEL.arbeitenRecents,
         popover: {
-          title: 'Dein Chat-Einstieg',
+          title: 'Zuletzt',
           description:
-            'Stell Fragen oder lass Texte schreiben — mit @ holst du Grüneratoren, Notebooks und Dateien ins Feld, im Plus-Menü findest du fertige Vorlagen. Beim Absenden geht es nahtlos im Chat weiter.',
-          side: 'bottom',
-        },
-      },
-      {
-        element: SEL.tabs,
-        popover: {
-          title: 'Zwei Bereiche',
-          description:
-            'Chat und Arbeiten — hier oben wechselst du jederzeit zwischen den Bereichen.',
-          side: 'bottom',
-          onNextClick: crossTab(startTabLink('arbeiten'), SEL.arbeitenCreate, (drv) =>
-            drv.moveNext()
-          ),
-        },
-      },
-      {
-        element: SEL.arbeitenCreate,
-        popover: {
-          title: 'Arbeiten: Neues erstellen',
-          description:
-            'Dokumente, Boards, Tabellen und Präsentationen — beschreib einfach, was du brauchst, oder starte mit einer Vorlage.',
-          side: 'bottom',
-          onPrevClick: crossTab(startTabLink('chat'), SEL.tabs, (drv) => drv.movePrevious()),
+            'Alle deine Inhalte an einem Ort: Dokumente, Tabellen, Präsentationen, Boards, Sharepics, Bilder und Videos.',
+          side: 'top',
         },
       },
       {
@@ -85,16 +107,7 @@ export function startWorkplaceTour(navigate: NavigateFn): void {
         popover: {
           title: 'Deine Werkzeuge',
           description:
-            'Die Kacheln führen in alle Bereiche: Marktplatz, Office, Studio, Wissen und Projekte — unter „Weitere“ liegen Extras wie Scanner oder Transkription.',
-          side: 'top',
-        },
-      },
-      {
-        element: SEL.arbeitenRecents,
-        popover: {
-          title: 'Zuletzt',
-          description:
-            'Alle deine Inhalte an einem Ort: Dokumente, Tabellen, Präsentationen, Boards, Sharepics, Bilder und Videos.',
+            'Unter „Mehr Produktivität mit dem Grünerator“ liegen Videos, Notebooks, Vorlagen, Profilbild, Vertonen & Transkribieren und der Übersetzer.',
           side: 'top',
           onNextClick: (_el, _step, opts) => {
             expandSidebar(() => opts.driver.moveNext());
@@ -105,8 +118,9 @@ export function startWorkplaceTour(navigate: NavigateFn): void {
         element: SEL.sidebarNav,
         popover: {
           title: 'Die Seitenleiste',
-          description:
-            'Suche (⌘K), deine Grüneratoren, Projekte und angehefteten Favoriten als Schnellzugriff — in jedem Projekt startest du direkt einen neuen Chat.',
+          description: onePage
+            ? 'Workplace bringt dich zurück zur Startseite, Projekte zu deinen Teams. Die Suche (⌘K) sitzt ganz unten.'
+            : 'Chat und Workplace bringen dich zurück zur Startseite, Projekte zu deinen Teams. Die Suche (⌘K) sitzt ganz unten.',
           side: 'right',
           onPrevClick: (_el, _step, opts) => {
             collapseSidebar(() => opts.driver.movePrevious());

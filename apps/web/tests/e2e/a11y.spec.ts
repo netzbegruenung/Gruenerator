@@ -121,10 +121,11 @@ const ROUTES = [
   // `/agentura` leitet seit dem Marktplatz hierher weiter.
   '/marktplatz',
   '/office',
+  // `/studio/mediathek` leitet seit der Zusammenlegung hierher weiter.
   '/studio',
-  '/studio/mediathek',
   '/apps',
-  '/transkription',
+  // `/voice` und `/transkription` leiten seit der Zusammenlegung hierher weiter.
+  '/vertonen',
   '/suche',
   '/projekte',
   // Der Übersetzer war nie in dieser Liste, und genau deshalb konnte #3507

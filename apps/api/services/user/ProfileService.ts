@@ -203,6 +203,7 @@ class ProfileService {
         'auth_source',
         'document_mode',
         'default_startpage',
+        'start_layout',
         'feedback_button',
         'tts_voice_id',
       ] as const;

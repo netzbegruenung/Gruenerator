@@ -14,7 +14,7 @@ import {
   TooltipTrigger,
 } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
-import { Bell, LogOut, Trash2 } from 'lucide-react';
+import { Bell, LogOut, Search, Trash2 } from 'lucide-react';
 import {
   type MutableRefObject,
   type ReactNode,
@@ -53,6 +53,8 @@ const NotificationList = lazy(
 interface SidebarAccountProps {
   sidebarExpanded: boolean;
   openRef: MutableRefObject<boolean>;
+  /** Opens the global search; the collapsed rail shows it above the bell. */
+  onSearch?: () => void;
 }
 
 // Defer past the dropdown's close so the closing menu and the opening dialog
@@ -70,6 +72,7 @@ const openSettingsDeferred = (tab?: SettingsTab) => {
 const SidebarAccount = memo(function SidebarAccount({
   sidebarExpanded,
   openRef,
+  onSearch,
 }: SidebarAccountProps) {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
@@ -289,6 +292,22 @@ const SidebarAccount = memo(function SidebarAccount({
       ) : (
         /* Collapsed: bell stacked above the account avatar. */
         <div className="flex flex-col items-center gap-1">
+          {onSearch && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={onSearch}
+                  aria-haspopup="dialog"
+                  aria-label="Suche"
+                  className="relative flex size-9 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-hover-alt"
+                >
+                  <Search className="size-[18px]" aria-hidden="true" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">Suche</TooltipContent>
+            </Tooltip>
+          )}
           {notificationsBell}
           <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
             <Tooltip>

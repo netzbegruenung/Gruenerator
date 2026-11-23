@@ -142,7 +142,8 @@ async function fetchMediaByIds(userId: string, ids: string[]): Promise<Mediathek
     const parsed = mediathekMediaItemSchema.safeParse({
       ...transformMediaItem(row),
       kind: 'media',
-      fileSize: row.file_size ?? 0,
+      // BIGINT: node-postgres returns it as a string, the wire wants a number.
+      fileSize: Number(row.file_size ?? 0),
       createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
     });
     if (parsed.success) return [parsed.data];

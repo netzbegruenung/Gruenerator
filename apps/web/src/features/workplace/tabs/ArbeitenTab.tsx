@@ -1,41 +1,77 @@
 import { Suspense, lazy } from 'react';
 
 import PageContainer from '../../../components/common/PageContainer';
+import { useStartLayout } from '../../../hooks/useStartLayout';
 import { DocsHome } from '../../docs/DocsPage';
-import { OfficeSection } from '../components/ToolsSection';
+import { AppsNewsletterSection } from '../components/AppsNewsletterSection';
+import {
+  BriefingSection,
+  MEDIA_GRID,
+  MEDIA_TOOLS,
+  ToolCardsSection,
+} from '../components/ArbeitenSections';
+import { InfoTilesSection } from '../components/InfoTilesSection';
+import { NewContentMenu } from '../components/NewContentMenu';
+import { StudioSection } from '../components/StudioSection';
+
+import { OnePageStart } from './OnePageStart';
+
+import { cn } from '@/utils/cn';
 // "Grünerators Favoriten" (externe Dienste) sind vorerst ausgeblendet — zum
-// Reaktivieren `FavoritesSection` wieder importieren und den Block unten einblenden.
+// Reaktivieren `FavoritesSection` aus `../components/ToolsSection` importieren
+// und als eigenen Abschnitt einblenden.
 
 // Pulls image-studio Lightbox + ShareMediaModal — keep it off the tab's
 // critical path.
 const RecentlyCreatedSection = lazy(() => import('../components/RecentlyCreatedSection'));
 
-// "Arbeiten": the office start page (composer + Vorlagen incl. sharepics),
-// ONE recents feed (the workplace "Zuletzt" — docs, boards, sharepics, canvas,
-// reels and texts all in one), and the tools grid.
+// "Arbeiten": a hero, then one column of sections on a shared grid — Zuletzt,
+// Mehr Produktivität mit dem Grünerator, Apps & Newsletter, Gestalte grüne Inhalte, Bleib informiert.
+// With tabs the hero is the greeting and search; on the one-page layout it is the
+// chat greeting and composer (see OnePageStart).
 const ArbeitenTab = () => {
+  const onePage = useStartLayout() === 'combined';
+  const recents = (
+    <Suspense fallback={null}>
+      <RecentlyCreatedSection headerAction={<NewContentMenu />} />
+    </Suspense>
+  );
+
   return (
-    <PageContainer maxWidth="lg" noPadTop gradient={false} className="max-md:pt-lg">
-      <div data-tour="arbeiten-create">
-        <DocsHome />
+    // Phones start right under the tab bar: the greeting is hidden there (see DocsHome),
+    // so „Zuletzt" sits 16 px into the scroll area, ~26 px below the tab pill.
+    <PageContainer maxWidth="lg" noPadTop gradient={false} className="max-md:pt-0">
+      {onePage ? (
+        <OnePageStart recents={recents} />
+      ) : (
+        <>
+          <div data-tour="arbeiten-create">
+            <DocsHome />
+          </div>
+          <div data-tour="arbeiten-recents" className="mt-lg max-md:mt-4">
+            {recents}
+          </div>
+        </>
+      )}
+
+      <div
+        className={cn(
+          'mt-10 flex flex-col gap-10 pb-2xl md:mt-12 md:gap-12 lg:mt-14 lg:gap-14',
+          // Room at the end for the composer docked on phones.
+          onePage && 'max-md:mt-0 max-md:pt-6 max-md:pb-32'
+        )}
+      >
+        <ToolCardsSection
+          title="Mehr Produktivität mit dem Grünerator"
+          tools={MEDIA_TOOLS}
+          gridClassName={MEDIA_GRID}
+          data-tour="arbeiten-tools"
+        />
+        <AppsNewsletterSection />
+        <StudioSection />
+        <BriefingSection />
+        <InfoTilesSection />
       </div>
-
-      <section className="mb-xl mt-xl" data-tour="arbeiten-tools">
-        <OfficeSection />
-      </section>
-
-      <div data-tour="arbeiten-recents">
-        <Suspense fallback={null}>
-          <RecentlyCreatedSection />
-        </Suspense>
-      </div>
-
-      {/* Grünerators Favoriten vorerst ausgeblendet:
-      {!isAustrian && (
-        <section className="mb-xl">
-          <FavoritesSection />
-        </section>
-      )} */}
     </PageContainer>
   );
 };

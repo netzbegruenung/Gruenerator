@@ -20,6 +20,7 @@ import { useCanSeeSites } from '../../../config/sitesGate';
 import { useUserAgents } from '../../../features/agents/api';
 import { useGroups } from '../../../features/groups/hooks/useGroups';
 import { useItemUsage } from '../../../features/usage/useItemUsage';
+import { useStartLayout } from '../../../hooks/useStartLayout';
 import useAgentFavoritesStore from '../../../stores/agentFavoritesStore';
 import { useAuthStore } from '../../../stores/authStore';
 import useSidebarFavouritesStore, {
@@ -44,6 +45,7 @@ import { headerIconButtonClass, iconClass, menuLinkClass } from './sidebarStyles
 import { CURRENT_INSTANCE } from '@/config/instance';
 import {
   FiSidebar,
+  FiX,
   LuFolderCog,
   PiSignIn,
   PiSparkle,
@@ -86,6 +88,10 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
   const locale = useAuthStore((state) => state.locale);
   const isAustrian = locale === 'de-AT';
   const canSeeSites = useCanSeeSites();
+  const combined = useStartLayout() === 'combined';
+  const startPage = useAuthStore((s) => s.user?.default_startpage ?? 'chat');
+  // One page: Arbeiten is the start, and there is no Chat view to link to.
+  const home = combined ? 'arbeiten' : startPage;
   // Workplace paints a wide, tinted gradient behind the (fixed, translucent)
   // sidebar. bg-background/70 alone still reads as a near-solid panel — at
   // 70% opacity barely any of the gradient shows even with blur — so
@@ -113,8 +119,8 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
   );
 
   const directMenuItems = useMemo(
-    () => getDirectMenuItems({ isAustrian, canSeeSites }),
-    [isAustrian, canSeeSites]
+    () => getDirectMenuItems({ isAustrian, canSeeSites, home, combined }),
+    [isAustrian, canSeeSites, home, combined]
   );
   const mobileOnlyItems = useMemo(() => getMobileOnlyMenuItems(), []);
   // The "start" icon goes straight to /start (the page picks the user's preferred
@@ -133,10 +139,11 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
   const sidebarExpanded = isOpen || forceExpanded;
   // Web desktop rail: the sidebar carries its own header row (wordmark, search, toggle).
   // Search shows only in the expanded sidebar: there it sits in that row as a
-  // tool; the collapsed rail has no search entry. Mobile (Sheet) and Tauri have
-  // no header row and keep it in the list while open.
+  // tool; the collapsed rail has no search entry. Phones (Sheet) have a row of their
+  // own with search in it (see below); Tauri has no header row and keeps search in
+  // the list while open.
   const hasHeaderRow = !isDesktop && !isMobile;
-  const showSearchInList = !hasHeaderRow && sidebarExpanded;
+  const showSearchInList = isDesktop && sidebarExpanded;
 
   // Close sidebar on route change
   useEffect(() => {
@@ -260,8 +267,13 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
     sidebarExpanded ? 'opacity-100' : 'hidden'
   );
 
-  const startItem = additionalItems.find((item) => item.id === 'startseite');
-  const restItems = additionalItems.filter((item) => item.id !== 'startseite');
+  // Chat and Workplace (the two views of `/start`) lead the list.
+  // On the one-page layout Chat is part of Workplace and has no entry of its own.
+  const START_IDS = combined ? ['workplace'] : ['startseite', 'workplace'];
+  const startItems = additionalItems.filter((item) => START_IDS.includes(item.id));
+  const restItems = additionalItems.filter(
+    (item) => !START_IDS.includes(item.id) && item.id !== 'startseite'
+  );
   // Projekte steht oben an der Stelle der Grüneratoren; die Grüneratoren
   // (laufen aus, alles zieht zu den Projekten) rücken nach unten.
   const grueneratorenIndex = restItems.findIndex((item) => item.id === 'grueneratoren');
@@ -269,10 +281,14 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
   const itemsBeforeProjekte =
     grueneratorenIndex >= 0 ? restItems.slice(0, grueneratorenIndex) : restItems;
   const itemsAfterProjekte = grueneratorenIndex >= 0 ? restItems.slice(grueneratorenIndex + 1) : [];
+  // The Chat logo is a filled mark with air around it: a touch larger (and
+  // square, its own size is 1.1em × 1.1em) so it weighs like the outline icons.
+  const navIconClass = (item: MenuItemType) =>
+    cn(iconClass, item.icon === directMenuItems.startseite?.icon && 'size-[22px] -m-px');
   const renderNavItem = (item: MenuItemType) =>
     !item.path ? (
       <span key={item.id} className={menuLinkClass(false, true, !sidebarExpanded)}>
-        {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
+        {item.icon && <item.icon aria-hidden="true" className={navIconClass(item)} />}
         <span className={titleClass}>{item.title}</span>
         {item.badge && (
           <span className={badgeClass}>
@@ -298,7 +314,7 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
           }
           type="button"
         >
-          {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
+          {item.icon && <item.icon aria-hidden="true" className={navIconClass(item)} />}
           <span className={titleClass}>{item.title}</span>
           {item.badge && (
             <span className={badgeClass}>
@@ -312,12 +328,22 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
       <Link
         key={item.id}
         to={item.path!}
-        className={menuLinkClass(false, false, !sidebarExpanded)}
+        // Chat and Workplace replaced the tabs on /start: the sidebar shows where you are.
+        className={menuLinkClass(
+          isActive(item.path!, item.activePaths, item.activeQuery, item.exactActivePaths),
+          false,
+          !sidebarExpanded
+        )}
+        aria-current={
+          isActive(item.path!, item.activePaths, item.activeQuery, item.exactActivePaths)
+            ? 'page'
+            : undefined
+        }
         onClick={() =>
           item.id === 'chat' ? handleChatClick() : handleLinkClick(item.path!, item.title)
         }
       >
-        {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
+        {item.icon && <item.icon aria-hidden="true" className={navIconClass(item)} />}
         <span className={titleClass}>{item.title}</span>
         {item.badge && (
           <span className={badgeClass}>
@@ -345,6 +371,43 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
             </span>
           )}
         </button>
+      )}
+
+      {/* Phones: the panel opens over the page header (z-1010 over z-1002), so it
+          brings its own row, as in the ChatGPT app: the wordmark, then search and close. */}
+      {isMobile && !isDesktop && (
+        <div className="flex h-14 shrink-0 items-center gap-1 pr-2 pl-4">
+          <img
+            src="/images/gruenerator_logo_gruen.svg"
+            alt="Grünerator"
+            className="mr-auto h-7 w-auto shrink-0 dark:hidden"
+          />
+          <img
+            src="/images/gruenerator_logo_weiss.svg"
+            alt=""
+            aria-hidden="true"
+            className="mr-auto hidden h-7 w-auto shrink-0 dark:block"
+          />
+          {searchItem?.icon && (
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              className={headerIconButtonClass}
+              aria-label={searchItem.title}
+              aria-haspopup="dialog"
+            >
+              <searchItem.icon aria-hidden="true" className={iconClass} />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={close}
+            className={headerIconButtonClass}
+            aria-label="Menü schließen"
+          >
+            <FiX aria-hidden="true" className={iconClass} />
+          </button>
+        </div>
       )}
 
       {hasHeaderRow && (
@@ -427,10 +490,12 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
         data-tour="sidebar-nav"
         className={cn(
           'min-h-0 shrink overflow-x-hidden overflow-y-auto pb-sm',
-          isDesktop ? 'pt-3' : hasHeaderRow ? 'pt-1' : 'pt-12'
+          isDesktop ? 'pt-3' : 'pt-1'
         )}
       >
-        {startItem && <div className="flex flex-col gap-0 p-0">{renderNavItem(startItem)}</div>}
+        {startItems.length > 0 && (
+          <div className="flex flex-col gap-0 p-0">{startItems.map(renderNavItem)}</div>
+        )}
 
         {showSearchInList && searchItem && (
           <div className="flex flex-col gap-0 p-0">
@@ -504,7 +569,12 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
 
       {/* Account block (authenticated) or login button */}
       {user ? (
-        <SidebarAccount sidebarExpanded={sidebarExpanded} openRef={accountMenuOpenRef} />
+        <SidebarAccount
+          sidebarExpanded={sidebarExpanded}
+          openRef={accountMenuOpenRef}
+          // The collapsed web rail has search at the bottom, above the bell.
+          onSearch={hasHeaderRow ? () => setSearchOpen(true) : undefined}
+        />
       ) : (
         <div className="mt-auto px-2 py-2 shrink-0">
           <NavTooltip label="Anmelden" collapsed={!sidebarExpanded}>
