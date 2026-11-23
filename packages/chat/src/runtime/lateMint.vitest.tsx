@@ -52,7 +52,7 @@ function makeFetch(createGate: Promise<void>, sentThreadIds: unknown[]) {
       await createGate;
       return json({ id: MINTED_ID, slugSuffix: 'Mint01' });
     }
-    if (url === '/api/chat-service/threads') return json(threads);
+    if (url.split('?')[0] === '/api/chat-service/threads') return json(threads);
     if (url.startsWith('/api/chat-service/messages')) return json([]);
     if (url.includes('/tabular-files')) return json({ files: [] });
     if (url.includes('/summarize')) {

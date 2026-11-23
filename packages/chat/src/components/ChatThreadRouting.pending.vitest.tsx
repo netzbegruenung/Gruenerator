@@ -49,7 +49,7 @@ function makeFetch(listGate: Promise<void>) {
       headers: { 'Content-Type': 'application/json' },
     });
   return async (url: string) => {
-    if (url === '/api/chat-service/threads') {
+    if (url.split('?')[0] === '/api/chat-service/threads') {
       await listGate;
       return json(threads);
     }
