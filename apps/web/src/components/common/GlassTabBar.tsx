@@ -16,19 +16,25 @@ interface GlassTabBarProps<Id extends string> {
   dataTour?: string;
 }
 
-// Design "tabbar": fixed glass pill centered at the top — frosted container, the
-// active tab a soft-shadowed neutral pill. The pill switches in
-// place without sliding — a switch should feel calm, not travel. The h-12 row
-// matches PageLayout's sidebar-toggle row so pill and toggle share a centerline.
-// Every tab is a link to its own path: a switch is a history entry, so Back,
-// reload and bookmarks keep the tab. Navigation links, not ARIA tabs — the
-// current one carries `aria-current` (WAI-ARIA APG).
+// Segmented switch centred at the top, modelled on chatgpt.com's „Chat | Work":
+// a barely-there grey track, equal 112 px segments, the current one a white pill
+// with a hairline and a soft shadow that slides across (instantly with reduced
+// motion). The track is slightly opaque and blurred, because content scrolls
+// under the fixed bar. The h-12 row matches PageLayout's sidebar-toggle row so
+// switch and toggle share a centerline. Every tab is a link to its own path: a
+// switch is a history entry, so Back, reload and bookmarks keep the tab.
+// Navigation links, not ARIA tabs — the current one carries `aria-current`
+// (WAI-ARIA APG).
 function GlassTabBarInner<Id extends string>({
   tabs,
   active,
   ariaLabel,
   dataTour,
 }: GlassTabBarProps<Id>) {
+  const activeIndex = Math.max(
+    0,
+    tabs.findIndex((tab) => tab.id === active)
+  );
   return (
     <nav
       aria-label={ariaLabel}
@@ -37,22 +43,25 @@ function GlassTabBarInner<Id extends string>({
       <div
         data-tour={dataTour}
         className={cn(
-          'pointer-events-auto inline-flex gap-0.5 rounded-full p-1',
-          'border border-white/50 bg-[rgba(246,246,244,.6)]',
-          'backdrop-blur-[16px] backdrop-saturate-[1.6]',
-          'shadow-[0_4px_20px_rgba(31,63,51,.10),inset_0_1px_0_rgba(255,255,255,.6)]',
-          'dark:border-white/10 dark:bg-grey-900/60 dark:shadow-[0_4px_20px_rgba(0,0,0,.35)]'
+          'pointer-events-auto relative grid h-9 auto-cols-fr grid-flow-col rounded-full',
+          'bg-[rgba(243,243,243,.85)] backdrop-blur-md dark:bg-[rgba(255,255,255,.07)]'
         )}
       >
+        <span
+          aria-hidden
+          className={cn(
+            'absolute inset-y-0 left-0 rounded-full bg-white',
+            'border-[0.5px] border-black/10 shadow-[0_1px_6px_rgba(0,0,0,.05)]',
+            'transition-transform duration-200 ease-out motion-reduce:transition-none',
+            'dark:border-white/10 dark:bg-grey-800'
+          )}
+          style={{
+            width: `${100 / tabs.length}%`,
+            transform: `translateX(${activeIndex * 100}%)`,
+          }}
+        />
         {tabs.map((tab) => {
           const isActive = tab.id === active;
-          const className = cn(
-            'relative select-none rounded-full px-8 py-[5px] text-[15px] font-medium transition-colors',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
-            isActive
-              ? 'font-semibold text-grey-900 dark:text-grey-100'
-              : 'text-grey-600 hover:text-foreground dark:text-grey-400 dark:hover:text-grey-200'
-          );
           return (
             <Link
               key={tab.id}
@@ -60,15 +69,16 @@ function GlassTabBarInner<Id extends string>({
               // The current tab again is no new step in the history.
               replace={isActive}
               aria-current={isActive ? 'page' : undefined}
-              className={className}
-            >
-              {isActive && (
-                <span
-                  aria-hidden
-                  className="absolute inset-0 z-0 rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,.10),0_1px_6px_rgba(0,0,0,.05)] dark:bg-grey-800"
-                />
+              className={cn(
+                'relative z-10 flex min-w-28 select-none items-center justify-center rounded-full px-4',
+                'text-sm font-medium no-underline transition-colors',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
+                isActive
+                  ? 'text-[#0d0d0d] dark:text-grey-100'
+                  : 'text-[#5d5d5d] hover:text-[#0d0d0d] dark:text-grey-400 dark:hover:text-grey-100'
               )}
-              <span className="relative z-10">{tab.label}</span>
+            >
+              {tab.label}
             </Link>
           );
         })}
