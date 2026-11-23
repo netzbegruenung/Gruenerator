@@ -63,9 +63,10 @@ function render(props: Partial<React.ComponentProps<typeof GroupContentArea>> = 
       actions={null}
       onUseTemplate={() => {}}
       cloningId={null}
-      overview={({ onDiscuss }) => (
+      overviewMain={<p>ÜBERSICHT</p>}
+      sidebar={({ onDiscuss }) => (
         <div>
-          <p>ÜBERSICHT</p>
+          <p>SEITENSPALTE</p>
           {onDiscuss && (
             <button type="button" onClick={() => onDiscuss(items[0]!)}>
               besprechen
@@ -83,13 +84,20 @@ describe('GroupContentArea', () => {
   it('team: opens on the overview, the post box lives only in Austausch', async () => {
     const { user, container } = render();
     expect(screen.getByText('ÜBERSICHT')).toBeInTheDocument();
+    expect(screen.getByText('SEITENSPALTE')).toBeInTheDocument();
     expect(screen.queryByText(/Schreib etwas an das Projekt/)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: 'Austausch' }));
     expect(screen.getByText(/Schreib etwas an das Projekt/)).toBeInTheDocument();
-    // Big cards only for shares with a note.
-    expect(screen.getByText('Bitte lesen.')).toBeInTheDocument();
+    // The side column stays in place; the feed is a row list, a click opens the full card.
+    expect(screen.getByText('SEITENSPALTE')).toBeInTheDocument();
+    expect(screen.queryByText('ÜBERSICHT')).not.toBeInTheDocument();
     expect(screen.queryByText('Ohne Notiz')).not.toBeInTheDocument();
+    expect(screen.queryByText('Bitte lesen.')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Mit Notiz/ }));
+    expect(screen.getByText('Bitte lesen.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Einklappen' }));
+    expect(screen.queryByText('Bitte lesen.')).not.toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 

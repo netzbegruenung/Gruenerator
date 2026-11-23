@@ -12,7 +12,7 @@ import { useSearchParams } from 'react-router-dom';
 import { type ShareActions } from '../shareActions';
 
 import { GroupComposer } from './GroupComposer';
-import { GroupFeedCard } from './GroupFeedCard';
+import { GroupFeedRow } from './GroupFeedRow';
 import { GroupMentionProvider } from './GroupMentions';
 
 type View = 'uebersicht' | 'austausch';
@@ -38,11 +38,14 @@ interface GroupContentAreaProps {
   actions: ShareActions | null;
   onUseTemplate: (id: string) => void;
   cloningId: string | null;
+  /** Linke Spalte der Übersicht (Chats); null: die rechte Spalte nimmt die ganze Breite. */
+  overviewMain: ReactNode | null;
   /**
-   * Chats, Wissen, Mitglieder — die Seite, die man zuerst sieht. `onDiscuss`
+   * Rechte Spalte (Anweisungen, Wissen, Mitglieder): steht in beiden Reitern an
+   * derselben Stelle, damit beim Wechsel nur die linke Spalte springt. `onDiscuss`
    * holt ein Wissen-Element in den Austausch (null: es gibt keinen Austausch).
    */
-  overview: (ctx: { onDiscuss: ((item: GroupFeedItem) => void) | null }) => ReactNode;
+  sidebar: (ctx: { onDiscuss: ((item: GroupFeedItem) => void) | null }) => ReactNode;
 }
 
 const pillCls = cn(
@@ -65,7 +68,8 @@ export function GroupContentArea({
   actions,
   onUseTemplate,
   cloningId,
-  overview,
+  overviewMain,
+  sidebar,
 }: GroupContentAreaProps) {
   const [searchParams] = useSearchParams();
   const linkedShareId = searchParams.get('beitrag');
@@ -118,12 +122,22 @@ export function GroupContentArea({
       }
     : null;
 
+  const columns = (main: ReactNode | null) => (
+    <div className="flex flex-col gap-lg min-[900px]:flex-row min-[900px]:items-start min-[900px]:gap-xl">
+      {main !== null && <div className="flex min-w-0 flex-1 flex-col gap-md">{main}</div>}
+      <div
+        className={cn(
+          'flex min-w-0 flex-col gap-md',
+          main !== null ? 'min-[900px]:w-[340px] min-[900px]:shrink-0' : 'flex-1'
+        )}
+      >
+        {sidebar({ onDiscuss })}
+      </div>
+    </div>
+  );
+
   if (!hasAustausch) {
-    return isLoading ? (
-      <LoadingSection label="Inhalte werden geladen …" />
-    ) : (
-      overview({ onDiscuss })
-    );
+    return isLoading ? <LoadingSection label="Inhalte werden geladen …" /> : columns(overviewMain);
   }
 
   const empty = hasQuery ? (
@@ -139,6 +153,52 @@ export function GroupContentArea({
         ? 'Noch nichts im Austausch. Schreib etwas an das Projekt oder teile einen Inhalt mit einer Notiz.'
         : 'Noch keine Beiträge.'}
     </p>
+  );
+
+  const austauschMain = (
+    <div className="flex flex-col gap-lg">
+      <label className="flex h-[38px] w-full items-center gap-xs rounded-full border border-grey-200 bg-card px-3.5 text-muted-foreground focus-within:border-primary-500 dark:border-grey-700">
+        <PiMagnifyingGlass aria-hidden className="size-4 shrink-0" />
+        <span className="sr-only">Im Austausch suchen</span>
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Im Austausch suchen"
+          className="min-w-0 flex-1 border-none bg-transparent text-sm text-foreground outline-none"
+        />
+      </label>
+      {!hasQuery && onOpenShare && (
+        <GroupComposer
+          groupId={groupId}
+          groupName={groupName}
+          memberCount={isSystem ? null : members.length}
+          currentUserName={currentUserName}
+          onOpenShare={onOpenShare}
+        />
+      )}
+      {visible.length === 0 ? (
+        empty
+      ) : (
+        <ul className="m-0 flex list-none flex-col p-0">
+          {visible.map((item) => (
+            <GroupFeedRow
+              key={item.key}
+              item={item}
+              groupId={groupId}
+              isAdmin={isAdmin}
+              canComment
+              currentUserId={currentUserId}
+              currentUserName={currentUserName}
+              defaultOpen={!!focusShareId && item.share?.shareId === focusShareId}
+              onUseTemplate={onUseTemplate}
+              isCloning={cloningId === item.id}
+              actions={actions}
+            />
+          ))}
+        </ul>
+      )}
+    </div>
   );
 
   return (
@@ -157,50 +217,15 @@ export function GroupContentArea({
           <LoadingSection label="Inhalte werden geladen …" />
         ) : (
           <>
-            <TabsContent value="uebersicht" className="mt-0">
-              {overview({ onDiscuss })}
-            </TabsContent>
-            <TabsContent value="austausch" className="mt-0">
-              <div className="mx-auto flex max-w-[760px] flex-col gap-lg">
-                <label className="flex h-[38px] w-full items-center gap-xs rounded-full border border-grey-200 bg-card px-3.5 text-muted-foreground focus-within:border-primary-500 dark:border-grey-700">
-                  <PiMagnifyingGlass aria-hidden className="size-4 shrink-0" />
-                  <span className="sr-only">Im Austausch suchen</span>
-                  <input
-                    type="search"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Im Austausch suchen"
-                    className="min-w-0 flex-1 border-none bg-transparent text-sm text-foreground outline-none"
-                  />
-                </label>
-                {!hasQuery && onOpenShare && (
-                  <GroupComposer
-                    groupId={groupId}
-                    groupName={groupName}
-                    memberCount={isSystem ? null : members.length}
-                    currentUserName={currentUserName}
-                    onOpenShare={onOpenShare}
-                  />
-                )}
-                {visible.length === 0
-                  ? empty
-                  : visible.map((item) => (
-                      <GroupFeedCard
-                        key={item.key}
-                        item={item}
-                        groupId={groupId}
-                        isAdmin={isAdmin}
-                        canComment
-                        currentUserId={currentUserId}
-                        currentUserName={currentUserName}
-                        defaultOpen={!!focusShareId && item.share?.shareId === focusShareId}
-                        onUseTemplate={onUseTemplate}
-                        isCloning={cloningId === item.id}
-                        actions={actions}
-                      />
-                    ))}
-              </div>
-            </TabsContent>
+            {view === 'uebersicht' ? (
+              <TabsContent value="uebersicht" className="mt-0">
+                {columns(overviewMain)}
+              </TabsContent>
+            ) : (
+              <TabsContent value="austausch" className="mt-0">
+                {columns(austauschMain)}
+              </TabsContent>
+            )}
           </>
         )}
       </Tabs>

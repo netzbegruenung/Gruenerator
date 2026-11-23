@@ -815,66 +815,61 @@ const GroupInfoSection = memo(
           actions={shareActions}
           onUseTemplate={handleCloneTemplate}
           cloningId={cloneTemplate.isPending ? (cloneTemplate.variables ?? null) : null}
-          overview={({ onDiscuss }) => (
-            <div className="flex flex-col gap-lg min-[900px]:flex-row min-[900px]:items-start min-[900px]:gap-xl">
-              {showChats && (
-                <div className="flex min-w-0 flex-1 flex-col gap-md">
-                  <ProjectChatComposer groupId={groupId} solo={isSystem || !hasOthers} />
-                  <SpaceChatsSection groupId={groupId} />
-                </div>
+          overviewMain={
+            showChats ? (
+              <>
+                <ProjectChatComposer groupId={groupId} />
+                <SpaceChatsSection groupId={groupId} />
+              </>
+            ) : null
+          }
+          sidebar={({ onDiscuss }) => (
+            <>
+              {!isSystem && (
+                <ProjectInstructionsCard
+                  groupId={groupId}
+                  isAdmin={!!data?.isAdmin}
+                  onSuccessMessage={onSuccessMessage}
+                  onErrorMessage={onErrorMessage}
+                />
               )}
-              <div
-                className={cn(
-                  'flex min-w-0 flex-col gap-md',
-                  showChats ? 'min-[900px]:w-[340px] min-[900px]:shrink-0' : 'flex-1'
-                )}
-              >
-                {!isSystem && (
-                  <ProjectInstructionsCard
-                    groupId={groupId}
-                    isAdmin={!!data?.isAdmin}
-                    onSuccessMessage={onSuccessMessage}
-                    onErrorMessage={onErrorMessage}
-                  />
-                )}
-                {!isSystem && (
-                  <ProjectTasksCard groupId={groupId} archived={!!data?.groupInfo?.archived_at} />
-                )}
-                {/* Im System-Projekt nur, wenn es etwas zu zeigen oder anzulegen gibt. */}
-                {(!isSystem || canShare || recipeItems.length > 0) && (
-                  <ProjectRecipesCard
-                    groupId={groupId}
-                    items={recipeItems}
-                    canAdd={canShare}
-                    actions={shareActions}
-                    onDiscuss={onDiscuss}
-                  />
-                )}
-                <ProjectKnowledgeList
-                  items={knowledgeItems}
-                  onUseTemplate={handleCloneTemplate}
+              {!isSystem && (
+                <ProjectTasksCard groupId={groupId} archived={!!data?.groupInfo?.archived_at} />
+              )}
+              {/* Im System-Projekt nur, wenn es etwas zu zeigen oder anzulegen gibt. */}
+              {(!isSystem || canShare || recipeItems.length > 0) && (
+                <ProjectRecipesCard
+                  groupId={groupId}
+                  items={recipeItems}
+                  canAdd={canShare}
                   actions={shareActions}
                   onDiscuss={onDiscuss}
                 />
-                {onUpdateLink && onDeleteLink && groupLinks.length > 0 && (
-                  <div id="abschnitt-links" className="scroll-mt-lg">
-                    <GroupLinksSection
-                      links={groupLinks}
-                      isAdmin={!!data?.isAdmin}
-                      onUpdateLink={onUpdateLink}
-                      onDeleteLink={onDeleteLink}
-                      isUpdatingLink={!!isUpdatingLink}
-                    />
-                  </div>
-                )}
-                {isTeam && (
-                  <ProjectMembersCard
-                    members={members ?? []}
-                    onShowMembers={() => setMembersDialogOpen(true)}
+              )}
+              <ProjectKnowledgeList
+                items={knowledgeItems}
+                onUseTemplate={handleCloneTemplate}
+                actions={shareActions}
+                onDiscuss={onDiscuss}
+              />
+              {onUpdateLink && onDeleteLink && groupLinks.length > 0 && (
+                <div id="abschnitt-links" className="scroll-mt-lg">
+                  <GroupLinksSection
+                    links={groupLinks}
+                    isAdmin={!!data?.isAdmin}
+                    onUpdateLink={onUpdateLink}
+                    onDeleteLink={onDeleteLink}
+                    isUpdatingLink={!!isUpdatingLink}
                   />
-                )}
-              </div>
-            </div>
+                </div>
+              )}
+              {isTeam && (
+                <ProjectMembersCard
+                  members={members ?? []}
+                  onShowMembers={() => setMembersDialogOpen(true)}
+                />
+              )}
+            </>
           )}
         />
 
