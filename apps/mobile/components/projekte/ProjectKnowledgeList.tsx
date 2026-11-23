@@ -17,7 +17,7 @@ import { MenuActionSheet } from '../chat/MenuActionSheet';
 import { SHEET_HANDOFF_MS } from '../common/CreateMenuSheet';
 
 import { FEED_KIND_ICONS } from './feedIcons';
-import { buildKnowledgeActions, DISCUSS_ID, KNOWLEDGE_SEARCH_FROM } from './knowledgeMenu';
+import { buildKnowledgeActions, DISCUSS_ID, KNOWLEDGE_SHOWN } from './knowledgeMenu';
 import { useProjekteTone } from './projekteTone';
 import { projectRoleLabel } from './shareMenu';
 
@@ -44,6 +44,9 @@ export function ProjectKnowledgeList({
   const theme = useTheme();
   const tone = useProjekteTone();
   const [query, setQuery] = useState('');
+  // Suche über die Lupe im Kopf, nicht als stehendes Feld.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const [menuItem, setMenuItem] = useState<GroupFeedItem | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
@@ -53,7 +56,14 @@ export function ProjectKnowledgeList({
     []
   );
 
-  const visible = filterGroupFeed(items, query);
+  const searching = searchOpen && query.trim().length > 0;
+  const matches = filterGroupFeed(items, query);
+  // Beim Suchen zählt jeder Treffer; sonst nur die ersten Zeilen, bis jemand aufklappt.
+  const visible = searching || showAll ? matches : matches.slice(0, KNOWLEDGE_SHOWN);
+  const toggleSearch = () => {
+    setQuery('');
+    setSearchOpen((v) => !v);
+  };
   const menuActions = useMemo(
     () =>
       menuItem
@@ -73,7 +83,19 @@ export function ProjectKnowledgeList({
           Wissen
         </Text>
         {items.length > 0 ? (
-          <Text style={[styles.count, { color: theme.textSecondary }]}>{items.length}</Text>
+          <Pressable
+            onPress={toggleSearch}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={searchOpen ? 'Suche im Wissen schließen' : 'Im Wissen suchen'}
+            style={styles.searchToggle}
+          >
+            <Ionicons
+              name={searchOpen ? 'close' : 'search'}
+              size={18}
+              color={theme.textSecondary}
+            />
+          </Pressable>
         ) : null}
       </View>
 
@@ -90,7 +112,7 @@ export function ProjectKnowledgeList({
         </Text>
       ) : (
         <>
-          {items.length > KNOWLEDGE_SEARCH_FROM ? (
+          {searchOpen ? (
             <View style={[styles.search, { backgroundColor: theme.buttonBackground }]}>
               <Ionicons name="search" size={16} color={theme.textSecondary} />
               <TextInput
@@ -101,6 +123,7 @@ export function ProjectKnowledgeList({
                 accessibilityLabel="Im Wissen suchen"
                 style={[styles.searchInput, { color: theme.text }]}
                 returnKeyType="search"
+                autoFocus
               />
             </View>
           ) : null}
@@ -160,6 +183,17 @@ export function ProjectKnowledgeList({
               );
             })
           )}
+          {!searching && matches.length > KNOWLEDGE_SHOWN ? (
+            <Pressable
+              onPress={() => setShowAll((v) => !v)}
+              accessibilityRole="button"
+              style={styles.showAll}
+            >
+              <Text style={[styles.showAllText, { color: theme.textSecondary }]}>
+                {showAll ? 'Weniger anzeigen' : `Alle ${matches.length} anzeigen`}
+              </Text>
+            </Pressable>
+          ) : null}
         </>
       )}
 
@@ -186,9 +220,11 @@ export function ProjectKnowledgeList({
 
 const styles = StyleSheet.create({
   card: { borderRadius: 16, padding: 16, gap: 4 },
-  head: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontFamily: BODY_FONT, fontSize: 17, fontWeight: '700' },
-  count: { fontFamily: BODY_FONT, fontSize: 14 },
+  searchToggle: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  showAll: { alignSelf: 'flex-start', paddingVertical: 8 },
+  showAllText: { fontFamily: BODY_FONT, fontSize: 14 },
   note: { fontFamily: BODY_FONT, fontSize: 15, paddingVertical: 4 },
   search: {
     height: 38,

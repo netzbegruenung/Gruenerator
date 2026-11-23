@@ -7,6 +7,13 @@ import { BODY_FONT } from '../../theme';
 
 import { useProjekteTone } from './projekteTone';
 
+/** Bis zu dieser Länge steht der Text ganz da, darüber gekürzt (wie im Web). */
+const PREVIEW_MAX_CHARS = 300;
+const preview = (text: string) => {
+  const t = text.trim();
+  return t.length <= PREVIEW_MAX_CHARS ? t : `${t.slice(0, PREVIEW_MAX_CHARS).trimEnd()}…`;
+};
+
 /**
  * „Anweisungen“: der Text, der für jeden Chat im Projekt gilt. In der App nur
  * zum Lesen (bearbeiten bleibt im Web); ohne Text gibt es keine Karte.
@@ -25,9 +32,7 @@ export function ProjectInstructionsCard({ groupId }: { groupId: string }) {
           Anweisungen
         </Text>
       </View>
-      <Text style={[styles.body, { color: theme.text }]} numberOfLines={6}>
-        {instructions.trim()}
-      </Text>
+      <Text style={[styles.body, { color: theme.text }]}>{preview(instructions)}</Text>
       <Text style={[styles.hint, { color: theme.textSecondary }]}>
         Gilt für jeden Chat in diesem Projekt.
       </Text>
