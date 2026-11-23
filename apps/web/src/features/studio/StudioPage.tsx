@@ -1,7 +1,7 @@
 import { useAgentStore } from '@gruenerator/chat/stores';
 import { type MediaItem } from '@gruenerator/shared/media-library';
 import { Button } from '@gruenerator/ui';
-import { useCallback, useRef, useState, type DragEvent, type JSX } from 'react';
+import { lazy, Suspense, useCallback, useRef, useState, type DragEvent, type JSX } from 'react';
 import { HiArrowUpTray } from 'react-icons/hi2';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -90,6 +90,49 @@ const STUDIO_THEMES: Record<string, string> = {
   'studio-videoeditor': 'studio-videoeditor',
   'reels-untertitel': 'sheets',
 };
+
+// Pulls motion and the drawn chat: loaded only for the one visit that shows it.
+const StudioChatNoticeDialog = lazy(() => import('./StudioChatNoticeDialog'));
+
+/** localStorage key (F0): set once the notice „Sharepics entstehen jetzt im Chat" was closed. */
+export const STUDIO_CHAT_NOTICE_SEEN_KEY = 'studio-chat-notice-seen';
+
+function chatNoticeSeen(): boolean {
+  try {
+    return localStorage.getItem(STUDIO_CHAT_NOTICE_SEEN_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+/** First visit only: tells that Sharepics and KI-Bilder are now made in the chat. */
+function StudioChatNotice(): JSX.Element | null {
+  const navigate = useNavigate();
+  const [show] = useState(() => !chatNoticeSeen());
+  const [open, setOpen] = useState(show);
+  const close = () => {
+    setOpen(false);
+    try {
+      localStorage.setItem(STUDIO_CHAT_NOTICE_SEEN_KEY, '1');
+    } catch {
+      // Private mode: the notice simply shows again next time.
+    }
+  };
+  if (!show) return null;
+  return (
+    <Suspense fallback={null}>
+      <StudioChatNoticeDialog
+        open={open}
+        onOpenChange={(next) => !next && close()}
+        onCreateInChat={() => {
+          close();
+          handToChat();
+          void navigate('/chat');
+        }}
+      />
+    </Suspense>
+  );
+}
 
 /** The Studio's tools as action cards — the same card as the Arbeiten tab's „Mach mehr". */
 function StudioTiles(): JSX.Element {
@@ -214,6 +257,7 @@ function Studio(): JSX.Element {
         />
 
         <StudioTiles />
+        <StudioChatNotice />
 
         <SubscribedCollectionSection show="assets" />
 

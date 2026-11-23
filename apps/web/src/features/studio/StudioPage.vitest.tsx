@@ -13,7 +13,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { server } from '../../test/msw-server';
 
-import StudioPage from './StudioPage';
+import StudioPage, { STUDIO_CHAT_NOTICE_SEEN_KEY } from './StudioPage';
 
 import { axe, renderWithProviders, userEvent } from '@/test-utils';
 
@@ -181,6 +181,7 @@ function renderPage(route = '/studio') {
         }
       />
       <Route path="/studio/canvas/:id" element={<p>Canvas-Editor</p>} />
+      <Route path="/chat" element={<p>Chat</p>} />
     </Routes>,
     { route }
   );
@@ -192,6 +193,43 @@ beforeAll(() => {
 
 beforeEach(() => {
   localStorage.clear();
+  // The first-visit notice is a modal; its own tests below clear this again.
+  localStorage.setItem(STUDIO_CHAT_NOTICE_SEEN_KEY, '1');
+});
+
+describe('StudioPage first visit', () => {
+  beforeEach(() => localStorage.removeItem(STUDIO_CHAT_NOTICE_SEEN_KEY));
+
+  it('says once that Sharepics are now made in the chat', async () => {
+    serve();
+    const user = userEvent.setup();
+    const { unmount } = renderPage();
+
+    const dialog = await screen.findByRole('dialog', { name: 'Sharepics entstehen jetzt im Chat' });
+    expect(await axe(dialog)).toHaveNoViolations();
+    await user.click(within(dialog).getByRole('button', { name: 'Verstanden' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(localStorage.getItem(STUDIO_CHAT_NOTICE_SEEN_KEY)).toBe('1');
+    unmount();
+    renderPage();
+    await screen.findByRole('heading', { level: 1, name: 'Dein Studio' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('opens the chat with a Sharepic order from the notice', async () => {
+    serve();
+    const user = userEvent.setup();
+    useAgentStore.getState().setPendingDraft(null);
+    renderPage();
+
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: /Sharepic im Chat erstellen/ }));
+
+    expect(await screen.findByText('Chat')).toBeInTheDocument();
+    expect(useAgentStore.getState().pendingDraft).toBe('Erstelle ein Sharepic zum Thema ');
+    expect(localStorage.getItem(STUDIO_CHAT_NOTICE_SEEN_KEY)).toBe('1');
+  });
 });
 
 describe('StudioPage', () => {
