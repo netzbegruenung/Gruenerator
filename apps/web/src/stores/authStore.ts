@@ -2,6 +2,7 @@ import { useUserProfileStore } from '@gruenerator/chat/stores';
 import {
   type ChatBackground,
   type FeedbackButtonMode,
+  type StartLayout,
   type StartPage,
   type SupportedLocale,
   type TtsVoiceId,
@@ -100,6 +101,7 @@ export interface AuthStore {
   updateLocale: (newLocale: SupportedLocale) => Promise<boolean>;
   updateChatBackground: (background: ChatBackground) => Promise<boolean>;
   updateStartPage: (page: StartPage) => Promise<boolean>;
+  updateStartLayout: (layout: StartLayout) => Promise<boolean>;
   updateTtsVoice: (voiceId: TtsVoiceId | null) => Promise<boolean>;
   updateFeedbackButton: (mode: FeedbackButtonMode) => Promise<boolean>;
   updateA11yPreference: (
@@ -762,6 +764,31 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('[AuthStore] Error updating start page:', errorMessage);
       toast.error('Startseite konnte nicht gespeichert werden.');
+      return false;
+    }
+  },
+
+  // How `/start` is laid out: Chat and Arbeiten as tabs, or one combined page.
+  updateStartLayout: async (layout: StartLayout): Promise<boolean> => {
+    try {
+      const result = await getContractsClient().userProfile.updateProfile({
+        body: { start_layout: layout },
+      });
+      if (result.status !== 200) {
+        console.error('[AuthStore] Error updating start layout:', result.status);
+        toast.error('Aufbau der Startseite konnte nicht gespeichert werden.');
+        return false;
+      }
+
+      set((state) => ({
+        user: state.user ? { ...state.user, ...result.body.profile } : null,
+      }));
+
+      return true;
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[AuthStore] Error updating start layout:', errorMessage);
+      toast.error('Aufbau der Startseite konnte nicht gespeichert werden.');
       return false;
     }
   },

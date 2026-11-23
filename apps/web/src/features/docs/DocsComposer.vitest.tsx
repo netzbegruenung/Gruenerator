@@ -161,3 +161,46 @@ describe('DocsComposer field height', () => {
     expect(screen.getByLabelText('Erstellen oder suchen').style.height).not.toBe('0px');
   });
 });
+
+describe('DocsComposer — nur Suche (Arbeiten-Tab)', () => {
+  function setupSearchOnly(onGenerate = vi.fn()) {
+    const { user } = renderWithProviders(
+      <DocsComposer
+        items={[{ id: 'd1', title: 'Antrag Radwege', kind: 'doc', openPath: '/office/d1' }]}
+        templates={[
+          { key: 'doc-pm', kind: 'doc', id: 'pm', title: 'Antrag-Vorlage', description: 'Antrag' },
+        ]}
+        featureIndex={[]}
+        isGenerating={false}
+        create={false}
+        onGenerate={onGenerate}
+        onSelectTemplate={vi.fn()}
+        onImport={vi.fn()}
+      />
+    );
+    return { onGenerate, user };
+  }
+
+  it('offers no way to create: no plus menu, no create option, no templates', async () => {
+    const { user } = setupSearchOnly();
+    expect(screen.queryByRole('button', { name: 'Importieren' })).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText('Inhalte und Werkzeuge durchsuchen'), 'Antrag');
+    expect(await screen.findByText('Antrag Radwege')).toBeInTheDocument();
+    expect(screen.queryByText(/mit KI erstellen/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Antrag-Vorlage')).not.toBeInTheDocument();
+  });
+
+  it('opens the highlighted hit with Enter and never generates', async () => {
+    const { onGenerate, user } = setupSearchOnly();
+    await user.type(screen.getByLabelText('Inhalte und Werkzeuge durchsuchen'), 'Antrag{Enter}');
+    expect(navigate).toHaveBeenCalledWith('/office/d1');
+    expect(onGenerate).not.toHaveBeenCalled();
+  });
+
+  it('says so when nothing matches', async () => {
+    const { user } = setupSearchOnly();
+    await user.type(screen.getByLabelText('Inhalte und Werkzeuge durchsuchen'), 'Xylophon');
+    expect(await screen.findByText('Keine Treffer für „Xylophon“')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Suchen' })).toBeDisabled();
+  });
+});

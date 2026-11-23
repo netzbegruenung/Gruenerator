@@ -60,9 +60,28 @@ const chatFetch = async (url: string, options?: RequestInit): Promise<Response> 
   return fetch(url, { ...options, credentials: 'include' });
 };
 
-// Variant ids with an in-flight mint-on-open, to drop concurrent double-clicks
-// (see onEditSharepic). Module scope: the provider is a singleton.
-const mintingVariantIds = new Set<string>();
+// In-flight mints by variant id. The server mint is idempotent on the (thread,
+// variant) binding only once one has finished: two concurrent mints both pass
+// the binding lookup and leave an orphaned canvas. The auto-save after a turn
+// and a click on „Im Studio öffnen" therefore share one request. Module scope:
+// the provider is a singleton.
+const mintsInFlight = new Map<string, Promise<string>>();
+
+/** Mints a chat sharepic variant as a canvas and returns its id. */
+function mintChatSharepic(variant: SharepicVariant, threadId: string): Promise<string> {
+  const running = mintsInFlight.get(variant.id);
+  if (running) return running;
+  const mint = (async () => {
+    const { chatMintBody } = await import('../features/image-studio/freitext/chatMintBody');
+    const res = await getContractsClient().canvas.fromVariant({
+      body: { ...(await chatMintBody(variant)), threadId, variantId: variant.id },
+    });
+    if (res.status !== 201) throw new ApiError(res.status, `mint failed (HTTP ${res.status})`);
+    return res.body.canvasId;
+  })().finally(() => mintsInFlight.delete(variant.id));
+  mintsInFlight.set(variant.id, mint);
+  return mint;
+}
 
 // DOM id of the sidebar slot the global thread list renders into. The slot
 // element lives in the layout Sidebar; the chat runtime renders the thread list
@@ -249,30 +268,12 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
           );
           return;
         }
-        // Guard a rapid double-click on the same variant: two concurrent mints
-        // would race (both pass the binding lookup → two canvas docs, one
-        // orphaned). Ignore the second click while the first is in flight.
-        if (mintingVariantIds.has(variant.id)) return;
-        mintingVariantIds.add(variant.id);
         const tab = window.open('about:blank', '_blank');
-        void (async () => {
-          try {
-            const res = await getContractsClient().canvas.fromVariant({
-              body: {
-                ...(await (
-                  await import('../features/image-studio/freitext/chatMintBody')
-                ).chatMintBody(variant)),
-                threadId,
-                variantId: variant.id,
-              },
-            });
-            if (res.status !== 201)
-              throw new ApiError(res.status, `mint failed (HTTP ${res.status})`);
-            const { canvasId } = res.body;
+        mintChatSharepic(variant, threadId)
+          .then((canvasId) => {
             const studioUrl = `/studio/canvas/${canvasId}`;
-            // No store stamp needed: the mint is idempotent on the (thread,
-            // variant) binding, so a re-click returns the same canvasId, and a
-            // thread reload resolves it from the binding table.
+            // No store stamp needed: a thread reload resolves the canvas from
+            // the (thread, variant) binding table.
             if (tab) {
               tab.location.href = studioUrl;
             } else {
@@ -283,17 +284,39 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
                 })
               );
             }
-          } catch (err) {
+          })
+          .catch((err: unknown) => {
             console.error('[Sharepic] mint-on-open failed:', err);
             tab?.close();
             void import('sonner').then(({ toast }) =>
               toast.error('Sharepic konnte nicht geöffnet werden — bitte erneut versuchen.')
             );
-          } finally {
-            mintingVariantIds.delete(variant.id);
-          }
-        })();
+          });
       },
+      onEditImage: ({ src, title }: { src: string; title: string }) => {
+        // Same popup rule as onEditSharepic: open the tab inside the click.
+        const tab = window.open('about:blank', '_blank');
+        void import('../features/image-studio/bild-editor-v2/canvasHandoff')
+          .then(({ mintCanvasFromImage }) => mintCanvasFromImage(src, title.slice(0, 120)))
+          .then((canvas) => {
+            const url = `/studio/canvas/${canvas.id}`;
+            if (tab) tab.location.href = url;
+            else window.location.assign(url);
+          })
+          .catch((err: unknown) => {
+            console.error('[GeneratedImage] open in editor failed:', err);
+            tab?.close();
+            void import('sonner').then(({ toast }) =>
+              toast.error('Das Bild konnte nicht im Editor geöffnet werden.')
+            );
+          });
+      },
+      saveSharepic: (variant: SharepicVariant, threadId: string) =>
+        mintChatSharepic(variant, threadId).catch((err: unknown) => {
+          // swallow-ok: the sharepic stays in the chat; „Im Studio öffnen" saves it later
+          console.warn('[Sharepic] auto-save failed:', err);
+          return null;
+        }),
       fetchSharepicState: async (canvasId: string) => {
         const result = await getContractsClient().canvas.getState({ params: { id: canvasId } });
         if (result.status !== 200) return null;

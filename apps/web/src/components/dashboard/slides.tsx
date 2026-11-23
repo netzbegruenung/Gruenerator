@@ -221,7 +221,10 @@ export function SlideStack({
   return (
     <div
       {...(carousel ? { 'aria-roledescription': 'Karussell', ...containerProps } : {})}
-      className="flex min-h-0 flex-1 touch-pan-y flex-col gap-2.5"
+      // `relative` anchors the absolute `sr-only` live region of `SlideStatus` here. Without it
+      // its containing block is the layout's <main>, outside the scrolling box: the span is not
+      // clipped, makes the document taller than the viewport, and the window scrolls along.
+      className="relative flex min-h-0 flex-1 touch-pan-y flex-col gap-2.5"
     >
       <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)]">
         {slides.map((slide, i) => (

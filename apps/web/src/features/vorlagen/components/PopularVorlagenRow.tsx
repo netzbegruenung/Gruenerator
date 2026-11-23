@@ -17,7 +17,7 @@ const ROW_GRID = 'grid grid-cols-2 gap-3 sm:grid-cols-4';
 const SM_UP = 'max-sm:hidden';
 
 /**
- * „Beliebte Vorlagen" on the studio landing page: the most liked Grünerator-Vorlagen
+ * „Beliebte Sharepic-Vorlagen" on the Studio page: the most liked Grünerator-Vorlagen
  * (community and Canva ones live in the Marktplatz).
  */
 export function PopularVorlagenRow(): JSX.Element | null {
@@ -36,9 +36,12 @@ export function PopularVorlagenRow(): JSX.Element | null {
           id="beliebte-vorlagen-heading"
           className="text-xl font-semibold text-foreground-heading"
         >
-          Beliebte Vorlagen
+          Beliebte Sharepic-Vorlagen
         </h2>
-        <Link to="/vorlagen" className="text-sm font-semibold text-foreground underline">
+        <Link
+          to="/vorlagen"
+          className="shrink-0 text-sm font-semibold whitespace-nowrap text-foreground underline"
+        >
           Alle Vorlagen
         </Link>
       </div>

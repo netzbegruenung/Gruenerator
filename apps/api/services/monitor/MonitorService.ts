@@ -37,7 +37,7 @@ const ARTICLE_RETENTION_DAYS = 7;
 const KEYWORD_ARTICLES_TOP_N = 10;
 const KEYWORD_ARTICLES_MIN_MATCHES = 2;
 
-function snapshotCacheKey(locale?: MonitorLocale): string {
+export function snapshotCacheKey(locale?: MonitorLocale): string {
   return locale ? `monitor:latest:${locale}` : 'monitor:latest';
 }
 

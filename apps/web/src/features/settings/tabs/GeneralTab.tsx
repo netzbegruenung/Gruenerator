@@ -1,4 +1,4 @@
-import { type FeedbackButtonMode, type StartPage } from '@gruenerator/contracts';
+import { type FeedbackButtonMode, type StartLayout, type StartPage } from '@gruenerator/contracts';
 import { getPinnedLocale } from '@gruenerator/shared/instances';
 import { DEFAULT_TTS_VOICE_ID } from '@gruenerator/shared/settings';
 import { Button, Switch, toast } from '@gruenerator/ui';
@@ -13,6 +13,8 @@ import {
   PiEyeSlash,
   PiMoon,
   PiSun,
+  PiRows,
+  PiTabs,
   PiTextT,
 } from 'react-icons/pi';
 
@@ -46,6 +48,11 @@ const START_PAGE_OPTIONS: { value: StartPage; label: string; icon: IconType }[] 
   { value: 'arbeiten', label: 'Arbeiten', icon: PiBriefcase },
 ];
 
+const START_LAYOUT_OPTIONS: { value: StartLayout; label: string; icon: IconType }[] = [
+  { value: 'combined', label: 'Alles auf einer Seite', icon: PiRows },
+  { value: 'tabs', label: 'Tabs', icon: PiTabs },
+];
+
 const FEEDBACK_BUTTON_OPTIONS: { value: FeedbackButtonMode; label: string; icon: IconType }[] = [
   { value: 'text', label: 'Text', icon: PiTextT },
   { value: 'icon', label: 'Icon', icon: PiChatTeardropText },
@@ -59,6 +66,8 @@ const GeneralTab = () => {
   const pinnedLocale = getPinnedLocale(CURRENT_INSTANCE);
   const startPage = useAuthStore((s) => s.user?.default_startpage ?? 'chat');
   const updateStartPage = useAuthStore((s) => s.updateStartPage);
+  const startLayout = useAuthStore((s) => s.user?.start_layout ?? 'combined');
+  const updateStartLayout = useAuthStore((s) => s.updateStartLayout);
   const ttsVoice = useAuthStore((s) => s.user?.tts_voice_id ?? DEFAULT_TTS_VOICE_ID);
   const updateTtsVoice = useAuthStore((s) => s.updateTtsVoice);
   const feedbackButton = useAuthStore((s) => s.user?.feedback_button ?? 'text');
@@ -100,18 +109,34 @@ const GeneralTab = () => {
           />
         </SettingsRow>
 
-        <SettingsRow id="allgemein.startseite">
+        <SettingsRow id="allgemein.startlayout">
           <SegmentedControl
-            aria-label="Startseite"
-            value={startPage}
-            onChange={(value) => void updateStartPage(value)}
-            options={START_PAGE_OPTIONS.map(({ value, label, icon: Icon }) => ({
+            aria-label="Aufbau der Startseite"
+            value={startLayout}
+            onChange={(value) => void updateStartLayout(value)}
+            options={START_LAYOUT_OPTIONS.map(({ value, label, icon: Icon }) => ({
               value,
               label,
               icon: <Icon aria-hidden className="size-4" />,
             }))}
           />
         </SettingsRow>
+
+        {/* Only tabs have a first tab to choose; the combined page has one view. */}
+        {startLayout === 'tabs' && (
+          <SettingsRow id="allgemein.startseite">
+            <SegmentedControl
+              aria-label="Startseite"
+              value={startPage}
+              onChange={(value) => void updateStartPage(value)}
+              options={START_PAGE_OPTIONS.map(({ value, label, icon: Icon }) => ({
+                value,
+                label,
+                icon: <Icon aria-hidden className="size-4" />,
+              }))}
+            />
+          </SettingsRow>
+        )}
 
         <SettingsRow id="allgemein.feedbackButton">
           <SegmentedControl

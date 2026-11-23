@@ -3,7 +3,11 @@ import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-rou
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { create } from 'zustand';
 
-type User = { default_startpage?: 'chat' | 'arbeiten'; chat_background?: string };
+type User = {
+  default_startpage?: 'chat' | 'arbeiten';
+  start_layout?: 'tabs' | 'combined';
+  chat_background?: string;
+};
 const useAuthStore = create<{ user: User | null; hasServerConfirmed: boolean }>(() => ({
   user: null,
   hasServerConfirmed: true,
@@ -40,8 +44,11 @@ const renderAt = (url: string) =>
     </MemoryRouter>
   );
 
-const selected = () =>
-  screen.getAllByRole('link').find((t) => t.getAttribute('aria-current') === 'page')?.textContent;
+// Which view shows: Chat (the composer) or Arbeiten. The sidebar switches them
+// by path; its entries are tested with the menu data.
+// One page: the chat view is not built until /start/chat is first opened.
+const shows = () =>
+  screen.queryByLabelText('Composer')?.closest('[hidden]') === null ? 'Chat' : 'Arbeiten';
 const url = () => screen.getByTestId('url').textContent;
 
 describe('WorkplacePage', () => {
@@ -49,86 +56,102 @@ describe('WorkplacePage', () => {
     useAuthStore.setState({ user: { default_startpage: 'chat' }, hasServerConfirmed: true });
   });
 
-  it('opens the tab from the start-page setting on bare /start', () => {
-    useAuthStore.setState({ user: { default_startpage: 'arbeiten' } });
+  // The one-page layout is the default: /start always opens Arbeiten, the
+  // start-page setting no longer picks the view, Chat stays reachable by path.
+  it('opens Arbeiten on bare /start, whatever the start-page setting says', async () => {
     renderAt('/start');
-    expect(selected()).toBe('Arbeiten');
-  });
-
-  it('lets the path override the setting', async () => {
-    renderAt('/start/arbeiten');
-    expect(selected()).toBe('Arbeiten');
     expect(await screen.findByText('Arbeiten-Inhalt')).toBeVisible();
+    expect(shows()).toBe('Arbeiten');
+    expect(screen.queryByRole('navigation', { name: 'Workplace-Bereiche' })).toBeNull();
+    // The hidden chat view is not built: it would cost a second composer and runtime.
+    expect(screen.queryByLabelText('Composer')).toBeNull();
   });
 
-  it('switches tabs without remounting Chat, the home tab at bare /start', async () => {
-    renderAt('/start');
+  it('still opens Chat by path', () => {
+    renderAt('/start/chat');
+    expect(url()).toBe('/start/chat');
+    expect(shows()).toBe('Chat');
+  });
+
+  it('switches views without remounting Chat, the home view at bare /start', async () => {
+    renderAt('/start/chat');
     fireEvent.change(screen.getByLabelText('Composer'), { target: { value: 'Entwurf' } });
 
-    fireEvent.click(screen.getByRole('link', { name: 'Arbeiten' }));
-    expect(url()).toBe('/start/arbeiten');
+    act(() => navigateTo('/start'));
     expect(await screen.findByText('Arbeiten-Inhalt')).toBeVisible();
     expect(screen.getByLabelText('Composer')).not.toBeVisible();
 
-    fireEvent.click(screen.getByRole('link', { name: 'Chat' }));
-    expect(url()).toBe('/start');
+    act(() => navigateTo('/start/chat'));
+    expect(screen.getByLabelText('Composer')).toBeVisible();
     expect(screen.getByLabelText('Composer')).toHaveValue('Entwurf');
   });
 
-  it('gives the other tab the segment when Arbeiten is home', () => {
-    useAuthStore.setState({ user: { default_startpage: 'arbeiten' } });
-    renderAt('/start');
-    expect(screen.getByRole('link', { name: 'Arbeiten' })).toHaveAttribute('href', '/start');
-    expect(screen.getByRole('link', { name: 'Chat' })).toHaveAttribute('href', '/start/chat');
-  });
-
-  it('folds the home tab spelled out into bare /start', () => {
-    renderAt('/start/chat?x=1');
+  it('folds the home view spelled out into bare /start', () => {
+    renderAt('/start/arbeiten?x=1');
     expect(url()).toBe('/start?x=1');
-    expect(selected()).toBe('Chat');
+    expect(shows()).toBe('Arbeiten');
   });
 
   it('keeps an explicit path while the setting is unconfirmed', () => {
     useAuthStore.setState({ hasServerConfirmed: false });
     renderAt('/start/chat');
     expect(url()).toBe('/start/chat');
-    expect(selected()).toBe('Chat');
+    expect(shows()).toBe('Chat');
   });
 
   it('comes back to Arbeiten after leaving the page from there', async () => {
-    renderAt('/start');
-    fireEvent.click(screen.getByRole('link', { name: 'Arbeiten' }));
+    renderAt('/start/chat');
+    act(() => navigateTo('/start'));
     act(() => navigateTo('/office'));
     expect(screen.getByText('Office')).toBeInTheDocument();
 
     act(() => navigateTo(-1));
-    expect(url()).toBe('/start/arbeiten');
-    expect(selected()).toBe('Arbeiten');
+    expect(url()).toBe('/start');
     expect(await screen.findByText('Arbeiten-Inhalt')).toBeVisible();
   });
 
-  it('keeps the history clean when the current tab is clicked again', () => {
-    renderAt('/start');
-    fireEvent.click(screen.getByRole('link', { name: 'Arbeiten' }));
-    fireEvent.click(screen.getByRole('link', { name: 'Arbeiten' }));
-    act(() => navigateTo(-1));
+  it('forwards the old ?page= links to the view path', () => {
+    renderAt('/start?page=chat&foo=1');
+    expect(url()).toBe('/start/chat?foo=1');
+  });
+
+  it('forwards ?page= for the home view to bare /start', () => {
+    renderAt('/start?page=arbeiten');
     expect(url()).toBe('/start');
   });
 
-  it('forwards the old ?page= links to the tab path', () => {
-    renderAt('/start?page=arbeiten&foo=1');
-    expect(url()).toBe('/start/arbeiten?foo=1');
-    expect(selected()).toBe('Arbeiten');
-  });
-
-  it('forwards ?page= for the home tab to bare /start', () => {
-    renderAt('/start?page=chat');
-    expect(url()).toBe('/start');
-  });
-
-  it('sends an unknown tab to /start', () => {
+  it('sends an unknown view to /start', async () => {
     renderAt('/start/quatsch');
     expect(url()).toBe('/start');
-    expect(selected()).toBe('Chat');
+    expect(await screen.findByText('Arbeiten-Inhalt')).toBeVisible();
+  });
+});
+
+describe('WorkplacePage with tabs', () => {
+  beforeEach(() => {
+    useAuthStore.setState({
+      user: { default_startpage: 'chat', start_layout: 'tabs' },
+      hasServerConfirmed: true,
+    });
+  });
+
+  it('opens the start-page setting on bare /start under the tab bar', () => {
+    renderAt('/start');
+    expect(shows()).toBe('Chat');
+    expect(screen.getByRole('navigation', { name: 'Workplace-Bereiche' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Chat' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('follows the setting to Arbeiten', async () => {
+    useAuthStore.setState({ user: { default_startpage: 'arbeiten', start_layout: 'tabs' } });
+    renderAt('/start');
+    expect(await screen.findByText('Arbeiten-Inhalt')).toBeVisible();
+    expect(shows()).toBe('Arbeiten');
+  });
+
+  it('folds the home tab spelled out into bare /start', () => {
+    renderAt('/start/chat?x=1');
+    expect(url()).toBe('/start?x=1');
+    expect(shows()).toBe('Chat');
   });
 });

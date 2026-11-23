@@ -1,5 +1,4 @@
 import {
-  Badge,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -87,17 +86,16 @@ export const LinkedEntryCard = memo(function LinkedEntryCard({
         </div>
       </div>
 
-      <div className="flex flex-col gap-2.5 px-4 pt-3.5 pb-4">
+      <div className="flex flex-col gap-1 px-4 pt-3.5 pb-4">
         <h3
           className="truncate text-[0.9375rem] font-semibold text-foreground-heading"
           title={entry.title}
         >
           {entry.title}
         </h3>
-        <div className="flex items-center gap-2 text-sm text-grey-600 dark:text-grey-400">
-          <Badge variant="outline">{entry.kind === 'video' ? 'Reel' : 'Sharepic'}</Badge>
-          <span className="truncate">{formatMediaDate(entry.date)}</span>
-        </div>
+        <p className="m-0 truncate text-sm text-grey-600 dark:text-grey-400">
+          {entry.kind === 'video' ? 'Reel' : 'Sharepic'} · {formatMediaDate(entry.date)}
+        </p>
       </div>
     </InteractiveCard>
   );

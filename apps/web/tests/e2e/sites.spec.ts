@@ -61,12 +61,11 @@ test.describe('Sites: Zugang und Anlegen', () => {
     await installApiFixtures(page);
     installSitesApi(page, { unlocked: false });
 
+    // The Arbeiten tab has no tool strip any more; Sites is reached via the
+    // sidebar and the search, and both hide it without the gate.
     await page.goto('/start/arbeiten');
-    const tools = page.locator('[data-tour="arbeiten-tools"]');
     // Cold first navigation can take longer than the default 5 s expect timeout.
-    await expect(tools).toBeVisible({ timeout: 15_000 });
-    await expect(tools.getByRole('link', { name: /Projekte/ })).toBeVisible();
-    await expect(tools.getByRole('link', { name: /Sites/ })).toHaveCount(0);
+    await expect(page.locator('[data-tour="arbeiten-tools"]')).toBeVisible({ timeout: 15_000 });
 
     await page.keyboard.press('Control+k');
     const input = page.getByPlaceholder('Suchen …');
@@ -75,8 +74,11 @@ test.describe('Sites: Zugang und Anlegen', () => {
     await input.fill('website');
     await expect(page.getByRole('option', { name: /Sites/ })).toHaveCount(0);
 
-    await page.goto('/sites');
-    await expect(page.getByRole('heading', { name: 'Seite nicht gefunden' })).toBeVisible();
+    // A cold dev server compiles the route on first visit: don't wait for `load`.
+    await page.goto('/sites', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Seite nicht gefunden' })).toBeVisible({
+      timeout: 15_000,
+    });
   });
 
   test('create, edit, publish, public page', async ({ page, context }) => {
@@ -84,8 +86,7 @@ test.describe('Sites: Zugang und Anlegen', () => {
     const { state } = installSitesApi(page, { unlocked: true });
     await installPublicSite(context, state);
 
-    await page.goto('/start/arbeiten');
-    await page.locator('[data-tour="arbeiten-tools"]').getByRole('link', { name: /Sites/ }).click();
+    await page.goto('/sites');
     // Without a site the overview hands straight over to creating one.
     await expect(page).toHaveURL(/\/sites\/neu$/);
 

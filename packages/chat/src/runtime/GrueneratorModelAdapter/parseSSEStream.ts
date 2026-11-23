@@ -45,7 +45,7 @@ import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useAgentStore } from '../../stores/chatStore';
 import { useSharepicLiveStore } from '../../stores/sharepicLiveStore';
 import { useSocialPostLiveStore } from '../../stores/socialPostLiveStore';
-import { reviewFreshSharepics } from '../sharepicReview';
+import { reviewFreshSharepics, saveFreshSharepic } from '../sharepicReview';
 import { ChatStreamError } from '../streamErrorMessage';
 
 import {
@@ -57,13 +57,6 @@ import {
   type ToolStepStartData,
 } from './toolStepCards';
 
-import type {
-  GrueneratorAdapterCallbacks,
-  GrueneratorMessageMetadata,
-  ToolCallPart,
-  SourcePart,
-  StreamOutcome,
-} from './types';
 import type {
   ProgressStage,
   SearchIntent,
@@ -81,6 +74,13 @@ import type {
   SharepicVariant,
 } from '../../hooks/useChatGraphStream';
 import type { ConfirmActionData, DocumentCreatedData } from '../../types/messageMetadata';
+import type {
+  GrueneratorAdapterCallbacks,
+  GrueneratorMessageMetadata,
+  ToolCallPart,
+  SourcePart,
+  StreamOutcome,
+} from './types';
 import type { ChatModelRunResult } from '@assistant-ui/react';
 
 /**
@@ -275,7 +275,10 @@ async function* parseStream(
   let receivedImage: GeneratedImage | null = null;
   let receivedSharepicData: SharepicData | null = null;
   // Sharepics of this live stream, reviewed in the browser once `done` names the thread.
-  const sharepicsToReview: Array<{ variants: SharepicVariant[]; review: SharepicChatReview }> = [];
+  const sharepicsToReview: Array<{
+    variants: SharepicVariant[];
+    review: SharepicChatReview | null;
+  }> = [];
   let receivedSocialPostData: SocialPostPayload | null = null;
   let receivedChartData: ChartData | null = null;
   let receivedArtifactData: CodeArtifact | null = null;
@@ -938,8 +941,8 @@ async function* parseStream(
               if (validated) {
                 receivedSharepicData = { variants: validated };
                 useSharepicLiveStore.getState().followRevision(validated);
-                if (payload.review && !muted()) {
-                  sharepicsToReview.push({ variants: validated, review: payload.review });
+                if (!muted()) {
+                  sharepicsToReview.push({ variants: validated, review: payload.review ?? null });
                 }
               } else if (isCanvasTemplateType(payload.canvasType) && payload.initialProps) {
                 const legacyId =
@@ -1003,7 +1006,12 @@ async function* parseStream(
 
           case 'sharepic_minted': {
             const { variantId, canvasId } = data as { variantId: string; canvasId: string };
-            useSharepicLiveStore.getState().upsertEntry(variantId, { canvasId });
+            // A fresh canvas has no thumbnail yet: the next head render (first
+            // slide of a deck) uploads one, so the card in „Zuletzt" and the
+            // Mediathek shows the picture instead of a placeholder.
+            useSharepicLiveStore
+              .getState()
+              .upsertEntry(variantId, { canvasId, thumbnailDirty: true });
             break;
           }
 
@@ -1390,7 +1398,10 @@ async function* parseStream(
             };
             if (doneThreadId) {
               for (const { variants, review } of sharepicsToReview.splice(0)) {
-                reviewFreshSharepics(doneThreadId, variants, review);
+                // Review first: the Mediathek gets the corrected spec, not the draft.
+                void (
+                  review ? reviewFreshSharepics(doneThreadId, variants, review) : Promise.resolve()
+                ).then(() => saveFreshSharepic(doneThreadId, variants));
               }
             }
             if (cit) receivedCitations = cit;

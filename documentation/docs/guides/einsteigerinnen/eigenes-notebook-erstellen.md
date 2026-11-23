@@ -7,7 +7,7 @@ description: 'In zehn Minuten eure Dokumente zu einem durchsuchbaren Notebook b�
 
 # Wie erstelle ich ein eigenes Notebook?
 
-In etwa zehn Minuten erstellst du ein Notebook, das eure Dokumente bündelt und ihren Inhalt im Grünerator durchsuchbar macht — für Anträge, Beschlüsse, Programme oder Pressemitteilungen. Du brauchst dafür ein paar Dateien.
+In etwa zehn Minuten legst du ein eigenes Notebook an, das eure Dokumente bündelt und ihren Inhalt im Grünerator durchsuchbar macht — für Anträge, Beschlüsse, Programme oder Pressemitteilungen. Du brauchst dafür ein paar Dateien.
 
 ## So geht's
 
