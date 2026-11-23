@@ -132,8 +132,6 @@ export function MarketplaceSection() {
 export interface ToolCard {
   id: string;
   title: string;
-  /** One line under the title (the Studio's cards; the Arbeiten cards go without). */
-  description?: string;
   badge?: string;
   path?: string;
   href?: string;
@@ -195,21 +193,15 @@ const STACK = {
   },
 } as const;
 
-/**
- * `white`: a white card whose sheets carry a green border; the theme colours title and icon,
- * for the Studio, where the media grid below is white too. Default: the tinted Arbeiten card.
- */
+/** A tinted card: the title on the left, a white sheet with the tool's picture or icon at the bottom right. */
 export function ToolCardLink({
   tool,
-  surface = 'tinted',
   onClick,
 }: {
   tool: ToolCard;
-  surface?: 'tinted' | 'white';
   /** Runs before the link navigates, e.g. to hand the chat a draft. */
   onClick?: () => void;
 }) {
-  const white = surface === 'white';
   const theme = getToolTheme(tool.theme ?? tool.id) ?? getToolTheme('weitere');
   const Icon = tool.icon;
   const preview = tool.visual ? (
@@ -226,8 +218,7 @@ export function ToolCardLink({
         className={cn(
           // Whole words only: a hyphenated „transkribie-ren" reads worse than two balanced lines.
           'relative z-10 text-[17px] font-bold leading-tight text-balance md:text-lg',
-          // Tablet: three white cards in a row are too narrow for the sheets, the text takes the card.
-          white ? 'max-w-[68%] md:max-lg:max-w-none' : 'max-w-[56%]',
+          'max-w-[56%]',
           theme?.title,
           // A narrow card (phone, or three across on a tablet): the title takes the full top,
           // the picture the corner below it. Side by side needs ~290 px.
@@ -236,17 +227,13 @@ export function ToolCardLink({
       >
         <span className="flex items-center gap-2">
           {tool.title}
+          {tool.href && <span className="sr-only"> (öffnet in neuem Tab)</span>}
           {tool.badge && (
             <span className="rounded-full bg-primary-600 px-2 py-0.5 text-[11px] leading-tight font-bold text-white">
               {tool.badge}
             </span>
           )}
         </span>
-        {tool.description && (
-          <span className={cn('mt-0.5 block text-sm font-normal', theme?.desc)}>
-            {tool.description}
-          </span>
-        )}
       </span>
       {/* Two tilted sheets peeking from the bottom-right corner; the front one lifts on hover. */}
       {/* A preview keeps a fixed, slightly upright sheet; on wide cards a percentage would stretch it. */}
@@ -254,12 +241,7 @@ export function ToolCardLink({
         aria-hidden
         className={cn(
           'absolute -bottom-3 h-20 md:h-24',
-          white && 'md:max-lg:hidden',
-          preview
-            ? cn('right-4 w-28 md:w-32', stack?.sheet)
-            : white
-              ? 'right-1 w-[30%] max-w-32'
-              : 'right-1 w-[44%]'
+          preview ? cn('right-4 w-28 md:w-32', stack?.sheet) : 'right-1 w-[44%]'
         )}
       >
         <span
@@ -268,16 +250,13 @@ export function ToolCardLink({
             preview
               ? 'right-[34%] h-[82%] w-[56%] -rotate-[10deg]'
               : 'right-[30%] h-[78%] w-[58%] -rotate-[8deg]',
-            white
-              ? 'bg-background border border-primary-300 dark:border-primary-700 opacity-70'
-              : 'bg-background/60'
+            'bg-background/60'
           )}
         />
         <span
           className={cn(
             'absolute bottom-0 right-[8%] flex h-[90%] w-[62%] -rotate-6 items-center justify-center overflow-hidden rounded-lg shadow-md',
             'bg-background',
-            white && 'border border-primary-300 dark:border-primary-700',
             preview && 'h-full w-[66%] -rotate-[5deg] shadow-lg',
             'transition-transform duration-200 group-hover:-translate-y-1 group-hover:-rotate-3 motion-reduce:transition-none',
             theme?.icon
@@ -291,13 +270,9 @@ export function ToolCardLink({
   const className = cn(
     TOOL_CARD,
     tool.visual && 'it-host',
-    // A white card carries a description: it grows with its text instead of clipping it.
-    white && 'h-full min-h-20 py-4 md:h-full md:min-h-24',
     // Narrow card: two lines of title on top, the picture below them (never under the text).
     stack?.card,
-    white
-      ? 'border border-grey-200 bg-background dark:border-grey-800'
-      : (theme?.tile ?? 'bg-grey-50 dark:bg-grey-800/40')
+    theme?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'
   );
   return tool.href ? (
     <a href={tool.href} target="_blank" rel="noopener noreferrer" className={className}>

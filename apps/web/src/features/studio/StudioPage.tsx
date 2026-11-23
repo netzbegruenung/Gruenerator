@@ -84,17 +84,22 @@ const StickerIcon = getIcon('navigation', 'sticker')!;
 const SHAREPIC_DRAFT = 'Erstelle ein Sharepic zum Thema ';
 const handToChat = () => useAgentStore.getState().setPendingDraft(SHAREPIC_DRAFT);
 
+/** Each card its own hue, as in „Transparenz, MCP & Co": the Studio's tools are all green otherwise. */
+const STUDIO_THEMES: Record<string, string> = {
+  'canvas-ki': 'canvas-ki',
+  'studio-videoeditor': 'studio-videoeditor',
+  'reels-untertitel': 'sheets',
+};
+
 /** The Studio's tools as action cards — the same card as the Arbeiten tab's „Mach mehr". */
 function StudioTiles(): JSX.Element {
   return (
     <nav aria-label="Neu erstellen">
       <ul className="m-0 grid list-none grid-cols-1 gap-3 p-0 md:grid-cols-3 lg:gap-4">
         {filterWorkplaceTools(CANVAS_TOOLS).map((tool) => (
-          <li key={tool.id}>
-            {/* White cards with the Studio's green as accent, not their own tool hue. */}
+          <li key={tool.id} className="@container">
             <ToolCardLink
-              tool={{ ...tool, theme: 'canvas' }}
-              surface="white"
+              tool={{ ...tool, theme: STUDIO_THEMES[tool.id] ?? tool.id }}
               onClick={tool.id === 'canvas-ki' ? handToChat : undefined}
             />
           </li>
