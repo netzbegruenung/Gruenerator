@@ -8,6 +8,7 @@ import { defineConfig, type Plugin } from 'vite';
 
 import { vorlagenMockPlugin } from './devMocks/vorlagenMock';
 import { wissenMockPlugin } from './devMocks/wissenMock';
+import { perIconModules } from './perIconModules';
 import { precompressPlugin } from './precompressPlugin';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -147,6 +148,7 @@ export default defineConfig(({ command }) => ({
     ...(!isTauri ? [tauriStubPlugin()] : []),
     preloadFontsPlugin(),
     nonBlockingEntryCssPlugin(),
+    perIconModules(),
     precompressPlugin({ disabled: isNativeBuild || process.env.VITE_PRECOMPRESS === '0' }),
     react({ jsxRuntime: 'automatic' }),
     ...(command === 'build' ? [babel({ presets: [reactCompilerPreset()] })] : []),
