@@ -353,7 +353,7 @@
     "d3-scale": "^4.0.3",
     "nanoid": "^6.0.2",
     "react-icons": "^5.7.0",
-    "tailwind-merge": "^3.7.0",
+    "tailwind-merge": "^3.7.1",
     "yjs": "^13.6.33",
     "zod": "^4.6.6",
     "zustand": "5.1.0"
@@ -361,7 +361,7 @@
   "devDependencies": {
     "@gruenerator/eslint-config": "workspace:*",
     "@gruenerator/ui": "workspace:*",
-    "@tanstack/react-query": "^5.107.1",
+    "@tanstack/react-query": "^5.108.1",
     "@types/d3-geo": "^3.1.1",
     "@types/d3-scale": "^4.0.9",
     "@types/geojson": "^7946.0.16",
@@ -372,7 +372,7 @@
     "gray-matter": "^4.0.3",
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.1"
   },
   "peerDependencies": {
     "@gruenerator/ui": "workspace:*",
