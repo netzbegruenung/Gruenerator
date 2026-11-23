@@ -15,7 +15,7 @@ import { useGroups } from '../../../features/groups/hooks/useGroups';
 
 import { iconClass, menuLinkClass } from './sidebarStyles';
 
-import { PiChatCircle, PiGearSix, PiUsersThree } from '@/config/shellIcons.generated';
+import { LuFolderCog, PiChatCircle, PiGearSix } from '@/config/shellIcons.generated';
 
 interface ProjekteSidebarSectionProps {
   openRef: MutableRefObject<boolean>;
@@ -81,7 +81,7 @@ export const ProjekteSidebarSection = memo(function ProjekteSidebarSection({
       <DropdownMenu open={open} onOpenChange={handleOpenChange}>
         <DropdownMenuTrigger asChild>
           <button className={menuLinkClass(false, false, collapsed)} type="button">
-            <PiUsersThree aria-hidden="true" className={iconClass} />
+            <LuFolderCog aria-hidden="true" className={iconClass} />
             <span className={titleClass}>Projekte</span>
           </button>
         </DropdownMenuTrigger>
@@ -120,7 +120,7 @@ export const ProjekteSidebarSection = memo(function ProjekteSidebarSection({
                     onClick={() => openProjekt(path, g.name)}
                     className="flex min-w-0 flex-1 items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm text-foreground"
                   >
-                    <PiUsersThree className="size-4 shrink-0 text-grey-500" />
+                    <LuFolderCog className="size-4 shrink-0 text-grey-500" />
                     <span className="min-w-0 flex-1 truncate">{g.name}</span>
                   </button>
                   {canShareIntoGroup(g) && (
@@ -150,7 +150,7 @@ export const ProjekteSidebarSection = memo(function ProjekteSidebarSection({
                     onClick={() => openProjekt(buildGroupPath(g), g.name)}
                     className="flex w-full min-w-0 items-center gap-2 rounded-sm px-3 py-1.5 text-left text-sm text-muted-foreground hover:bg-hover-alt"
                   >
-                    <PiUsersThree className="size-4 shrink-0 text-grey-400" />
+                    <LuFolderCog className="size-4 shrink-0 text-grey-400" />
                     <span className="min-w-0 flex-1 truncate">{g.name}</span>
                   </button>
                 ))}

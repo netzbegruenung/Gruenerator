@@ -45,10 +45,10 @@ import { headerIconButtonClass, iconClass, menuLinkClass } from './sidebarStyles
 import { CURRENT_INSTANCE } from '@/config/instance';
 import {
   FiSidebar,
+  LuFolderCog,
   PiSignIn,
   PiSparkle,
   PiStarFill,
-  PiUsersThree,
 } from '@/config/shellIcons.generated';
 import { cn } from '@/utils/cn';
 import { isWorkplaceSurface, startTabLink } from '@/utils/startpage';
@@ -752,7 +752,7 @@ const SidebarFavourites = memo(function SidebarFavourites({
       {projektItems.map((p) =>
         renderRow(
           p.id,
-          <PiUsersThree aria-hidden="true" className={iconClass} />,
+          <LuFolderCog aria-hidden="true" className={iconClass} />,
           p.title,
           p.path,
           removeStar(() => removeFavourite(p.id), p.title)
