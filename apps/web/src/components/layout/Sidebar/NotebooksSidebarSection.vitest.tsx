@@ -40,7 +40,12 @@ function renderSection() {
   return { onNavigate };
 }
 
-const openMenu = () => userEvent.setup().click(screen.getByRole('button', { name: 'Notebooks' }));
+// The rows are a lazy chunk: wait until they are in.
+const openMenu = async () => {
+  await userEvent.setup().click(screen.getByRole('button', { name: 'Notebooks' }));
+  // The first import of the chunk is slow under a parallel run.
+  await screen.findByRole('menuitem', { name: 'Neues Notebook' }, { timeout: 5000 });
+};
 
 beforeEach(() => {
   mocks.isMobile = false;
@@ -148,7 +153,7 @@ describe('NotebooksSidebarSection', () => {
     const { onNavigate } = renderSection();
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Notebooks' }));
-    const trigger = screen.getByRole('menuitem', { name: 'Landesverbände' });
+    const trigger = await screen.findByRole('menuitem', { name: 'Landesverbände' });
     trigger.focus();
     await user.keyboard('{ArrowRight}');
     const link = await screen.findByRole('menuitem', { name: 'Berlin' });
