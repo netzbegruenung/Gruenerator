@@ -2,6 +2,7 @@ import {
   GrueneratorChatProvider,
   TooltipProvider,
   preloadChatRuntime,
+  requestThreadListReload,
   type ChatConfig,
   type ChatVoice,
   type SharepicVariant,
@@ -22,8 +23,10 @@ import {
 } from '../features/chat/ChatPdfLetterheadExport';
 import { ChatSourceReaderHost, requestChatSourceReader } from '../features/chat/ChatSourceReader';
 import { useModelPreferences } from '../features/models/hooks/useModelPreferences';
-import { useNotebookChatStore } from '../features/notebook/stores/notebookChatStore';
-import { resolveNotebookChatEntries } from '../features/notebook/utils/notebookChatResolver';
+import {
+  type NotebookChat,
+  useNotebookChatStore,
+} from '../features/notebook/stores/notebookChatStore';
 import { useTrashUndoToast } from '../features/trash/trashUndoToast';
 import { useSetUserDefault } from '../features/user-defaults/userDefaultsQueries';
 import { sessionDebug } from '../lib/sessionDebug';
@@ -72,6 +75,11 @@ const PORTAL_SLOT_ID = 'chat-thread-portal-slot';
 interface GlobalChatProviderProps {
   children: ReactNode;
 }
+
+type ResolveNotebookChatEntries = (
+  chats: Record<string, NotebookChat>,
+  userCollections: Array<{ id: string; name: string }>
+) => Array<{ collectionKey: string; title: string; path: string; timestamp: number }>;
 
 export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
   const userId = useAuthStore((s) => s.user?.id);
@@ -146,7 +154,29 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
     };
   }, []);
 
+  // The resolver carries every notebook page config (~29 KB minified), so it
+  // loads after mount instead of with the entry (#5891). A thread list read
+  // before it arrives gets no notebook entries and is re-run once it is here.
+  const resolverRef = useRef<ResolveNotebookChatEntries | null>(null);
+  const listedWithoutResolverRef = useRef(false);
+  useEffect(() => {
+    let live = true;
+    void import('../features/notebook/utils/notebookChatResolver').then((m) => {
+      if (!live) return;
+      resolverRef.current = m.resolveNotebookChatEntries;
+      if (listedWithoutResolverRef.current) requestThreadListReload();
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+
   const getExternalThreads = useCallback(() => {
+    const resolveNotebookChatEntries = resolverRef.current;
+    if (!resolveNotebookChatEntries) {
+      listedWithoutResolverRef.current = true;
+      return [];
+    }
     const userCols = qaRef.current.map((c) => ({ id: c.id, name: c.name }));
     const entries = resolveNotebookChatEntries(chatsRef.current, userCols);
     return entries.map((e) => ({
