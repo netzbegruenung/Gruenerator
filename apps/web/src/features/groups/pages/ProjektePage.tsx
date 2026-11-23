@@ -31,6 +31,7 @@ import { WorkplaceHero } from '../../workplace/components/WorkplaceHero';
 import GroupDetailSection from '../components/GroupDetailSection';
 import GroupsCreateSection, { type CreateGroupExtras } from '../components/GroupsCreateSection';
 import { ProjekteComposer } from '../components/ProjekteComposer';
+import { ProjekteNotebooksSection } from '../components/ProjekteNotebooksSection';
 import { ProjekteRecipesSection } from '../components/ProjekteRecipesSection';
 import { ProjektTile } from '../components/ProjektTile';
 import PublicGroupsSection from '../components/PublicGroupsSection';
@@ -311,6 +312,7 @@ const ProjektePage = () => {
         </details>
       )}
       <ProjekteRecipesSection />
+      <ProjekteNotebooksSection />
       <PublicGroupsSection onSuccessMessage={showSuccess} onErrorMessage={showError} />
 
       {createDialog}
