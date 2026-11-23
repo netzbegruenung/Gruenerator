@@ -5,8 +5,8 @@ import {
   type GroupMember,
 } from '@gruenerator/shared/groups';
 import { cn, LoadingSection, Tabs, TabsContent, TabsList, TabsTrigger } from '@gruenerator/ui';
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
-import { PiMagnifyingGlass } from 'react-icons/pi';
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { PiMagnifyingGlass, PiX } from 'react-icons/pi';
 import { useSearchParams } from 'react-router-dom';
 
 import { type ShareActions } from '../shareActions';
@@ -46,6 +46,11 @@ interface GroupContentAreaProps {
    * holt ein Wissen-Element in den Austausch (null: es gibt keinen Austausch).
    */
   sidebar: (ctx: { onDiscuss: ((item: GroupFeedItem) => void) | null }) => ReactNode;
+  /**
+   * Zählt hoch, wenn jemand „Im Austausch suchen" im Projektmenü wählt: dann
+   * wechselt der Reiter, und das Suchfeld erscheint mit Fokus. 0 = nie gewählt.
+   */
+  searchSignal?: number;
 }
 
 const pillCls = cn(
@@ -70,6 +75,7 @@ export function GroupContentArea({
   cloningId,
   overviewMain,
   sidebar,
+  searchSignal = 0,
 }: GroupContentAreaProps) {
   const [searchParams] = useSearchParams();
   const linkedShareId = searchParams.get('beitrag');
@@ -82,6 +88,21 @@ export function GroupContentArea({
   // Wissen-Elemente, die jemand aus der Liste in den Austausch geholt hat.
   const [discussed, setDiscussed] = useState<ReadonlySet<string>>(new Set());
   const [query, setQuery] = useState('');
+  // Das Suchfeld steht nur da, wenn jemand suchen will (Projektmenü), nicht immer.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (searchSignal === 0) return;
+    setView('austausch');
+    setSearchOpen(true);
+  }, [searchSignal]);
+  useEffect(() => {
+    if (searchOpen && view === 'austausch') searchInputRef.current?.focus();
+  }, [searchOpen, searchSignal, view]);
+  const closeSearch = () => {
+    setQuery('');
+    setSearchOpen(false);
+  };
 
   const mentionOptions = useMemo(
     () => ({
@@ -157,17 +178,31 @@ export function GroupContentArea({
 
   const austauschMain = (
     <div className="flex flex-col gap-lg">
-      <label className="flex h-[38px] w-full items-center gap-xs rounded-full border border-grey-200 bg-card px-3.5 text-muted-foreground focus-within:border-primary-500 dark:border-grey-700">
-        <PiMagnifyingGlass aria-hidden className="size-4 shrink-0" />
-        <span className="sr-only">Im Austausch suchen</span>
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Im Austausch suchen"
-          className="min-w-0 flex-1 border-none bg-transparent text-sm text-foreground outline-none"
-        />
-      </label>
+      {(searchOpen || hasQuery) && (
+        <div className="flex h-[38px] w-full items-center gap-xs rounded-full border border-grey-200 bg-card pl-3.5 pr-1 text-muted-foreground focus-within:border-primary-500 dark:border-grey-700">
+          <PiMagnifyingGlass aria-hidden className="size-4 shrink-0" />
+          <input
+            ref={searchInputRef}
+            type="search"
+            aria-label="Im Austausch suchen"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') closeSearch();
+            }}
+            placeholder="Im Austausch suchen"
+            className="min-w-0 flex-1 border-none bg-transparent text-sm text-foreground outline-none"
+          />
+          <button
+            type="button"
+            onClick={closeSearch}
+            aria-label="Suche schließen"
+            className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <PiX aria-hidden className="size-4" />
+          </button>
+        </div>
+      )}
       {!hasQuery && onOpenShare && (
         <GroupComposer
           groupId={groupId}
@@ -190,7 +225,8 @@ export function GroupContentArea({
               canComment
               currentUserId={currentUserId}
               currentUserName={currentUserName}
-              defaultOpen={!!focusShareId && item.share?.shareId === focusShareId}
+              // Ausgeklappt ist der Normalfall: man soll die Beiträge lesen, ohne zu klicken.
+              defaultOpen
               onUseTemplate={onUseTemplate}
               isCloning={cloningId === item.id}
               actions={actions}
@@ -205,8 +241,9 @@ export function GroupContentArea({
     <GroupMentionProvider value={mentionOptions}>
       <Tabs value={view} onValueChange={(v) => setView(v as View)} className="gap-lg">
         <TabsList variant="line" className="h-auto w-fit gap-xs" aria-label="Ansicht">
+          {/* Interner Schlüssel bleibt `uebersicht`; links stehen nur noch die Chats. */}
           <TabsTrigger value="uebersicht" className={pillCls}>
-            Übersicht
+            Chat
           </TabsTrigger>
           <TabsTrigger value="austausch" className={pillCls}>
             Austausch

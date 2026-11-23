@@ -48,7 +48,7 @@ import {
   HiX,
 } from 'react-icons/hi';
 import { HiOutlineBellSlash } from 'react-icons/hi2';
-import { PiPlus } from 'react-icons/pi';
+import { PiMagnifyingGlass, PiPlus } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -341,6 +341,9 @@ const GroupInfoSection = memo(
     const groupLinks = data?.groupInfo?.links ?? [];
     // Chats gibt es in Projekten und Gruppen, nicht im System-Projekt „Grünerator".
     const showChats = canShare && !isSystem;
+    const hasAustauschTab = isSystem || hasOthers || hasAustauschContent(feedItems);
+    // Die Suche im Austausch öffnet sich über das Projektmenü; jeder Klick zählt hoch.
+    const [austauschSearchSignal, setAustauschSearchSignal] = useState(0);
     // Beiträge gehören in den Austausch; alles andere ist Wissen und steht als Zeile da.
     // Rezepte haben ihre eigene Karte; „Wissen" ist alles andere außer Beiträgen.
     const recipeItems = useMemo(() => feedItems.filter((i) => i.kind === 'recipe'), [feedItems]);
@@ -682,6 +685,15 @@ const GroupInfoSection = memo(
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {hasAustauschTab && (
+                  <>
+                    <DropdownMenuItem onClick={() => setAustauschSearchSignal((n) => n + 1)}>
+                      <PiMagnifyingGlass className="size-4 mr-xs" />
+                      Im Austausch suchen
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 {isTeam && (
                   <>
                     <DropdownMenuItem onClick={() => setMembersDialogOpen(true)}>
@@ -799,7 +811,8 @@ const GroupInfoSection = memo(
           items={feedItems}
           isLoading={isLoadingSharedContent}
           isAdmin={!!data?.isAdmin}
-          hasAustausch={isSystem || hasOthers || hasAustauschContent(feedItems)}
+          hasAustausch={hasAustauschTab}
+          searchSignal={austauschSearchSignal}
           isSystem={isSystem}
           currentUserId={currentUserId ?? null}
           currentUserName={currentUserName ?? null}

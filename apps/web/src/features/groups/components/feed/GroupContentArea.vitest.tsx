@@ -89,16 +89,47 @@ describe('GroupContentArea', () => {
 
     await user.click(screen.getByRole('tab', { name: 'Austausch' }));
     expect(screen.getByText(/Schreib etwas an das Projekt/)).toBeInTheDocument();
-    // The side column stays in place; the feed is a row list, a click opens the full card.
+    // The side column stays in place; posts stand expanded and can be folded.
     expect(screen.getByText('SEITENSPALTE')).toBeInTheDocument();
     expect(screen.queryByText('ÜBERSICHT')).not.toBeInTheDocument();
     expect(screen.queryByText('Ohne Notiz')).not.toBeInTheDocument();
-    expect(screen.queryByText('Bitte lesen.')).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /Mit Notiz/ }));
     expect(screen.getByText('Bitte lesen.')).toBeInTheDocument();
+    // No search field until someone asks for it from the project menu.
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Einklappen' }));
     expect(screen.queryByText('Bitte lesen.')).not.toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('the project menu’s search signal opens Austausch with a focused search field', async () => {
+    const { user, rerender } = render();
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
+    rerender(
+      <GroupContentArea
+        groupId="g1"
+        groupName="Team"
+        items={items}
+        isLoading={false}
+        isAdmin
+        hasAustausch
+        isSystem={false}
+        currentUserId="me"
+        currentUserName="Moritz"
+        members={[]}
+        onOpenShare={() => {}}
+        actions={null}
+        onUseTemplate={() => {}}
+        cloningId={null}
+        overviewMain={<p>ÜBERSICHT</p>}
+        sidebar={() => <p>SEITENSPALTE</p>}
+        searchSignal={1}
+      />
+    );
+    const box = await screen.findByRole('searchbox', { name: 'Im Austausch suchen' });
+    expect(box).toHaveFocus();
+    expect(screen.getByRole('tab', { name: 'Austausch' })).toHaveAttribute('aria-selected', 'true');
+    await user.click(screen.getByRole('button', { name: 'Suche schließen' }));
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
   });
 
   it('“Im Austausch besprechen” switches tab and shows the shared item', async () => {
