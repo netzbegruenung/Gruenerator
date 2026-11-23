@@ -1,5 +1,4 @@
 import { type LandesverbandId } from '@gruenerator/contracts';
-import { useAuth } from '@gruenerator/shared/hooks';
 import {
   landesverbandOptions,
   GROUP_COLOR_KEYS,
@@ -7,6 +6,7 @@ import {
   resolveGroupColor,
   type GroupColor,
 } from '@gruenerator/shared/groups';
+import { useAuth } from '@gruenerator/shared/hooks';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import * as Haptics from 'expo-haptics';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
