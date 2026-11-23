@@ -15,12 +15,14 @@ import {
   SYNTH_INVALID_JSON_RETRY_SUFFIX,
   SYNTH_DEGENERATE_RETRY_SUFFIX,
   TurnSuspendedError,
+  silentToolArgumentAllowanceMs,
   type LoopDeps,
   type LoopEngineParams,
 } from './loopEngine.js';
 import { DEGENERATION_NOTICE } from './degeneration.js';
 import { createAnswerValidator } from './synthVerdicts.js';
 import { buildToolUsageBlock } from './toolUsageBlock.js';
+import { PANDA_LANE_MODEL } from '../../../../services/ai/textModelPolicy.js';
 
 import { APICallError, ToolChoiceViolationError, type ModelMessage } from 'ai';
 
@@ -1243,5 +1245,26 @@ describe('runAgenticLoop — turnContext als zweite System-Nachricht', () => {
     const [call] = await run(null);
     expect(call.system).toBe(`TOOLSYS${LOOP_SUFFIX}`);
     expect(typeof call.prepareStep!({ stepNumber: 2 }).system).toBe('string');
+  });
+});
+
+describe('silentToolArgumentAllowanceMs (#5959)', () => {
+  const model = (provider: string, modelId: string) =>
+    ({ provider, modelId }) as unknown as Parameters<typeof silentToolArgumentAllowanceMs>[0];
+
+  it('gives the lanes that send a tool argument only when it is complete 45 s more', () => {
+    expect(silentToolArgumentAllowanceMs(model('mistral.chat', 'mistral-large-latest'))).toBe(
+      45_000
+    );
+    expect(silentToolArgumentAllowanceMs(model('melious.chat', PANDA_LANE_MODEL))).toBe(45_000);
+    // Measured 23.11.2026: :balanced streams keep-alives only, up to 58 s for one call.
+    expect(silentToolArgumentAllowanceMs(model('melious.chat', 'gemma-4-31b:balanced'))).toBe(
+      45_000
+    );
+  });
+
+  it('leaves :speed and unmeasured lanes at 0', () => {
+    expect(silentToolArgumentAllowanceMs(model('melious.chat', 'gemma-4-31b:speed'))).toBe(0);
+    expect(silentToolArgumentAllowanceMs(model('cortecs.chat', 'gemma-4-31b'))).toBe(0);
   });
 });

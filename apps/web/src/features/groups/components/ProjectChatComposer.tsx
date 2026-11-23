@@ -10,8 +10,8 @@ interface ProjectChatComposerProps {
 
 /**
  * „Neuer Chat in <Projekt>": derselbe Composer wie auf der Startseite (Modus,
- * Modell, Werkzeuge, Anhänge auf „Auto"), mit diesem Projekt im Projekt-Picker
- * vorgewählt. Der Chat legt den Thread dann MIT `groupId` an (`pendingGroup`),
+ * Modell, Werkzeuge, Anhänge auf „Auto"), ohne Projekt-Picker: die Seite ist die
+ * Wahl. Der Chat legt den Thread dann MIT `groupId` an (`pendingGroup`),
  * bevor der erste Turn läuft — der liest den Projekt-Kontext zur Laufzeit.
  */
 export function ProjectChatComposer({ groupId, solo = false }: ProjectChatComposerProps) {

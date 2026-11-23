@@ -69,8 +69,8 @@ const PROJECT_PICK_TTL_MS = 60 * 60_000;
 
 interface ChatInnerProps {
   /**
-   * Projekt-Übersicht: der neue Chat entsteht in diesem Projekt (vorgewählt im
-   * Projekt-Picker, `pendingGroup`). Fehlt = Start-Composer ohne Projekt.
+   * Projekt-Übersicht: der neue Chat entsteht in diesem Projekt (`pendingGroup`).
+   * Fehlt = Start-Composer ohne Projekt.
    */
   projectId?: string;
   /** Der Chat wird mit dem Team geteilt (nur mit `projectId`). */

@@ -15,7 +15,7 @@ const log = createLogger('tts');
  * than a forgotten one.
  */
 const EU_BASE_URL = 'https://api.eu.kugelaudio.com';
-const DEFAULT_MODEL = 'kugel-3';
+const DEFAULT_MODEL = 'kugel-3.5';
 const SAMPLE_RATE = 24000;
 /** PCM16 signed LE @ 24 kHz mono — what `pcm_24000` means on the wire. */
 const OUTPUT_FORMAT = 'pcm_24000';
@@ -377,7 +377,7 @@ class TTSService {
   }
 
   async listModels(): Promise<Model[]> {
-    return [{ id: DEFAULT_MODEL, name: 'Kugel 3' }];
+    return [{ id: DEFAULT_MODEL, name: 'Kugel 3.5' }];
   }
 }
 
