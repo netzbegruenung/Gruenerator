@@ -24,6 +24,7 @@ import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelp
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import {
+  documentOriginalsDir,
   originalResponseHeaders,
   resolveOriginalPath,
 } from '../../services/document-services/documentOriginals.js';
@@ -424,11 +425,24 @@ router.get(
       if (!stat?.isFile()) return notFound();
 
       res.set(originalResponseHeaders(source.original.filename, source.original.mimetype));
-      // A private file: no shared cache may keep it.
-      res.sendFile(absolute, {
-        cacheControl: false,
-        headers: { 'Cache-Control': 'private, no-cache' },
-      });
+      // `root` + relative path: `send` rejects any dot segment in the path it
+      // checks, and an absolute path under e.g. `.worktrees/` would 404.
+      res.sendFile(
+        source.original.path,
+        {
+          root: documentOriginalsDir(),
+          cacheControl: false,
+          // A private file: no shared cache may keep it.
+          headers: { 'Cache-Control': 'private, no-cache' },
+        },
+        (err) => {
+          if (!err || res.headersSent) return;
+          log.warn(`[GET /:id/original] sendFile failed for ${req.params.id}: ${err.message}`);
+          res.removeHeader('Content-Disposition');
+          res.type('json');
+          notFound();
+        }
+      );
     } catch (error) {
       log.error('[GET /:id/original] Error:', error);
       res.status(500).json({ error: 'Failed to load the original.' });

@@ -28,8 +28,11 @@ vi.mock('../../database/services/PostgresService.js', () => ({
 vi.mock('../notebook/notebookAccess.js', () => ({ checkNotebookAccess: vi.fn() }));
 vi.mock('./helpers.js', () => ({ enrichDocumentWithPreview: vi.fn() }));
 
+// Imported once: the controller's cold import takes seconds and would eat the
+// first test's timeout.
+const { default: router } = await import('./retrievalController.js');
+
 async function startApp(): Promise<{ base: string; close: () => void }> {
-  const { default: router } = await import('./retrievalController.js');
   const app = express();
   app.use((req, _res, next) => {
     (req as { user?: { id: string } }).user = { id: 'member-1' };
@@ -80,6 +83,19 @@ async function get(query = '?notebookId=n1'): Promise<Response> {
 }
 
 describe('GET /api/documents/:id/original', () => {
+  it('serves from an originals dir below a dot directory (e.g. .worktrees)', async () => {
+    const dotted = fs.mkdtempSync(path.join(os.tmpdir(), '.dotted-'));
+    fs.mkdirSync(path.join(dotted, 'owner-1'));
+    fs.writeFileSync(path.join(dotted, 'owner-1/d1.pdf'), '%PDF-1.4 dotted');
+    vi.stubEnv('DOCUMENT_ORIGINALS_DIR', dotted);
+
+    const res = await get();
+
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe('%PDF-1.4 dotted');
+    fs.rmSync(dotted, { recursive: true, force: true });
+  });
+
   it('serves the PDF inline to a notebook reader of a foreign document', async () => {
     const res = await get();
 
