@@ -909,7 +909,6 @@ export const DocsHome = () => (
     <DocsProvider adapter={webAppDocsAdapter}>
       <DocumentsContent
         showRecents={false}
-        heroSubtitle="Hier findest du deine Inhalte und Werkzeuge."
         heroTextHiddenOnPhone
         composerPlaceholder="Inhalte & Werkzeuge suchen"
         composerSubmitIcon="search"
