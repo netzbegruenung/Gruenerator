@@ -2794,6 +2794,14 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "text": "Alles, was du ins Projekt legst, steht rechts im Abschnitt Wissen. Chats in diesem Projekt nutzen es als Grundlage. Klicke oben rechts auf „Hinzufügen“. Wähle „Vorhandenes hinzufügen …“, um etwas aus deinen eigenen Inhalten zu übernehmen, zum Beispiel ein Notebook. Mit „Neues Doc“, „Neues Sheet“, „Neue Präsentation“ oder „Neues Board“ legst du direkt im Projekt etwas Neues an. „Datei hochladen“, „Text“ und „Link“ (nur für Admins) bringen weiteres Material ein. Wähle im Auswahlfenster das Notebook aus, das du freigeben möchtest. Mitglieder des Projekts können das Notebook danach öffnen und lesen; durch das Hinzufügen erhalten sie keine Schreibrechte. Über dem Wissen steht, wie viel davon Chats tatsächlich durchsuchen können, zum Beispiel „3 von 4 durchsuchbar“. Bei Dateien, die noch eingelesen werden oder sich nicht auslesen ließen, ist die Zahl niedriger. Nach sechs Einträgen zeigt „Alle anzeigen“ den Rest, und die Lupe neben der Überschrift öffnet die Suche."
   },
   {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
+    "heading": "Wolke-Ordner verbinden (experimentell)",
+    "anchor": "#wolke-ordner-verbinden-experimentell",
+    "category": "Guides",
+    "text": "Als Admin eines Projekts kannst du einen Nextcloud-Ordner verbinden. Klicke dazu in der Karte Wolke-Ordner unter dem Wissen auf „+ Ordner“ und füge den Freigabelink des Ordners ein. Den Link bekommst du in der Wolke über „Teilen“ und „Link kopieren“. Die Dateien des Ordners erscheinen danach im Wissen. Der Grünerator gleicht den Ordner einmal pro Stunde ab. Dabei passiert Folgendes: Neue und geänderte Dateien werden eingelesen. Dateien, die du in der Wolke löschst, verschwinden auch aus dem Projekt. Pro Ordner werden höchstens 200 Dateien übernommen. Bei einem großen Ordner kommen sie über mehrere Abgleiche herein. Gelesen wird mit dem Freigabelink der Person, die den Ordner verbunden hat. Verlässt sie das Projekt, pausiert der Abgleich. Die schon eingelesenen Dateien bleiben im Projekt. Über das Menü an der Ordnerzeile kannst du „Jetzt abgleichen“ oder den Ordner „Trennen“. In der Wolke selbst ändert keiner der beiden Schritte etwas."
+  },
+  {
     "url": "/docs/guides/einsteigerinnen/gruenerator-personalisieren",
     "pageTitle": "Wie personalisiere ich den Grünerator?",
     "heading": "Wie personalisiere ich den Grünerator?",
