@@ -112,6 +112,9 @@ export const researchDocumentResponseSchema = z.object({
   title: z.string(),
   /** The original on the web; `null` for an uploaded file, which has none. */
   sourceUrl: z.string().nullable(),
+  /** An uploaded file whose original was kept (`GET /api/documents/:id/original`).
+   *  Only set by the user-document reader; additive (F0), older clients ignore it. */
+  hasOriginal: z.boolean().optional(),
   sourceName: z.string().nullable(),
   contentTypeLabel: z.string().nullable(),
   publishedAt: z.string().nullable(),

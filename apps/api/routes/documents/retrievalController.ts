@@ -11,6 +11,8 @@
  * - DELETE /bulk - Bulk delete documents
  */
 
+import fs from 'fs';
+
 import express, { type Router, type Response } from 'express';
 import { z } from 'zod';
 
@@ -21,6 +23,10 @@ import {
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
+import {
+  originalResponseHeaders,
+  resolveOriginalPath,
+} from '../../services/document-services/documentOriginals.js';
 import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import { resolveReaderSource } from '../../services/notebook/notebookSources.js';
@@ -387,6 +393,46 @@ router.get(
   '/:id/chunks',
   async (req: DocumentRequest<{ id: string }>, res: Response): Promise<void> => {
     await respondWithDocumentChunks(req, res, req.params.id);
+  }
+);
+
+/**
+ * GET /:id/original?notebookId= - The kept upload behind „Original öffnen".
+ *
+ * Plain Express, not ts-rest: the answer is a file stream and the target of a
+ * link the browser opens itself (cookie auth), like `/api/share/:token/download`.
+ * Same access rule as the reader; anything unreadable is a 404.
+ */
+router.get(
+  '/:id/original',
+  async (req: DocumentRequest<{ id: string }>, res: Response): Promise<void> => {
+    const notFound = () => void res.status(404).json({ error: 'Document not found.' });
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+      const notebookId = typeof req.query.notebookId === 'string' ? req.query.notebookId : null;
+      const source = await resolveReaderSource(
+        { documentId: req.params.id, notebookId: notebookId || null, userId },
+        { db: getPostgresInstance(), helper: notebookHelper, access: checkNotebookAccess }
+      );
+      const absolute = source?.original ? resolveOriginalPath(source.original.path) : null;
+      if (!source?.original || !absolute) return notFound();
+      const stat = await fs.promises.stat(absolute).catch(() => null);
+      if (!stat?.isFile()) return notFound();
+
+      res.set(originalResponseHeaders(source.original.filename, source.original.mimetype));
+      // A private file: no shared cache may keep it.
+      res.sendFile(absolute, {
+        cacheControl: false,
+        headers: { 'Cache-Control': 'private, no-cache' },
+      });
+    } catch (error) {
+      log.error('[GET /:id/original] Error:', error);
+      res.status(500).json({ error: 'Failed to load the original.' });
+    }
   }
 );
 
