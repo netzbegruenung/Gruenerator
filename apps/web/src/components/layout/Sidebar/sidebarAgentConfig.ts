@@ -1,8 +1,8 @@
 import {
-  VISIBLE_SYSTEM_AGENTS as ALL_VISIBLE_SYSTEM_AGENTS,
+  VISIBLE_SLIM_AGENTS,
   getHubMemberAgentIds,
-  getVisibleSystemAgentsForLocale,
-  type Agent,
+  getVisibleSlimAgentsForLocale,
+  type AgentSlim,
   type AgentIconKey,
 } from '@gruenerator/shared/agents';
 
@@ -81,7 +81,7 @@ const LV_FAMILY_ICONS: readonly (readonly [prefix: string, icon: IconType])[] = 
 export function getAgentIcon(identifier: string): IconType {
   const lvIcon = LV_FAMILY_ICONS.find(([prefix]) => identifier.startsWith(`${prefix}-`))?.[1];
   if (lvIcon) return lvIcon;
-  const agent = ALL_VISIBLE_SYSTEM_AGENTS.find((a) => a.identifier === identifier);
+  const agent = VISIBLE_SLIM_AGENTS.find((a) => a.identifier === identifier);
   if (agent?.iconKey) return iconByKey[agent.iconKey] ?? FALLBACK_ICON;
   return FALLBACK_ICON;
 }
@@ -102,7 +102,7 @@ export interface DefaultAgentEntry {
  * Order follows array order in `SYSTEM_AGENTS`.
  */
 export function getDefaultAgentEntries(userLocale: string): readonly DefaultAgentEntry[] {
-  return getVisibleSystemAgentsForLocale(userLocale, CURRENT_INSTANCE)
+  return getVisibleSlimAgentsForLocale(userLocale, CURRENT_INSTANCE)
     .filter((a) => a.pinnedToSidebar === true)
     .map((a) => ({
       key: `default-${a.identifier.replace(/^gruenerator-/, '')}`,
@@ -129,10 +129,10 @@ export function getPinnedAgentIds(userLocale: string): ReadonlySet<string> {
  * listing all 14 individually would re-introduce the clutter the hub removes.
  * Single source of truth for the modal — keeps it from drifting against the sidebar.
  */
-export function getVisibleSystemAgents(userLocale: string): readonly Agent[] {
+export function getVisibleSystemAgents(userLocale: string): readonly AgentSlim[] {
   const pinned = getPinnedAgentIds(userLocale);
   const hubMembers = getHubMemberAgentIds();
-  return getVisibleSystemAgentsForLocale(userLocale, CURRENT_INSTANCE).filter(
+  return getVisibleSlimAgentsForLocale(userLocale, CURRENT_INSTANCE).filter(
     (a) => !pinned.has(a.identifier) && !hubMembers.has(a.identifier)
   );
 }

@@ -1,10 +1,10 @@
 import { resolveSkillIcon } from '@gruenerator/chat';
 import { type UserRole } from '@gruenerator/chat/stores';
 import {
-  SKILLS,
+  SKILL_SLIMS,
   getAgentSlug,
   getLandesverbandHubsByIds,
-  getSystemAgent,
+  getSlimAgent,
   isSkillOfferedIn,
   landesverbandIdsForRoles,
   type LvHub,
@@ -26,7 +26,7 @@ import {
   PiImage,
   PiInstagramLogo,
 } from '@/config/shellIcons.generated';
-import { landesverbandHubCards } from '@/features/chat/landesverbandHubCards';
+import { landesverbandHubLinks } from '@/features/chat/landesverbandHubLinks';
 import { getNotebookById } from '@/features/notebook/config/notebooksConfig';
 
 export interface RoleShortcutLink {
@@ -67,7 +67,7 @@ export function landesverbandShortcut(
     role: roles.find((r) => landesverbandIdsForRoles([r], userLocale).includes(hub.lvId)) ?? null,
     starters: {
       heading: 'Neuer Chat mit Agent',
-      links: landesverbandHubCards(hub, userLocale).map(({ agentId, role }) => ({
+      links: landesverbandHubLinks(hub).map(({ agentId, role }) => ({
         key: agentId,
         label: role,
         Icon: getAgentIcon(agentId),
@@ -108,7 +108,7 @@ export function grueneJugendShortcut(
   if (!role) return null;
 
   const brand = GJ_BRAND[grueneJugendRoleLocale(role) ?? 'de-DE'];
-  const recipe = SKILLS.find((skill) => skill.mention === brand.mention);
+  const recipe = SKILL_SLIMS.find((skill) => skill.mention === brand.mention);
   return {
     key: 'gruene-jugend',
     name: brand.name,
@@ -179,10 +179,10 @@ export function bundesgeschaeftsstelleShortcut(
   const role = roles.find((r) => r.ebene === 'bund' && r.rolle === BGST_ROLLE);
   if (!role) return null;
 
-  // Aus `SKILLS`, nicht aus `agentsList`: die Rezepte gehören dem Universal-
+  // Aus `SKILL_SLIMS`, nicht aus `agentsList`: die Rezepte gehören dem Universal-
   // Agenten, und der ist `hiddenFromInventory`.
   const recipes = BGST_RECIPES.flatMap((mention) => {
-    const recipe = SKILLS.find((skill) => skill.mention === mention);
+    const recipe = SKILL_SLIMS.find((skill) => skill.mention === mention);
     return recipe && isSkillOfferedIn(recipe, instance) ? [recipe] : [];
   });
   if (recipes.length === 0) return null;
@@ -238,7 +238,7 @@ export function mdbBueroShortcut(
     starters: {
       heading: 'Neuer Chat mit Agent',
       links: MDB_BUERO_AGENTS.flatMap((agentId) => {
-        const agent = getSystemAgent(agentId);
+        const agent = getSlimAgent(agentId);
         if (!agent) return [];
         return [
           {
