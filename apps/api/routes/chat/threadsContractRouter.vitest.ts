@@ -191,7 +191,7 @@ describe('delete — the Papierkorb for chat threads', () => {
       if (s.startsWith('SELECT 1 FROM chat_messages')) {
         return Promise.resolve(opts.hasMessages ? [{ '?column?': 1 }] : []);
       }
-      if (s.startsWith('SELECT id, title, thread_type, deleted_at, user_id')) {
+      if (s.startsWith('SELECT id, title, thread_type, deleted_at,')) {
         return Promise.resolve(opts.trashed ? [opts.trashed] : []);
       }
       if (s.startsWith('DELETE FROM chat_threads')) return Promise.resolve(opts.deleted ?? []);
@@ -365,7 +365,7 @@ describe('delete — the Papierkorb for chat threads', () => {
         title: 'Klimaplan',
         thread_type: 'chat',
         deleted_at: deletedAt,
-        user_id: OWNER,
+        owns: true,
       },
     });
 
@@ -389,7 +389,7 @@ describe('delete — the Papierkorb for chat threads', () => {
         title: null,
         thread_type: 'chat',
         deleted_at: new Date(),
-        user_id: 'someone-else',
+        owns: false,
       },
     });
 

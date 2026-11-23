@@ -8,9 +8,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 import type { Server } from 'http';
 
-const { query, closeShareRoom } = vi.hoisted(() => ({
+const { query, closeShareRoom, isThreadOwner } = vi.hoisted(() => ({
   query: vi.fn(),
   closeShareRoom: vi.fn(),
+  isThreadOwner: vi.fn(),
 }));
 
 vi.mock('../../database/services/PostgresService.js', () => ({
@@ -22,6 +23,7 @@ vi.mock('../../services/groups/groupMembership.js', () => ({
   assertCanShareToGroup: vi.fn(),
   listShareTargetGroups: vi.fn(),
 }));
+vi.mock('./services/threadAccessService.js', () => ({ isThreadOwner }));
 vi.mock('../../utils/keycloak/index.js', async () => {
   const { Router } = await import('express');
   return { createAuthenticatedRouter: () => Router() };
@@ -39,6 +41,7 @@ let actingUser = OWNER;
 
 beforeAll(async () => {
   const app = express();
+  app.use(express.json());
   app.use((req, _res, next) => {
     (req as unknown as { user: { id: string } }).user = { id: actingUser };
     next();
@@ -58,6 +61,9 @@ afterAll(async () => {
 beforeEach(() => {
   actingUser = OWNER;
   closeShareRoom.mockReset().mockResolvedValue(undefined);
+  isThreadOwner
+    .mockReset()
+    .mockImplementation(async (_thread: string, user: string) => user === OWNER);
   query.mockReset().mockImplementation(async (sql: string) => {
     if (/FROM chat_threads/i.test(sql)) return [{ user_id: OWNER }];
     if (/DELETE FROM group_content_shares/i.test(sql)) return [{ id: 'share-1' }];
@@ -86,5 +92,37 @@ describe('DELETE /:id/groups/:groupId (legacy)', () => {
     actingUser = 'stranger-2';
     expect((await unshare()).status).toBe(403);
     expect(closeShareRoom).not.toHaveBeenCalled();
+  });
+});
+
+// `chat_threads.user_id` still names the person who started a team chat after
+// they left the project; ownership is the rule in `ownsThreadSql`, not the column.
+describe('legacy routes for a former project member', () => {
+  beforeEach(() => {
+    isThreadOwner.mockResolvedValue(false);
+  });
+
+  it('refuses to remove a share', async () => {
+    expect((await unshare()).status).toBe(403);
+    expect(query.mock.calls.some(([sql]) => /DELETE FROM/i.test(sql as string))).toBe(false);
+    expect(closeShareRoom).not.toHaveBeenCalled();
+  });
+
+  it('refuses to share the thread into another project', async () => {
+    const res = await fetch(`${baseUrl}/${THREAD_ID}/groups`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ group_id: GROUP_ID }),
+    });
+    expect(res.status).toBe(403);
+    expect(query.mock.calls.some(([sql]) => /INSERT INTO/i.test(sql as string))).toBe(false);
+  });
+
+  it('refuses to list the shares', async () => {
+    const res = await fetch(`${baseUrl}/${THREAD_ID}/groups`);
+    expect(res.status).toBe(403);
+    expect(query.mock.calls.some(([sql]) => /group_content_shares/i.test(sql as string))).toBe(
+      false
+    );
   });
 });

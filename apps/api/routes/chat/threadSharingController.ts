@@ -10,7 +10,9 @@ import {
   removeGroupShare,
 } from '../../services/groups/groupShareWriter.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
-import { fromParam, type ThreadId, type GroupId } from '../../utils/types/branded.js';
+import { fromParam, type ThreadId, type GroupId, UserId } from '../../utils/types/branded.js';
+
+import { isThreadOwner } from './services/threadAccessService.js';
 
 const router = createAuthenticatedRouter();
 const db = getPostgresInstance();
@@ -27,7 +29,7 @@ router.get('/:id/groups', async (req: Request<{ id: string }>, res: Response) =>
     );
     if ((thread as unknown[]).length === 0)
       return res.status(404).json({ error: 'Thread not found' });
-    if ((thread as { user_id: string }[])[0].user_id !== userId) {
+    if (!(await isThreadOwner(id, UserId(userId)))) {
       return res.status(403).json({ error: 'Only thread owner can manage sharing' });
     }
 
@@ -69,7 +71,7 @@ router.post(
       );
       if ((thread as unknown[]).length === 0)
         return res.status(404).json({ error: 'Thread not found' });
-      if ((thread as { user_id: string }[])[0].user_id !== userId) {
+      if (!(await isThreadOwner(id, UserId(userId)))) {
         return res.status(403).json({ error: 'Only thread owner can share' });
       }
 
@@ -116,7 +118,7 @@ router.delete(
       );
       if ((thread as unknown[]).length === 0)
         return res.status(404).json({ error: 'Thread not found' });
-      if ((thread as { user_id: string }[])[0].user_id !== userId) {
+      if (!(await isThreadOwner(id, UserId(userId)))) {
         return res.status(403).json({ error: 'Only thread owner can manage sharing' });
       }
 

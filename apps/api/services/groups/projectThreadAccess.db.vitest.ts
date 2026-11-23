@@ -46,6 +46,7 @@ const { readThreadProjectInstructions } = await import('./groupInstructions.js')
 const { getProjectFileDocumentIds } = await import('./projectFiles.js');
 const { getSpaceRecallScope, getThreadRecallContext, recallPastChats } =
   await import('../../routes/chat/services/pastChatRecallService.js');
+const { getTrashedThread } = await import('../../routes/chat/services/threadTrashService.js');
 
 const A = randomUUID();
 const B = randomUUID();
@@ -200,5 +201,17 @@ describe.skipIf(!url)('Projektmaterial nach Mitgliedschaft', () => {
     expect(await readThreadProjectInstructions(T1, B)).toBeNull();
     expect(await getProjectFileDocumentIds(T1, B)).toHaveLength(0);
     expect(await getSpaceRecallScope(T1, B)).toBeNull();
+  });
+
+  it('a trashed team chat stays with the project after its starter left', async () => {
+    await pool.query(`UPDATE chat_threads SET deleted_at = now() WHERE id = ANY($1::uuid[])`, [
+      [T1, T2],
+    ]);
+    await pool.query(
+      `UPDATE group_memberships SET is_active = FALSE WHERE group_id = $1 AND user_id = $2`,
+      [P, A]
+    );
+    expect((await getTrashedThread(T1, A)).status).toBe('forbidden');
+    expect((await getTrashedThread(T2, A)).status).toBe('ok');
   });
 });
