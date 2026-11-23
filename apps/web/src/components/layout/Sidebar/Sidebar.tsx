@@ -562,7 +562,7 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
             // nur eine Ahnung von Tiefe. Eigene Klasse statt .sidebar, weil
             // deren a11y-Fallback auf 85% hier ein Rückschritt wäre —
             // accessibility.css macht dieses Panel stattdessen ganz deckend.
-            className="sidebar-mobile-panel w-[85vw] max-w-[260px] p-0 bg-background/95 backdrop-blur-xl flex flex-col gap-0 [&>div]:gap-0"
+            className="sidebar-mobile-panel w-[85vw] max-w-[288px] p-0 bg-background/95 backdrop-blur-xl flex flex-col gap-0 [&>div]:gap-0"
           >
             <SheetTitle className="sr-only">Navigation</SheetTitle>
             {sidebarInner}
@@ -580,7 +580,7 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
             // Desktop (non-Tauri) — frosted glass. The 56px collapsed rail on
             // workplace is narrow enough that bg-background/70 reads as a
             // near-solid wall against the gradient next to it — it drops to a
-            // much lower alpha there. The hover-expanded 260px panel already
+            // much lower alpha there. The hover-expanded 288px panel already
             // blends fine at /70 (more surface for the gradient to bleed
             // into), so it keeps the same value as every other route.
             // accessibility.css re-solidifies the collapsed rail back to /85
@@ -593,7 +593,7 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
                 : isWorkplaceRoute
                   ? 'supports-[backdrop-filter]:bg-background/70 backdrop-blur-2xl'
                   : 'supports-[backdrop-filter]:bg-background/70 backdrop-blur-xl'),
-            !isDesktop && sidebarExpanded && 'md:w-[260px]',
+            !isDesktop && sidebarExpanded && 'md:w-[288px]',
             // Tauri desktop mode — keep native bar background, no blur
             isDesktop &&
               'top-[var(--titlebar-height)] h-[calc(100dvh-var(--titlebar-height))] bg-[var(--bar-background)]',
