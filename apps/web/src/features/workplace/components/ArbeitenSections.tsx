@@ -29,8 +29,8 @@ const WIDGET_GRID = 'grid grid-cols-2 gap-3 lg:gap-4 xl:grid-cols-5';
 const WIDE_SLOT =
   'col-span-2 flex min-w-0 flex-col xl:col-span-3 xl:min-h-[20rem] xl:[&>section]:flex-1';
 
-/** The neutral dashboard palette (see dashboardTokens.css) for embedded widgets. */
-const NEUTRAL_SURFACE = 'dashboard-surface dashboard-neutral';
+/** The green dashboard palette (see dashboardTokens.css) for embedded widgets. */
+const BRIEFING_SURFACE = 'dashboard-surface dashboard-neutral dashboard-green';
 
 export function ArbeitenSection({
   title,
@@ -65,7 +65,7 @@ export function BriefingSection() {
         </Link>
       }
     >
-      <div className={cn(NEUTRAL_SURFACE, WIDGET_GRID)}>
+      <div className={cn(BRIEFING_SURFACE, WIDGET_GRID)}>
         <div className={WIDE_SLOT}>
           <HeadlineSlider
             title="Nachrichten"
