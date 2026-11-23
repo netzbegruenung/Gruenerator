@@ -1,5 +1,5 @@
 /**
- * ts-rest router for /api/item-usage (read-only).
+ * ts-rest router for /api/item-usage.
  *
  * Exposes the current user's notebook/agent usage aggregate so static client
  * lists (system notebooks / agents) can apply the same "favourites first"
@@ -10,7 +10,7 @@
 import { itemUsageContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
-import { getUsageMap } from '../../services/usage/ItemUsageService.js';
+import { getUsageMap, recordItemUsage } from '../../services/usage/ItemUsageService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
@@ -38,6 +38,19 @@ export const itemUsageContractRouter = s.router(itemUsageContract, {
       return {
         status: 500 as const,
         body: { error: (error as Error).message || 'Failed to retrieve usage' },
+      };
+    }
+  },
+  recordUsage: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      await recordItemUsage(userId, args.body.type, args.body.item_id);
+      return { status: 200 as const, body: { success: true as const } };
+    } catch (error) {
+      log.error('[ItemUsage Contract] Error recording usage:', error);
+      return {
+        status: 500 as const,
+        body: { error: (error as Error).message || 'Failed to record usage' },
       };
     }
   },

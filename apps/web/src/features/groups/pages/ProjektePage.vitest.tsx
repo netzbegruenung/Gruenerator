@@ -36,6 +36,11 @@ vi.mock('../components/ProjekteNotebooksSection', () => ({
   ProjekteNotebooksSection: () => null,
 }));
 
+vi.mock('../../usage/useItemUsage', () => ({
+  useItemUsage: () => ({ data: {} }),
+  useRecordItemUsage: () => {},
+}));
+
 vi.mock('@/hooks/useFirstName', () => ({ useFirstName: () => null }));
 
 vi.mock('@/stores/authStore', () => ({
