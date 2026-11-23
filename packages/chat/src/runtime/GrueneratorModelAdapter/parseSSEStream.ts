@@ -1006,7 +1006,12 @@ async function* parseStream(
 
           case 'sharepic_minted': {
             const { variantId, canvasId } = data as { variantId: string; canvasId: string };
-            useSharepicLiveStore.getState().upsertEntry(variantId, { canvasId });
+            // A fresh canvas has no thumbnail yet: the next head render (first
+            // slide of a deck) uploads one, so the card in „Zuletzt" and the
+            // Mediathek shows the picture instead of a placeholder.
+            useSharepicLiveStore
+              .getState()
+              .upsertEntry(variantId, { canvasId, thumbnailDirty: true });
             break;
           }
 
