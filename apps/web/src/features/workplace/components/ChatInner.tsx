@@ -64,7 +64,20 @@ export function NavigateToChatOnSend() {
   return null;
 }
 
-const ChatInnerReady: React.FC = () => {
+// Eine Projektseite kann lange offen stehen, bevor jemand schreibt.
+const PROJECT_PICK_TTL_MS = 60 * 60_000;
+
+interface ChatInnerProps {
+  /**
+   * Projekt-Übersicht: der neue Chat entsteht in diesem Projekt (`pendingGroup`,
+   * ohne Projekt-Picker). Fehlt = Start-Composer ohne Projekt.
+   */
+  projectId?: string;
+  /** Der Chat wird mit dem Team geteilt (nur mit `projectId`). */
+  teamShared?: boolean;
+}
+
+const ChatInnerReady: React.FC<ChatInnerProps> = ({ projectId, teamShared = false }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const firstName = useFirstName();
@@ -100,6 +113,26 @@ const ChatInnerReady: React.FC = () => {
     void aui.threads.switchToNewThread();
   }, [aui, onChat]);
 
+  // Projekt vorwählen, und beim Verlassen ohne Senden wieder abräumen: sonst
+  // stünde das Projekt im nächsten Start-Composer noch gewählt. Nach dem Senden
+  // ist der Thread nicht mehr leer, und die Thread-Anlage hat die Wahl schon
+  // verbraucht (`GrueneratorThreadListAdapter`).
+  const threadEmptyRef = useRef(true);
+  threadEmptyRef.current = useAuiState((s) => s.optional.thread?.isEmpty ?? true);
+  useEffect(() => {
+    if (!projectId) return;
+    useAgentStore.getState().setPendingGroup(projectId, teamShared, PROJECT_PICK_TTL_MS);
+  }, [projectId, teamShared]);
+  useEffect(() => {
+    if (!projectId) return;
+    return () => {
+      const store = useAgentStore.getState();
+      if (threadEmptyRef.current && store.pendingGroup?.id === projectId) {
+        store.setPendingGroup(null);
+      }
+    };
+  }, [projectId]);
+
   if (!threadAvailable) return null;
 
   return (
@@ -119,7 +152,9 @@ const ChatInnerReady: React.FC = () => {
         presets={WORKPLACE_PRESETS}
         requireProfileHydration
         enablePastedTextAttachments
-        showProjectPicker
+        // On a project page the page is the choice: a picker there could pick
+        // another project, which the preselect effect would then overwrite.
+        showProjectPicker={!projectId}
       />
     </ThreadPrimitive.Root>
   );
@@ -130,12 +165,12 @@ const ChatInnerReady: React.FC = () => {
 // useAui()/useVoiceState() there crashes with "requires an
 // AuiProvider". Gate on runtime readiness (same guard as ChatPage/SearchPage)
 // and reserve the composer's footprint so the hero doesn't jump.
-const ChatInner: React.FC = memo(() => {
+const ChatInner: React.FC<ChatInnerProps> = memo((props) => {
   const runtimeReady = useChatRuntimeReady();
   if (!runtimeReady) {
     return <div className="w-full shrink-0 mx-auto max-w-[720px] min-h-24" aria-hidden />;
   }
-  return <ChatInnerReady />;
+  return <ChatInnerReady {...props} />;
 });
 
 ChatInner.displayName = 'ChatInner';

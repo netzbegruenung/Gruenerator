@@ -2,7 +2,6 @@ import {
   type GroupColor,
   type GroupContentType,
   type GroupPostCreatedResponse,
-  type GroupStartBody,
   type GroupShareComment,
   type LandesverbandId,
 } from '@gruenerator/contracts';
@@ -17,7 +16,6 @@ import {
   groupDetailsKey,
   groupInstructionsKey,
   groupMembersKey,
-  groupStartKey,
   groupShareCommentsKey,
   type GroupDetail,
   type GroupLink,
@@ -114,41 +112,6 @@ export const useSetGroupInstructions = (groupId: string) => {
     },
     onSuccess: (instructions) => {
       qc.setQueryData(groupInstructionsKey(groupId), instructions);
-    },
-  });
-};
-
-/** Begrüßung und Startfragen des Projekts, für alle Mitglieder lesbar. */
-export const useGroupStart = (groupId: string | null | undefined) =>
-  useQuery({
-    queryKey: groupStartKey(groupId ?? ''),
-    queryFn: async (): Promise<GroupStartBody> => {
-      const res = await getContractsClient().groups.getGroupStart({
-        params: { groupId: groupId ?? '' },
-      });
-      if (res.status !== 200)
-        throw apiErrorFromResponse(res, 'Projekt-Start konnte nicht geladen werden.');
-      return { welcomeMessage: res.body.welcomeMessage, startQuestions: res.body.startQuestions };
-    },
-    enabled: !!groupId,
-    staleTime: 60 * 1000,
-    meta: { silent: true },
-  });
-
-/** Nur Projekt-Admins. */
-export const useSetGroupStart = (groupId: string) => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (start: GroupStartBody): Promise<GroupStartBody> => {
-      const res = await getContractsClient().groups.setGroupStart({
-        params: { groupId },
-        body: start,
-      });
-      if (res.status !== 200) throw apiErrorFromResponse(res);
-      return { welcomeMessage: res.body.welcomeMessage, startQuestions: res.body.startQuestions };
-    },
-    onSuccess: (start) => {
-      qc.setQueryData(groupStartKey(groupId), start);
     },
   });
 };
