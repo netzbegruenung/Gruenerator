@@ -236,7 +236,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/guides/einsteigerinnen/eigenes-notebook-erstellen",
     "title": "Wie erstelle ich ein eigenes Notebook?",
     "category": "Guides",
-    "lead": "In etwa zehn Minuten erstellst du ein Notebook, das eure Dokumente bündelt und ihren Inhalt im Grünerator durchsuchbar macht — für Anträge, Beschlüsse, Programme oder Pressemitteilungen. Du brauchst…"
+    "lead": "In etwa zehn Minuten legst du ein eigenes Notebook an, das eure Dokumente bündelt und ihren Inhalt im Grünerator durchsuchbar macht — für Anträge, Beschlüsse, Programme oder Pressemitteilungen. Du br…"
   },
   {
     "url": "/docs/guides/einsteigerinnen/erinnerungen-erstellen",
@@ -2655,7 +2655,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wie erstelle ich ein eigenes Notebook?",
     "anchor": "",
     "category": "Guides",
-    "text": "In etwa zehn Minuten erstellst du ein Notebook, das eure Dokumente bündelt und ihren Inhalt im Grünerator durchsuchbar macht — für Anträge, Beschlüsse, Programme oder Pressemitteilungen. Du brauchst dafür ein paar Dateien."
+    "text": "In etwa zehn Minuten legst du ein eigenes Notebook an, das eure Dokumente bündelt und ihren Inhalt im Grünerator durchsuchbar macht — für Anträge, Beschlüsse, Programme oder Pressemitteilungen. Du brauchst dafür ein paar Dateien."
   },
   {
     "url": "/docs/guides/einsteigerinnen/eigenes-notebook-erstellen",
