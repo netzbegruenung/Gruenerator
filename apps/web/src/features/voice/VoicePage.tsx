@@ -66,7 +66,7 @@ const PHONE_QUERY = '(max-width: 639px)';
  * folded behind a one-line summary (in the card's toolbar, or a bottom sheet on
  * a phone) and only open when someone wants to change them.
  */
-const VoicePage = () => {
+const VoicePage = ({ embedded = false }: { embedded?: boolean }) => {
   const profileVoice = useAuthStore((s) => s.user?.tts_voice_id ?? null);
   const [preset, setPreset] = useState<SpeechPreset>('vorlesefassung');
   const [text, setText] = useState('');
@@ -190,9 +190,11 @@ const VoicePage = () => {
   );
 
   return (
-    <PageContainer maxWidth="sm" noPadTop className="max-sm:pb-28">
-      <header className="mb-lg flex items-start justify-between gap-md">
-        <div className="min-w-0">
+    <PageContainer maxWidth="sm" noPadTop className="max-sm:pb-28" embedded={embedded}>
+      <header
+        className={cn('mb-lg flex items-start justify-between gap-md', embedded && 'justify-end')}
+      >
+        <div className={cn('min-w-0', embedded && 'hidden')}>
           <h1 className="m-0 text-3xl font-semibold text-foreground-heading max-md:text-2xl">
             Grünerator Voice
           </h1>

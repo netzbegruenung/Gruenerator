@@ -177,7 +177,6 @@ export const MEDIA_TOOLS = pickTools([
   { id: 'wissen', theme: 'wissen', title: 'Notebooks durchsuchen' },
   { id: 'canvas-vorlagen', theme: 'canvas-vorlagen', title: 'Vorlagen durchsuchen' },
   { id: 'profilbild', theme: 'profilbild', title: 'Profilbild erstellen' },
-  // Vertonen and Transkription become one tool; until then the card links to Voice as an example.
   { id: 'studio-voice', theme: 'bild-erweitern', title: 'Vertonen & transkribieren' },
   { id: 'uebersetzer', theme: 'weitere', title: 'Texte übersetzen' },
 ]);
