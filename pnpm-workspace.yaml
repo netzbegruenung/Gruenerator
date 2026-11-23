@@ -497,13 +497,13 @@ overrides:
   '@blocknote/xl-ai': ^0.57.0
   '@blocknote/xl-docx-exporter': ^0.57.0
   '@blocknote/xl-odt-exporter': ^0.57.0
-  '@assistant-ui/core': ^0.3.36
-  '@assistant-ui/store': ^0.3.23
-  '@assistant-ui/react': ^0.15.36
+  '@assistant-ui/core': ^0.3.37
+  '@assistant-ui/store': ^0.3.24
+  '@assistant-ui/react': ^0.15.37
   '@assistant-ui/tap': ^0.9.26
   '@assistant-ui/react-markdown': ^0.14.26
-  '@assistant-ui/react-streamdown': ^0.3.22
-  '@assistant-ui/react-native': 0.1.51
+  '@assistant-ui/react-streamdown': ^0.3.23
+  '@assistant-ui/react-native': 0.1.52
   '@tiptap/core': ^3.34.0
   '@tiptap/extension-bold': ^3.34.0
   '@tiptap/extension-code': ^3.34.0

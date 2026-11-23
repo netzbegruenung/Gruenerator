@@ -269,13 +269,13 @@ overrides:
   '@blocknote/xl-ai': ^0.57.0
   '@blocknote/xl-docx-exporter': ^0.57.0
   '@blocknote/xl-odt-exporter': ^0.57.0
-  '@assistant-ui/core': ^0.3.36
-  '@assistant-ui/store': ^0.3.23
-  '@assistant-ui/react': ^0.15.36
+  '@assistant-ui/core': ^0.3.37
+  '@assistant-ui/store': ^0.3.24
+  '@assistant-ui/react': ^0.15.37
   '@assistant-ui/tap': ^0.9.26
   '@assistant-ui/react-markdown': ^0.14.26
-  '@assistant-ui/react-streamdown': ^0.3.22
-  '@assistant-ui/react-native': 0.1.51
+  '@assistant-ui/react-streamdown': ^0.3.23
+  '@assistant-ui/react-native': 0.1.52
   '@tiptap/core': ^3.34.0
   '@tiptap/extension-bold': ^3.34.0
   '@tiptap/extension-code': ^3.34.0
@@ -728,7 +728,7 @@ importers:
   apps/gruen-o-mat:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.15.36
+        specifier: ^0.15.37
         version: 0.15.37(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(ai@7.0.130(zod@4.6.7))(immer@11.2.9)(ioredis@5.11.1(supports-color@10.2.2))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.3.0))
       '@gruenerator/chat':
         specifier: workspace:*
@@ -789,8 +789,8 @@ importers:
   apps/mobile:
     dependencies:
       '@assistant-ui/react-native':
-        specifier: 0.1.51
-        version: 0.1.51(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@types/react@19.3.0)(ai@7.0.130(zod@4.6.7))(ioredis@5.11.1(supports-color@10.2.2))(react-native@0.88.0(@babel/core@7.29.13(supports-color@10.2.2))(@react-native/metro-config@0.84.1(@babel/core@7.29.13(supports-color@10.2.2))(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(react@19.3.0)(redis@5.12.1(@opentelemetry/api@1.9.1))
+        specifier: 0.1.52
+        version: 0.1.52(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@types/react@19.3.0)(ai@7.0.130(zod@4.6.7))(ioredis@5.11.1(supports-color@10.2.2))(react-native@0.88.0(@babel/core@7.29.13(supports-color@10.2.2))(@react-native/metro-config@0.84.1(@babel/core@7.29.13(supports-color@10.2.2))(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(react@19.3.0)(redis@5.12.1(@opentelemetry/api@1.9.1))
       '@config-plugins/react-native-webrtc':
         specifier: ^15.0.2
         version: 15.0.2(expo@58.0.19)
@@ -1099,7 +1099,7 @@ importers:
   apps/web:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.15.36
+        specifier: ^0.15.37
         version: 0.15.37(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(ai@7.0.177(zod@4.6.7))(immer@11.2.10)(ioredis@5.11.1(supports-color@10.2.2))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.3.0))
       '@blocknote/core':
         specifier: ^0.57.0
@@ -1630,19 +1630,19 @@ importers:
   packages/chat:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.36
+        specifier: ^0.3.37
         version: 0.3.37(@assistant-ui/store@0.3.24(@assistant-ui/tap@0.9.26(@types/react@19.3.0)(react@19.3.0))(@types/react@19.3.0)(react@19.3.0))(@assistant-ui/tap@0.9.26(@types/react@19.3.0)(react@19.3.0))(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@types/react@19.3.0)(ai@7.0.130(zod@4.6.7))(ioredis@5.11.1(supports-color@10.2.2))(react@19.3.0)(redis@5.12.1(@opentelemetry/api@1.9.1))
       '@assistant-ui/react':
-        specifier: ^0.15.36
+        specifier: ^0.15.37
         version: 0.15.37(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(ai@7.0.130(zod@4.6.7))(immer@11.2.9)(ioredis@5.11.1(supports-color@10.2.2))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.3.0))
       '@assistant-ui/react-markdown':
         specifier: ^0.14.26
         version: 0.14.26(@assistant-ui/react@0.15.37(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(ai@7.0.130(zod@4.6.7))(immer@11.2.9)(ioredis@5.11.1(supports-color@10.2.2))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.3.0)))(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(supports-color@10.2.2)
       '@assistant-ui/react-streamdown':
-        specifier: ^0.3.22
+        specifier: ^0.3.23
         version: 0.3.23(@assistant-ui/react@0.15.37(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(ai@7.0.130(zod@4.6.7))(immer@11.2.9)(ioredis@5.11.1(supports-color@10.2.2))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.3.0)))(@streamdown/math@1.0.4(react@19.3.0)(supports-color@10.2.2))(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(supports-color@10.2.2)
       '@assistant-ui/store':
-        specifier: ^0.3.23
+        specifier: ^0.3.24
         version: 0.3.24(@assistant-ui/tap@0.9.26(@types/react@19.3.0)(react@19.3.0))(@types/react@19.3.0)(react@19.3.0)
       '@assistant-ui/tap':
         specifier: ^0.9.26
@@ -2543,10 +2543,10 @@ importers:
   packages/voice:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.36
+        specifier: ^0.3.37
         version: 0.3.37(@assistant-ui/store@0.3.24(@assistant-ui/tap@0.9.26(@types/react@19.3.0)(react@19.3.0))(@types/react@19.3.0)(react@19.3.0))(@assistant-ui/tap@0.9.26(@types/react@19.3.0)(react@19.3.0))(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@types/react@19.3.0)(ai@7.0.130(zod@4.6.7))(ioredis@5.11.1(supports-color@10.2.2))(react@19.3.0)(redis@5.12.1(@opentelemetry/api@1.9.1))
       '@assistant-ui/react':
-        specifier: ^0.15.36
+        specifier: ^0.15.37
         version: 0.15.37(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(ai@7.0.130(zod@4.6.7))(immer@11.2.9)(ioredis@5.11.1(supports-color@10.2.2))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.3.0))
       '@gruenerator/shared':
         specifier: workspace:*
@@ -2938,7 +2938,7 @@ packages:
   '@assistant-ui/core@0.3.37':
     resolution: {integrity: sha512-270cEx02M5ihxTJFe+mVoCNrN/frpurNJqjWkB0Sp2VDg2jVmaSwqZtRp/0Hfy6v3p0/ek2Ti+ToE3vI0p+66Q==}
     peerDependencies:
-      '@assistant-ui/store': ^0.3.23
+      '@assistant-ui/store': ^0.3.24
       '@assistant-ui/tap': ^0.9.26
       '@types/react': 19.3.0
       react: ^18 || ^19
@@ -2951,15 +2951,15 @@ packages:
   '@assistant-ui/react-markdown@0.14.26':
     resolution: {integrity: sha512-gOW2h4LFoLV5zu/frTJsbiU1SWgL6ky9vD6WqmAbEQE6gkoDAktWhWLa44pD3PF0XxgXLJJ85AM/diz5ncgFyA==}
     peerDependencies:
-      '@assistant-ui/react': ^0.15.36
+      '@assistant-ui/react': ^0.15.37
       '@types/react': 19.3.0
       react: ^18 || ^19
     peerDependenciesMeta:
       '@types/react':
         optional: true
 
-  '@assistant-ui/react-native@0.1.51':
-    resolution: {integrity: sha512-apAqKZVasvfzcPUpR5UY1eFiqZPwyBKWZk+eVpyi1nKwG6auSIm/SICXKB+n9unC9lh0s3TUEVn65pLxOQE9DQ==}
+  '@assistant-ui/react-native@0.1.52':
+    resolution: {integrity: sha512-pf7lmGR0ElVidHlg55MibGW7K9RxvZDrw1itPo8YHVtfUIip4+ORjCyYD/NBZiyEmXYUhZESwoSvRY/zsrYC6Q==}
     peerDependencies:
       '@types/react': 19.3.0
       react: ^18 || ^19
@@ -2971,7 +2971,7 @@ packages:
   '@assistant-ui/react-streamdown@0.3.23':
     resolution: {integrity: sha512-y4ufXgQqt0wkwhncG0HNXB3p9rHXFZm069/uy9c63yTk76prL0G6cjkxXs56LTrdaZAdGf+vw6AoQOkOe6/VEg==}
     peerDependencies:
-      '@assistant-ui/react': ^0.15.36
+      '@assistant-ui/react': ^0.15.37
       '@streamdown/cjk': ^1.0.0
       '@streamdown/code': ^1.0.0 || ^2.0.0
       '@streamdown/math': ^1.0.0
@@ -8601,6 +8601,7 @@ packages:
   '@sapphire/shapeshift@3.9.7':
     resolution: {integrity: sha512-4It2mxPSr4OGn4HSQWGmhFMsNFGfFVhWeRPCRwbH972Ek2pzfGRZtb0pJ4Ze6oIzcyh2jw7nUDa6qGlWofgd9g==}
     engines: {node: '>=v16'}
+    deprecated: Shapeshift was created when other validation libraries had significant limitations in performance and error reporting. Those advantages have diminished as libraries such as Zod have become faster and improved their error messages, while also gaining broader environment support, a larger community, and custom error printers.
 
   '@sec-ant/readable-stream@0.4.1':
     resolution: {integrity: sha512-831qok9r2t8AlxLko40y2ebgSDhenenCatLVeW/uBtnHPyhHOvG0C7TvfgecV+wHzIm5KUICgzmVpWS+IMEAeg==}
@@ -11068,23 +11069,6 @@ packages:
 
   assistant-cloud@0.2.13:
     resolution: {integrity: sha512-ptR42dXgQ8lx+9mR21/UDRWoaEZr4RjwBoxlDTQUTX+Jvsz/DOOrSDRHZIyOCgns9WTicMXvNWnGYvFyRQd7Uw==}
-    peerDependencies:
-      '@opentelemetry/api': ^1.9.0
-      '@opentelemetry/exporter-trace-otlp-http': '>=0.200.0'
-      '@opentelemetry/sdk-trace-base': ^2.1.0
-      ai: ^6.0.0 || ^7.0.0
-    peerDependenciesMeta:
-      '@opentelemetry/api':
-        optional: true
-      '@opentelemetry/exporter-trace-otlp-http':
-        optional: true
-      '@opentelemetry/sdk-trace-base':
-        optional: true
-      ai:
-        optional: true
-
-  assistant-cloud@0.2.9:
-    resolution: {integrity: sha512-v7HVmQemWIeM9pZjVglviS9mXaoK0aW/Pz9zQYo91XZp8n17Fi9Q7lMpy572TUUYhQAKRqDWZvXpfpPDzwiPWA==}
     peerDependencies:
       '@opentelemetry/api': ^1.9.0
       '@opentelemetry/exporter-trace-otlp-http': '>=0.200.0'
@@ -20168,12 +20152,12 @@ snapshots:
       - react-dom
       - supports-color
 
-  '@assistant-ui/react-native@0.1.51(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@types/react@19.3.0)(ai@7.0.130(zod@4.6.7))(ioredis@5.11.1(supports-color@10.2.2))(react-native@0.88.0(@babel/core@7.29.13(supports-color@10.2.2))(@react-native/metro-config@0.84.1(@babel/core@7.29.13(supports-color@10.2.2))(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(react@19.3.0)(redis@5.12.1(@opentelemetry/api@1.9.1))':
+  '@assistant-ui/react-native@0.1.52(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@types/react@19.3.0)(ai@7.0.130(zod@4.6.7))(ioredis@5.11.1(supports-color@10.2.2))(react-native@0.88.0(@babel/core@7.29.13(supports-color@10.2.2))(@react-native/metro-config@0.84.1(@babel/core@7.29.13(supports-color@10.2.2))(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(react@19.3.0)(redis@5.12.1(@opentelemetry/api@1.9.1))':
     dependencies:
       '@assistant-ui/core': 0.3.37(@assistant-ui/store@0.3.24(@assistant-ui/tap@0.9.26(@types/react@19.3.0)(react@19.3.0))(@types/react@19.3.0)(react@19.3.0))(@assistant-ui/tap@0.9.26(@types/react@19.3.0)(react@19.3.0))(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@types/react@19.3.0)(ai@7.0.130(zod@4.6.7))(ioredis@5.11.1(supports-color@10.2.2))(react@19.3.0)(redis@5.12.1(@opentelemetry/api@1.9.1))
       '@assistant-ui/store': 0.3.24(@assistant-ui/tap@0.9.26(@types/react@19.3.0)(react@19.3.0))(@types/react@19.3.0)(react@19.3.0)
       '@assistant-ui/tap': 0.9.26(@types/react@19.3.0)(react@19.3.0)
-      assistant-cloud: 0.2.9(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(ai@7.0.130(zod@4.6.7))(ioredis@5.11.1(supports-color@10.2.2))(redis@5.12.1(@opentelemetry/api@1.9.1))
+      assistant-cloud: 0.2.13(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(ai@7.0.130(zod@4.6.7))(ioredis@5.11.1(supports-color@10.2.2))(redis@5.12.1(@opentelemetry/api@1.9.1))
       assistant-stream: 0.3.58(ai@7.0.130(zod@4.6.7))(ioredis@5.11.1(supports-color@10.2.2))(redis@5.12.1(@opentelemetry/api@1.9.1))
       react: 19.3.0
       react-native: 0.88.0(@babel/core@7.29.13(supports-color@10.2.2))(@react-native/metro-config@0.84.1(@babel/core@7.29.13(supports-color@10.2.2))(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2)
@@ -30502,17 +30486,6 @@ snapshots:
       '@opentelemetry/exporter-trace-otlp-http': 0.221.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/sdk-trace-base': 2.12.0(@opentelemetry/api@1.9.1)
       ai: 7.0.177(zod@4.6.7)
-    transitivePeerDependencies:
-      - ioredis
-      - redis
-
-  assistant-cloud@0.2.9(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(ai@7.0.130(zod@4.6.7))(ioredis@5.11.1(supports-color@10.2.2))(redis@5.12.1(@opentelemetry/api@1.9.1)):
-    dependencies:
-      assistant-stream: 0.3.58(ai@7.0.130(zod@4.6.7))(ioredis@5.11.1(supports-color@10.2.2))(redis@5.12.1(@opentelemetry/api@1.9.1))
-    optionalDependencies:
-      '@opentelemetry/api': 1.9.1
-      '@opentelemetry/sdk-trace-base': 2.12.0(@opentelemetry/api@1.9.1)
-      ai: 7.0.130(zod@4.6.7)
     transitivePeerDependencies:
       - ioredis
       - redis
