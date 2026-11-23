@@ -94,18 +94,31 @@ describe('ProjectKnowledgeList', () => {
     expect(onRemove).toHaveBeenCalledWith(file);
   });
 
-  it('shows a short hint when empty, a search field only for long lists, and is axe-clean', async () => {
-    const { container, rerender } = renderWithProviders(
+  it('shows a short hint when empty, folds long lists and searches via the magnifier', async () => {
+    const { container, rerender, user } = renderWithProviders(
       <ProjectKnowledgeList items={[]} onUseTemplate={vi.fn()} actions={null} onDiscuss={null} />
     );
     expect(screen.getByText(/Noch nichts hinterlegt/)).toBeInTheDocument();
-    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Im Wissen suchen' })).not.toBeInTheDocument();
 
-    const many = Array.from({ length: 7 }, (_, i) => make({ id: `x${i}`, title: `Datei ${i}` }));
+    const many = Array.from({ length: 8 }, (_, i) => make({ id: `x${i}`, title: `Datei ${i}` }));
     rerender(
       <ProjectKnowledgeList items={many} onUseTemplate={vi.fn()} actions={null} onDiscuss={null} />
     );
-    expect(screen.getByRole('searchbox', { name: 'Im Wissen suchen' })).toBeInTheDocument();
+    // Folded: the first six, the rest on request.
+    expect(screen.getByText('Datei 5')).toBeInTheDocument();
+    expect(screen.queryByText('Datei 7')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Alle 8 anzeigen' }));
+    expect(screen.getByText('Datei 7')).toBeInTheDocument();
+
+    // No standing search field; the magnifier opens one, and a search sees every item.
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Im Wissen suchen' }));
+    const box = screen.getByRole('searchbox', { name: 'Im Wissen suchen' });
+    expect(box).toHaveFocus();
+    await user.click(screen.getByRole('button', { name: 'Weniger anzeigen' }));
+    await user.type(box, 'Datei 7');
+    expect(screen.getByText('Datei 7')).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 

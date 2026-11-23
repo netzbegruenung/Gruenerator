@@ -170,7 +170,7 @@ export function GroupContentArea({
     <section
       ref={sectionRef}
       aria-labelledby="projekt-austausch-titel"
-      className="flex scroll-mt-lg flex-col gap-md"
+      className="mt-lg flex scroll-mt-lg flex-col gap-sm"
     >
       <div className="flex items-center gap-sm">
         <h2 id="projekt-austausch-titel" className="m-0 min-w-0 flex-1 text-[17px] font-semibold">

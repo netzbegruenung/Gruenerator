@@ -24,7 +24,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../../components/common/PageContainer';
-import { getToolGradient } from '../../../config/toolTheme';
 import { useFirstName } from '../../../hooks/useFirstName';
 import { useDocumentsStore } from '../../../stores/documentsStore';
 import { useItemUsage, useRecordItemUsage } from '../../usage/useItemUsage';
@@ -219,10 +218,10 @@ const ProjektePage = () => {
     );
   }
 
-  // Overview — Office/Studio landing recipe: tinted gradient shell, hero greeting,
+  // Overview — plain page (no tinted shell), hero greeting,
   // a create-or-search composer, the create "tool", then the project grids.
   return (
-    <PageContainer maxWidth="lg" noPadTop bgClassName={getToolGradient('projekte')}>
+    <PageContainer maxWidth="lg" noPadTop>
       {banners}
 
       <WorkplaceHero title={firstName ? `Deine Projekte, ${firstName}` : 'Deine Projekte'}>

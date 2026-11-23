@@ -1,8 +1,9 @@
+import { cn, Switch } from '@gruenerator/ui';
 import { useId, useState } from 'react';
 
 import ChatInner from '../../workplace/components/ChatInner';
 
-import { SpaceChatsSection } from './SpaceChatsSection';
+import { PROJECT_CHAT_ROW_CONTROL, SpaceChatsSection } from './SpaceChatsSection';
 
 interface ProjectChatComposerProps {
   groupId: string;
@@ -20,6 +21,7 @@ export function ProjectChatComposer({ groupId }: ProjectChatComposerProps) {
   const [shared, setShared] = useState(true);
   const hintId = useId();
   const titleId = useId();
+  const switchId = useId();
 
   return (
     <section aria-labelledby={titleId} className="flex flex-col gap-xs">
@@ -31,16 +33,15 @@ export function ProjectChatComposer({ groupId }: ProjectChatComposerProps) {
         groupId={groupId}
         aside={
           <div className="flex flex-col items-end">
-            <label className="flex max-w-full cursor-pointer items-center gap-xs px-sm text-[13px] text-muted-foreground">
-              <input
-                type="checkbox"
-                role="switch"
-                checked={shared}
-                onChange={(event) => setShared(event.target.checked)}
-                aria-describedby={shared ? undefined : hintId}
-                className="size-4 shrink-0 accent-primary-600"
-              />
+            <label htmlFor={switchId} className={cn(PROJECT_CHAT_ROW_CONTROL, 'cursor-pointer')}>
               Im Projekt teilen
+              <Switch
+                id={switchId}
+                size="sm"
+                checked={shared}
+                onCheckedChange={setShared}
+                aria-describedby={shared ? undefined : hintId}
+              />
             </label>
             {shared ? null : (
               <p id={hintId} className="m-0 px-sm text-[13px] text-muted-foreground">

@@ -34,6 +34,10 @@ export function formatRelativeDate(iso: string, now: number = Date.now()): strin
  * slim list: title and relative date. Client-side filter over the thread list —
  * no dedicated endpoint needed.
  */
+/** Gemeinsamer Look der beiden Bedienelemente unter dem Composer (Liste, Teilen-Schalter). */
+export const PROJECT_CHAT_ROW_CONTROL =
+  'inline-flex h-8 items-center gap-xs rounded-full border-none bg-transparent px-3 font-[inherit] text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground';
+
 /** Aufgeklappt stehen zuerst so viele Chats da; der Rest auf Wunsch. */
 const CHATS_SHOWN = 5;
 
@@ -71,22 +75,23 @@ export function SpaceChatsSection({
 
   return (
     <section aria-labelledby="projekt-chats-titel" className="flex flex-col gap-xs">
-      <div className="flex flex-wrap items-center justify-between gap-sm">
-        <h2 id="projekt-chats-titel" className="m-0">
-          <button
-            type="button"
-            aria-expanded={open}
-            onClick={() => setOpen((v) => !v)}
-            className="flex cursor-pointer items-center gap-xs rounded-md border-none bg-transparent px-sm py-1 font-[inherit] text-[15px] font-semibold text-foreground hover:bg-muted"
-          >
-            <PiCaretRight
-              aria-hidden
-              className={`size-4 transition-transform ${open ? 'rotate-90' : ''}`}
-            />
-            Bisherige Chats
-            <span className="font-normal text-muted-foreground">{threads.length}</span>
-          </button>
-        </h2>
+      {/* -mx-3: die Polsterung der beiden Flächen liegt außerhalb, der Text
+          steht bündig mit Überschrift und Composer. */}
+      <div className="-mx-3 flex flex-wrap items-center justify-between gap-sm">
+        <button
+          id="projekt-chats-titel"
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+          className={`${PROJECT_CHAT_ROW_CONTROL} cursor-pointer`}
+        >
+          <PiCaretRight
+            aria-hidden
+            className={`size-4 transition-transform ${open ? 'rotate-90' : ''}`}
+          />
+          Bisherige Chats
+          <span className="font-normal">{threads.length}</span>
+        </button>
         {aside}
       </div>
       {!open ? null : threads.length === 0 ? (
