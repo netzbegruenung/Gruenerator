@@ -124,14 +124,11 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
   const searchItem = directMenuItems[GLOBAL_SEARCH_ITEM_ID];
   const sidebarExpanded = isOpen || forceExpanded;
   // Web desktop rail: the sidebar carries its own header row (wordmark, search, toggle).
-  // Expanded, search sits in that row as a tool; collapsed, the row shrinks to
-  // the toggle and search drops into the rail. Mobile (Sheet) and Tauri keep
-  // their own chrome.
+  // Search shows only in the expanded sidebar: there it sits in that row as a
+  // tool; the collapsed rail has no search entry. Mobile (Sheet) and Tauri have
+  // no header row and keep it in the list while open.
   const hasHeaderRow = !isDesktop && !isMobile;
-  const showSearchInList = !hasHeaderRow || !sidebarExpanded;
-  // The collapsed rail stays minimal (Workplace, search, the direct items);
-  // Projekte appears once expanded. Mobile and Tauri keep them in every state.
-  const showQuickViews = !hasHeaderRow || sidebarExpanded;
+  const showSearchInList = !hasHeaderRow && sidebarExpanded;
 
   // Close sidebar on route change
   useEffect(() => {
@@ -448,16 +445,14 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
           <div className="flex flex-col gap-0 p-0">{itemsBeforeProjekte.map(renderNavItem)}</div>
         )}
 
-        {/* Projekte quick-view popup */}
-        {showQuickViews && (
-          <ProjekteSidebarSection
-            openRef={projekteMenuOpenRef}
-            titleClass={titleClass}
-            collapsed={!sidebarExpanded}
-            onNavigate={handleLinkClick}
-            onClose={close}
-          />
-        )}
+        {/* Projekte: immer da, auch in der eingeklappten Leiste */}
+        <ProjekteSidebarSection
+          openRef={projekteMenuOpenRef}
+          titleClass={titleClass}
+          collapsed={!sidebarExpanded}
+          onNavigate={handleLinkClick}
+          onClose={close}
+        />
 
         {itemsAfterProjekte.length > 0 && (
           <div className="flex flex-col gap-0 p-0">{itemsAfterProjekte.map(renderNavItem)}</div>
@@ -475,7 +470,8 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
           />
         )}
 
-        {grueneratorenItem && (
+        {/* Grüneratoren laufen aus: nur in der ausgeklappten Seitenleiste */}
+        {sidebarExpanded && grueneratorenItem && (
           <div className="flex flex-col gap-0 p-0">{renderNavItem(grueneratorenItem)}</div>
         )}
 

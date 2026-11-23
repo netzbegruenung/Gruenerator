@@ -1,4 +1,9 @@
-import { buildGroupPath, canShareIntoGroup, splitArchivedGroups } from '@gruenerator/shared/groups';
+import {
+  buildGroupPath,
+  canShareIntoGroup,
+  sortGroups,
+  splitArchivedGroups,
+} from '@gruenerator/shared/groups';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +22,8 @@ import { iconClass, menuLinkClass } from './sidebarStyles';
 
 import { LuFolderCog, PiChatCircle, PiGearSix } from '@/config/shellIcons.generated';
 
+/** So viele Projekte zeigt das Popup; der Rest steht auf /projekte. */
+const SIDEBAR_PROJEKTE_LIMIT = 8;
 interface ProjekteSidebarSectionProps {
   openRef: MutableRefObject<boolean>;
   titleClass: string;
@@ -43,7 +50,11 @@ export const ProjekteSidebarSection = memo(function ProjekteSidebarSection({
   const { userGroups, isLoadingGroups, isErrorGroups } = useGroups({ isActive: true });
   const [open, setOpen] = useState(false);
 
-  const { active: projekte, archived: archivedProjekte } = splitArchivedGroups(userGroups ?? []);
+  // Nur die zuletzt aktiven: die Seitenleiste ist ein Sprungbrett, keine
+  // Liste. Alles Weitere (und das Archiv) steht auf /projekte.
+  const active = sortGroups(splitArchivedGroups(userGroups ?? []).active, 'activity');
+  const projekte = active.slice(0, SIDEBAR_PROJEKTE_LIMIT);
+  const hiddenCount = active.length - projekte.length;
 
   const handleOpenChange = useCallback(
     (isOpen: boolean) => {
@@ -138,29 +149,13 @@ export const ProjekteSidebarSection = memo(function ProjekteSidebarSection({
               );
             })
           )}
-          {archivedProjekte.length > 0 && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel>Archiviert</DropdownMenuLabel>
-              <div className="max-h-32 overflow-y-auto">
-                {archivedProjekte.map((g) => (
-                  <button
-                    key={g.id}
-                    type="button"
-                    onClick={() => openProjekt(buildGroupPath(g), g.name)}
-                    className="flex w-full min-w-0 items-center gap-2 rounded-sm px-3 py-1.5 text-left text-sm text-muted-foreground hover:bg-hover-alt"
-                  >
-                    <LuFolderCog className="size-4 shrink-0 text-grey-400" />
-                    <span className="min-w-0 flex-1 truncate">{g.name}</span>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => openProjekt('/projekte', 'Projekte')}>
             <PiGearSix className="size-4" />
-            <span>Alle Projekte &amp; Einstellungen</span>
+            <span>
+              {hiddenCount > 0 ? `Alle ${active.length} Projekte` : 'Alle Projekte'} &amp;
+              Einstellungen
+            </span>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
