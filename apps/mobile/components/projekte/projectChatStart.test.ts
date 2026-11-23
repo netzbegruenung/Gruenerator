@@ -7,8 +7,8 @@ import { projectChatRoute } from './projectChatStart';
 type Route = { params: Record<string, string> };
 
 describe('projectChatRoute', () => {
-  it('asks for a team chat when the switch is on in a team Projekt', () => {
-    const route = projectChatRoute({ groupId: 'g1', text: 'Hallo', teamShared: true, solo: false });
+  it('shares the chat in the Projekt when the switch is on', () => {
+    const route = projectChatRoute({ groupId: 'g1', text: 'Hallo', teamShared: true });
     expect((route as unknown as Route).params).toMatchObject({
       threadId: 'new',
       initialMessage: 'Hallo',
@@ -17,18 +17,9 @@ describe('projectChatRoute', () => {
     });
   });
 
-  it('does not ask for one when the switch is off', () => {
-    const route = projectChatRoute({
-      groupId: 'g1',
-      text: 'Hallo',
-      teamShared: false,
-      solo: false,
-    });
-    expect((route as unknown as Route).params).not.toHaveProperty('teamShared');
-  });
-
-  it('never shares a chat of a personal Projekt', () => {
-    const route = projectChatRoute({ groupId: 'g1', text: 'Hallo', teamShared: true, solo: true });
+  it('keeps it private, but still in the Projekt, when the switch is off', () => {
+    const route = projectChatRoute({ groupId: 'g1', text: 'Hallo', teamShared: false });
+    expect((route as unknown as Route).params).toMatchObject({ groupId: 'g1' });
     expect((route as unknown as Route).params).not.toHaveProperty('teamShared');
   });
 });

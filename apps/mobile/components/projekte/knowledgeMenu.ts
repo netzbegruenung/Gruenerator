@@ -3,8 +3,8 @@ import { type GroupFeedItem } from '@gruenerator/shared/groups';
 
 export const DISCUSS_ID = 'discuss';
 
-/** Ab so vielen Zeilen lohnt sich ein Suchfeld (wie im Web). */
-export const KNOWLEDGE_SEARCH_FROM = 6;
+/** So viele Zeilen stehen da, bevor „Alle N anzeigen“ den Rest zeigt (wie im Web). */
+export const KNOWLEDGE_SHOWN = 6;
 
 /** Wissen = alles außer Beiträgen; die gehören in den Austausch. */
 export function knowledgeItems(items: GroupFeedItem[]): GroupFeedItem[] {
