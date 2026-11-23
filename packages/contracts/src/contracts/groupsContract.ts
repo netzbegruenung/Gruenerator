@@ -37,6 +37,7 @@ import {
   updateGroupShareBodySchema,
   inviteToGroupBodySchema,
   inviteToGroupResponseSchema,
+  regenerateJoinTokenResponseSchema,
   joinByTokenBodySchema,
   joinGroupResponseSchema,
   joinRequestsResponseSchema,
@@ -309,6 +310,22 @@ export const groupsContract = c.router({
       500: groupErrorResponseSchema,
     },
     summary: 'Invite people to a group by email',
+  },
+
+  regenerateJoinToken: {
+    method: 'POST',
+    path: '/api/auth/groups/:groupId/join-token',
+    pathParams: z.object({ groupId: z.string() }),
+    body: c.noBody(),
+    responses: {
+      200: regenerateJoinTokenResponseSchema,
+      400: groupErrorResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      404: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Replace the invite link of a project (admins only)',
   },
 
   leaveGroup: {

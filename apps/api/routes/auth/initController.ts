@@ -67,7 +67,7 @@ async function fetchGroups(userId: string): Promise<unknown[]> {
         description: string;
         created_at: string;
         created_by: string;
-        join_token: string;
+        join_token: string | null;
         settings: unknown;
         avatar_url: string;
         links: unknown;
@@ -75,11 +75,14 @@ async function fetchGroups(userId: string): Promise<unknown[]> {
     ).map((group) => {
       const membership = membershipByGroupId.get(group.id);
       const role = membership?.role || 'member';
+      const isAdmin = group.created_by === userId || role === 'admin';
       return {
         ...group,
+        // Der Einladungslink ist ein Beitritts-Geheimnis: nur Admins bekommen ihn.
+        join_token: isAdmin ? group.join_token : null,
         role,
         joined_at: membership?.joined_at,
-        isAdmin: group.created_by === userId || role === 'admin',
+        isAdmin,
       };
     });
   } catch (error) {
