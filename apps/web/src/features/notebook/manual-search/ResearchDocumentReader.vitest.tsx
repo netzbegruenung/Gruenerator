@@ -230,6 +230,51 @@ describe('research document reader', () => {
   });
 });
 
+describe('research document reader — Original öffnen', () => {
+  const openUpload = async (body: Partial<ResearchDocumentResponse>) => {
+    server.use(
+      http.get(USER_DOCUMENT, () =>
+        HttpResponse.json({ ...doc, sourceUrl: null, sourceName: null, ...body })
+      )
+    );
+    const { user } = renderList(
+      [hit({ document_id: 'doc-uuid', source_url: null, collection_id: 'nb-uuid' })],
+      'nb-uuid'
+    );
+    await user.click(screen.getByRole('button', { name: 'Hitzeschutz für alle' }));
+    return screen.findByRole('dialog', { name: doc.title });
+  };
+
+  it('links the kept original of an upload, through its notebook', async () => {
+    const dialog = await openUpload({ hasOriginal: true });
+
+    const links = screen.getAllByRole('link', { name: 'Original öffnen' });
+    for (const link of links) {
+      expect(link).toHaveAttribute('href', '/api/documents/doc-uuid/original?notebookId=nb-uuid');
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    }
+    expect(await axe(dialog)).toHaveNoViolations();
+  });
+
+  it('shows no link when the upload kept no original', async () => {
+    await openUpload({ hasOriginal: false });
+    expect(screen.queryByRole('link', { name: 'Original öffnen' })).not.toBeInTheDocument();
+  });
+
+  it('shows no link when the server does not say (older API)', async () => {
+    await openUpload({});
+    expect(screen.queryByRole('link', { name: 'Original öffnen' })).not.toBeInTheDocument();
+  });
+
+  it('offers only „Im Web öffnen" for a system document', async () => {
+    const { user } = renderList([hit()]);
+    await user.click(screen.getByRole('link', { name: 'Hitzeschutz für alle' }));
+    await screen.findByRole('dialog', { name: doc.title });
+    expect(screen.queryByRole('link', { name: 'Original öffnen' })).not.toBeInTheDocument();
+  });
+});
+
 describe('research document reader — into the chat', () => {
   const chipRef = () => {
     const [chips] = setPendingAttachments.mock.calls[0] as [

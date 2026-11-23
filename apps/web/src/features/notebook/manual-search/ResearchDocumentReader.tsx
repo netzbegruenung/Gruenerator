@@ -32,6 +32,7 @@ import {
   LuChevronDown,
   LuChevronUp,
   LuExternalLink,
+  LuFileText,
   LuMessageCircle,
   LuSparkles,
 } from '@/config/shellIcons.generated';
@@ -102,7 +103,9 @@ function PassageNav({
   );
 }
 
-/** Nothing for an uploaded file, which has no original on the web. */
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
+
+/** Nothing for an uploaded file, which has no original on the web (see `OriginalLink`). */
 function WebLink({ href, className }: { href: string | null; className?: string }) {
   if (!href) return null;
   return (
@@ -110,6 +113,21 @@ function WebLink({ href, className }: { href: string | null; className?: string 
       <a href={href} target="_blank" rel="noopener noreferrer">
         <LuExternalLink aria-hidden />
         Im Web öffnen
+      </a>
+    </Button>
+  );
+}
+
+/** The kept upload, opened by the browser itself (cookie auth); PDFs and images inline. */
+function OriginalLink({ target }: { target: ReaderTarget }) {
+  if (!('documentId' in target)) return null;
+  const query = target.notebookId ? `?notebookId=${encodeURIComponent(target.notebookId)}` : '';
+  const href = `${API_BASE_URL}/documents/${encodeURIComponent(target.documentId)}/original${query}`;
+  return (
+    <Button asChild variant="brand-outline" size="brand-sm">
+      <a href={href} target="_blank" rel="noopener noreferrer">
+        <LuFileText aria-hidden />
+        Original öffnen
       </a>
     </Button>
   );
@@ -140,7 +158,8 @@ function ReaderActions({
   className?: string;
 }) {
   const navigate = useNavigate();
-  if (!chatActions && !doc.sourceUrl) return null;
+  const hasOriginal = doc.hasOriginal === true;
+  if (!chatActions && !doc.sourceUrl && !hasOriginal) return null;
 
   const openInChat = (message: string | null) => {
     const store = useAgentStore.getState();
@@ -152,6 +171,7 @@ function ReaderActions({
   return (
     <div className={cn('flex flex-col items-start gap-2', className)}>
       <WebLink href={doc.sourceUrl} />
+      {hasOriginal && <OriginalLink target={target} />}
       {chatActions && (
         <>
           <Button
