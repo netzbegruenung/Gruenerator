@@ -19,8 +19,7 @@ import {
   HEADING_FONT_SEMIBOLD,
 } from '../../theme';
 import { getToolTheme } from '../../theme/toolTheme';
-import { BottomSheet } from '../common/BottomSheet';
-import { SHEET_HANDOFF_MS } from '../common/CreateMenuSheet';
+import { BottomSheet, SHEET_HANDOFF_MS } from '../common/BottomSheet';
 import { MenuIcon } from '../icons/WebMirrorIcons';
 
 import { isLinkTool, type WorkplaceTool } from './toolsConfig';

@@ -30,7 +30,7 @@ import { buildMarketMenuActions, type MarketMenuId } from '../../components/agen
 import { SearchField } from '../../components/agentura/SearchField';
 import { MenuActionSheet } from '../../components/chat/MenuActionSheet';
 import { Button, ListGroup, SkeletonRows } from '../../components/common';
-import { SHEET_HANDOFF_MS } from '../../components/common/CreateMenuSheet';
+import { SHEET_HANDOFF_MS } from '../../components/common/BottomSheet';
 import { Fab } from '../../components/common/Fab';
 import { NeutralBackdrop } from '../../components/common/NeutralBackdrop';
 import { MarketCard } from '../../components/marketplace/MarketCard';

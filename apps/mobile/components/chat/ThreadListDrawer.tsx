@@ -21,16 +21,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDrawerStore } from '../../hooks/useDrawerStore';
 import { useTheme } from '../../hooks/useTheme';
 import { useSettingsSheetStore } from '../../stores/settingsSheetStore';
-import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
 import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 import { DRAWER_MESH } from '../../theme/chatBackgrounds';
-import { route, routeWithParams, type AppRoute } from '../../types/routes';
+import { routeWithParams } from '../../types/routes';
 import { goHome } from '../../utils/navigation';
 import { drawerOpenMode, threadRoute, type CurrentRoute } from '../../utils/threadRoute';
 import { ProfileAvatar } from '../common';
 import { MeshSurface } from '../common/MeshSurface';
-import { MenuIcon } from '../icons/WebMirrorIcons';
-import { STUDIO_TOOLS, type ToolDef } from '../tools/toolsConfig';
 
 import { asThreadMenuId, buildThreadMenuActions } from './menuActions';
 import { MenuActionSheet } from './MenuActionSheet';
@@ -295,43 +292,6 @@ const ArchivedSection = memo(function ArchivedSection({
   );
 });
 
-// One flat tool list instead of the old Favoriten + Schnellstart pair: the drawer
-// now mirrors web's sidebar, which lists tools rather than pinned agents (those
-// live on the Grüneratoren tool's own screen). Starred tools sort to the top so
-// the star still does something here. No heading above them — the rows read as
-// the menu they are, and the saved line goes to the thread list.
-function DrawerSections({
-  theme,
-  tools,
-  onSelectTool,
-}: {
-  theme: Theme;
-  tools: ToolDef[];
-  onSelectTool: (route: AppRoute) => void;
-}) {
-  return (
-    <View>
-      {tools.map((tool) => (
-        <Pressable
-          key={tool.id}
-          onPress={() => onSelectTool(tool.route)}
-          style={({ pressed }) => [
-            styles.navRow,
-            { backgroundColor: pressed ? theme.surface : 'transparent' },
-          ]}
-          accessibilityRole="button"
-        >
-          <MenuIcon name={tool.icon} size={DRAWER_ICON} color={theme.text} />
-          <Text style={[styles.navLabel, { color: theme.text }]} numberOfLines={1}>
-            {tool.title}
-          </Text>
-        </Pressable>
-      ))}
-      <View style={[styles.sectionDivider, { backgroundColor: theme.border }]} />
-    </View>
-  );
-}
-
 function EmptyThreads({ theme, onNewChat }: { theme: Theme; onNewChat: () => void }) {
   return (
     <View style={styles.empty}>
@@ -401,25 +361,6 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
   const openSettings = useSettingsSheetStore((s) => s.open);
   const activeThreadId = useAuiState((s) => s.threadListItem.id);
   const isLoadingThreads = useAuiState((s) => s.threads.isLoading);
-  const favouriteIds = useToolFavoritesStore((s) => s.favorites);
-  // The starred Studio tools, in the order they were starred. The top-level
-  // tools are tiles on Arbeiten, not entries here.
-  const tools = useMemo(() => {
-    // Sharepic merged into the Bild-Editor's tool; a star given to it before
-    // carries over instead of vanishing.
-    const ids = favouriteIds.map((id) => (id === 'sharepic' ? 'ki-bildgenerierung' : id));
-    const rank = (t: ToolDef) => ids.indexOf(t.id);
-    return STUDIO_TOOLS.filter((t) => ids.includes(t.id)).sort((a, b) => rank(a) - rank(b));
-  }, [favouriteIds]);
-
-  const handleNavigate = useCallback(
-    (path: AppRoute) => {
-      closeDrawer();
-      router.push(route(path));
-    },
-    [closeDrawer, router]
-  );
-
   // The drawer is a pure navigator (mirrors web's Sidebar): it pushes to the
   // focused chat-conversation screen with a fresh thread, and that screen owns
   // the agent/notebook store writes. The drawer's own `aui` runtime is NOT the
@@ -450,11 +391,6 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
       />
     ),
     [theme, closeDrawer, activeThreadId]
-  );
-
-  const listHeader = useMemo(
-    () => <DrawerSections theme={theme} tools={tools} onSelectTool={handleNavigate} />,
-    [theme, tools, handleNavigate]
   );
 
   const listFooter = useMemo(
@@ -505,7 +441,6 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
         renderItem={renderItem}
         style={styles.list}
         contentContainerStyle={styles.listContent}
-        ListHeaderComponent={listHeader}
         ListFooterComponent={listFooter}
         ListEmptyComponent={
           // An empty list while list() runs is not "no conversations" — the
@@ -539,11 +474,8 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
 /** The drawer's single text edge, measured from the panel's left border. */
 const DRAWER_EDGE = 20;
 
-/** One row height for both lists — navigation and conversations. */
+/** One row height for the conversation rows. */
 const ROW_HEIGHT = 52;
-
-/** Paired with the row text: a 20dp glyph read undersized beside 17pt. */
-const DRAWER_ICON = 22;
 
 const styles = StyleSheet.create({
   container: {
@@ -577,31 +509,6 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.6,
-  },
-  navRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.medium,
-    marginHorizontal: spacing.xsmall,
-    // 8 (list) + 8 (margin) + 4 = 20: the icon sits on the same edge as the text
-    // of every row without one.
-    paddingHorizontal: spacing.xxsmall,
-    minHeight: ROW_HEIGHT,
-    borderRadius: borderRadius.medium,
-  },
-  // chatBody, not chatTitle: in the drawer these rows ARE the content, not the
-  // heading of a card sitting inside it. At chatTitle's 15 they read as captions
-  // next to a 24pt wordmark in a 52dp row — the reference sits at ~17.
-  navLabel: {
-    ...chatType.chatBody,
-    fontWeight: '500',
-  },
-  // The turn from navigation to the conversations, without a heading: a line
-  // says "change of subject" in less height than the old „Letzte" label.
-  sectionDivider: {
-    height: StyleSheet.hairlineWidth,
-    marginHorizontal: spacing.small,
-    marginVertical: spacing.medium,
   },
   list: {
     flex: 1,

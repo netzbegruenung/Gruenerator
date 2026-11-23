@@ -249,3 +249,9 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
 });
+
+/**
+ * How long a second sheet waits after one closed. Both are RN `Modal`s, and iOS
+ * refuses to present one while another is still sliding out (~300 ms).
+ */
+export const SHEET_HANDOFF_MS = 350;

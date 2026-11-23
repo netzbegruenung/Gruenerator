@@ -1,9 +1,6 @@
 import { toolIconKey, type ToolIconKey } from '@gruenerator/shared/icons';
 import { DOKU_URL, NEWSLETTER_SIGNUP_URL } from '@gruenerator/shared/links';
-import { type IoniconsIconName } from '@react-native-vector-icons/ionicons';
-import { Platform } from 'react-native';
 
-import { isVideoEditorSupported } from '../../services/videoEditorSupport';
 import { type AppRoute } from '../../types/routes';
 
 export interface ToolDef {
@@ -68,68 +65,6 @@ const VORLAGEN: ToolDef = {
   description: 'Design-Vorlagen',
   icon: toolIconKey('vorlagen'),
   route: '/(focused)/vorlagen',
-};
-
-/**
- * The Studio tools, mirroring web's /studio landing strip: the create menu on
- * Arbeiten, and the drawer once starred.
- */
-export const STUDIO_TOOLS: ToolDef[] = [
-  // One entry for KI-Bild and Sharepic: the Bild-Editor switches between them,
-  // as on web. The id stays (F1, favourites persist it); a starred `sharepic`
-  // is shown as this one, see `ThreadListDrawer`.
-  {
-    id: 'ki-bildgenerierung',
-    title: 'Bild erstellen',
-    description: 'KI-Bild oder Sharepic',
-    icon: toolIconKey('ki-bildgenerierung'),
-    route: '/(focused)/bild-editor',
-  },
-  {
-    id: 'reel',
-    title: 'Reel',
-    description: 'Untertitel für Clips',
-    icon: toolIconKey('reel'),
-    route: '/(focused)/reel',
-  },
-  // Web's `studio-videoeditor`, in the WebView; from iOS 26, see `isVideoEditorSupported`.
-  ...(isVideoEditorSupported(Platform.OS, Platform.Version)
-    ? [
-        {
-          id: 'videoeditor',
-          title: 'Video-Editor',
-          description: 'Clips schneiden & gestalten',
-          icon: toolIconKey('videoeditor'),
-          route: '/(fullscreen)/video-editor',
-        } satisfies ToolDef,
-      ]
-    : []),
-  {
-    id: 'profilbild',
-    title: 'Profilbild',
-    description: 'Freistellen, Hintergrund, Sticker',
-    icon: toolIconKey('profilbild'),
-    route: '/(focused)/profilbild',
-  },
-  {
-    id: 'sticker',
-    title: 'Sticker & Hintergründe',
-    description: 'Sticker erstellen & teilen',
-    icon: toolIconKey('sticker'),
-    route: '/(focused)/sticker',
-  },
-];
-
-/**
- * Ionicons equivalents of the studio tools' shared glyph keys, for the places
- * that speak Ionicons (`EmptyState`, the create sheet's rows).
- */
-export const STUDIO_TOOL_GLYPHS: Record<string, IoniconsIconName> = {
-  'ki-bildgenerierung': 'sparkles',
-  reel: 'videocam',
-  videoeditor: 'film',
-  profilbild: 'person-circle',
-  sticker: 'happy',
 };
 
 /**
