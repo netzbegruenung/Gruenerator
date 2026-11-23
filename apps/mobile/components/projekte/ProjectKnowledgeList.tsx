@@ -14,7 +14,7 @@ import { type ShareItemActions } from '../../hooks/useShareItemActions';
 import { useTheme } from '../../hooks/useTheme';
 import { BODY_FONT } from '../../theme';
 import { MenuActionSheet } from '../chat/MenuActionSheet';
-import { SHEET_HANDOFF_MS } from '../common/BottomSheet';
+import { SHEET_HANDOFF_MS } from '../common/CreateMenuSheet';
 
 import { FEED_KIND_ICONS } from './feedIcons';
 import { buildKnowledgeActions, DISCUSS_ID, KNOWLEDGE_SHOWN } from './knowledgeMenu';

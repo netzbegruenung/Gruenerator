@@ -1,23 +1,12 @@
 /**
- * Bild-Editor mobile image service.
- *
- * Native equivalent of the web
- * `apps/web/src/features/image-studio/services/imageEditingService.ts`. The web
- * version leans on the browser (`canvas`, `createImageBitmap`, `FileReader`); here
- * the same work is done with `expo-image-manipulator` + `expo-file-system`, while
- * the backend contracts (`imageEdit.edit`, `/imagine/outpaint`, `/background-removal`)
- * stay identical.
+ * Picks or takes a photo and prepares it as a modest local upload, for the
+ * Profilbild and the Sticker-Creator.
  */
 
-import { type ImageEditReference, type KiLabelMode } from '@gruenerator/contracts';
-import { getContractsClient, getGlobalApiClient } from '@gruenerator/shared/api';
-import { type ImageFormatId } from '@gruenerator/shared/image-studio';
-import { File } from 'expo-file-system';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 
-import { cutoutFromRef } from './backgroundRemoval';
-import { base64ToFileUri, requestCameraPermission } from './imageStudio';
+import { requestCameraPermission } from './imageStudio';
 
 /** A stored image: a local file URI plus its source pixel dimensions. */
 export interface BevImageRef {
@@ -26,37 +15,11 @@ export interface BevImageRef {
   height: number;
 }
 
-export type ImageEditType = 'universal' | 'green-edit';
-
-const MAX_EDIT_IMAGES = 8; // contract cap: active version + references
-const TOTAL_INPUT_BUDGET_MP = 8; // mirrors the server-side BFL input budget
 const MAX_UPLOAD_EDGE = 1400; // keep uploaded sources modest
-
-let fileCounter = 0;
-function uniqueName(ext: string): string {
-  fileCounter += 1;
-  return `bev-${Date.now()}-${fileCounter}.${ext}`;
-}
 
 async function dimensionsOf(uri: string): Promise<{ width: number; height: number }> {
   const info = await manipulateAsync(uri, [], {});
   return { width: info.width, height: info.height };
-}
-
-/** Persist an API-produced data URL to a cache file and read back its dimensions. */
-export async function writeDataUrlToCache(dataUrl: string): Promise<BevImageRef> {
-  const mime = /^data:image\/(png|webp|jpe?g)/i.exec(dataUrl)?.[1]?.toLowerCase();
-  const ext = mime === 'png' ? 'png' : mime === 'webp' ? 'webp' : 'jpg';
-  const uri = await base64ToFileUri(dataUrl, uniqueName(ext));
-  const { width, height } = await dimensionsOf(uri);
-  return { uri, width, height };
-}
-
-/** Read a cached file back as a data URL (for share/download/create-share). */
-export async function readAsDataUrl(uri: string): Promise<string> {
-  const base64 = await new File(uri).base64();
-  const ext = /\.(png|webp)$/i.exec(uri)?.[1]?.toLowerCase();
-  return `data:image/${ext ?? 'jpeg'};base64,${base64}`;
 }
 
 /** Downscale a picked/captured image to a modest edge and return a cache file ref. */
@@ -90,97 +53,4 @@ export async function takePhotoForEditor(): Promise<BevImageRef | null> {
   const result = await ImagePicker.launchCameraAsync({ quality: 1 });
   if (result.canceled || !result.assets[0]) return null;
   return prepareUploadFromUri(result.assets[0].uri);
-}
-
-async function toReference(ref: BevImageRef, capPx: number): Promise<ImageEditReference> {
-  const pixels = ref.width * ref.height;
-  const scale = pixels > capPx ? Math.sqrt(capPx / pixels) : 1;
-  const resize =
-    scale < 1
-      ? ref.width >= ref.height
-        ? { width: Math.round(ref.width * scale) }
-        : { height: Math.round(ref.height * scale) }
-      : null;
-  const res = await manipulateAsync(ref.uri, resize ? [{ resize }] : [], {
-    base64: true,
-    compress: 0.9,
-    format: SaveFormat.JPEG,
-  });
-  return { name: 'image.jpg', type: 'image/jpeg', data: res.base64 ?? '' };
-}
-
-/** Instruction edit / green transform via the imageEdit contract. Returns a data URL. */
-export async function editAiImageMobile(
-  refs: BevImageRef[],
-  instruction: string,
-  editType: ImageEditType,
-  kiLabel?: KiLabelMode
-): Promise<string> {
-  const images = refs.slice(0, MAX_EDIT_IMAGES);
-  if (images.length === 0) throw new Error('Kein Bild ausgewählt');
-
-  const capPx = Math.max(1, Math.floor(TOTAL_INPUT_BUDGET_MP / images.length)) * 1_000_000;
-  const references = await Promise.all(images.map((r) => toReference(r, capPx)));
-
-  const result = await getContractsClient().imageEdit.edit({
-    body: {
-      instruction,
-      images: references,
-      editType,
-      precision: true,
-      ...(kiLabel && kiLabel !== 'full' && { kiLabel }),
-    },
-  });
-
-  if (
-    result.status === 400 ||
-    result.status === 401 ||
-    result.status === 429 ||
-    result.status === 500 ||
-    result.status === 503
-  ) {
-    throw new Error(result.body.error);
-  }
-  if (result.status !== 200) throw new Error('Bearbeitung fehlgeschlagen');
-
-  return `data:image/jpeg;base64,${result.body.image.base64}`;
-}
-
-/**
- * Outpaint (Vergrößern) via the multipart `/imagine/outpaint` route. Returns a data URL.
- *
- * The canvas geometry is the server's job: it derives the target from the
- * source and scales both down when the budget demands it, so every offered
- * format is reachable from here.
- */
-export async function outpaintMobile(
-  ref: BevImageRef,
-  aspect: ImageFormatId,
-  kiLabel: KiLabelMode
-): Promise<string> {
-  const form = new FormData();
-  form.append('image', {
-    uri: ref.uri,
-    name: 'image.jpg',
-    type: 'image/jpeg',
-  } as unknown as Blob);
-  form.append('aspectRatio', aspect);
-  if (kiLabel !== 'full') form.append('kiLabel', kiLabel);
-
-  const res = await getGlobalApiClient().post<{
-    success: boolean;
-    image?: { base64?: string };
-    error?: string;
-  }>('/imagine/outpaint', form, { headers: { 'Content-Type': 'multipart/form-data' } });
-
-  if (!res.data.success || !res.data.image?.base64) {
-    throw new Error(res.data.error || 'Vergrößerung fehlgeschlagen');
-  }
-  const raw = res.data.image.base64;
-  return raw.startsWith('data:') ? raw : `data:image/png;base64,${raw}`;
-}
-
-/** Background removal via `/background-removal`. Returns a data URL. */
-export async function removeBackgroundMobile(ref: BevImageRef): Promise<string> {
-  return readAsDataUrl(await cutoutFromRef(ref));
 }

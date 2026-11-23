@@ -5,7 +5,7 @@ import { Pressable, StyleSheet } from 'react-native';
 
 import { useTheme } from '../../hooks/useTheme';
 import { MenuActionSheet } from '../chat/MenuActionSheet';
-import { SHEET_HANDOFF_MS } from '../common/BottomSheet';
+import { SHEET_HANDOFF_MS } from '../common/CreateMenuSheet';
 
 import { buildItemMenuActions } from './shareMenu';
 

@@ -2,7 +2,7 @@ import { templates } from '@gruenerator/docs/templates';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
@@ -29,7 +29,7 @@ import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
 import { colors, darkTheme, lightTheme, spacing, BODY_FONT } from '../../theme';
 import { officeTypeColor } from '../../theme/officeColors';
 import { getSurfaceFab, getToolTheme } from '../../theme/toolTheme';
-import { BottomSheet } from '../common/BottomSheet';
+import { CreateMenuSheet, type CreateMenuEntry } from '../common/CreateMenuSheet';
 import { EmptyState, type EmptyStateAction } from '../common/EmptyState';
 import { Fab } from '../common/Fab';
 import { RecentItemsSection, useRecentCardColumns } from '../common/RecentItemsSection';
@@ -38,6 +38,7 @@ import { CreateDocPanel, type CreateDocStep } from '../docs/CreateDocPanel';
 import { toDocListItems } from '../docs/docListItems';
 import { NativeShareModal } from '../docs/NativeShareModal';
 import { useDocCreation } from '../docs/useDocCreation';
+import { MenuIcon } from '../icons/WebMirrorIcons';
 import {
   isDocFamily,
   officeIconFor,
@@ -47,7 +48,7 @@ import {
 } from '../office/officeItem';
 import { useOfficeExtraItems } from '../office/useOfficeExtraItems';
 import { ToolDock } from '../tools/ToolDock';
-import { WORKPLACE_TILES } from '../tools/toolsConfig';
+import { STUDIO_TOOLS, STUDIO_TOOL_GLYPHS, WORKPLACE_TILES } from '../tools/toolsConfig';
 
 import { LoadErrorNotice } from './LoadErrorNotice';
 import {
@@ -97,13 +98,13 @@ function MoreToggle({
  * The Arbeiten page of the workplace pager (`WorkplacePager`): the former
  * Arbeiten and Studio tabs on one page, in web's order — tool tiles, "Zuletzt",
  * then one section per kind, office first, studio media after. The FAB opens
- * the docs sheet (describe, find or pick a template). The Studio tools it used
- * to list are gone, as on web, where Studio is only an overview now (#5924).
+ * Studio's "Neu erstellen" menu with Dokument as a fourth entry, which hands
+ * over to the docs sheet (describe, find or pick a template).
  *
  * Everything the two old tabs offered is still here: every item is reachable
  * (each section unfolds past its cap), documents keep their ⋮ menu (share,
  * delete), a failed load says so instead of looking like an empty account, and
- * an empty account gets the document starting points.
+ * an empty account gets the create entry points of both old empty states.
  * Favourited tiles move to the front of the row, as on web.
  */
 export function WorkplaceArbeitenPage() {
@@ -127,10 +128,14 @@ export function WorkplaceArbeitenPage() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
-  // Which step of the "Neues Dokument" sheet shows. It stays as it is while the
-  // sheet slides out; the next open sets it.
-  const [docStep, setDocStep] = useState<CreateDocStep>('start');
+  // The "Neues Dokument" page inside the create menu, and which of its steps shows.
+  const [docStep, setDocStep] = useState<CreateDocStep | null>(null);
+  // The page stays as it is while the sheet slides out; the next open sets it.
   const closeMenu = () => setMenuOpen(false);
+  const openMenu = () => {
+    setDocStep(null);
+    setMenuOpen(true);
+  };
 
   const recent = useRecentActivity();
   const openRecent = useOpenRecentItem();
@@ -292,8 +297,8 @@ export function WorkplaceArbeitenPage() {
     !recent.isLoading &&
     recent.items.length === 0;
 
-  // The office starting points, with the same wording as the docs sheet so no
-  // route looks like two.
+  // Both old empty states in one: the office starting points, then the studio
+  // tools, with the same wording as the create menu so no route looks like two.
   const emptyActions: EmptyStateAction[] = [
     {
       key: 'blank',
@@ -322,6 +327,14 @@ export function WorkplaceArbeitenPage() {
       tone: officeTypeColor('sheet', isDark),
       onPress: () => openDocPage('start'),
     },
+    ...STUDIO_TOOLS.map((tool) => ({
+      key: tool.id,
+      glyph: STUDIO_TOOL_GLYPHS[tool.id] ?? 'sparkles',
+      title: tool.title,
+      description: tool.description,
+      tone: getToolTheme(tool.id, isDark),
+      onPress: () => router.push(tool.route as Href),
+    })),
   ];
 
   const recentList = capped('recent', recent.items, recentCap);
@@ -330,6 +343,32 @@ export function WorkplaceArbeitenPage() {
     { key: 'kiImages', title: 'KI-Bilder', items: media.kiImages, tone: 'ki-bildgenerierung' },
     { key: 'reels', title: 'Reels', items: media.reels, tone: 'reel' },
   ] as const;
+
+  const menuEntries = useMemo<CreateMenuEntry[]>(() => {
+    const docsTone = getToolTheme('docs', isDark);
+    return [
+      ...STUDIO_TOOLS.map((tool) => {
+        const tone = getToolTheme(tool.id, isDark);
+        return {
+          key: tool.id,
+          title: tool.title,
+          description: tool.description,
+          tone,
+          icon: <MenuIcon name={tool.icon} size={22} color={tone.icon} />,
+          onPress: () => router.push(tool.route as Href),
+        };
+      }),
+      {
+        key: 'docs',
+        title: 'Dokument',
+        description: 'Leer, aus Vorlage oder mit KI',
+        tone: docsTone,
+        icon: <Ionicons name="document-text" size={22} color={docsTone.icon} />,
+        opensPage: true,
+        onPress: () => setDocStep('start'),
+      },
+    ];
+  }, [isDark, router]);
 
   const viewToggle = <ViewModeToggle mode={viewMode} onChange={setViewMode} />;
 
@@ -471,22 +510,29 @@ export function WorkplaceArbeitenPage() {
       <Fab
         icon="add"
         accessibilityLabel="Neu erstellen"
-        onPress={() => openDocPage('start')}
+        onPress={openMenu}
         loading={isCreating}
         color={fabTone.icon}
         style={{ backgroundColor: fabTone.background, bottom: fabBottom }}
       />
 
-      <BottomSheet visible={menuOpen} onClose={closeMenu} padded maxHeight="88%" keyboardAvoiding>
-        <CreateDocPanel
-          step={docStep}
-          onStep={setDocStep}
-          onBack={closeMenu}
-          isCreating={isCreating}
-          onGenerate={(description) => void generate(description)}
-          onSelectTemplate={(template) => void createFromTemplate(template)}
-        />
-      </BottomSheet>
+      <CreateMenuSheet
+        visible={menuOpen}
+        onClose={closeMenu}
+        entries={menuEntries}
+        page={
+          docStep ? (
+            <CreateDocPanel
+              step={docStep}
+              onStep={setDocStep}
+              onBack={() => setDocStep(null)}
+              isCreating={isCreating}
+              onGenerate={(description) => void generate(description)}
+              onSelectTemplate={(template) => void createFromTemplate(template)}
+            />
+          ) : null
+        }
+      />
 
       {activeDoc && (
         <NativeShareModal

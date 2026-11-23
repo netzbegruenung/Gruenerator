@@ -10,7 +10,7 @@ import { useMessageActions } from '../../../hooks/useMessageActions';
 import { useNativeTTS } from '../../../hooks/useNativeTTS';
 import { copyToClipboard } from '../../../services/share';
 import { colors, spacing } from '../../../theme';
-import { SHEET_HANDOFF_MS } from '../../common/BottomSheet';
+import { SHEET_HANDOFF_MS } from '../../common/CreateMenuSheet';
 import { ReportSheet } from '../../common/ReportSheet';
 import { asMessageMenuId, buildMessageMenuActions } from '../menuActions';
 import { MenuActionSheet } from '../MenuActionSheet';

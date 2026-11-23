@@ -13,7 +13,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { resolveChatUrl } from '../../services/chatApiUrl';
 import { borderRadius, colors, spacing, typography } from '../../theme';
 import { MenuActionSheet } from '../chat/MenuActionSheet';
-import { SHEET_HANDOFF_MS } from '../common/BottomSheet';
+import { SHEET_HANDOFF_MS } from '../common/CreateMenuSheet';
 import { galleryTilePath } from '../profilbild/galleryModel';
 
 import {

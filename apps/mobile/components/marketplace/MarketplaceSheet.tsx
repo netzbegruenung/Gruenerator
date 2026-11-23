@@ -11,7 +11,8 @@ import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { spacing } from '../../theme';
-import { BottomSheet, SHEET_HANDOFF_MS } from '../common/BottomSheet';
+import { BottomSheet } from '../common/BottomSheet';
+import { SHEET_HANDOFF_MS } from '../common/CreateMenuSheet';
 
 import { MarketplaceBrowser } from './MarketplaceBrowser';
 
