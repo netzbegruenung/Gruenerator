@@ -647,7 +647,7 @@ export async function streamAgenticResponse(
       // mitschickt, entscheidet der Umfang (toolScope.ts). Getter, weil ein
       // Lader die Menge mitten im Lauf erweitern kann.
       activeTools: (steps) =>
-        secondArtifact.tools(steps?.length ?? 0) ?? assembled.toolScope.activeTools(steps),
+        secondArtifact.tools(steps ?? []) ?? assembled.toolScope.activeTools(steps),
       buildRepairSystem: (sources) => buildRepairSystem(sources, synthContext),
       // The image note rides on the source block because that is the ONLY thing
       // the tool-less repair writer sees of the tool work — it gets no tool

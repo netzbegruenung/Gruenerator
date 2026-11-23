@@ -8,6 +8,8 @@ const MOUNTED = ['gruenerator_search', 'sharepic', 'create_presentation', 'creat
 const state = (s: Partial<ChatGraphState>) => s as ChatGraphState;
 const sharepicMade = state({ sharepicVariants: [{} as never] });
 const deckMade = state({ createdDocument: {} as never });
+const steps = (n: number, toolName = 'gruenerator_search') =>
+  Array.from({ length: n }, () => ({ content: [{ type: 'tool-result', toolName }] }));
 
 describe('secondArtifactTools', () => {
   it('offers the tools of the free slots after a sharepic (#5957)', () => {
@@ -44,16 +46,16 @@ describe('createSecondArtifactGate', () => {
       () => MOUNTED
     );
     // Step 0: nothing built yet.
-    expect(gate.tools(0)).toBeNull();
+    expect(gate.tools(steps(0))).toBeNull();
     expect(gate.open()).toBe(false);
     // The pure order built the sharepic before step 1.
     current = sharepicMade;
-    expect(gate.tools(1)).toEqual(['create_presentation', 'create_sheet']);
+    expect(gate.tools(steps(1))).toEqual(['create_presentation', 'create_sheet']);
     expect(gate.open()).toBe(true);
     // Step 2: the extra step is used up, whether or not it built anything.
-    expect(gate.tools(2)).toBeNull();
+    expect(gate.tools(steps(2))).toBeNull();
     expect(gate.open()).toBe(false);
-    expect(gate.tools(3)).toBeNull();
+    expect(gate.tools(steps(3))).toBeNull();
   });
 
   it('closes as soon as the second artifact exists', () => {
@@ -62,8 +64,30 @@ describe('createSecondArtifactGate', () => {
       () => current,
       () => MOUNTED
     );
-    expect(gate.tools(0)).not.toBeNull();
+    expect(gate.tools(steps(0))).not.toBeNull();
     current = state({ ...sharepicMade, createdDocument: {} as never });
     expect(gate.open()).toBe(false);
+  });
+
+  it('stays closed after an image edit: edit_image fills the image slot like a new image', () => {
+    const gate = createSecondArtifactGate(
+      () => state({ generatedImage: {} as never }),
+      () => [...MOUNTED, 'generate_image']
+    );
+    expect(gate.tools(steps(1, 'edit_image'))).toBeNull();
+    expect(gate.open()).toBe(false);
+    expect(gate.tools(steps(2, 'edit_image'))).toBeNull();
+  });
+
+  it('opens after a newly generated image', () => {
+    const gate = createSecondArtifactGate(
+      () => state({ generatedImage: {} as never }),
+      () => [...MOUNTED, 'generate_image']
+    );
+    expect(gate.tools(steps(1, 'generate_image'))).toEqual([
+      'sharepic',
+      'create_presentation',
+      'create_sheet',
+    ]);
   });
 });

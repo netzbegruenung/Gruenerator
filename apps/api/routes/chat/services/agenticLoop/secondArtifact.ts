@@ -17,6 +17,7 @@
  */
 
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
+import type { PreparedStepView } from './loopEngine.js';
 
 /** Erstell-Werkzeuge je Platz im Zustand. */
 const SLOT_TOOLS = {
@@ -72,9 +73,17 @@ export function secondArtifactTools(
 }
 
 /**
- * Der Zusatzschritt als kleiner Zustandsautomat über die Schrittzahl des Loops.
+ * `edit_image` schreibt wie `generate_image` in `generatedImage`, und keines der
+ * Bearbeitungsfelder merkt es sich. Am Zustand sähe eine Bildbearbeitung also wie ein
+ * neues Bild aus; erkennbar ist sie nur am Werkzeugaufruf.
+ */
+const editedImage = (steps: ReadonlyArray<PreparedStepView>) =>
+  steps.some((step) => step.content.some((part) => part.toolName === 'edit_image'));
+
+/**
+ * Der Zusatzschritt als kleiner Zustandsautomat über die Schritte des Loops.
  * `buildPrepareStep` fragt je Schritt erst `activeTools(steps)`, dann `forceFinish()`:
- * `tools` sieht die Schrittzahl und öffnet den Zusatzschritt, `finish` liest denselben
+ * `tools` sieht die Schritte und öffnet den Zusatzschritt, `finish` liest denselben
  * Stand. Ab dem nächsten Schritt ist er verbraucht.
  */
 export function createSecondArtifactGate(
@@ -87,8 +96,10 @@ export function createSecondArtifactGate(
   const eligible = () => secondArtifactTools(state(), mounted());
   return {
     /** Für `activeTools`: die eingeschränkte Liste im Zusatzschritt, sonst `null`. */
-    tools(stepCount: number): string[] | null {
+    tools(steps: ReadonlyArray<PreparedStepView>): string[] | null {
+      const stepCount = steps.length;
       current = stepCount;
+      if (!used && editedImage(steps)) used = true;
       if (used) return null;
       if (openedAt != null) {
         if (stepCount > openedAt) {
