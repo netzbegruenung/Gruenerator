@@ -69,6 +69,8 @@ import {
   useRecentActivity,
 } from '../hooks/useRecentActivity';
 
+import { ARBEITEN_GRID } from './arbeitenGrid';
+
 // Shared type vocabulary: the footer meta line names each type in one word so a
 // board and a document read as one system. `boardType` disambiguates Kanban vs.
 // Whiteboard at render time.
@@ -127,9 +129,6 @@ const formatDuration = (seconds?: number): string => {
   const secs = seconds % 60;
   return `${mins}:${String(secs).padStart(2, '0')}`;
 };
-
-// TRIAL: four across instead of five, in a narrower section (see ArbeitenTab).
-const RECENTS_GRID = 'grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 lg:gap-4';
 
 // Collapsed, the grid shows one row; „Mehr anzeigen" opens it to three. A phone's
 // two-column grid shows two rows and doubles to four (one row is only two items).
@@ -612,7 +611,7 @@ const RecentlyCreatedSection = memo(({ headerAction }: { headerAction?: React.Re
       <SectionHeader title="Zuletzt" actions={headerAction} />
 
       {isLoading ? (
-        <div ref={setGrid} className={RECENTS_GRID}>
+        <div ref={setGrid} className={ARBEITEN_GRID}>
           {Array.from({ length: columns * collapsedRows(columns) }, (_, i) => (
             <div
               key={i}
@@ -646,7 +645,7 @@ const RecentlyCreatedSection = memo(({ headerAction }: { headerAction?: React.Re
         </p>
       ) : (
         <>
-          <div ref={setGrid} id={gridId} className={RECENTS_GRID}>
+          <div ref={setGrid} id={gridId} className={ARBEITEN_GRID}>
             {items.slice(0, visibleCount).map(renderCard)}
           </div>
           {items.length > columns * collapsedRows(columns) && (

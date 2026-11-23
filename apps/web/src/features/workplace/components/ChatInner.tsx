@@ -70,6 +70,9 @@ const PROJECT_PICK_TTL_MS = 60 * 60_000;
 interface ChatInnerProps {
   /** TRIAL: fill the parent instead of the 720 px chat column (Arbeiten hero). */
   wide?: boolean;
+  /** 'pill' (default): one slim row. 'card': text field above its toolbar, the
+   * two-line composer of the chat page (phones, where the row gets cramped). */
+  variant?: 'card' | 'pill';
   /**
    * Projekt-Übersicht: der neue Chat entsteht in diesem Projekt (`pendingGroup`).
    * Fehlt = Start-Composer ohne Projekt.
@@ -83,6 +86,7 @@ const ChatInnerReady: React.FC<ChatInnerProps> = ({
   projectId,
   teamShared = false,
   wide = false,
+  variant = 'pill',
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -159,7 +163,7 @@ const ChatInnerReady: React.FC<ChatInnerProps> = ({
     >
       <NavigateToChatOnSend />
       <GrueneratorComposer
-        variant="pill"
+        variant={variant}
         onNavigate={handleNavigate}
         firstName={firstName}
         presets={WORKPLACE_PRESETS}

@@ -30,7 +30,7 @@ const RecentlyCreatedSection = lazy(() => import('../components/RecentlyCreatedS
 // Zuletzt, Mach mehr mit deinem Grünerator, Grünerator Briefing, Marktplatz, Apps & Newsletter.
 const ArbeitenTab = () => {
   // TRIAL (phones): the composer starts centred under the greeting; once it has
-  // scrolled out of view (snapped to „Zuletzt"), a copy docks at the bottom edge.
+  // scrolled out of view, a copy docks at the bottom edge.
   const isMobile = useIsMobile();
   const inlineComposerRef = useRef<HTMLDivElement>(null);
   const dockedComposerRef = useRef<HTMLDivElement>(null);
@@ -76,67 +76,69 @@ const ArbeitenTab = () => {
     // so „Zuletzt" sits 16 px into the scroll area, ~26 px below the tab pill.
     <PageContainer maxWidth="lg" noPadTop gradient={false} className="max-md:pt-0">
       {/* TRIAL: the chat composer under the greeting instead of the search field. */}
-      {/* TRIAL: the composer owns the first view: ~42 % of the window height
-          (260–460 px), greeting and composer centred, „Zuletzt" peeks in below.
-          Phones: the greeting screen ends 180 px early, so the start of „Zuletzt"
-          peeks out above the composer pinned at the bottom and runs on behind it;
-          it is a snap point. */}
-      <div
-        data-tour="arbeiten-create"
-        className="relative isolate flex flex-col justify-center max-md:min-h-[calc(100dvh-3rem-7rem)] max-md:pb-4 max-md:snap-start max-md:snap-always md:min-h-[clamp(260px,42vh,460px)]"
-      >
-        {/* Full width: auto margins inside a flex column would shrink the hero to its content. */}
-        <div className="relative isolate w-full">
-          {/* TRIAL: a soft halo in the chat background's tint behind greeting and
+      {/* TRIAL: the composer owns the first view: the window height less 240 px
+          (at least 360 px), greeting and composer centred, „Zuletzt" peeks in below.
+          Phones: the first screen holds greeting and composer plus the heading and
+          one and a half rows of „Zuletzt" (340 px: 44 px heading, 190 px row,
+          12 px gap, half a row), so the cut card says there is more. The hero
+          is the only snap point (proximity): a short flick near the top glides back,
+          further down the page scrolls freely. */}
+      <div className="max-md:flex max-md:flex-col">
+        <div
+          data-tour="arbeiten-create"
+          className="relative isolate flex flex-col justify-center max-md:min-h-[calc(100dvh-3rem-340px)] max-md:snap-start max-md:pb-6 md:min-h-[max(360px,calc(100dvh-240px))]"
+        >
+          {/* Full width: auto margins inside a flex column would shrink the hero to its content. */}
+          <div className="relative isolate w-full">
+            {/* TRIAL: a soft halo in the chat background's tint behind greeting and
               composer, centred on both; text and composer sit on top of it. */}
-          <div
-            aria-hidden="true"
-            className={cn(
-              chatBackgroundClass,
-              // Centred on heading + composer, not on the box: the box carries 40 px of hero
-              // padding above the heading and 16 px below the composer, so the offsets
-              // differ to leave 124 px of halo on both sides.
-              'pointer-events-none absolute -top-[84px] -bottom-[108px] left-1/2 -z-10 w-[min(92vw,1320px)] -translate-x-1/2'
-            )}
-            style={{
-              animation: 'none',
-              backgroundColor: 'transparent',
-              backgroundImage:
-                'radial-gradient(closest-side, rgb(var(--wp-bg-tint) / 0.28), rgb(var(--wp-bg-tint) / 0.12) 50%, transparent)',
-            }}
-          />
-          {/* TRIAL: the chat page's greeting as is (36 px, 24 px on phones, pride
+            <div
+              aria-hidden="true"
+              className={cn(
+                chatBackgroundClass,
+                // Centred on heading + composer, not on the box: the box carries 40 px of hero
+                // padding above the heading and 16 px below the composer, so the offsets
+                // differ to leave 124 px of halo on both sides.
+                'pointer-events-none absolute -top-[84px] -bottom-[108px] left-1/2 -z-10 w-[min(92vw,1320px)] -translate-x-1/2'
+              )}
+              style={{
+                animation: 'none',
+                backgroundColor: 'transparent',
+                backgroundImage:
+                  'radial-gradient(closest-side, rgb(var(--wp-bg-tint) / 0.28), rgb(var(--wp-bg-tint) / 0.12) 50%, transparent)',
+              }}
+            />
+            {/* TRIAL: the chat page's greeting as is (36 px, 24 px on phones, pride
               gradient). pt-10 / max-md:pt-4 keep the hero's old top space, which
               the halo offsets above are measured against. */}
-          <div className="mx-auto max-w-[820px] pt-10 max-md:pt-4 max-md:[&>div:first-child]:mb-0">
-            <WorkplaceGreeting />
-            {/* TRIAL: phone only, the hint that "Zuletzt" waits below the fold. */}
-            <p className="m-0 mt-1.5 text-center text-[15px] leading-snug text-grey-500 md:hidden dark:text-grey-400">
-              Swipe oder chatte für mehr
-            </p>
-          </div>
-          {/* TRIAL: outside the hero (its box caps at 860 px), so the composer can be
+            <div className="mx-auto max-w-[820px] pt-10 max-md:pt-4 max-md:[&>div:first-child]:mb-0">
+              <WorkplaceGreeting />
+              {/* TRIAL: phone only, the hint that "Zuletzt" waits below the fold. */}
+              <p className="m-0 mt-1.5 text-center text-[15px] leading-snug text-grey-500 md:hidden dark:text-grey-400">
+                Swipe oder chatte für mehr
+              </p>
+            </div>
+            {/* TRIAL: outside the hero (its box caps at 860 px), so the composer can be
               820 px wide. */}
-          <div className={cn(chatBackgroundClass, 'contents animate-none!')}>
-            <div
-              ref={inlineComposerRef}
-              className="workplace-chat-accent mx-auto w-full max-w-[852px] px-4 max-md:mt-5"
-              data-tour="workplace-composer"
-            >
-              <ChatInner wide />
+            <div className={cn(chatBackgroundClass, 'contents animate-none!')}>
+              <div
+                ref={inlineComposerRef}
+                className="workplace-chat-accent mx-auto w-full max-w-[852px] px-4 max-md:mt-5"
+                data-tour="workplace-composer"
+              >
+                <ChatInner wide variant={isMobile ? 'card' : 'pill'} />
+              </div>
             </div>
           </div>
         </div>
-      </div>
-
-      {/* TRIAL: second snap point on phones; taller than the screen, so it scrolls freely inside. */}
-      <div className="mt-lg flex flex-col gap-10 pb-2xl max-md:mt-0 max-md:snap-start max-md:pt-6 max-md:pb-32 md:gap-12 lg:gap-14">
-        {/* TRIAL: four cards of the usual size, centred under the composer. */}
-        <div data-tour="arbeiten-recents" className="mx-auto w-full max-w-[920px]">
+        <div data-tour="arbeiten-recents" className="mt-lg w-full max-md:mt-0 max-md:pb-6">
           <Suspense fallback={null}>
             <RecentlyCreatedSection headerAction={<NewContentMenu />} />
           </Suspense>
         </div>
+      </div>
+
+      <div className="mt-10 flex flex-col gap-10 pb-2xl max-md:mt-0 max-md:pt-6 max-md:pb-32 md:mt-12 md:gap-12 lg:mt-14 lg:gap-14">
         <ToolCardsSection
           title="Mach mehr mit deinem Grünerator"
           tools={MEDIA_TOOLS}
@@ -170,7 +172,7 @@ const ArbeitenTab = () => {
                 '[&_form.composer-root]:shadow-[0_10px_32px_-8px_rgba(0,0,0,0.22),0_2px_6px_rgba(0,0,0,0.06)]'
               )}
             >
-              <ChatInner wide />
+              <ChatInner wide variant={isMobile ? 'card' : 'pill'} />
             </div>
           </div>
         </div>

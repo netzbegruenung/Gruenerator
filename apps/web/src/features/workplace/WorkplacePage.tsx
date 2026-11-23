@@ -131,8 +131,8 @@ const WorkplacePage = () => {
         {/* On phones it leaves room for the floating sidebar button (the 48 px header); the top edge fades in. */}
         <div
           hidden={tab !== 'arbeiten'}
-          // TRIAL: phones snap between the greeting screen and „Zuletzt" (a heavy, stopping scroll).
-          className="mt-12 min-h-0 flex-1 overflow-y-auto [mask-image:linear-gradient(to_bottom,transparent,black_12px)] max-md:snap-y max-md:snap-mandatory md:mt-0"
+          // TRIAL: phones get a soft pull back to the first screen near the top and scroll freely below.
+          className="mt-12 min-h-0 flex-1 overflow-y-auto [mask-image:linear-gradient(to_bottom,transparent,black_12px)] max-md:snap-y max-md:snap-proximity md:mt-0"
         >
           {arbeitenMounted && (
             <Suspense fallback={<ArbeitenFallback />}>
