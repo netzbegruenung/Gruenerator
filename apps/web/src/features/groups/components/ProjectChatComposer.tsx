@@ -17,9 +17,13 @@ interface ProjectChatComposerProps {
 export function ProjectChatComposer({ groupId }: ProjectChatComposerProps) {
   const [shared, setShared] = useState(true);
   const hintId = useId();
+  const titleId = useId();
 
   return (
-    <div className="flex flex-col gap-xs">
+    <section aria-labelledby={titleId} className="flex flex-col gap-xs">
+      <h2 id={titleId} className="m-0 text-[17px] font-semibold">
+        Neuen Chat im Projekt starten
+      </h2>
       <ChatInner projectId={groupId} teamShared={shared} />
       <label className="flex w-fit max-w-full cursor-pointer items-center gap-xs px-sm text-[13px] text-muted-foreground">
         <input
@@ -37,6 +41,6 @@ export function ProjectChatComposer({ groupId }: ProjectChatComposerProps) {
           Privat – nutzt trotzdem das Wissen des Projekts
         </p>
       )}
-    </div>
+    </section>
   );
 }

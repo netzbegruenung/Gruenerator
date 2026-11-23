@@ -3,7 +3,7 @@ import { projectChatThreads } from '@gruenerator/shared/groups';
 import { buildChatThreadSlug } from '@gruenerator/shared/utils';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { PiChatCircle } from 'react-icons/pi';
+import { PiCaretRight, PiChatCircle } from 'react-icons/pi';
 import { Link } from 'react-router-dom';
 
 const MINUTE = 60_000;
@@ -34,10 +34,12 @@ export function formatRelativeDate(iso: string, now: number = Date.now()): strin
  * slim list: title and relative date. Client-side filter over the thread list —
  * no dedicated endpoint needed.
  */
-/** So viele Chats stehen zuerst da; der Rest klappt auf Wunsch auf. */
+/** Aufgeklappt stehen zuerst so viele Chats da; der Rest auf Wunsch. */
 const CHATS_SHOWN = 5;
 
 export function SpaceChatsSection({ groupId }: { groupId: string }) {
+  // Bisherige Chats sind eingeklappt: oben steht der neue Chat, nicht die Liste.
+  const [open, setOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const {
     data: threads = [],
@@ -64,10 +66,22 @@ export function SpaceChatsSection({ groupId }: { groupId: string }) {
 
   return (
     <section aria-labelledby="projekt-chats-titel" className="flex flex-col gap-xs">
-      <h2 id="projekt-chats-titel" className="sr-only">
-        Chats in diesem Projekt
+      <h2 id="projekt-chats-titel" className="m-0">
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+          className="flex cursor-pointer items-center gap-xs rounded-md border-none bg-transparent px-sm py-1 font-[inherit] text-[15px] font-semibold text-foreground hover:bg-muted"
+        >
+          <PiCaretRight
+            aria-hidden
+            className={`size-4 transition-transform ${open ? 'rotate-90' : ''}`}
+          />
+          Bisherige Chats
+          <span className="font-normal text-muted-foreground">{threads.length}</span>
+        </button>
       </h2>
-      {threads.length === 0 ? (
+      {!open ? null : threads.length === 0 ? (
         <p className="m-0 px-sm text-[15px] text-muted-foreground">
           Noch keine Chats. Starte oben den ersten.
         </p>
@@ -116,7 +130,7 @@ export function SpaceChatsSection({ groupId }: { groupId: string }) {
           })}
         </ul>
       )}
-      {threads.length > CHATS_SHOWN && (
+      {open && threads.length > CHATS_SHOWN && (
         <button
           type="button"
           onClick={() => setShowAll((v) => !v)}
