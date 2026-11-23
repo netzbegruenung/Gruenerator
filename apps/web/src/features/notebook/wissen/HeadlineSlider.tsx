@@ -152,7 +152,10 @@ function SliderBody({ items }: { items: WissenArticle[] }) {
           />
         ))}
       </div>
-      <div className="mt-auto flex items-center gap-2 px-[18px] pb-3 pt-2 md:px-[26px] md:pb-5 md:pt-3 lg:px-8 lg:pb-[22px] xl:pb-5">
+      {/* `relative`: anchors the sr-only status. Without a positioned ancestor its
+          absolute box hung off the page, outside the scrolling Arbeiten pane, and
+          made the whole document taller (white band below the page). */}
+      <div className="relative mt-auto flex items-center gap-2 px-[18px] pb-3 pt-2 md:px-[26px] md:pb-5 md:pt-3 lg:px-8 lg:pb-[22px] xl:pb-5">
         <SlideDots
           labels={items.map((_, i) => `Meldung ${i + 1} von ${items.length}`)}
           active={active}
