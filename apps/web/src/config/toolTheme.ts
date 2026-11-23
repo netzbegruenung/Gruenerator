@@ -154,15 +154,14 @@ export const TOOL_THEME = {
     gradient:
       'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#FAEFE9_0%,#FCF7F4_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#22160F_0%,#170F0A_55%,#0E0906_100%)]',
   },
-  // Projekte — a soft blue (the calm, "bündeln/organisieren" hue), distinct from
-  // sheets' teal and the warm office/agentura tones.
+  // Projekte — the Tanne tone of the project palette (GROUP_COLOR_STYLES.tanne).
   projekte: {
-    tile: 'bg-[#DCE6F2] dark:bg-[#14202E]',
-    icon: 'text-[#2E4E7A] dark:text-[#7CA2CB]',
-    title: 'text-[#1E3A5E] dark:text-[#A2C0E4]',
-    desc: 'text-[#4F6784] dark:text-[#6E88AB]',
+    tile: 'bg-[#D6EBE8] dark:bg-[#112423]',
+    icon: 'text-[#12504A] dark:text-[#9AD6CF]',
+    title: 'text-[#12504A] dark:text-[#9AD6CF]',
+    desc: 'text-[#34706A] dark:text-[#74B0A9]',
     gradient:
-      'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#ECF2F9_0%,#F6F9FC_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#131C26_0%,#0E1319_55%,#090D10_100%)]',
+      'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#E8F4F2_0%,#F4FAF9_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#10201F_0%,#0B1716_55%,#070E0D_100%)]',
   },
   weitere: {
     tile: 'bg-[#E7EAE6] dark:bg-[#1C211D]',

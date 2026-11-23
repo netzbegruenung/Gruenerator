@@ -12,7 +12,7 @@ import { getToolTheme } from '../../../config/toolTheme';
 import { formatRelativeDate } from '../../../utils/dateFormatter';
 import { resolveApiAssetUrl } from '../../../utils/platform';
 
-// Square projekte-blue tile mirroring the OfficeTile idiom (aspect-square,
+// Square projekte-green tile mirroring the OfficeTile idiom (aspect-square,
 // rounded-2xl, icon pinned top / label pinned bottom) so the "Deine Projekte"
 // grid reads as one family with the create tiles above it.
 const TILE_BASE =
