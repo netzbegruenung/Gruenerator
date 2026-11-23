@@ -1,4 +1,5 @@
-export { IllustratedTile, IllustratedTileGrid, type IllustratedTileProps } from './IllustratedTile';
+import './illustratedTile.css';
+
 export {
   BookIllustration,
   ExchangeIllustration,

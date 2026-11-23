@@ -137,7 +137,11 @@ export interface ToolCard {
   badge?: string;
   path?: string;
   href?: string;
-  icon: IconType;
+  /** On the front sheet, unless the card has a `visual` or a preview picture. */
+  icon?: IconType;
+  /** Takes the preview's place on the front sheet: an animated illustration from
+   *  `components/common/IllustratedTile`, which plays while the card is hovered or focused. */
+  visual?: ReactNode;
   /** `toolTheme` key for the card colour. */
   theme?: string;
 }
@@ -177,6 +181,20 @@ const TOOL_CARD =
   'group relative flex h-24 items-center overflow-hidden rounded-2xl px-4 no-underline transition-shadow ' +
   'hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 md:h-28';
 
+/** Literal per threshold, so Tailwind sees every class. */
+const STACK = {
+  long: {
+    title: '@max-[18rem]:max-w-none',
+    sheet: '@max-[18rem]:right-3 @max-[18rem]:h-[76px] @max-[18rem]:w-[92px]',
+    card: '@max-[18rem]:h-[132px] @max-[18rem]:items-start @max-[18rem]:pt-4',
+  },
+  short: {
+    title: '@max-[14rem]:max-w-none',
+    sheet: '@max-[14rem]:right-3 @max-[14rem]:h-[76px] @max-[14rem]:w-[92px]',
+    card: '@max-[14rem]:h-[132px] @max-[14rem]:items-start @max-[14rem]:pt-4',
+  },
+} as const;
+
 /**
  * `white`: a white card whose sheets carry a green border; the theme colours title and icon,
  * for the Studio, where the media grid below is white too. Default: the tinted Arbeiten card.
@@ -194,7 +212,14 @@ export function ToolCardLink({
   const white = surface === 'white';
   const theme = getToolTheme(tool.theme ?? tool.id) ?? getToolTheme('weitere');
   const Icon = tool.icon;
-  const preview = TOOL_PREVIEWS[tool.id];
+  const preview = tool.visual ? (
+    <span className="flex size-full p-3">{tool.visual}</span>
+  ) : (
+    TOOL_PREVIEWS[tool.id]
+  );
+  // A narrow card with a picture stacks its title above it. A tool title needs ~290 px
+  // beside the picture; the one-word titles of the illustrated cards need ~225 px.
+  const stack = preview ? STACK[tool.visual ? 'short' : 'long'] : null;
   const body = (
     <>
       <span
@@ -206,7 +231,7 @@ export function ToolCardLink({
           theme?.title,
           // A narrow card (phone, or three across on a tablet): the title takes the full top,
           // the picture the corner below it. Side by side needs ~290 px.
-          preview && '@max-[18rem]:max-w-none'
+          stack?.title
         )}
       >
         <span className="flex items-center gap-2">
@@ -231,7 +256,7 @@ export function ToolCardLink({
           'absolute -bottom-3 h-20 md:h-24',
           white && 'md:max-lg:hidden',
           preview
-            ? 'right-4 w-28 md:w-32 @max-[18rem]:right-3 @max-[18rem]:h-[76px] @max-[18rem]:w-[92px]'
+            ? cn('right-4 w-28 md:w-32', stack?.sheet)
             : white
               ? 'right-1 w-[30%] max-w-32'
               : 'right-1 w-[44%]'
@@ -258,17 +283,18 @@ export function ToolCardLink({
             theme?.icon
           )}
         >
-          {preview ?? <Icon className="size-7 md:size-8" />}
+          {preview ?? (Icon && <Icon className="size-7 md:size-8" />)}
         </span>
       </span>
     </>
   );
   const className = cn(
     TOOL_CARD,
+    tool.visual && 'it-host',
     // A white card carries a description: it grows with its text instead of clipping it.
     white && 'h-full min-h-20 py-4 md:h-full md:min-h-24',
     // Narrow card: two lines of title on top, the picture below them (never under the text).
-    preview && '@max-[18rem]:h-[132px] @max-[18rem]:items-start @max-[18rem]:pt-4',
+    stack?.card,
     white
       ? 'border border-grey-200 bg-background dark:border-grey-800'
       : (theme?.tile ?? 'bg-grey-50 dark:bg-grey-800/40')

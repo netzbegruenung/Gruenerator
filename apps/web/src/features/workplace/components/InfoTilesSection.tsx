@@ -3,26 +3,51 @@ import { DOKU_URL } from '@gruenerator/shared/links';
 import {
   BookIllustration,
   ExchangeIllustration,
-  IllustratedTileGrid,
-  type IllustratedTileProps,
   PadlockIllustration,
   WindTurbineIllustration,
 } from '../../../components/common/IllustratedTile';
 
-import { ArbeitenSection } from './ArbeitenSections';
+import { type ToolCard, ToolCardsSection } from './ArbeitenSections';
 
-const TILES: IllustratedTileProps[] = [
-  { title: 'Dokumentation', illustration: <BookIllustration />, href: DOKU_URL },
-  { title: 'Transparenz', illustration: <WindTurbineIllustration />, to: '/transparenz' },
-  { title: 'MCP-Server', illustration: <ExchangeIllustration />, to: '/apps' },
-  { title: 'Datenschutz', illustration: <PadlockIllustration />, to: '/datenschutz' },
+/** Four hues, none shared with a neighbour; the picture plays on hover and focus. */
+const TILES: ToolCard[] = [
+  {
+    id: 'info-doku',
+    title: 'Dokumentation',
+    theme: 'docs',
+    href: DOKU_URL,
+    visual: <BookIllustration />,
+  },
+  {
+    id: 'info-transparenz',
+    title: 'Transparenz',
+    theme: 'boards',
+    path: '/transparenz',
+    visual: <WindTurbineIllustration />,
+  },
+  {
+    id: 'info-mcp',
+    title: 'MCP-Server',
+    theme: 'canvas-ki',
+    path: '/apps',
+    visual: <ExchangeIllustration />,
+  },
+  {
+    id: 'info-datenschutz',
+    title: 'Datenschutz',
+    theme: 'projekte',
+    path: '/datenschutz',
+    visual: <PadlockIllustration />,
+  },
 ];
 
 /** Where the Grünerator explains itself: docs, transparency, MCP and privacy. */
 export function InfoTilesSection() {
   return (
-    <ArbeitenSection title="Transparenz, MCP & Co">
-      <IllustratedTileGrid tiles={TILES} />
-    </ArbeitenSection>
+    <ToolCardsSection
+      title="Transparenz, MCP & Co"
+      tools={TILES}
+      gridClassName="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4"
+    />
   );
 }

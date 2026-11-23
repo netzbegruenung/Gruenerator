@@ -1,50 +1,28 @@
 /*
- * IllustratedTile: a solid square with its title at the top left and a line
- * illustration at the bottom right that plays on hover (pointer devices) and on
- * keyboard focus.
+ * Animated line illustrations for the front sheet of a tool card
+ * (`ToolCard.visual`). They play on hover (pointer devices) and on keyboard
+ * focus of the card, which carries the class `it-host`.
  *
- * Colour: set `--tile`, `--tile-hover` and `--tile-ink` on the tile (or any
- * ancestor) to retint it. The default eucalyptus carries white at 4.4:1, enough
- * for the title, which never drops below 18.7 px bold (large text, 3:1).
+ * Colour: strokes are `currentColor`; knock-outs use `--tile`, the colour of
+ * the sheet they sit on.
  *
  * Motion: an animated part of an illustration declares its animation in
  * `--it-anim` and carries the class `it-anim`; the one rule below plays every
- * such part while the tile is active. A new illustration therefore only adds
+ * such part while the card is active. A new illustration therefore only adds
  * keyframes and the variable, never another hover selector. Nothing moves with
  * reduced motion. One beat is 2.5 s: movement in the first ~60 %, then rest.
  */
-.illustrated-tile {
-  --tile: #4f8371;
-  --tile-hover: #487867;
-  --tile-ink: #fff;
-
-  background-color: var(--tile);
-  color: var(--tile-ink);
-  transition:
-    transform 350ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    background-color 250ms ease;
-  -webkit-tap-highlight-color: transparent;
-}
-
-[data-theme='dark'] .illustrated-tile {
-  --tile: #3f6e5e;
-  --tile-hover: #467767;
+.illustrated-tile__art {
+  --tile: var(--background-color);
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .illustrated-tile:hover {
-    transform: translateY(-4px);
-    background-color: var(--tile-hover);
-  }
-  .illustrated-tile:hover .it-anim {
+  .it-host:hover .it-anim {
     animation: var(--it-anim);
   }
 }
-.illustrated-tile:focus-visible .it-anim {
+.it-host:focus-visible .it-anim {
   animation: var(--it-anim);
-}
-.illustrated-tile:active {
-  transform: scale(0.97);
 }
 
 /* Parts turn and scale about their own centre; `.it-vb` about the drawing's grid. */
@@ -57,13 +35,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .illustrated-tile,
-  .illustrated-tile .it-anim {
+  .it-host .it-anim {
     animation: none !important;
-    transition: none;
-  }
-  .illustrated-tile:hover {
-    transform: none;
   }
 }
 

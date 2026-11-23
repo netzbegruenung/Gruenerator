@@ -1,8 +1,8 @@
 import { type CSSProperties, type ReactNode } from 'react';
 
 /*
- * Line illustrations for IllustratedTile: 100 × 100 grid, round caps, drawn in
- * `currentColor` with the tile colour (`var(--tile)`) for knock-outs. Animated
+ * Line illustrations for a tool card's front sheet: 100 × 100 grid, round caps, drawn in
+ * `currentColor` with the sheet colour (`var(--tile)`) for knock-outs. Animated
  * parts carry `it-anim` plus the class whose `--it-anim` lives in
  * illustratedTile.css; `--it-delay` staggers parts that share one animation.
  */
