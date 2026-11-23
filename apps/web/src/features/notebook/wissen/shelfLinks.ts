@@ -1,11 +1,9 @@
 import { collectionSlug, type ShelfEntry } from './useNotebookShelves';
 
-// Own module without the shelf's components: the sidebar menu imports it on every page.
-
-// Jedes Notebook öffnet mit frischem Gespräch — auch aus dem Menü der Seitenleiste.
+// Jedes Notebook öffnet mit frischem Gespräch.
 export const OPEN_STATE = { freshConversation: true };
 
-/** Titel und Ziel eines Listeneintrags — geteilt mit dem Notebook-Menü der Seitenleiste. */
+/** Titel und Ziel eines Listeneintrags. */
 export function shelfEntryLink(entry: ShelfEntry): {
   title: string;
   to: string;

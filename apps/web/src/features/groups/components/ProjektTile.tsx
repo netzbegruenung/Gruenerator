@@ -4,45 +4,57 @@ import {
   GROUP_COLOR_STYLES,
   resolveGroupColor,
   type GroupSummary,
+  useSetGroupArchived,
 } from '@gruenerator/shared/groups';
-import { HiUser, HiUserGroup } from 'react-icons/hi';
-import { Link } from 'react-router-dom';
+import { DropdownMenuItem, toast } from '@gruenerator/ui';
+import { HiOutlineArchive } from 'react-icons/hi';
+import { PiStar, PiStarFill } from 'react-icons/pi';
 
 import { getToolTheme } from '../../../config/toolTheme';
-import { formatRelativeDate } from '../../../utils/dateFormatter';
+import useSidebarFavouritesStore, {
+  projektFavouriteId,
+  useIsFavourite,
+  useIsFavouritesFull,
+} from '../../../stores/sidebarFavouritesStore';
 import { resolveApiAssetUrl } from '../../../utils/platform';
 
-// Square projekte-blue tile mirroring the OfficeTile idiom (aspect-square,
-// rounded-2xl, icon pinned top / label pinned bottom) so the "Deine Projekte"
-// grid reads as one family with the create tiles above it.
-const TILE_BASE =
-  'group relative flex aspect-square flex-col justify-between gap-2 rounded-2xl p-4 no-underline ' +
-  'transition-shadow duration-150 hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] ' +
-  'dark:hover:shadow-[0_4px_12px_rgba(0,0,0,0.30)]';
+import { TileCard } from './TileCard';
 
-function projektMeta(projekt: GroupSummary): string {
+/** Nur, was die Kachel unterscheidet: archiviert oder das System-Projekt. Keine Mitgliederzahl. */
+function projektMeta(projekt: GroupSummary): string | null {
   if (projekt.archived_at) return 'Archiviert';
   if (projekt.is_system) return 'Für alle';
-  if (projekt.member_count != null) {
-    return `${projekt.member_count} Mitglied${projekt.member_count === 1 ? '' : 'er'}`;
-  }
-  return projekt.isAdmin ? 'Admin' : 'Mitglied';
+  return null;
 }
 
+/**
+ * Projekt-Kachel (`TileCard`): Avatar oder Initialen, Name und Beschreibung; oben rechts das „…"-Menü. Eine gewählte
+ * Projektfarbe tauscht den ganzen Tonsatz.
+ */
 export function ProjektTile({ projekt }: { projekt: GroupSummary }) {
   const base = getToolTheme('projekte');
   const colorKey = resolveGroupColor(projekt.color);
   const palette = colorKey ? GROUP_COLOR_STYLES[colorKey] : null;
+  const setArchived = useSetGroupArchived(projekt.id);
+  const favouriteId = projektFavouriteId(projekt.id);
+  const isFavourite = useIsFavourite(favouriteId);
+  const favouritesFull = useIsFavouritesFull();
+  const toggleFavourite = useSidebarFavouritesStore((s) => s.toggleFavourite);
   // A chosen colour swaps the whole tone set (background, title, description, icon) so the
   // contrast pairs stay the audited ones, in both modes.
-  const theme = palette
+  const tone = palette
     ? {
         tile: 'bg-(--tile-bg) dark:bg-(--tile-bg-dark)',
         icon: 'text-(--tile-title) dark:text-(--tile-title-dark)',
         title: 'text-(--tile-title) dark:text-(--tile-title-dark)',
         desc: 'text-(--tile-desc) dark:text-(--tile-desc-dark)',
       }
-    : base;
+    : (base ?? {
+        tile: 'bg-grey-50 dark:bg-grey-800/40',
+        icon: 'text-secondary-600',
+        title: 'text-foreground-heading',
+        desc: 'text-muted-foreground',
+      });
   const toneVars = palette
     ? ({
         '--tile-bg': palette.light.bg,
@@ -53,52 +65,62 @@ export function ProjektTile({ projekt }: { projekt: GroupSummary }) {
         '--tile-desc-dark': palette.dark.desc,
       } as React.CSSProperties)
     : undefined;
-  const TypeIcon = (projekt.member_count ?? 1) > 1 ? HiUserGroup : HiUser;
+
+  const archived = !!projekt.archived_at;
+  const toggleArchived = () =>
+    setArchived.mutate(!archived, {
+      onSuccess: () =>
+        toast.success(archived ? 'Projekt wiederhergestellt.' : 'Projekt archiviert.'),
+      onError: (err: Error) => toast.error(err.message || 'Projekt konnte nicht geändert werden.'),
+    });
+
   return (
-    <Link
-      to={buildGroupPath(projekt)}
+    <TileCard
+      href={buildGroupPath(projekt)}
+      title={projekt.name}
+      tone={tone}
       style={toneVars}
-      className={`${TILE_BASE} ${theme?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'}`}
-    >
-      <span className="flex items-start justify-between">
-        <span className="flex size-10 items-center justify-center overflow-hidden rounded-full bg-white/70 dark:bg-white/10">
-          {projekt.avatar_url ? (
-            // avatar_url is the stored filename, not a URL; it changes on every
-            // upload, so it doubles as the cache-buster.
-            <img
-              src={resolveApiAssetUrl(
-                `/api/auth/groups/${projekt.id}/avatar?v=${encodeURIComponent(projekt.avatar_url)}`
-              )}
-              alt=""
-              className="size-full object-cover"
-            />
-          ) : (
-            <span className={`text-sm font-bold ${theme?.icon ?? 'text-secondary-600'}`}>
-              {getGroupInitials(projekt.name)}
-            </span>
-          )}
-        </span>
-        <TypeIcon aria-hidden className={`text-[18px] ${theme?.desc ?? 'text-muted-foreground'}`} />
-      </span>
-      <span className="min-w-0">
-        <span
-          className={`block text-[15px] font-bold leading-tight line-clamp-2 sm:text-[16px] ${theme?.title ?? 'text-foreground-heading'}`}
-        >
-          {projekt.name}
-        </span>
-        <span
-          className={`mt-0.5 block truncate text-[12px] leading-snug sm:text-[13px] ${theme?.desc ?? 'text-muted-foreground'}`}
-        >
-          {projektMeta(projekt)}
-        </span>
-        {projekt.last_activity_at && !projekt.archived_at && (
-          <span
-            className={`block truncate text-[12px] leading-snug sm:text-[13px] ${theme?.desc ?? 'text-muted-foreground'}`}
+      description={projekt.description}
+      badge={
+        projekt.avatar_url ? (
+          // avatar_url is the stored filename, not a URL; it changes on every
+          // upload, so it doubles as the cache-buster.
+          <img
+            src={resolveApiAssetUrl(
+              `/api/auth/groups/${projekt.id}/avatar?v=${encodeURIComponent(projekt.avatar_url)}`
+            )}
+            alt=""
+            className="size-full object-cover"
+          />
+        ) : (
+          <span className="text-sm font-bold">{getGroupInitials(projekt.name)}</span>
+        )
+      }
+      meta={[projektMeta(projekt)].filter((line): line is string => !!line)}
+      menu={
+        <>
+          <DropdownMenuItem
+            onClick={() => {
+              if (!isFavourite && favouritesFull) {
+                toast.error('Die Favoriten sind voll. Entferne zuerst einen.');
+                return;
+              }
+              toggleFavourite(favouriteId);
+            }}
           >
-            {formatRelativeDate(projekt.last_activity_at)}
-          </span>
-        )}
-      </span>
-    </Link>
+            {isFavourite ? <PiStarFill /> : <PiStar />}
+            {isFavourite ? 'Aus Favoriten entfernen' : 'Zu Favoriten'}
+          </DropdownMenuItem>
+          {/* Archivieren wie im Projektmenü: nur Admins, nie das System-Projekt.
+              Löschen und Verlassen brauchen eine Rückfrage und bleiben dort. */}
+          {projekt.isAdmin && !projekt.is_system && (
+            <DropdownMenuItem onClick={toggleArchived} disabled={setArchived.isPending}>
+              <HiOutlineArchive />
+              {archived ? 'Wiederherstellen' : 'Archivieren'}
+            </DropdownMenuItem>
+          )}
+        </>
+      }
+    />
   );
 }

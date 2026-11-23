@@ -8,17 +8,18 @@ import {
 import { extractSlugSuffix } from '@gruenerator/shared/utils';
 import {
   Button,
+  ConfirmDialogProvider,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
   SectionHeader,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   StatusBanner,
 } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback, useMemo, useRef } from 'react';
-import { HiUser } from 'react-icons/hi';
+import { PiPlus, PiSortAscending } from 'react-icons/pi';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
@@ -26,16 +27,23 @@ import PageContainer from '../../../components/common/PageContainer';
 import { getToolGradient } from '../../../config/toolTheme';
 import { useFirstName } from '../../../hooks/useFirstName';
 import { useDocumentsStore } from '../../../stores/documentsStore';
-import { OFFICE_PILL_ROW, OfficeActionPill } from '../../workplace/components/ToolsSection';
 import { WorkplaceHero } from '../../workplace/components/WorkplaceHero';
 import GroupDetailSection from '../components/GroupDetailSection';
 import GroupsCreateSection, { type CreateGroupExtras } from '../components/GroupsCreateSection';
 import { ProjekteComposer } from '../components/ProjekteComposer';
+import { ProjekteNotebooksSection } from '../components/ProjekteNotebooksSection';
+import { ProjekteRecipesSection } from '../components/ProjekteRecipesSection';
 import { ProjektTile } from '../components/ProjektTile';
 import PublicGroupsSection from '../components/PublicGroupsSection';
 import { useGroupResolver } from '../hooks/useGroupResolver';
 import { useGroups, useInviteToGroup, type GroupSummary } from '../hooks/useGroups';
 import { serverMessage } from '../serverMessage';
+
+const SORT_LABELS: Record<GroupSort, string> = {
+  activity: 'Zuletzt aktiv',
+  name: 'Name',
+  newest: 'Neueste',
+};
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -220,32 +228,46 @@ const ProjektePage = () => {
         />
       </WorkplaceHero>
 
-      <section className="mb-xl mt-md">
-        <div className={OFFICE_PILL_ROW}>
-          <OfficeActionPill
-            styleKey="projekte"
-            icon={HiUser}
-            title="Projekt erstellen"
-            onClick={() => openCreate()}
-          />
-        </div>
-      </section>
-
       <SectionHeader
         title="Deine Projekte"
         actions={
-          activeGroups.length > 1 ? (
-            <Select value={sort} onValueChange={(v) => setSort(v as GroupSort)}>
-              <SelectTrigger size="sm" className="w-auto gap-xs" aria-label="Projekte sortieren">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent align="end">
-                <SelectItem value="activity">Zuletzt aktiv</SelectItem>
-                <SelectItem value="name">Name</SelectItem>
-                <SelectItem value="newest">Neueste</SelectItem>
-              </SelectContent>
-            </Select>
-          ) : undefined
+          <div className="flex items-center gap-xs">
+            {activeGroups.length > 1 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Projekte sortieren: ${SORT_LABELS[sort]}`}
+                    title={`Sortieren: ${SORT_LABELS[sort]}`}
+                  >
+                    <PiSortAscending aria-hidden className="size-[18px]" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuRadioGroup
+                    value={sort}
+                    onValueChange={(v) => setSort(v as GroupSort)}
+                  >
+                    {(Object.keys(SORT_LABELS) as GroupSort[]).map((key) => (
+                      <DropdownMenuRadioItem key={key} value={key}>
+                        {SORT_LABELS[key]}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Neues Projekt"
+              title="Neues Projekt"
+              onClick={() => openCreate()}
+            >
+              <PiPlus aria-hidden className="size-[18px]" />
+            </Button>
+          </div>
         }
       />
       {/* „Noch keine Projekte" ist die härteste Aussage dieser Fläche und darf
@@ -271,7 +293,7 @@ const ProjektePage = () => {
           Noch keine Projekte vorhanden. Erstelle dein erstes Projekt über das Feld oben.
         </p>
       ) : (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,200px))] gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] sm:gap-4">
           {activeGroups.map((g) => (
             <ProjektTile key={g.id} projekt={g} />
           ))}
@@ -282,13 +304,15 @@ const ProjektePage = () => {
           <summary className="cursor-pointer text-sm font-medium text-grey-600 dark:text-grey-300">
             Archiviert ({archivedGroups.length})
           </summary>
-          <div className="mt-md grid grid-cols-[repeat(auto-fill,minmax(150px,200px))] gap-3 sm:gap-4">
+          <div className="mt-md grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] sm:gap-4">
             {archivedGroups.map((g) => (
               <ProjektTile key={g.id} projekt={g} />
             ))}
           </div>
         </details>
       )}
+      <ProjekteNotebooksSection />
+      <ProjekteRecipesSection />
       <PublicGroupsSection onSuccessMessage={showSuccess} onErrorMessage={showError} />
 
       {createDialog}
@@ -296,4 +320,13 @@ const ProjektePage = () => {
   );
 };
 
-export default withAuthRequired(ProjektePage, { title: 'Projekte' });
+/** Löschen eines Rezepts fragt per AlertDialog nach, nicht per `window.confirm`. */
+function ProjekteRoute() {
+  return (
+    <ConfirmDialogProvider>
+      <ProjektePage />
+    </ConfirmDialogProvider>
+  );
+}
+
+export default withAuthRequired(ProjekteRoute, { title: 'Projekte' });

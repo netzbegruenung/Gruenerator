@@ -54,7 +54,6 @@ interface GrueneratorThreadProps {
   showPlusMenu?: boolean;
   showToolToggles?: boolean;
   showModelPicker?: boolean;
-  showProjectPicker?: boolean;
   /** The action row under each answer (copy, read aloud, as document). On by default. */
   showMessageActions?: boolean;
   /** „Als <Rolle>" over the person's messages. On by default. */
@@ -161,7 +160,6 @@ export function GrueneratorThread({
   showPlusMenu,
   showToolToggles,
   showModelPicker,
-  showProjectPicker,
   showMessageActions = true,
   showRoleBadge = true,
   composerSlots,
@@ -304,7 +302,6 @@ export function GrueneratorThread({
               {...(showPlusMenu !== undefined && { showPlusMenu })}
               {...(showToolToggles !== undefined && { showToolToggles })}
               {...(showModelPicker !== undefined && { showModelPicker })}
-              {...(showProjectPicker !== undefined && { showProjectPicker })}
               {...(composerSlots ? { slots: composerSlots } : {})}
               {...(requireProfileHydration !== undefined && { requireProfileHydration })}
               {...(enablePastedTextAttachments !== undefined && { enablePastedTextAttachments })}

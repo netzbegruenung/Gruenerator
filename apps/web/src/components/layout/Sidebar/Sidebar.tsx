@@ -1,5 +1,6 @@
 import { useAgentStore, setThreadListSlot, useUserProfileStore } from '@gruenerator/chat/stores';
 import { getAgentSlug, getSystemAgent } from '@gruenerator/shared/agents';
+import { buildGroupPath } from '@gruenerator/shared/groups';
 import { sortByUsage } from '@gruenerator/shared/utils';
 import {
   Sheet,
@@ -17,10 +18,13 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getFavouriteItemsById } from '../../../config/sidebarFavouritesConfig';
 import { useCanSeeSites } from '../../../config/sitesGate';
 import { useUserAgents } from '../../../features/agents/api';
+import { useGroups } from '../../../features/groups/hooks/useGroups';
 import { useItemUsage } from '../../../features/usage/useItemUsage';
 import useAgentFavoritesStore from '../../../stores/agentFavoritesStore';
 import { useAuthStore } from '../../../stores/authStore';
-import useSidebarFavouritesStore from '../../../stores/sidebarFavouritesStore';
+import useSidebarFavouritesStore, {
+  projektFavouriteId,
+} from '../../../stores/sidebarFavouritesStore';
 import useSidebarStore from '../../../stores/sidebarStore';
 import { StatusBadge } from '../../common/StatusBadge';
 import {
@@ -31,7 +35,6 @@ import {
 } from '../Header/menuData';
 
 import { NavTooltip } from './NavTooltip';
-import { NotebooksSidebarSection } from './NotebooksSidebarSection';
 import { ProjekteSidebarSection } from './ProjekteSidebarSection';
 import { buildRoleShortcuts } from './roleShortcuts';
 import { RoleShortcutsSidebarSection } from './RoleShortcutsSidebarSection';
@@ -40,7 +43,13 @@ import { getAgentIcon } from './sidebarAgentConfig';
 import { headerIconButtonClass, iconClass, menuLinkClass } from './sidebarStyles';
 
 import { CURRENT_INSTANCE } from '@/config/instance';
-import { FiSidebar, PiSignIn, PiSparkle, PiStarFill } from '@/config/shellIcons.generated';
+import {
+  FiSidebar,
+  LuFolderCog,
+  PiSignIn,
+  PiSparkle,
+  PiStarFill,
+} from '@/config/shellIcons.generated';
 import { cn } from '@/utils/cn';
 import { isWorkplaceSurface, startTabLink } from '@/utils/startpage';
 import '../../../assets/styles/components/layout/sidebar.css';
@@ -51,8 +60,7 @@ const GlobalSearchDialog = lazy(() => import('../../../features/global-search/Gl
 
 interface SidebarProps {
   isDesktop?: boolean;
-  /** `state`: router state for the target, e.g. a notebook's fresh conversation. */
-  onNavigate?: (path: string, title: string, state?: unknown) => void;
+  onNavigate?: (path: string, title: string) => void;
   /** The rail is slid off-screen (`.sidebar-hidden`) while closed: take it out of tab order and AT. */
   railHidden?: boolean;
 }
@@ -81,7 +89,6 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
 
   const accountMenuOpenRef = useRef(false);
   const projekteMenuOpenRef = useRef(false);
-  const notebooksMenuOpenRef = useRef(false);
   const roleMenuOpenRef = useRef(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -117,14 +124,11 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
   const searchItem = directMenuItems[GLOBAL_SEARCH_ITEM_ID];
   const sidebarExpanded = isOpen || forceExpanded;
   // Web desktop rail: the sidebar carries its own header row (wordmark, search, toggle).
-  // Expanded, search sits in that row as a tool; collapsed, the row shrinks to
-  // the toggle and search drops into the rail. Mobile (Sheet) and Tauri keep
-  // their own chrome.
+  // Search shows only in the expanded sidebar: there it sits in that row as a
+  // tool; the collapsed rail has no search entry. Mobile (Sheet) and Tauri have
+  // no header row and keep it in the list while open.
   const hasHeaderRow = !isDesktop && !isMobile;
-  const showSearchInList = !hasHeaderRow || !sidebarExpanded;
-  // The collapsed rail stays minimal (Workplace, search, the direct items);
-  // Projekte appears once expanded. Mobile and Tauri keep them in every state.
-  const showQuickViews = !hasHeaderRow || sidebarExpanded;
+  const showSearchInList = !hasHeaderRow && sidebarExpanded;
 
   // Close sidebar on route change
   useEffect(() => {
@@ -187,11 +191,11 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
   );
 
   const handleLinkClick = useCallback(
-    (path: string, title: string = '', state: unknown = null) => {
+    (path: string, title: string = '') => {
       if (onNavigate) {
-        onNavigate(path, title, state);
+        onNavigate(path, title);
       } else {
-        void navigate(path, { state });
+        void navigate(path);
       }
       close();
     },
@@ -225,12 +229,7 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
       // outside the sidebar (main content, or the window).
       const rt = e.relatedTarget;
       if (rt instanceof Node && e.currentTarget.contains(rt)) return;
-      if (
-        !accountMenuOpenRef.current &&
-        !projekteMenuOpenRef.current &&
-        !notebooksMenuOpenRef.current &&
-        !roleMenuOpenRef.current
-      ) {
+      if (!accountMenuOpenRef.current && !projekteMenuOpenRef.current && !roleMenuOpenRef.current) {
         close();
       }
     },
@@ -244,7 +243,7 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
   // stehen. Gemessen: allein diese Zeile stand für 333 der 1027 Verstöße im
   // Baseline-Lauf. Siehe docs/barrierefreiheit-audit-plan.md.
   const titleClass = cn(
-    'min-w-0 flex-1 truncate text-left text-sm font-medium leading-tight transition-all duration-150',
+    'min-w-0 flex-1 truncate text-left text-[15px] font-medium leading-tight transition-all duration-150',
     sidebarExpanded ? 'opacity-100 translate-x-0' : 'sr-only'
   );
 
@@ -255,6 +254,13 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
 
   const startItem = additionalItems.find((item) => item.id === 'startseite');
   const restItems = additionalItems.filter((item) => item.id !== 'startseite');
+  // Projekte steht oben an der Stelle der Grüneratoren; die Grüneratoren
+  // (laufen aus, alles zieht zu den Projekten) rücken nach unten.
+  const grueneratorenIndex = restItems.findIndex((item) => item.id === 'grueneratoren');
+  const grueneratorenItem = grueneratorenIndex >= 0 ? restItems[grueneratorenIndex] : null;
+  const itemsBeforeProjekte =
+    grueneratorenIndex >= 0 ? restItems.slice(0, grueneratorenIndex) : restItems;
+  const itemsAfterProjekte = grueneratorenIndex >= 0 ? restItems.slice(grueneratorenIndex + 1) : [];
   const renderNavItem = (item: MenuItemType) =>
     !item.path ? (
       <span key={item.id} className={menuLinkClass(false, true, !sidebarExpanded)}>
@@ -434,9 +440,22 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
           </div>
         )}
 
-        {/* Direct menu items - main navigation */}
-        {restItems.length > 0 && (
-          <div className="flex flex-col gap-0 p-0">{restItems.map(renderNavItem)}</div>
+        {/* Direct menu items - main navigation, with Projekte in the old Grüneratoren slot */}
+        {itemsBeforeProjekte.length > 0 && (
+          <div className="flex flex-col gap-0 p-0">{itemsBeforeProjekte.map(renderNavItem)}</div>
+        )}
+
+        {/* Projekte: immer da, auch in der eingeklappten Leiste */}
+        <ProjekteSidebarSection
+          openRef={projekteMenuOpenRef}
+          titleClass={titleClass}
+          collapsed={!sidebarExpanded}
+          onNavigate={handleLinkClick}
+          onClose={close}
+        />
+
+        {itemsAfterProjekte.length > 0 && (
+          <div className="flex flex-col gap-0 p-0">{itemsAfterProjekte.map(renderNavItem)}</div>
         )}
 
         {/* Role quick-select (Landesverband, Grüne Jugend) — also in the collapsed rail */}
@@ -451,25 +470,9 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
           />
         )}
 
-        {/* Notebooks quick-view popup */}
-        {showQuickViews && (
-          <NotebooksSidebarSection
-            openRef={notebooksMenuOpenRef}
-            titleClass={titleClass}
-            collapsed={!sidebarExpanded}
-            onNavigate={handleLinkClick}
-          />
-        )}
-
-        {/* Projekte quick-view popup */}
-        {showQuickViews && (
-          <ProjekteSidebarSection
-            openRef={projekteMenuOpenRef}
-            titleClass={titleClass}
-            collapsed={!sidebarExpanded}
-            onNavigate={handleLinkClick}
-            onClose={close}
-          />
+        {/* Grüneratoren laufen aus: nur in der ausgeklappten Seitenleiste */}
+        {sidebarExpanded && grueneratorenItem && (
+          <div className="flex flex-col gap-0 p-0">{renderNavItem(grueneratorenItem)}</div>
         )}
 
         {/* Favourites */}
@@ -559,7 +562,7 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
             // nur eine Ahnung von Tiefe. Eigene Klasse statt .sidebar, weil
             // deren a11y-Fallback auf 85% hier ein Rückschritt wäre —
             // accessibility.css macht dieses Panel stattdessen ganz deckend.
-            className="sidebar-mobile-panel w-[85vw] max-w-[260px] p-0 bg-background/95 backdrop-blur-xl flex flex-col gap-0 [&>div]:gap-0"
+            className="sidebar-mobile-panel w-[85vw] max-w-[288px] p-0 bg-background/95 backdrop-blur-xl flex flex-col gap-0 [&>div]:gap-0"
           >
             <SheetTitle className="sr-only">Navigation</SheetTitle>
             {sidebarInner}
@@ -577,7 +580,7 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
             // Desktop (non-Tauri) — frosted glass. The 56px collapsed rail on
             // workplace is narrow enough that bg-background/70 reads as a
             // near-solid wall against the gradient next to it — it drops to a
-            // much lower alpha there. The hover-expanded 260px panel already
+            // much lower alpha there. The hover-expanded 288px panel already
             // blends fine at /70 (more surface for the gradient to bleed
             // into), so it keeps the same value as every other route.
             // accessibility.css re-solidifies the collapsed rail back to /85
@@ -590,7 +593,7 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
                 : isWorkplaceRoute
                   ? 'supports-[backdrop-filter]:bg-background/70 backdrop-blur-2xl'
                   : 'supports-[backdrop-filter]:bg-background/70 backdrop-blur-xl'),
-            !isDesktop && sidebarExpanded && 'md:w-[260px]',
+            !isDesktop && sidebarExpanded && 'md:w-[288px]',
             // Tauri desktop mode — keep native bar background, no blur
             isDesktop &&
               'top-[var(--titlebar-height)] h-[calc(100dvh-var(--titlebar-height))] bg-[var(--bar-background)]',
@@ -627,6 +630,17 @@ const SidebarFavourites = memo(function SidebarFavourites({
   const favouriteIds = useSidebarFavouritesStore((s) => s.favouriteIds);
   const removeFavourite = useSidebarFavouritesStore((s) => s.removeFavourite);
   const configItems = getFavouriteItemsById(favouriteIds);
+  // Projekte in den Favoriten (`projekt:<id>`): aufgelöst über die eigene
+  // Projektliste (dieselbe Abfrage wie der Projekte-Abschnitt). Ein Projekt,
+  // das man verlassen hat oder das gelöscht ist, fällt still heraus.
+  const { userGroups } = useGroups({ isActive: true });
+  const projektItems = useMemo(() => {
+    const byId = new Map((userGroups ?? []).map((g) => [projektFavouriteId(g.id), g]));
+    return favouriteIds.flatMap((id) => {
+      const g = byId.get(id);
+      return g ? [{ id, title: g.name, path: buildGroupPath(g) }] : [];
+    });
+  }, [favouriteIds, userGroups]);
 
   const favoriteIdentifiers = useAgentFavoritesStore((s) => s.favoriteIdentifiers);
   const favoriteTitles = useAgentFavoritesStore((s) => s.favoriteTitles);
@@ -671,10 +685,10 @@ const SidebarFavourites = memo(function SidebarFavourites({
 
   // Favourites only show in the expanded sidebar (no icon-only rail entries).
   if (!expanded) return null;
-  if (configItems.length === 0 && agentItems.length === 0) return null;
+  if (configItems.length === 0 && projektItems.length === 0 && agentItems.length === 0) return null;
 
   const titleClass = cn(
-    'min-w-0 flex-1 truncate text-left text-sm font-medium leading-tight transition-all duration-150',
+    'min-w-0 flex-1 truncate text-left text-[15px] font-medium leading-tight transition-all duration-150',
     expanded ? 'opacity-100 translate-x-0' : 'hidden'
   );
 
@@ -744,6 +758,15 @@ const SidebarFavourites = memo(function SidebarFavourites({
           item.title,
           item.path,
           removeStar(() => removeFavourite(item.id), item.title)
+        )
+      )}
+      {projektItems.map((p) =>
+        renderRow(
+          p.id,
+          <LuFolderCog aria-hidden="true" className={iconClass} />,
+          p.title,
+          p.path,
+          removeStar(() => removeFavourite(p.id), p.title)
         )
       )}
       {agentItems.map((a) =>
