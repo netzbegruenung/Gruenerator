@@ -13,6 +13,7 @@ import {
   getThreadAgentId,
   getThreadSlugSuffix,
   getThreadType,
+  lookupThreadBySlugSuffix,
   resolveThreadBySlugSuffix,
 } from '../runtime/GrueneratorThreadListAdapter';
 import { hasPendingHandoff, useAgentStore } from '../stores/chatStore';
@@ -185,6 +186,17 @@ export function ChatThreadRouting({
             await aui.threads.reload();
             if (cancelled) return;
             remoteId = resolveThreadBySlugSuffix(suffix);
+          }
+          if (!remoteId) {
+            // The sidebar loads the list page by page, so a thread beyond the
+            // loaded pages is not in the slug cache: ask the server for it.
+            // Failing here means the thread is really gone (or not readable).
+            try {
+              remoteId = await lookupThreadBySlugSuffix(suffix);
+            } catch {
+              remoteId = null;
+            }
+            if (cancelled) return;
           }
         } else if (UUID_RE.test(threadSlug)) {
           // Legacy link carrying a bare thread id (Projekt chat rows still build

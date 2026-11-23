@@ -82,6 +82,17 @@ export function resolveThreadBySlugSuffix(suffix: string): string | null {
   return slugToThreadCache.get(suffix) ?? null;
 }
 
+/**
+ * Resolves a slug whose thread is not in the loaded pages (deep link, shared
+ * URL, notification) with a one-thread lookup. Registered by the adapter, which
+ * owns the API client. Null when the server has no such thread for this user.
+ */
+let slugLookup: ((suffix: string) => Promise<string | null>) | null = null;
+
+export async function lookupThreadBySlugSuffix(suffix: string): Promise<string | null> {
+  return (await slugLookup?.(suffix)) ?? null;
+}
+
 export function getThreadAgentId(remoteId: string): string | null {
   return threadAgentCache.get(remoteId) ?? null;
 }
@@ -302,6 +313,62 @@ function deriveLocalTitle(messages: readonly ThreadMessage[]): string | null {
   return clampThreadTitle(title);
 }
 
+/**
+ * Feed the per-thread caches (type, agent, slug, sharing, filing) from one API
+ * row. Shared by the list pages, the single-thread lookup and the slug lookup:
+ * a thread opened from outside the loaded pages needs the same entries as one
+ * in the sidebar. Returns whether share metadata changed (listeners to notify).
+ */
+function populateThreadCaches(t: ApiThread): boolean {
+  let shareMetaChanged = false;
+  threadTypeCache.set(t.id, t.threadType || 'chat');
+  if (t.notebookCollectionId) {
+    // Older servers send only the primary collection.
+    notebookCollectionCache.set(
+      t.id,
+      t.notebookCollectionIds?.length ? t.notebookCollectionIds : [t.notebookCollectionId]
+    );
+  }
+  updateThreadTagsCache(t.id, t.tags ?? []);
+  cacheThreadSlug(t.id, t.slugSuffix);
+  threadAgentCache.set(t.id, t.agentId);
+  setThreadGroupId(t.id, t.groupId ?? null);
+  const accessType = t.accessType ?? 'owner';
+  if (threadAccessTypeCache.get(t.id) !== accessType) {
+    threadAccessTypeCache.set(t.id, accessType);
+    shareMetaChanged = true;
+  }
+  const teamShared = t.teamShared === true;
+  if (threadTeamSharedCache.has(t.id) !== teamShared) {
+    if (teamShared) threadTeamSharedCache.add(t.id);
+    else threadTeamSharedCache.delete(t.id);
+    shareMetaChanged = true;
+  }
+  const shared = t.shared === true;
+  if (threadSharedCache.has(t.id) !== shared) {
+    if (shared) threadSharedCache.add(t.id);
+    else threadSharedCache.delete(t.id);
+    shareMetaChanged = true;
+  }
+  const readOnly = t.readOnly === true;
+  if (threadReadOnlyCache.has(t.id) !== readOnly) {
+    if (readOnly) threadReadOnlyCache.add(t.id);
+    else threadReadOnlyCache.delete(t.id);
+    shareMetaChanged = true;
+  }
+  const briefingUnread = t.briefing?.unread === true;
+  if (unreadBriefingCache.has(t.id) !== briefingUnread) {
+    if (briefingUnread) unreadBriefingCache.add(t.id);
+    else unreadBriefingCache.delete(t.id);
+    shareMetaChanged = true;
+  }
+  return shareMetaChanged;
+}
+
+/** Threads fetched per page. The runtime scans its whole list on every composer
+ *  state change, so what it holds is what typing costs (#5987). */
+export const THREAD_LIST_PAGE_SIZE = 50;
+
 export function createGrueneratorThreadListAdapter(
   apiClient: ChatApiClient,
   agentId: string,
@@ -318,14 +385,34 @@ export function createGrueneratorThreadListAdapter(
     isMainThread?: (localId: string) => boolean;
   }
 ): RemoteThreadListAdapter {
-  let cachedThreads: ApiThread[] = [];
+  // Every thread the sidebar has loaded so far (all pages), by id.
+  let loadedThreads = new Map<string, ApiThread>();
+  // Whether an empty thread of this agent was already seen on an earlier page
+  // of the current load: the newest one is kept, all older ones are stale.
+  let keptEmptyThread = false;
+  slugLookup = async (suffix) => {
+    const threads = await apiClient.get<ApiThread[]>(
+      `/api/chat-service/threads?slugSuffix=${encodeURIComponent(suffix)}`
+    );
+    const thread = threads.find((t) => t.slugSuffix === suffix);
+    if (!thread) return null;
+    if (populateThreadCaches(thread)) tagListeners.forEach((l) => l());
+    return thread.id;
+  };
   let pendingInit: Promise<{ remoteId: string; externalId: undefined }> | null = null;
 
   return {
-    async list() {
+    async list(params) {
       try {
-        const threads = await apiClient.get<ApiThread[]>('/api/chat-service/threads');
-        cachedThreads = threads;
+        const firstPage = !params?.after;
+        const query = new URLSearchParams({ limit: String(THREAD_LIST_PAGE_SIZE) });
+        if (params?.after) query.set('before', params.after);
+        const threads = await apiClient.get<ApiThread[]>(`/api/chat-service/threads?${query}`);
+        if (firstPage) {
+          loadedThreads = new Map();
+          keptEmptyThread = false;
+        }
+        let pageThreads = threads;
 
         // Auto-cleanup: delete stale empty threads (keep newest one).
         // Never reap the active or a just-created thread: a brand-new thread is
@@ -340,13 +427,14 @@ export function createGrueneratorThreadListAdapter(
           t.id === currentThreadId ||
           Date.now() - new Date(t.updatedAt).getTime() < RECENT_THREAD_MS;
 
-        const emptyThreads = threads.filter(
-          (t) => t.agentId === agentId && !t.lastMessage && t.status !== 'archived'
-        );
-        if (emptyThreads.length > 1) {
-          const [_keep, ...rest] = emptyThreads.sort(
-            (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-          );
+        // The list arrives newest-first in pages, so the first empty thread seen
+        // is the newest one overall; every later one is stale.
+        const emptyThreads = threads
+          .filter((t) => t.agentId === agentId && !t.lastMessage && t.status !== 'archived')
+          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+        if (emptyThreads.length > 0) {
+          const rest = keptEmptyThread ? emptyThreads : emptyThreads.slice(1);
+          keptEmptyThread = true;
           const stale = rest.filter((t) => !isProtected(t));
           // `onlyIfEmpty`: this list can predate the thread's first message,
           // so the server re-checks inside the DELETE and answers 409 for a
@@ -357,61 +445,24 @@ export function createGrueneratorThreadListAdapter(
               .catch(() => {});
           }
           const staleIds = new Set(stale.map((t) => t.id));
-          cachedThreads = threads.filter((t) => !staleIds.has(t.id));
+          pageThreads = threads.filter((t) => !staleIds.has(t.id));
         }
+        for (const t of pageThreads) loadedThreads.set(t.id, t);
 
-        const external = callbacks?.getExternalThreads?.() ?? [];
+        // External (notebook) entries have no server cursor: they ride on the
+        // first page only, or every page would list them again.
+        const external = firstPage ? (callbacks?.getExternalThreads?.() ?? []) : [];
 
         // Populate thread type + notebook collection caches for ThreadListItem rendering
         let shareMetaChanged = false;
-        for (const t of cachedThreads) {
-          threadTypeCache.set(t.id, t.threadType || 'chat');
-          if (t.notebookCollectionId) {
-            // Older servers send only the primary collection.
-            notebookCollectionCache.set(
-              t.id,
-              t.notebookCollectionIds?.length ? t.notebookCollectionIds : [t.notebookCollectionId]
-            );
-          }
-          updateThreadTagsCache(t.id, t.tags ?? []);
-          cacheThreadSlug(t.id, t.slugSuffix);
-          threadAgentCache.set(t.id, t.agentId);
-          setThreadGroupId(t.id, t.groupId ?? null);
-          const accessType = t.accessType ?? 'owner';
-          if (threadAccessTypeCache.get(t.id) !== accessType) {
-            threadAccessTypeCache.set(t.id, accessType);
-            shareMetaChanged = true;
-          }
-          const teamShared = t.teamShared === true;
-          if (threadTeamSharedCache.has(t.id) !== teamShared) {
-            if (teamShared) threadTeamSharedCache.add(t.id);
-            else threadTeamSharedCache.delete(t.id);
-            shareMetaChanged = true;
-          }
-          const shared = t.shared === true;
-          if (threadSharedCache.has(t.id) !== shared) {
-            if (shared) threadSharedCache.add(t.id);
-            else threadSharedCache.delete(t.id);
-            shareMetaChanged = true;
-          }
-          const readOnly = t.readOnly === true;
-          if (threadReadOnlyCache.has(t.id) !== readOnly) {
-            if (readOnly) threadReadOnlyCache.add(t.id);
-            else threadReadOnlyCache.delete(t.id);
-            shareMetaChanged = true;
-          }
-          const briefingUnread = t.briefing?.unread === true;
-          if (unreadBriefingCache.has(t.id) !== briefingUnread) {
-            if (briefingUnread) unreadBriefingCache.add(t.id);
-            else unreadBriefingCache.delete(t.id);
-            shareMetaChanged = true;
-          }
+        for (const t of pageThreads) {
+          if (populateThreadCaches(t)) shareMetaChanged = true;
         }
         // Badge/routing readers subscribe via subscribeThreadTags (same
         // listener set — one sidebar re-render channel, two caches).
         if (shareMetaChanged) tagListeners.forEach((l) => l());
 
-        const apiEntries = cachedThreads.map((t) => {
+        const apiEntries = pageThreads.map((t) => {
           const updatedAt = new Date(t.updatedAt).getTime();
           return {
             remoteId: t.id,
@@ -438,8 +489,16 @@ export function createGrueneratorThreadListAdapter(
         const all = [...apiEntries, ...externalEntries].sort((a, b) => b._updatedAt - a._updatedAt);
 
         lastListFetchFailed = false;
+        // A full page means there may be more. An older server that ignores
+        // `limit` answers with everything (more than a page): nothing follows.
+        const last = threads[threads.length - 1];
+        const nextCursor =
+          threads.length === THREAD_LIST_PAGE_SIZE && last
+            ? `${last.updatedAt}|${last.id}`
+            : undefined;
         return {
           threads: all.map(({ _updatedAt, ...rest }) => rest),
+          nextCursor,
         };
       } catch (error) {
         // Don't mask a dead session as an empty sidebar — let it propagate so
@@ -547,7 +606,7 @@ export function createGrueneratorThreadListAdapter(
 
     async delete(remoteId: string) {
       if (isExternal(remoteId)) return;
-      const title = cachedThreads.find((t) => t.id === remoteId)?.title ?? null;
+      const title = loadedThreads.get(remoteId)?.title ?? null;
       forgetThreadCaches(remoteId);
       callbacks?.onDelete?.(remoteId);
       const res = await apiClient.delete<Partial<DeleteThreadResponse> | null>(
@@ -570,13 +629,18 @@ export function createGrueneratorThreadListAdapter(
         throw new Error(`External thread ${remoteId} not found`);
       }
 
-      const threads = await apiClient.get<ApiThread[]>('/api/chat-service/threads');
-      for (const t of threads) {
-        cacheThreadSlug(t.id, t.slugSuffix);
-        threadAgentCache.set(t.id, t.agentId);
-      }
+      // One-thread lookup: the thread may lie beyond the loaded pages (deep
+      // link, notification, search hit). An older server ignores `threadId` and
+      // answers with the whole list, which the find below still handles.
+      const threads = await apiClient.get<ApiThread[]>(
+        `/api/chat-service/threads?threadId=${encodeURIComponent(remoteId)}`
+      );
+      let changed = false;
+      for (const t of threads) if (populateThreadCaches(t)) changed = true;
+      if (changed) tagListeners.forEach((l) => l());
       const thread = threads.find((t) => t.id === remoteId);
       if (!thread) throw new Error(`Thread ${remoteId} not found`);
+      loadedThreads.set(thread.id, thread);
 
       // Restore threadMode from the loaded thread's type
       const threadType = thread.threadType || 'chat';

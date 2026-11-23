@@ -97,6 +97,26 @@ export const patchThreadSettingsBodySchema = z.object({
   roleRef: roleRefSchema.nullable().optional(),
 });
 
+/**
+ * Query of `GET /api/chat-service/threads`. Every field opts in (F0): without
+ * any of them the route answers with the whole list, as shipped clients expect.
+ * - `limit` + `before` page the list newest-first; `before` is the keyset cursor
+ *   `<updatedAt ISO>|<thread id>` of the last row of the previous page.
+ * - `threadId` / `slugSuffix` look up one thread the caller can read (same access
+ *   rules): the sidebar only holds the loaded pages, so a deep link or a
+ *   notification may name a thread that is not among them.
+ */
+export const listThreadsQuerySchema = z.object({
+  status: threadStatusSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional(),
+  before: z.string().max(100).optional(),
+  threadId: z.string().uuid().optional(),
+  slugSuffix: z
+    .string()
+    .regex(/^[A-Za-z0-9]{1,32}$/)
+    .optional(),
+});
+
 // ── Response schemas ────────────────────────────────────────────────────────
 
 export const threadListResponseSchema = z.array(threadSchema);

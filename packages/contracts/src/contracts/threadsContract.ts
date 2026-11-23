@@ -22,7 +22,7 @@ import {
   deleteThreadResponseSchema,
   errorResponseSchema,
   codedErrorResponseSchema,
-  threadStatusSchema,
+  listThreadsQuerySchema,
 } from '../schemas/threads.js';
 
 const c = initContract();
@@ -32,16 +32,16 @@ export const threadsContract = c.router(
     /**
      * GET /api/chat-service/threads
      * List all threads for the authenticated user (including shared + group threads).
-     * Optional ?status=archived query param.
+     * Optional ?status=archived. Optional ?limit=&before= page the list newest-first,
+     * ?threadId= looks up a single thread; without them the whole list is returned.
      */
     list: {
       method: 'GET',
       path: '/api/chat-service/threads',
-      query: z.object({
-        status: threadStatusSchema.optional(),
-      }),
+      query: listThreadsQuerySchema,
       responses: {
         200: threadListResponseSchema,
+        400: errorResponseSchema,
         401: errorResponseSchema,
         500: errorResponseSchema,
       },
