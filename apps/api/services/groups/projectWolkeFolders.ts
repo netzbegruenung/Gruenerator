@@ -190,13 +190,18 @@ export async function syncProjectWolkeFolder(
     files = await deps.sync.listSupportedFilesInFolder(shareLink, row.folder_path, {
       includeSubfolders: row.include_subfolders,
     });
-    files.sort((a, b) => lastModifiedMs(b) - lastModifiedMs(a));
+    const previous = row.synced_files ?? {};
+    // Schon eingelesene Dateien behalten ihren Platz unter der Grenze; neue
+    // füllen auf, die neuesten zuerst. Sonst schöbe eine neue Datei eine alte
+    // aus dem Fenster, und der Abgleich nähme sie aus dem Projekt, obwohl sie
+    // in der Wolke noch liegt.
+    const isKnown = (f: NextcloudFile) => (previous[f.href] ? 1 : 0);
+    files.sort((a, b) => isKnown(b) - isKnown(a) || lastModifiedMs(b) - lastModifiedMs(a));
     if (files.length > MAX_FOLDER_FILES) {
       summary.skipped += files.length - MAX_FOLDER_FILES;
       files = files.slice(0, MAX_FOLDER_FILES);
     }
 
-    const previous = row.synced_files ?? {};
     const next: Record<string, string> = {};
     let ingested = 0;
     for (const file of files) {

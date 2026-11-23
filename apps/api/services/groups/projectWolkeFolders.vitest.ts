@@ -150,7 +150,12 @@ describe('syncProjectWolkeFolder', () => {
       file('new2.pdf'),
       file('known.pdf'),
     ]);
-    deps.sync.processFile.mockResolvedValue({ success: true, documentId: 'doc-new1' });
+    // Die bekannte Datei ist unverändert (ETag) und kostet kein Budget.
+    deps.sync.processFile.mockImplementation(async (_u: string, _l: string, f: { href: string }) =>
+      f.href.endsWith('known.pdf')
+        ? { skipped: true, reason: 'up_to_date', documentId: 'doc-known' }
+        : { success: true, documentId: 'doc-new1' }
+    );
 
     const { summary } = await syncProjectWolkeFolder(
       row({ '/public.php/webdav/known.pdf': 'doc-known' }),
@@ -158,7 +163,7 @@ describe('syncProjectWolkeFolder', () => {
       deps
     );
 
-    expect(deps.sync.processFile).toHaveBeenCalledTimes(1);
+    expect(deps.sync.processFile).toHaveBeenCalledTimes(2);
     expect(summary).toMatchObject({ imported: 1, pending: 1, removed: 0 });
     expect(deps.removeShare).not.toHaveBeenCalled();
     expect(lastUpdate(deps)).toMatchObject({ fileCount: 2, pending: 1 });
@@ -209,6 +214,27 @@ describe('syncProjectWolkeFolder', () => {
 
     expect(summary.skipped).toBe(3);
     expect(summary.pending).toBe(MAX_FOLDER_FILES);
+  });
+
+  it('keeps already-synced files when newer files would push them past the cap', async () => {
+    const deps = makeDeps();
+    const old = file('old.pdf', { lastModified: new Date(2020, 0, 1).toISOString() });
+    const newer = Array.from({ length: MAX_FOLDER_FILES }, (_, i) =>
+      file(`new${i}.md`, { lastModified: new Date(2026, 0, 1 + i).toISOString() })
+    );
+    deps.sync.listSupportedFilesInFolder.mockResolvedValue([...newer, old]);
+    deps.sync.processFile.mockResolvedValue({ skipped: true, reason: 'no_content' });
+
+    const { summary } = await syncProjectWolkeFolder(
+      row({ [old.href]: 'doc-old' }),
+      { maxIngest: 0, deadline: 0 },
+      deps
+    );
+
+    expect(summary.removed).toBe(0);
+    expect(summary.skipped).toBe(1);
+    expect(deps.removeShare).not.toHaveBeenCalled();
+    expect(lastUpdate(deps).synced).toEqual({ [old.href]: 'doc-old' });
   });
 
   it('leaves the stock alone and records a readable error when the share is gone', async () => {
