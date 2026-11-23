@@ -2,7 +2,7 @@ import { getContractsClient } from '@gruenerator/shared/api';
 import { projectChatThreads } from '@gruenerator/shared/groups';
 import { buildChatThreadSlug } from '@gruenerator/shared/utils';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { PiChatCircle } from 'react-icons/pi';
 import { Link } from 'react-router-dom';
 
@@ -34,7 +34,11 @@ export function formatRelativeDate(iso: string, now: number = Date.now()): strin
  * slim list: title and relative date. Client-side filter over the thread list —
  * no dedicated endpoint needed.
  */
+/** So viele Chats stehen zuerst da; der Rest klappt auf Wunsch auf. */
+const CHATS_SHOWN = 5;
+
 export function SpaceChatsSection({ groupId }: { groupId: string }) {
+  const [showAll, setShowAll] = useState(false);
   const {
     data: threads = [],
     isLoading,
@@ -69,7 +73,7 @@ export function SpaceChatsSection({ groupId }: { groupId: string }) {
         </p>
       ) : (
         <ul className="m-0 flex list-none flex-col p-0">
-          {threads.map((t) => {
+          {(showAll ? threads : threads.slice(0, CHATS_SHOWN)).map((t) => {
             const slug = t.slugSuffix ? buildChatThreadSlug(t.title, t.slugSuffix) : t.id;
             const isTeam = t.teamShared === true || t.accessType === 'group';
             const isOwn = !t.accessType || t.accessType === 'owner';
@@ -111,6 +115,15 @@ export function SpaceChatsSection({ groupId }: { groupId: string }) {
             );
           })}
         </ul>
+      )}
+      {threads.length > CHATS_SHOWN && (
+        <button
+          type="button"
+          onClick={() => setShowAll((v) => !v)}
+          className="self-start cursor-pointer rounded-md border-none bg-transparent px-sm py-1 font-[inherit] text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          {showAll ? 'Weniger anzeigen' : `Alle ${threads.length} Chats anzeigen`}
+        </button>
       )}
     </section>
   );
