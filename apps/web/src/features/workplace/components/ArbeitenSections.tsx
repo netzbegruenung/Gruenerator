@@ -154,20 +154,23 @@ function pickTools(entries: readonly { id: ToolId; theme: string; title?: string
 
 /**
  * „Mach mehr mit deinem Grünerator": six cards in a 3 × 2 grid (two columns on phones).
- * Each card wears its tool's tile colour from `toolTheme`; the Übersetzer has no theme of its own and borrows the neutral grey.
+ * Six different hues from the `toolTheme` palette, so the row reads colourful even
+ * though most of these tools are green in their own right: a card borrows another
+ * theme's colours where its own would repeat a neighbour's (only the colours — the
+ * link and the picture stay the tool's). No two neighbours, across or down, share a hue.
  */
 export const MEDIA_GRID = 'grid grid-cols-2 gap-3 md:grid-cols-3 lg:gap-4';
 
 // Every card says what the tool does.
 export const MEDIA_TOOLS = pickTools([
   // The Studio: video tools and the Mediathek with every Sharepic, KI-Bild and video.
-  { id: 'canvas', theme: 'canvas', title: 'Videos & Sharepics' },
+  { id: 'canvas', theme: 'reels-untertitel', title: 'Videos & Sharepics' },
   // Projekte take in the Notebooks later; the card already carries their name.
   { id: 'projekte', theme: 'projekte', title: 'In Projekten arbeiten' },
-  { id: 'canvas-vorlagen', theme: 'canvas-vorlagen', title: 'Vorlagen durchsuchen' },
-  { id: 'profilbild', theme: 'profilbild', title: 'Profilbild erstellen' },
+  { id: 'canvas-vorlagen', theme: 'vorlagen', title: 'Vorlagen durchsuchen' },
+  { id: 'profilbild', theme: 'agents', title: 'Profilbild erstellen' },
   { id: 'voice', theme: 'voice', title: 'Vertonen & transkribieren' },
-  { id: 'uebersetzer', theme: 'weitere', title: 'Texte übersetzen' },
+  { id: 'uebersetzer', theme: 'canvas', title: 'Texte übersetzen' },
 ]);
 
 const TOOL_CARD =
