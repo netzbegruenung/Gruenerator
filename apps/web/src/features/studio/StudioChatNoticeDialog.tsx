@@ -104,7 +104,7 @@ export default function StudioChatNoticeDialog({
             >
               Verstanden
             </Button>
-            <Button size="lg" className="rounded-full" onClick={onCreateInChat}>
+            <Button variant="brand" size="lg" onClick={onCreateInChat}>
               Sharepic im Chat erstellen
               <HiArrowRight className="size-4" aria-hidden="true" />
             </Button>
