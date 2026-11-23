@@ -13,7 +13,12 @@ import {
 import { useState } from 'react';
 import { PiSlidersHorizontal } from 'react-icons/pi';
 
-const firstLine = (text: string) => text.trim().split('\n')[0] ?? '';
+/** Bis zu dieser Länge stehen die Anweisungen ganz da, darüber gekürzt (ganz im Dialog). */
+const PREVIEW_MAX_CHARS = 300;
+const preview = (text: string) => {
+  const t = text.trim();
+  return t.length <= PREVIEW_MAX_CHARS ? t : `${t.slice(0, PREVIEW_MAX_CHARS).trimEnd()}…`;
+};
 
 interface ProjectInstructionsCardProps {
   groupId: string;
@@ -60,23 +65,33 @@ export function ProjectInstructionsCard({
     <>
       <section
         aria-labelledby="projekt-anweisungen-titel"
-        className="flex items-center gap-sm rounded-[20px] bg-card px-md py-sm shadow-sm"
+        className="flex flex-col gap-xs rounded-[20px] bg-card px-md py-sm shadow-sm"
       >
-        <PiSlidersHorizontal
-          aria-hidden
-          className="size-5 shrink-0 text-primary-600 dark:text-primary-400"
-        />
-        <div className="min-w-0 flex-1">
-          <h2 id="projekt-anweisungen-titel" className="m-0 text-[15px] font-semibold">
+        {/* Kopfzeile wie bei „Geplant“: die Aktion steht neben der Überschrift,
+            der Text darunter hat die ganze Breite. */}
+        <div className="flex items-center gap-sm">
+          <PiSlidersHorizontal
+            aria-hidden
+            className="size-5 shrink-0 text-primary-600 dark:text-primary-400"
+          />
+          <h2
+            id="projekt-anweisungen-titel"
+            className="m-0 min-w-0 flex-1 text-[15px] font-semibold"
+          >
             Anweisungen
           </h2>
-          <p className="m-0 truncate text-sm text-muted-foreground">
-            {instructions ? firstLine(instructions) : 'Ton, Zielgruppe oder Schwerpunkt festlegen'}
-          </p>
+          <button
+            type="button"
+            onClick={openDialog}
+            className="inline-flex shrink-0 cursor-pointer items-center rounded-md border-none bg-transparent px-2 py-1 font-[inherit] text-sm font-medium text-primary-600 hover:bg-muted dark:text-primary-400"
+          >
+            {isAdmin ? 'Anpassen' : 'Ansehen'}
+          </button>
         </div>
-        <Button variant="ghost" size="sm" onClick={openDialog} className="shrink-0">
-          {isAdmin ? (instructions ? 'Bearbeiten' : 'Hinzufügen') : 'Ansehen'}
-        </Button>
+        {/* Kurze Anweisungen ganz, lange gekürzt: man soll lesen können, was gilt. */}
+        <p className="m-0 whitespace-pre-line break-words text-sm text-muted-foreground">
+          {instructions ? preview(instructions) : 'Ton, Zielgruppe oder Schwerpunkt festlegen'}
+        </p>
       </section>
 
       <Dialog open={open} onOpenChange={setOpen}>
