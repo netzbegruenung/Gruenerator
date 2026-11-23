@@ -87,7 +87,12 @@ describe('planAgentConversion', () => {
 
     const mid = agent({ systemRole: 'x'.repeat(GROUP_INSTRUCTIONS_MAX + 1) });
     expect(planAgentConversion(mid, 'recipe', NO_FACTS).blocked).toBeNull();
-    expect(planAgentConversion(mid, 'project', NO_FACTS).blocked).toMatch(/Projekt-Anweisungen/);
+    // Above the instruction limit the project takes the role as a recipe.
+    expect(planAgentConversion(mid, 'project', NO_FACTS).blocked).toBeNull();
+    const projectLong = planAgentConversion(long, 'project', NO_FACTS).blocked;
+    expect(projectLong).toBe(planAgentConversion(long, 'recipe', NO_FACTS).blocked);
+    expect(projectLong).toMatch(/lege Material wie Beschlüsse oder Beispieltexte in ein Notebook/);
+    expect(projectLong).toContain(`höchstens ${MAX_TEXT_FORM_STYLE_CHARS.toLocaleString('de-DE')}`);
   });
 
   it('counts the default-recipe hint into the project instruction length', () => {
@@ -95,7 +100,10 @@ describe('planAgentConversion', () => {
       systemRole: 'x'.repeat(GROUP_INSTRUCTIONS_MAX - 5),
       defaultRecipeMention: 'presse',
     });
-    expect(planAgentConversion(almost, 'project', NO_FACTS).blocked).not.toBeNull();
+    // Still fits the recipe limit, so it is not blocked, but it goes the recipe way.
+    const plan = planAgentConversion(almost, 'project', NO_FACTS);
+    expect(plan.blocked).toBeNull();
+    expect(plan.items[0].note).toContain('wird zum Rezept „Pressearbeit KV“ des Projekts');
   });
 
   it('drops tools and model, keeps tasks on the agent, never re-publishes', () => {
@@ -126,6 +134,112 @@ describe('planAgentConversion', () => {
       outcome: 'carried',
       note: '1 Notebook wird ins Projekt geteilt; Chats im Projekt durchsuchen sie von selbst.',
     });
+  });
+});
+
+const LONG_ROLE = 'x'.repeat(GROUP_INSTRUCTIONS_MAX + 100);
+
+describe('convertUserAgent: long role into a project', () => {
+  it('creates a project recipe, shares it and the notebooks, keeps instructions short', async () => {
+    const d = deps({
+      getAgent: vi.fn(async () =>
+        agent({
+          systemRole: LONG_ROLE,
+          defaultRecipeMention: 'presse',
+          defaultNotebookIds: ['bayern-notebook'],
+          fewShotExamples: [{ input: 'a', output: 'Beispiel' }],
+        })
+      ),
+    });
+    const out = await convertUserAgent({ ...RUN, target: 'project' }, d);
+    expect(d.createRecipe).toHaveBeenCalledWith(
+      'u1',
+      expect.objectContaining({
+        mention: 'pressearbeit-kv',
+        styleBlock: LONG_ROLE,
+        examples: [{ content: 'Beispiel' }],
+      })
+    );
+    expect(d.setInstructions).toHaveBeenCalledWith(
+      PROJECT_ID,
+      'u1',
+      'Für Texte nutzt du das Rezept @presse.'
+    );
+    expect(vi.mocked(d.share).mock.calls.map((c) => [c[0].contentType, c[0].groupId])).toEqual([
+      ['user_text_forms', PROJECT_ID],
+      ['system_notebooks', PROJECT_ID],
+    ]);
+    expect(d.setSuccessor).toHaveBeenCalledWith('u1', AGENT_ID, {
+      kind: 'project',
+      ref: PROJECT_ID,
+    });
+    expect(out.ok && out.response.result?.kind).toBe('project');
+    const role = out.ok && out.response.items.find((i) => i.part === 'role');
+    expect(role).toMatchObject({ outcome: 'carried' });
+    expect(role && role.note).toContain('wird zum Rezept „Pressearbeit KV“ des Projekts');
+  });
+
+  it('without a default recipe and without notebooks the project gets no instructions', async () => {
+    const d = deps({ getAgent: vi.fn(async () => agent({ systemRole: LONG_ROLE })) });
+    const out = await convertUserAgent({ ...RUN, target: 'project' }, d);
+    expect(d.setInstructions).not.toHaveBeenCalled();
+    expect(d.createRecipe).toHaveBeenCalledTimes(1);
+    expect(d.share).toHaveBeenCalledTimes(1);
+    expect(out.ok && out.response.result?.kind).toBe('project');
+  });
+
+  it('a short role stays as it was: instructions, no recipe', async () => {
+    const d = deps();
+    await convertUserAgent({ ...RUN, target: 'project' }, d);
+    expect(d.createRecipe).not.toHaveBeenCalled();
+    expect(d.setInstructions).toHaveBeenCalledTimes(1);
+  });
+
+  it('a role above the recipe limit blocks both targets and creates nothing', async () => {
+    const d = deps({
+      getAgent: vi.fn(async () => agent({ systemRole: 'x'.repeat(MAX_TEXT_FORM_STYLE_CHARS + 1) })),
+    });
+    for (const target of ['project', 'recipe'] as const) {
+      const out = await convertUserAgent({ ...RUN, target }, d);
+      expect(out.ok && out.response.blocked).toMatch(/Notebook/);
+    }
+    expect(d.createProject).not.toHaveBeenCalled();
+    expect(d.createRecipe).not.toHaveBeenCalled();
+  });
+
+  it('a refused recipe share is reported as later, the project stays', async () => {
+    const d = deps({
+      getAgent: vi.fn(async () => agent({ systemRole: LONG_ROLE })),
+      share: vi.fn(async () => ({ status: 403 as const, success: false, message: 'nein' })),
+    });
+    const out = await convertUserAgent({ ...RUN, target: 'project' }, d);
+    const role = out.ok && out.response.items.find((i) => i.part === 'role');
+    expect(role).toMatchObject({ outcome: 'later' });
+    expect(role && role.note).toContain('ließ sich nicht ins Projekt teilen');
+    expect(d.trashProject).not.toHaveBeenCalled();
+    expect(d.setSuccessor).toHaveBeenCalledTimes(1);
+  });
+
+  it('a failing recipe creation puts the project back in the trash', async () => {
+    const d = deps({
+      getAgent: vi.fn(async () => agent({ systemRole: LONG_ROLE })),
+      createRecipe: vi.fn(async () => Promise.reject(new Error('db'))),
+    });
+    await expect(convertUserAgent({ ...RUN, target: 'project' }, d)).rejects.toThrow('db');
+    expect(d.trashProject).toHaveBeenCalledWith('u1', PROJECT_ID);
+    expect(d.setSuccessor).not.toHaveBeenCalled();
+  });
+
+  it('an already converted agent keeps returning its project', async () => {
+    const d = deps({
+      getAgent: vi.fn(async () =>
+        agent({ systemRole: LONG_ROLE, migratedTo: { project: PROJECT_ID } })
+      ),
+      successorPath: vi.fn(async () => '/projekte/p-abc234'),
+    });
+    const out = await convertUserAgent({ ...RUN, target: 'project' }, d);
+    expect(out.ok && out.response.alreadyConverted).toBe(true);
+    expect(d.createProject).not.toHaveBeenCalled();
   });
 });
 
