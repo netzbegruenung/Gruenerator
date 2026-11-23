@@ -289,13 +289,31 @@ describe('looksCutOff — a short sign-off paragraph is finished (#5976)', () =>
     for (const t of [
       'Die Zahlen im Überblick, Stand Oktober.\n\n| Jahr | Fälle |\n|---|---|\n| 2024 | 12',
       'Die Zahlen im Überblick, Stand Oktober.\n\n| 2024 | 12',
-      'Das sind unsere drei Forderungen.\n\n- Mehr Radwege an Schulen',
+      'Das sind unsere drei Forderungen.\n\n- Mehr Radwege an Schulen\nund Tempo 30 vor jeder Sch',
+      'Das sind unsere drei Forderungen:\n\n- Mehr Radwege an Schulen',
       'Das sind unsere drei Forderungen.\n\n1. Mehr Radwege an Schulen',
       'Das ist der erste Absatz.\n\n## Nächste Schritte im Rat',
       'Das ist der erste Absatz.\n\n> Wir fordern sichere Schulwege für alle',
     ]) {
       expect(looksCutOff(t), t).toBe(true);
     }
+  });
+
+  it('accepts a sign-off written with a hyphen-minus', () => {
+    expect(
+      looksCutOff(
+        'Danke für den Hinweis, ein Radweg spart mehr als ein paar gesparte Sekunden.\n\n- dein Grünen-Team Musterstadt'
+      )
+    ).toBe(false);
+  });
+
+  it('accepts a cut inside a short sign-off paragraph (documented trade-off)', () => {
+    // "Jonas Ber" and "Jonas Berger" are indistinguishable; see truncation.ts.
+    expect(
+      looksCutOff(
+        'Wir fordern den Stadtrat auf, den Antrag zeitnah zu beschließen.\n\nPressekontakt:\nJonas Ber'
+      )
+    ).toBe(false);
   });
 
   it('still flags a last paragraph with too many lines', () => {

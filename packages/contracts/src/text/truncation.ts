@@ -109,10 +109,19 @@ const SENTENCE_END_RE = /(?:[.!?…»“"”)\]*_~]|\p{Extended_Pictographic}\uF
  * 60 characters right after a blank line; a cut line with no blank line before
  * it, a long cut paragraph, or a cut after an unfinished paragraph all stay
  * flagged, and so does a short final paragraph of table rows, bullets,
- * headings or quotes. Residual risk: a cut inside the first short line of a
- * new plain-text paragraph.
+ * headings or quotes. A single "- …" line is the exception: models write the
+ * dash of "– dein Grünen-Team" as a hyphen, and a list after a finished
+ * sentence is rare (lists are introduced by a colon, which fails the
+ * punctuation test anyway).
+ *
+ * Accepted residual risk: a cut inside ANY line of such a short plain-text
+ * paragraph ("Pressekontakt:\nJonas Ber") passes as finished. No rule on the
+ * text can tell "Jonas Ber" from "Jonas Berger"; the cost of the miss is a
+ * clipped sign-off line, the cost of flagging is a full repair write on every
+ * recipe answer that ends this way. A test pins the trade-off.
  */
-const STRUCTURED_LINE_RE = /^(?:\||[-*+]\s|\d+[.)]\s|#{1,6}\s|>)/;
+const STRUCTURED_LINE_RE = /^(?:\||[*+]\s|\d+[.)]\s|#{1,6}\s|>)/;
+const BULLET_LINE_RE = /^-\s/;
 
 function endsInSignOffParagraph(trimmed: string): boolean {
   const paragraphs = trimmed.split(/\n[ \t]*\n/);
@@ -126,6 +135,7 @@ function endsInSignOffParagraph(trimmed: string): boolean {
   // A sign-off is plain text. A short table row, bullet, heading or quote cut
   // mid-line ("| 2024 | 12") would otherwise pass as one (review of #5977).
   if (lines.some((l) => STRUCTURED_LINE_RE.test(l))) return false;
+  if (lines.length > 1 && lines.some((l) => BULLET_LINE_RE.test(l))) return false;
   return SENTENCE_END_RE.test((paragraphs[paragraphs.length - 2] ?? '').trimEnd());
 }
 
