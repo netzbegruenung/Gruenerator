@@ -20,12 +20,27 @@ const SHAREPIC_DRAFT = 'Erstelle ein Sharepic zum Thema ';
 const HEADING = 'm-0 text-xl font-bold leading-tight text-foreground-heading md:text-2xl';
 const SUB = 'm-0 mt-1.5 text-base text-(--dash-mg-sub)';
 
-/** Plays a muted loop while at least half of it is on screen; never with reduced motion. */
+/** The Network Information API (Chromium only; Safari and Firefox leave it out). */
+type NetworkInfo = { saveData?: boolean; effectiveType?: string };
+
+/**
+ * Whether a looping film is worth its bytes here: not with reduced motion, not with
+ * data saver on, not on a 2G connection. Without network information (Safari) the
+ * still stays until the film can play.
+ */
+function filmWanted(): boolean {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
+  const connection = (navigator as Navigator & { connection?: NetworkInfo }).connection;
+  if (connection?.saveData) return false;
+  return !['slow-2g', '2g'].includes(connection?.effectiveType ?? '');
+}
+
+/** Plays a muted loop while at least half of it is on screen, if `filmWanted`. */
 function useAutoplayInView() {
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     const video = ref.current;
-    if (!video || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (!video || !filmWanted()) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry?.isIntersecting) void video.play().catch(() => {});
@@ -39,7 +54,11 @@ function useAutoplayInView() {
   return ref;
 }
 
-/** The Sharepic launch film in a phone: what the chat makes, moving. */
+/**
+ * The Sharepic launch film in a phone. A 360 px cut without sound (235 KB, the
+ * original is 1.5 MB): the phone is 118 px wide. `preload="none"`: nothing loads
+ * until the film starts; until then, and when it never does, the poster shows.
+ */
 function SharepicPhone() {
   const ref = useAutoplayInView();
   return (
@@ -49,8 +68,8 @@ function SharepicPhone() {
     >
       <video
         ref={ref}
-        src="/videos/sharepic-launch-hochkant.mp4"
-        poster="/videos/sharepic-launch-hochkant-poster.webp"
+        src="/videos/sharepic-launch-hochkant-klein.mp4"
+        poster="/videos/sharepic-launch-hochkant-klein-poster.webp"
         muted
         loop
         playsInline

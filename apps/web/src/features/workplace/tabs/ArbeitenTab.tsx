@@ -26,7 +26,7 @@ import { cn } from '@/utils/cn';
 const RecentlyCreatedSection = lazy(() => import('../components/RecentlyCreatedSection'));
 
 // "Arbeiten": a hero, then one column of sections on a shared grid — Zuletzt,
-// Mach mehr mit deinem Grünerator, Apps & Newsletter, Grünerator Briefing, Studio.
+// Mach mehr mit deinem Grünerator, Apps & Newsletter, Studio, Grünerator Briefing.
 // With tabs the hero is the greeting and search; on the one-page layout it is the
 // chat greeting and composer (see OnePageStart).
 const ArbeitenTab = () => {
@@ -68,8 +68,8 @@ const ArbeitenTab = () => {
           data-tour="arbeiten-tools"
         />
         <AppsNewsletterSection />
-        <BriefingSection />
         <StudioSection />
+        <BriefingSection />
         <InfoTilesSection />
       </div>
     </PageContainer>
