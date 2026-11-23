@@ -39,14 +39,14 @@ interface GroupContentAreaProps {
   /** Linke Spalte der Übersicht (Chats); null: die rechte Spalte nimmt die ganze Breite. */
   overviewMain: ReactNode | null;
   /**
-   * Rechte Spalte (Anweisungen, Wissen, Mitglieder): steht in beiden Reitern an
-   * derselben Stelle, damit beim Wechsel nur die linke Spalte springt. `onDiscuss`
-   * holt ein Wissen-Element in den Austausch (null: es gibt keinen Austausch).
+   * Rechte Spalte (Anweisungen, Wissen, Mitglieder) neben Chats und Austausch.
+   * `onDiscuss` holt ein Wissen-Element in den Austausch (null: es gibt keinen
+   * Austausch).
    */
   sidebar: (ctx: { onDiscuss: ((item: GroupFeedItem) => void) | null }) => ReactNode;
   /**
    * Zählt hoch, wenn jemand „Im Austausch suchen" im Projektmenü wählt: dann
-   * wechselt der Reiter, und das Suchfeld erscheint mit Fokus. 0 = nie gewählt.
+   * scrollt der Austausch ins Bild, und das Suchfeld erscheint mit Fokus. 0 = nie gewählt.
    */
   searchSignal?: number;
 }
@@ -253,7 +253,7 @@ export function GroupContentArea({
     </section>
   );
 
-  // Eine Seite statt zwei Reitern: oben die Chats, darunter der Austausch.
+  // Eine Seite: oben die Chats, darunter der Austausch.
   return (
     <GroupMentionProvider value={mentionOptions}>
       {isLoading ? (

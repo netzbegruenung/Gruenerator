@@ -81,27 +81,26 @@ function render(props: Partial<React.ComponentProps<typeof GroupContentArea>> = 
 }
 
 describe('GroupContentArea', () => {
-  it('team: opens on the overview, the post box lives only in Austausch', async () => {
+  it('team: one page — chats on top, Austausch below, new post behind the plus', async () => {
     const { user, container } = render();
     expect(screen.getByText('ÜBERSICHT')).toBeInTheDocument();
     expect(screen.getByText('SEITENSPALTE')).toBeInTheDocument();
-    expect(screen.queryByText(/Schreib etwas an das Projekt/)).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('tab', { name: 'Austausch' }));
-    expect(screen.getByText(/Schreib etwas an das Projekt/)).toBeInTheDocument();
-    // The side column stays in place; posts stand expanded and can be folded.
-    expect(screen.getByText('SEITENSPALTE')).toBeInTheDocument();
-    expect(screen.queryByText('ÜBERSICHT')).not.toBeInTheDocument();
-    expect(screen.queryByText('Ohne Notiz')).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Austausch' })).toBeInTheDocument();
+    // Posts stand expanded; a share without a note stays in Wissen.
     expect(screen.getByText('Bitte lesen.')).toBeInTheDocument();
-    // No search field until someone asks for it from the project menu.
+    expect(screen.queryByText('Ohne Notiz')).not.toBeInTheDocument();
+    // No search field and no post box until someone asks for them.
     expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Schreib etwas an das Projekt/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Neuer Beitrag' }));
+    expect(screen.getByText(/Schreib etwas an das Projekt/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Einklappen' }));
     expect(screen.queryByText('Bitte lesen.')).not.toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('the project menu’s search signal opens Austausch with a focused search field', async () => {
+  it('the project menu’s search signal opens a focused search field', async () => {
     const { user, rerender } = render();
     expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
     rerender(
@@ -127,34 +126,31 @@ describe('GroupContentArea', () => {
     );
     const box = await screen.findByRole('searchbox', { name: 'Im Austausch suchen' });
     expect(box).toHaveFocus();
-    expect(screen.getByRole('tab', { name: 'Austausch' })).toHaveAttribute('aria-selected', 'true');
     await user.click(screen.getByRole('button', { name: 'Suche schließen' }));
     expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
   });
 
-  it('“Im Austausch besprechen” switches tab and shows the shared item', async () => {
+  it('“Im Austausch besprechen” brings the shared item into Austausch', async () => {
     const { user } = render();
     await user.click(screen.getByRole('button', { name: 'besprechen' }));
     expect(await screen.findByText('Ohne Notiz')).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Austausch' })).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('deep link ?beitrag=<shareId> opens Austausch with that item, even without a note', () => {
+  it('deep link ?beitrag=<shareId> shows that item, even without a note', () => {
     render({}, '/projekte/g1?beitrag=s-d1');
-    expect(screen.getByRole('tab', { name: 'Austausch' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByText('Ohne Notiz')).toBeInTheDocument();
   });
 
-  it('only you in the project: no tabs, no Austausch', () => {
+  it('only you in the project: no Austausch', () => {
     render({ hasAustausch: false });
     expect(screen.getByText('ÜBERSICHT')).toBeInTheDocument();
-    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Austausch' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'besprechen' })).not.toBeInTheDocument();
   });
 
-  it('system project: opens on Austausch; no post box without share rights', () => {
+  it('system project: Austausch without a post button when sharing is not allowed', () => {
     render({ isSystem: true, onOpenShare: null, isAdmin: false });
-    expect(screen.getByRole('tab', { name: 'Austausch' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.queryByText(/Schreib etwas an das Projekt/)).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Austausch' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Neuer Beitrag' })).not.toBeInTheDocument();
   });
 });
