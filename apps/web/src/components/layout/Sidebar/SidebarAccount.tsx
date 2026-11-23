@@ -40,7 +40,7 @@ import { cn } from '@/utils/cn';
 interface SidebarAccountProps {
   sidebarExpanded: boolean;
   openRef: MutableRefObject<boolean>;
-  /** TRIAL: opens the global search; the collapsed rail shows it above the bell. */
+  /** Opens the global search; the collapsed rail shows it above the bell. */
   onSearch?: () => void;
 }
 

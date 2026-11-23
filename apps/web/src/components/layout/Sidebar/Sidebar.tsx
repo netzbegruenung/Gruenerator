@@ -20,6 +20,7 @@ import { useCanSeeSites } from '../../../config/sitesGate';
 import { useUserAgents } from '../../../features/agents/api';
 import { useGroups } from '../../../features/groups/hooks/useGroups';
 import { useItemUsage } from '../../../features/usage/useItemUsage';
+import { useStartLayout } from '../../../hooks/useStartLayout';
 import useAgentFavoritesStore from '../../../stores/agentFavoritesStore';
 import { useAuthStore } from '../../../stores/authStore';
 import useSidebarFavouritesStore, {
@@ -86,7 +87,10 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
   const locale = useAuthStore((state) => state.locale);
   const isAustrian = locale === 'de-AT';
   const canSeeSites = useCanSeeSites();
-  const home = 'arbeiten' as const; // TRIAL: no Chat page
+  const combined = useStartLayout() === 'combined';
+  const startPage = useAuthStore((s) => s.user?.default_startpage ?? 'chat');
+  // One page: Arbeiten is the start, and there is no Chat view to link to.
+  const home = combined ? 'arbeiten' : startPage;
   // Workplace paints a wide, tinted gradient behind the (fixed, translucent)
   // sidebar. bg-background/70 alone still reads as a near-solid panel — at
   // 70% opacity barely any of the gradient shows even with blur — so
@@ -114,8 +118,8 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
   );
 
   const directMenuItems = useMemo(
-    () => getDirectMenuItems({ isAustrian, canSeeSites, home }),
-    [isAustrian, canSeeSites, home]
+    () => getDirectMenuItems({ isAustrian, canSeeSites, home, combined }),
+    [isAustrian, canSeeSites, home, combined]
   );
   const mobileOnlyItems = useMemo(() => getMobileOnlyMenuItems(), []);
   // The "start" icon goes straight to /start (the page picks the user's preferred
@@ -262,7 +266,8 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
   );
 
   // Chat and Workplace (the two views of `/start`) lead the list.
-  const START_IDS = ['workplace']; // TRIAL: Chat entry hidden
+  // On the one-page layout Chat is part of Workplace and has no entry of its own.
+  const START_IDS = combined ? ['workplace'] : ['startseite', 'workplace'];
   const startItems = additionalItems.filter((item) => START_IDS.includes(item.id));
   const restItems = additionalItems.filter(
     (item) => !START_IDS.includes(item.id) && item.id !== 'startseite'
@@ -528,7 +533,7 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
         <SidebarAccount
           sidebarExpanded={sidebarExpanded}
           openRef={accountMenuOpenRef}
-          // TRIAL: the collapsed web rail has search at the bottom, above the bell.
+          // The collapsed web rail has search at the bottom, above the bell.
           onSearch={hasHeaderRow ? () => setSearchOpen(true) : undefined}
         />
       ) : (

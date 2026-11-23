@@ -1,14 +1,15 @@
-import { type StartPage } from '@gruenerator/contracts';
 import { Skeleton } from '@gruenerator/ui';
 import { Suspense, lazy, useEffect, useState } from 'react';
 import { Navigate, useParams, useSearchParams } from 'react-router-dom';
 
 import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
+import { useStartLayout } from '../../hooks/useStartLayout';
 import { useAuthStore } from '../../stores/authStore';
 
 import { resolveChatBackground } from './chatBackgrounds';
 import WorkplaceChatTab from './tabs/WorkplaceChatTab';
+import WorkplaceTabs, { type WorkplaceTab } from './WorkplaceTabs';
 
 import { cn } from '@/utils/cn';
 import { START_PATH, startTabLink, startTabPath } from '@/utils/startpage';
@@ -16,7 +17,9 @@ import { whenIdle } from '@/utils/whenIdle';
 
 import './workplace-sunrise.css';
 
-// `/start` mit zwei Ansichten, Chat und Arbeiten; umgeschaltet wird über die Seitenleiste.
+// `/start` mit zwei Ansichten, Chat und Arbeiten, umgeschaltet über die Tabs oben und
+// die Seitenleiste. Mit dem Aufbau „Alles auf einer Seite“ (Einstellungen) gibt es nur
+// Arbeiten, mit dem Composer obenauf; Chat bleibt per Pfad erreichbar.
 // Der Tab steht im Pfad (`/start/chat`, `/start/arbeiten`), damit Zurück,
 // Neuladen und Lesezeichen ihn behalten. Alle drei Pfade sind ein Route-Eintrag,
 // die Seite bleibt beim Wechsel also gemountet — und mit ihr beide Tabs, damit
@@ -26,9 +29,6 @@ import './workplace-sunrise.css';
 // mitzuladen; er mountet, sobald der Browser Luft hat oder der Tab gewählt wird.
 // (Wissen ist die eigenständige /wissen-Seite.)
 const ArbeitenTab = lazy(() => import('./tabs/ArbeitenTab'));
-
-/** The two views of `/start`; the ids are the `default_startpage` values. */
-type WorkplaceTab = StartPage;
 
 const isWorkplaceTab = (value: string | null | undefined): value is WorkplaceTab =>
   value === 'chat' || value === 'arbeiten';
@@ -48,8 +48,10 @@ const ArbeitenFallback = () => (
 const WorkplacePage = () => {
   const { tab: tabParam } = useParams();
   const [searchParams] = useSearchParams();
-  // TRIAL: no Chat page, /start always opens the Workplace.
-  const home: WorkplaceTab = 'arbeiten';
+  const combined = useStartLayout() === 'combined';
+  const startPage: WorkplaceTab = useAuthStore((s) => s.user?.default_startpage ?? 'chat');
+  // One page: bare /start is always Arbeiten, whatever the start-page setting says.
+  const home: WorkplaceTab = combined ? 'arbeiten' : startPage;
   // The seeded user from the last visit may carry a stale setting.
   const homeConfirmed = useAuthStore((s) => s.hasServerConfirmed);
   const chatBackground = useAuthStore((s) => s.user?.chat_background);
@@ -107,6 +109,7 @@ const WorkplacePage = () => {
           tab !== 'chat' && 'invisible'
         )}
       />
+      {!combined && <WorkplaceTabs active={tab} home={home} />}
       <div className="flex h-full min-h-0 flex-col">
         {/* Minimal chat hero, vertically centered in the viewport (design:
             the chat panel is a flex column with justify-center). Die Tastaturhöhe
@@ -116,7 +119,9 @@ const WorkplacePage = () => {
         <div
           hidden={tab !== 'chat'}
           className={cn(
-            'min-h-0 flex-1 flex-col justify-center-safe overflow-y-auto pb-[calc(6vh_+_var(--mobile-keyboard-offset,0px))] pt-12 md:pt-0',
+            'min-h-0 flex-1 flex-col justify-center-safe overflow-y-auto pb-[calc(6vh_+_var(--mobile-keyboard-offset,0px))]',
+            // Tabs: room for the tab bar. One page: for the floating sidebar button on phones.
+            combined ? 'pt-12 md:pt-0' : 'pt-16',
             tab === 'chat' && 'flex'
           )}
         >
@@ -128,11 +133,16 @@ const WorkplacePage = () => {
             <WorkplaceChatTab />
           </div>
         </div>
-        {/* On phones it leaves room for the floating sidebar button (the 48 px header); the top edge fades in. */}
         <div
           hidden={tab !== 'arbeiten'}
-          // TRIAL: phones get a soft pull back to the first screen near the top and scroll freely below.
-          className="mt-12 min-h-0 flex-1 overflow-y-auto [mask-image:linear-gradient(to_bottom,transparent,black_12px)] max-md:snap-y max-md:snap-proximity md:mt-0"
+          className={cn(
+            'min-h-0 flex-1 overflow-y-auto',
+            combined
+              ? // Room for the floating sidebar button on phones, a soft top edge, and a
+                // gentle pull back to the first screen near the top (proximity snap).
+                'mt-12 [mask-image:linear-gradient(to_bottom,transparent,black_12px)] max-md:snap-y max-md:snap-proximity md:mt-0'
+              : 'pt-14'
+          )}
         >
           {arbeitenMounted && (
             <Suspense fallback={<ArbeitenFallback />}>

@@ -14,6 +14,8 @@ export interface MenuFlags {
   canSeeSites?: boolean;
   /** The start-page setting: its tab is the bare `/start`, the other one `/start/<tab>`. */
   home?: StartPage;
+  /** The one-page start layout: Workplace takes the Grünerator mark, Chat has no entry. */
+  combined?: boolean;
 }
 
 // Menu item type definition
@@ -55,6 +57,7 @@ export const GLOBAL_SEARCH_ITEM_ID = 'globalSearch';
 export const getDirectMenuItems = ({
   canSeeSites = false,
   home = 'chat',
+  combined = false,
 }: MenuFlags = {}): DirectMenuItemsResult => {
   const items: DirectMenuItemsResult = {};
 
@@ -75,7 +78,7 @@ export const getDirectMenuItems = ({
     path: startTabPath('arbeiten', home),
     title: 'Workplace',
     description: 'Erstellen, Dokumente & Medien',
-    icon: getIcon('navigation', 'home'), // TRIAL: the Grünerator mark from the Chat entry
+    icon: getIcon('navigation', combined ? 'home' : 'workplace'),
     exactActivePaths: ['/start/arbeiten', ...homeAliases('arbeiten')],
   };
 
