@@ -69,7 +69,6 @@ import {
   PiSquaresFour,
   PiScan,
   PiUserCircle,
-  PiArrowsOut,
   PiScissors,
   PiSpeakerHigh,
   PiSticker,
@@ -144,7 +143,6 @@ export type NavigationIconName =
   | 'barrierefreiheit'
   | 'imagine'
   | 'profilbild'
-  | 'bild-erweitern'
   | 'freisteller'
   | 'mediathek'
   | 'sticker'
@@ -275,7 +273,6 @@ export const ICONS: IconRegistry = {
     barrierefreiheit: IoAccessibilityOutline,
     imagine: RiMagicLine,
     profilbild: PiUserCircle,
-    'bild-erweitern': PiArrowsOut,
     freisteller: PiScissors,
     mediathek: PiImages,
     sticker: PiSticker,

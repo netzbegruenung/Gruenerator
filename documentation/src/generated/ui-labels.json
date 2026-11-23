@@ -195,25 +195,15 @@
     "subtitle": "Deine Agents, Rezepte und Aufgaben",
     "path": "/grueneratoren"
   },
-  "catalog.tool-bild-erweitern": {
-    "title": "Bild erweitern",
-    "subtitle": "KI ergänzt dein Bild auf ein neues Format",
-    "path": "/studio/erweitern"
-  },
   "catalog.tool-chat": {
     "title": "Chat",
     "subtitle": "KI-Assistent",
     "path": "/chat"
   },
-  "catalog.tool-freisteller": {
-    "title": "Hintergrund entfernen",
-    "subtitle": "Person oder Motiv in Sekunden freistellen",
-    "path": "/studio/freistellen"
-  },
   "catalog.tool-imagine": {
     "title": "KI-Bild erstellen",
-    "subtitle": "Bilder mit KI erstellen & bearbeiten",
-    "path": "/studio"
+    "subtitle": "Bilder mit KI im Chat erstellen & bearbeiten",
+    "path": "/chat"
   },
   "catalog.tool-ki-schnitt": {
     "title": "KI-Schnitt",
@@ -228,7 +218,7 @@
   "catalog.tool-mediathek": {
     "title": "Mediathek",
     "subtitle": "Alle deine Bilder, Sharepics, KI-Bilder, Videos und Audios",
-    "path": "/studio/mediathek"
+    "path": "/studio"
   },
   "catalog.tool-notebooks": {
     "title": "Notebooks",
@@ -400,42 +390,23 @@
     "title": "Support",
     "path": "/support"
   },
-  "workplace.bild-erweitern": {
-    "title": "Bild erweitern",
-    "subtitle": "Auf ein neues Format ergänzen",
-    "path": "/studio/erweitern"
-  },
-  "workplace.bildgenerator-at": {
-    "title": "Bildgenerator",
-    "subtitle": "Sharepics der Grünen Österreich"
-  },
   "workplace.boards": {
     "title": "Leeres Board",
     "subtitle": "Leeres Kanban-Board"
   },
   "workplace.canvas": {
     "title": "Studio",
-    "subtitle": "KI-Bilder, Sharepics & Reels",
+    "subtitle": "Videos, Sharepics, KI-Bilder & Uploads",
     "path": "/studio"
   },
   "workplace.canvas-ki": {
-    "title": "KI-Bilder",
-    "subtitle": "Erstellen & bearbeiten",
-    "path": "/studio"
-  },
-  "workplace.canvas-vorlagen": {
-    "title": "Vorlagen",
-    "subtitle": "Sharepics & Designs",
-    "path": "/vorlagen"
+    "title": "Sharepic im Chat erstellen",
+    "subtitle": "Thema nennen, Entwürfe bekommen",
+    "path": "/chat"
   },
   "workplace.docs": {
     "title": "Leeres Dokument",
     "subtitle": "Leeres Textdokument"
-  },
-  "workplace.freisteller": {
-    "title": "Hintergrund entfernen",
-    "subtitle": "Person oder Motiv freistellen",
-    "path": "/studio/freistellen"
   },
   "workplace.marktplatz": {
     "title": "Marktplatz",
@@ -447,11 +418,6 @@
     "subtitle": "ChatGPT & Co verbinden",
     "path": "/apps"
   },
-  "workplace.mediathek": {
-    "title": "Mediathek",
-    "subtitle": "Deine Bilder, Videos & Audios",
-    "path": "/studio/mediathek"
-  },
   "workplace.newsletter": {
     "title": "Newsletter",
     "subtitle": "Updates abonnieren"
@@ -461,19 +427,9 @@
     "subtitle": "Dokumente, Boards, Tabellen & Slides",
     "path": "/office"
   },
-  "workplace.parteitage": {
-    "title": "Parteitage",
-    "subtitle": "Reden als Reels",
-    "path": "/parteitage"
-  },
   "workplace.presentations": {
     "title": "Leere Präsentation",
     "subtitle": "Leere Foliensammlung"
-  },
-  "workplace.profilbild": {
-    "title": "Profilbild",
-    "subtitle": "Freistellen & Hintergrund wechseln",
-    "path": "/studio/profilbild"
   },
   "workplace.projekte": {
     "title": "Projekte",
@@ -481,8 +437,8 @@
     "path": "/projekte"
   },
   "workplace.reels-untertitel": {
-    "title": "Untertitel",
-    "subtitle": "Untertitel für Clips",
+    "title": "Auto-Untertitel",
+    "subtitle": "Videos automatisch untertiteln",
     "path": "/studio/video"
   },
   "workplace.scanner": {
@@ -499,25 +455,10 @@
     "subtitle": "Website für deine Kandidatur",
     "path": "/sites"
   },
-  "workplace.sticker": {
-    "title": "Sticker & Hintergründe",
-    "subtitle": "Sticker erstellen, teilen & entdecken",
-    "path": "/studio/sticker"
-  },
-  "workplace.studio-ki-schnitt": {
-    "title": "KI-Schnitt",
-    "subtitle": "Rohvideos automatisch schneiden",
-    "path": "/studio/ki-schnitt"
-  },
   "workplace.studio-videoeditor": {
     "title": "Video-Editor",
-    "subtitle": "Clips schneiden & gestalten",
+    "subtitle": "Reels mit Schnitt, Text & Musik",
     "path": "/studio/videoeditor"
-  },
-  "workplace.studio-voice": {
-    "title": "Voice",
-    "subtitle": "Text vertonen",
-    "path": "/voice"
   },
   "workplace.transkription": {
     "title": "Transkription",

@@ -208,7 +208,7 @@ const VoicePage = ({ embedded = false }: { embedded?: boolean }) => {
           size="sm"
           className="shrink-0 text-primary-600 dark:text-primary-400 max-sm:size-11 max-sm:rounded-full max-sm:border max-sm:border-grey-200 dark:max-sm:border-grey-700"
         >
-          <Link to="/studio/mediathek">
+          <Link to="/studio?typ=audio">
             <History aria-hidden="true" />
             <span className="max-sm:sr-only">Zuletzt vertont</span>
           </Link>

@@ -84,7 +84,7 @@ export const OFFICE_TOOLS: WorkplaceToolItem[] = [
   {
     id: 'canvas',
     title: 'Studio',
-    description: 'KI-Bilder, Sharepics & Reels',
+    description: 'Videos, Sharepics, KI-Bilder & Uploads',
     path: '/studio',
     icon: getIcon('navigation', 'sharepic')!,
   },
@@ -150,104 +150,30 @@ export const OFFICE_SUITE_TOOLS: OfficeSuiteTool[] = [
   },
 ] satisfies RegisteredSuiteTool[];
 
-// Tools surfaced on the /studio (Bilder & Videos) landing page. KI-Bilder now
-// lives in the unified Bild-Editor; Reels moved here from the Arbeiten tab.
+// The action cards of the /studio page (Studio design 11/2026). Sharepics are
+// made in the chat, so the first card opens it with an order already typed in.
 export const CANVAS_TOOLS: WorkplaceToolItem[] = [
   {
-    id: 'canvas-vorlagen',
-    title: 'Vorlagen',
-    description: 'Sharepics & Designs',
-    path: '/vorlagen',
-    icon: getIcon('navigation', 'vorlagen')!,
-  },
-  {
     id: 'canvas-ki',
-    title: 'KI-Bilder',
-    description: 'Erstellen & bearbeiten',
-    path: '/studio',
-    icon: getIcon('navigation', 'imagine')!,
-  },
-  {
-    id: 'reels-untertitel',
-    title: 'Untertitel',
-    description: 'Untertitel für Clips',
-    path: '/studio/video',
-    icon: getIcon('navigation', 'reel')!,
+    title: 'Sharepic im Chat erstellen',
+    description: 'Thema nennen, Entwürfe bekommen',
+    path: '/chat',
+    icon: getIcon('navigation', 'messenger')!,
   },
   {
     id: 'studio-videoeditor',
     title: 'Video-Editor',
-    description: 'Clips schneiden & gestalten',
+    description: 'Reels mit Schnitt, Text & Musik',
     path: '/studio/videoeditor',
     icon: getIcon('navigation', 'videoEditor')!,
+    badge: 'Neu',
   },
   {
-    id: 'studio-ki-schnitt',
-    title: 'KI-Schnitt',
-    description: 'Rohvideos automatisch schneiden',
-    path: '/studio/ki-schnitt',
-    icon: getIcon('navigation', 'kiSchnitt')!,
-  },
-  {
-    id: 'parteitage',
-    title: 'Parteitage',
-    description: 'Reden als Reels',
-    path: '/parteitage',
+    id: 'reels-untertitel',
+    title: 'Auto-Untertitel',
+    description: 'Videos automatisch untertiteln',
+    path: '/studio/video',
     icon: getIcon('navigation', 'reel')!,
-  },
-  {
-    id: 'studio-voice',
-    title: 'Voice',
-    description: 'Text vertonen',
-    path: '/vertonen',
-    icon: getIcon('navigation', 'voice')!,
-  },
-] satisfies RegisteredTile[];
-
-// Image tools in the "Weitere Tools" menu on the /studio landing page.
-export const STUDIO_WERKZEUGE: WorkplaceToolItem[] = [
-  {
-    id: 'profilbild',
-    title: 'Profilbild',
-    description: 'Freistellen & Hintergrund wechseln',
-    path: '/studio/profilbild',
-    icon: getIcon('navigation', 'profilbild')!,
-  },
-  {
-    id: 'sticker',
-    title: 'Sticker & Hintergründe',
-    description: 'Sticker erstellen, teilen & entdecken',
-    path: '/studio/sticker',
-    icon: getIcon('navigation', 'sticker')!,
-  },
-  {
-    id: 'bild-erweitern',
-    title: 'Bild erweitern',
-    description: 'Auf ein neues Format ergänzen',
-    path: '/studio/erweitern',
-    icon: getIcon('navigation', 'bild-erweitern')!,
-  },
-  {
-    id: 'freisteller',
-    title: 'Hintergrund entfernen',
-    description: 'Person oder Motiv freistellen',
-    path: '/studio/freistellen',
-    icon: getIcon('navigation', 'freisteller')!,
-  },
-  {
-    id: 'mediathek',
-    title: 'Mediathek',
-    description: 'Deine Bilder, Videos & Audios',
-    path: '/studio/mediathek',
-    icon: getIcon('navigation', 'mediathek')!,
-  },
-  {
-    id: 'bildgenerator-at',
-    title: 'Bildgenerator',
-    description: 'Sharepics der Grünen Österreich',
-    href: 'https://bildgenerator.gruene.at/',
-    audience: 'de-AT',
-    icon: getIcon('actions', 'link')!,
   },
 ] satisfies RegisteredTile[];
 

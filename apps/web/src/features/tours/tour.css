@@ -82,18 +82,6 @@
   background-color: var(--tour-accent-hover, var(--color-primary-700));
 }
 
-/* A surface's tour takes the accent of its page: /studio is violet (the submit button of its
-   composer). Add a `gruenerator-tour--<id>` block to give another tour its own colour. */
-.gruenerator-tour--studio {
-  --tour-accent: #5b4f8f;
-  --tour-accent-hover: #4b4079;
-}
-
-[data-theme='dark'] .gruenerator-tour--studio {
-  --tour-accent: #7d70b8;
-  --tour-accent-hover: #6e61a9;
-}
-
 .gruenerator-tour .driver-popover-close-btn {
   color: var(--color-foreground);
   opacity: 0.5;

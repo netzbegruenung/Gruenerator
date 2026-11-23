@@ -7,14 +7,8 @@ import { SectionHeader, cn } from '@gruenerator/ui';
 import { type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
-import {
-  CANVAS_TOOLS,
-  OFFICE_TOOLS,
-  STUDIO_WERKZEUGE,
-  TOOL_MENUS,
-  WORKPLACE_TOOLS,
-  filterWorkplaceTools,
-} from '../../../config/workplaceToolsConfig';
+import { toolLink, type ToolId } from '../../../config/toolRegistry';
+import { filterWorkplaceTools } from '../../../config/workplaceToolsConfig';
 import { CollectionCards } from '../../marketplace/MarketplaceCollections';
 import { useMonitorLocaleParam } from '../../monitor/hooks/useMonitorLocaleParam';
 import { HeadlineSlider } from '../../notebook/wissen/HeadlineSlider';
@@ -135,9 +129,12 @@ export function MarketplaceSection() {
   );
 }
 
-interface ToolCard {
+export interface ToolCard {
   id: string;
   title: string;
+  /** One line under the title (the Studio's cards; the Arbeiten cards go without). */
+  description?: string;
+  badge?: string;
   path?: string;
   href?: string;
   icon: IconType;
@@ -145,39 +142,31 @@ interface ToolCard {
   theme?: string;
 }
 
-const ALL_TOOLS: ToolCard[] = [
-  ...OFFICE_TOOLS,
-  ...CANVAS_TOOLS,
-  ...STUDIO_WERKZEUGE,
-  ...WORKPLACE_TOOLS,
-  ...TOOL_MENUS.flatMap((menu) => menu.items),
-];
-
-/** Picks tools from the registry mirrors by id, with the card's colour and an optional new title. */
-function pickTools(entries: readonly { id: string; theme: string; title?: string }[]): ToolCard[] {
+/** Picks tools from the registry by id, with the card's colour and an optional new title. */
+function pickTools(entries: readonly { id: ToolId; theme: string; title?: string }[]): ToolCard[] {
   return filterWorkplaceTools(
-    entries.flatMap(({ id, theme, title }) => {
-      const tool = ALL_TOOLS.find((t) => t.id === id);
-      return tool ? [{ ...tool, title: title ?? tool.title, theme }] : [];
+    entries.map(({ id, theme, title }) => {
+      const tool = toolLink(id);
+      return { ...tool, title: title ?? tool.title, theme };
     })
   );
 }
 
 /**
  * „Mach mehr mit deinem Grünerator": six cards in a 3 × 2 grid (two columns on phones).
- * Each card wears its tool's tile colour from `toolTheme`; Vertonen & transkribieren and the
- * Übersetzer have no theme of their own and borrow coral and the neutral grey.
+ * Each card wears its tool's tile colour from `toolTheme`; the Übersetzer has no theme of its own and borrows the neutral grey.
  */
 export const MEDIA_GRID = 'grid grid-cols-2 gap-3 md:grid-cols-3 lg:gap-4';
 
 // Every card says what the tool does.
 export const MEDIA_TOOLS = pickTools([
-  { id: 'reels-untertitel', theme: 'mediathek', title: 'Videos bearbeiten' },
+  // The Studio: video tools and the Mediathek with every Sharepic, KI-Bild and video.
+  { id: 'canvas', theme: 'canvas', title: 'Videos & Sharepics' },
   // The Notebooks live on /wissen (/notebooks redirects there).
   { id: 'wissen', theme: 'wissen', title: 'Notebooks durchsuchen' },
   { id: 'canvas-vorlagen', theme: 'canvas-vorlagen', title: 'Vorlagen durchsuchen' },
   { id: 'profilbild', theme: 'profilbild', title: 'Profilbild erstellen' },
-  { id: 'studio-voice', theme: 'bild-erweitern', title: 'Vertonen & transkribieren' },
+  { id: 'voice', theme: 'voice', title: 'Vertonen & transkribieren' },
   { id: 'uebersetzer', theme: 'weitere', title: 'Texte übersetzen' },
 ]);
 
@@ -185,7 +174,21 @@ const TOOL_CARD =
   'group relative flex h-24 items-center overflow-hidden rounded-2xl px-4 no-underline transition-shadow ' +
   'hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 md:h-28';
 
-function ToolCardLink({ tool }: { tool: ToolCard }) {
+/**
+ * `white`: a white card whose sheets carry a green border; the theme colours title and icon,
+ * for the Studio, where the media grid below is white too. Default: the tinted Arbeiten card.
+ */
+export function ToolCardLink({
+  tool,
+  surface = 'tinted',
+  onClick,
+}: {
+  tool: ToolCard;
+  surface?: 'tinted' | 'white';
+  /** Runs before the link navigates, e.g. to hand the chat a draft. */
+  onClick?: () => void;
+}) {
+  const white = surface === 'white';
   const theme = getToolTheme(tool.theme ?? tool.id) ?? getToolTheme('weitere');
   const Icon = tool.icon;
   const preview = TOOL_PREVIEWS[tool.id];
@@ -194,13 +197,27 @@ function ToolCardLink({ tool }: { tool: ToolCard }) {
       <span
         className={cn(
           // Whole words only: a hyphenated „transkribie-ren" reads worse than two balanced lines.
-          'relative z-10 max-w-[56%] text-[17px] font-bold leading-tight text-balance md:text-lg',
+          'relative z-10 text-[17px] font-bold leading-tight text-balance md:text-lg',
+          // Tablet: three white cards in a row are too narrow for the sheets, the text takes the card.
+          white ? 'max-w-[68%] md:max-lg:max-w-none' : 'max-w-[56%]',
           theme?.title,
           // A phone card is ~170 px wide: the title takes the top, the picture the corner below.
           preview && 'max-sm:max-w-none max-sm:self-start max-sm:pt-3.5'
         )}
       >
-        {tool.title}
+        <span className="flex items-center gap-2">
+          {tool.title}
+          {tool.badge && (
+            <span className="rounded-full bg-primary-600 px-2 py-0.5 text-[11px] leading-tight font-bold text-white">
+              {tool.badge}
+            </span>
+          )}
+        </span>
+        {tool.description && (
+          <span className={cn('mt-0.5 block text-sm font-normal', theme?.desc)}>
+            {tool.description}
+          </span>
+        )}
       </span>
       {/* Two tilted sheets peeking from the bottom-right corner; the front one lifts on hover. */}
       {/* A preview keeps a fixed, slightly upright sheet; on wide cards a percentage would stretch it. */}
@@ -208,22 +225,30 @@ function ToolCardLink({ tool }: { tool: ToolCard }) {
         aria-hidden
         className={cn(
           'absolute -bottom-3 h-20 md:h-24',
+          white && 'md:max-lg:hidden',
           preview
             ? 'right-3 max-sm:-bottom-4 max-sm:h-14 max-sm:w-[4.5rem] sm:right-4 sm:w-28 md:w-32'
-            : 'right-1 w-[44%]'
+            : white
+              ? 'right-1 w-[30%] max-w-32'
+              : 'right-1 w-[44%]'
         )}
       >
         <span
           className={cn(
             'absolute bottom-0 rounded-lg',
             preview
-              ? 'right-[34%] h-[82%] w-[56%] -rotate-[10deg] bg-background/60'
-              : 'right-[30%] h-[78%] w-[58%] -rotate-[8deg] bg-background/60'
+              ? 'right-[34%] h-[82%] w-[56%] -rotate-[10deg]'
+              : 'right-[30%] h-[78%] w-[58%] -rotate-[8deg]',
+            white
+              ? 'bg-background border border-primary-300 dark:border-primary-700 opacity-70'
+              : 'bg-background/60'
           )}
         />
         <span
           className={cn(
-            'absolute bottom-0 right-[8%] flex h-[90%] w-[62%] -rotate-6 items-center justify-center overflow-hidden rounded-lg bg-background shadow-md',
+            'absolute bottom-0 right-[8%] flex h-[90%] w-[62%] -rotate-6 items-center justify-center overflow-hidden rounded-lg shadow-md',
+            'bg-background',
+            white && 'border border-primary-300 dark:border-primary-700',
             preview && 'h-full w-[66%] -rotate-[5deg] shadow-lg',
             'transition-transform duration-200 group-hover:-translate-y-1 group-hover:-rotate-3 motion-reduce:transition-none',
             theme?.icon
@@ -234,13 +259,21 @@ function ToolCardLink({ tool }: { tool: ToolCard }) {
       </span>
     </>
   );
-  const className = cn(TOOL_CARD, theme?.tile ?? 'bg-grey-50 dark:bg-grey-800/40');
+  const className = cn(
+    TOOL_CARD,
+    // A white card carries a description: it grows with its text instead of clipping it.
+    white && 'h-full min-h-20 py-4 md:h-full md:min-h-24',
+    white
+      ? 'border border-grey-200 bg-background dark:border-grey-800'
+      : (theme?.tile ?? 'bg-grey-50 dark:bg-grey-800/40')
+  );
   return tool.href ? (
     <a href={tool.href} target="_blank" rel="noopener noreferrer" className={className}>
       {body}
     </a>
   ) : (
-    <Link to={tool.path ?? '/'} className={className}>
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- Link ist auf 'a' gemappt, jsx-a11y prüft dabei nur href statt to; Enter auf dem Link löst denselben Klick aus
+    <Link to={tool.path ?? '/'} className={className} onClick={onClick}>
       {body}
     </Link>
   );

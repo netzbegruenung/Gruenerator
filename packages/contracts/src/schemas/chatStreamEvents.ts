@@ -327,6 +327,8 @@ export const generatedImagePayloadSchema = z.object({
   prompt: z.string(),
   style: generatedImageStyleSchema,
   generationTimeMs: z.number(),
+  /** Mediathek row of the image. Optional: older messages and failed writes carry none. */
+  shareToken: z.string().optional(),
 });
 export type GeneratedImagePayload = z.infer<typeof generatedImagePayloadSchema>;
 

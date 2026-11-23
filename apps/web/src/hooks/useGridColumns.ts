@@ -13,8 +13,9 @@ export function useGridColumns(el: HTMLElement | null): number {
     if (!el) return;
 
     const measure = () => {
-      const tracks = getComputedStyle(el).gridTemplateColumns.split(' ').filter(Boolean).length;
-      setColumns(tracks);
+      // `none` (no grid layout, e.g. jsdom) counts as unknown, not as one column.
+      const value = getComputedStyle(el).gridTemplateColumns;
+      setColumns(value === 'none' ? 0 : value.split(' ').filter(Boolean).length);
     };
 
     measure();
