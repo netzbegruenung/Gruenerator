@@ -491,6 +491,7 @@ export {
   setMentionLocale,
   getMentionLocale,
   setMentionLandesverbaende,
+  setScheduledTasksEnabled,
   setHiddenSkillMentions,
   setCustomAgents,
   getCustomAgentMentionables,

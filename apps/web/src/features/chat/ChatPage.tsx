@@ -6,6 +6,7 @@ import {
   setMentionInstance,
   setMentionLandesverbaende,
   setMentionLocale,
+  setScheduledTasksEnabled,
   useAgentStore,
   useChatRuntimeReady,
   useDockedPanelActive,
@@ -44,6 +45,7 @@ import ChatHero from '@/features/chat/ChatHero';
 import { LandesverbandHub } from '@/features/chat/LandesverbandHub';
 import { readRecipeDeepLink, useRecipeDeepLink } from '@/features/chat/useRecipeDeepLink';
 import { useGroupDetails } from '@/features/groups/hooks/useGroups';
+import { useScheduledTasksEnabled } from '@/features/recurring-tasks/useScheduledTasksEnabled';
 import { resolveChatBackground } from '@/features/workplace/chatBackgrounds';
 import { useFirstName } from '@/hooks/useFirstName';
 import { useAuthStore } from '@/stores/authStore';
@@ -251,6 +253,11 @@ function ChatPage() {
   useEffect(() => {
     setMentionLandesverbaende(lvIds);
   }, [lvIds]);
+  // „Geplante Aufgaben" (experimental): `@wiederkehrend` only with the switch on.
+  const scheduledTasksEnabled = useScheduledTasksEnabled();
+  useEffect(() => {
+    setScheduledTasksEnabled(scheduledTasksEnabled);
+  }, [scheduledTasksEnabled]);
   // The agent we've already auto-applied a default notebook for. Prevents the
   // effect from re-applying (and clobbering a manual notebook pick) when the
   // `userAgents` query reference changes on an unrelated cache invalidation.

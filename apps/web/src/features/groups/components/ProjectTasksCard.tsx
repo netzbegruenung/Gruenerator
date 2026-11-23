@@ -3,6 +3,7 @@ import { PiClockCounterClockwise, PiPlus } from 'react-icons/pi';
 import { Link } from 'react-router-dom';
 
 import { useRecurringTasks } from '../../recurring-tasks/api';
+import { useScheduledTasksEnabled } from '../../recurring-tasks/useScheduledTasksEnabled';
 
 const SHOWN = 3;
 
@@ -18,6 +19,8 @@ const SHOWN = 3;
 export function ProjectTasksCard({ groupId, archived }: { groupId: string; archived: boolean }) {
   const { data: tasks = [] } = useRecurringTasks();
   const own = tasks.filter((t) => t.groupId === groupId);
+  // Experimental feature, off by default (Settings → Allgemein → Experimentell).
+  if (!useScheduledTasksEnabled()) return null;
 
   return (
     <section

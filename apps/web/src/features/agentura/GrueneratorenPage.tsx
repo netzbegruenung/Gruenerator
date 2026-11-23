@@ -25,6 +25,7 @@ import { OwnAgentsConversionNotice } from '../agents/AgentDeprecationNotice';
 import { MarketplaceDialog } from '../marketplace/MarketplaceDialog';
 import { SubscribedCollectionSection } from '../marketplace/SubscribedCollectionSection';
 import { useRecurringTasks } from '../recurring-tasks/api';
+import { useScheduledTasksEnabled } from '../recurring-tasks/useScheduledTasksEnabled';
 import { useTrashUndoToast } from '../trash/trashUndoToast';
 
 import { MarketSection } from './components/MarketSection';
@@ -100,6 +101,7 @@ function GrueneratorenPage() {
     isSuccess: tasksLoaded,
     isError: tasksFailed,
   } = useRecurringTasks();
+  const tasksEnabled = useScheduledTasksEnabled();
 
   const deleteRecipe = useDeleteRecipe();
   const confirmDialog = useConfirm();
@@ -214,7 +216,7 @@ function GrueneratorenPage() {
   const allItems: MarketItem[] = [
     ...toAgentItems(sortAgentEntries(userAgents.map(ownEntry), sort)),
     ...toRecipeItems(sortRecipeEntries(ownRecipeEntries)),
-    ...recurringTasks.map(toTaskItem),
+    ...(tasksEnabled ? recurringTasks.map(toTaskItem) : []),
     // Geteiltes und Hinzugefügtes steht ohne eigene Überschrift mitten drin:
     // für die Person ist es Teil dessen, womit sie arbeitet. Woher es kommt,
     // sagt die Meta-Zeile der Kachel.
@@ -284,17 +286,21 @@ function GrueneratorenPage() {
                   <PiFileText />
                   <span>Rezept</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate('/wiederkehrend/neu')}>
-                  <PiRepeat />
-                  <span>Wiederkehrende Aufgabe</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                {/* Die Kachel zeigt den Takt, nicht den Betrieb — Verlauf,
-                    Fehlertexte und Ergebnisse stehen auf /wiederkehrend. */}
-                <DropdownMenuItem onClick={() => navigate('/wiederkehrend')}>
-                  <PiClockCounterClockwise />
-                  <span>Verlauf &amp; Steuerung</span>
-                </DropdownMenuItem>
+                {tasksEnabled && (
+                  <>
+                    <DropdownMenuItem onClick={() => navigate('/wiederkehrend/neu')}>
+                      <PiRepeat />
+                      <span>Wiederkehrende Aufgabe</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {/* Die Kachel zeigt den Takt, nicht den Betrieb — Verlauf,
+                        Fehlertexte und Ergebnisse stehen auf /wiederkehrend. */}
+                    <DropdownMenuItem onClick={() => navigate('/wiederkehrend')}>
+                      <PiClockCounterClockwise />
+                      <span>Verlauf &amp; Steuerung</span>
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </>

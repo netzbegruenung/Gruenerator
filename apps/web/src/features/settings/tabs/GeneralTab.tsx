@@ -2,6 +2,7 @@ import { type FeedbackButtonMode, type StartPage } from '@gruenerator/contracts'
 import { getPinnedLocale } from '@gruenerator/shared/instances';
 import { DEFAULT_TTS_VOICE_ID } from '@gruenerator/shared/settings';
 import { Button, Switch, toast } from '@gruenerator/ui';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Rocket, RotateCcw } from 'lucide-react';
 import { type IconType } from 'react-icons';
 import {
@@ -24,6 +25,8 @@ import { useSettingsDialogStore } from '../settingsDialogStore';
 import { useOnboarding } from '../useOnboarding';
 
 import useDarkMode, { type ThemePreference } from '@/components/hooks/useDarkMode';
+import { QUERY_KEYS, useProfile } from '@/features/auth/hooks/useProfileData';
+import { profileApiService, type Profile } from '@/features/auth/services/profileApiService';
 import { resetAllTours } from '@/features/tours/tourState';
 import { useAuthStore, type SupportedLocale } from '@/stores/authStore';
 
@@ -65,6 +68,21 @@ const GeneralTab = () => {
   const updateA11yPreference = useAuthStore((s) => s.updateA11yPreference);
   const setTab = useSettingsDialogStore((s) => s.setTab);
   const { isActive: isOnboarding, restart: restartOnboarding } = useOnboarding();
+  const userId = useAuthStore((s) => s.user?.id);
+  const queryClient = useQueryClient();
+  const { data: profile } = useProfile(userId);
+  const scheduledTasksEnabled = profile?.scheduled_tasks_enabled === true;
+  const scheduledTasks = useMutation({
+    mutationFn: (next: boolean) =>
+      profileApiService.updateProfile({ scheduled_tasks_enabled: next }),
+    onSuccess: (updated: Profile) => {
+      queryClient.setQueryData(QUERY_KEYS.profile(userId), (old: Profile | undefined) => ({
+        ...old,
+        ...updated,
+      }));
+    },
+    onError: () => toast.error('Einstellung konnte nicht gespeichert werden.'),
+  });
 
   return (
     <div className="flex flex-col gap-8">
@@ -147,6 +165,22 @@ const GeneralTab = () => {
             onCheckedChange={(checked) => void updateA11yPreference('reduce_transparency', checked)}
             aria-label="Transparenz und Unschärfe reduzieren"
           />
+        </SettingsRow>
+      </SettingsSection>
+
+      <SettingsSection title="Funktionen">
+        <SettingsRow id="allgemein.geplanteAufgaben">
+          <div className="flex items-center gap-sm">
+            <span className="rounded-full bg-primary-100 px-2 py-0.5 text-[11px] font-semibold text-primary-700 dark:bg-primary-950 dark:text-primary-200">
+              Experimentell
+            </span>
+            <Switch
+              checked={scheduledTasksEnabled}
+              onCheckedChange={(checked) => scheduledTasks.mutate(checked)}
+              disabled={scheduledTasks.isPending || !profile}
+              aria-label="Geplante Aufgaben einschalten"
+            />
+          </div>
         </SettingsRow>
       </SettingsSection>
 

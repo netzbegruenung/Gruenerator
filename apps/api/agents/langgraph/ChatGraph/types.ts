@@ -1096,6 +1096,8 @@ export interface ChatGraphState {
   memoryContext: string | null;
   memories: RenderedMemory[] | null;
   memoryEnabled: boolean;
+  /** profiles.scheduled_tasks_enabled — without it no `recurring_tasks` tool and no pin. */
+  scheduledTasksEnabled: boolean;
   memoryRetrieveTimeMs: number;
 
   // Chat history context (from past conversation search, injected by controller)

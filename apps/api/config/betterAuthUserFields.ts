@@ -84,6 +84,12 @@ export const USER_ADDITIONAL_FIELDS = {
     input: false,
     defaultValue: false,
   },
+  scheduled_tasks_enabled: {
+    type: 'boolean',
+    required: false,
+    input: false,
+    defaultValue: false,
+  },
 } as const;
 
 /** Feldname → deklarierter Better-Auth-Typ (`'string' | 'boolean' | 'number' | 'date'`). */
