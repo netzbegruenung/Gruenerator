@@ -6,15 +6,11 @@ import { InfoTilesSection } from './InfoTilesSection';
 import { axe, renderWithProviders, screen } from '@/test-utils';
 
 describe('InfoTilesSection', () => {
-  it('links the five tiles under one heading and passes axe', async () => {
+  it('links the four tiles under one heading and passes axe', async () => {
     const { container } = renderWithProviders(<InfoTilesSection />);
     expect(screen.getByRole('region', { name: 'Transparenz, MCP & Co' })).toBeInTheDocument();
     const hrefs = screen.getAllByRole('link').map((link) => link.getAttribute('href'));
-    expect(hrefs).toEqual([DOKU_URL, '/ki-transparenz', '/transparenz', '/apps', '/datenschutz']);
-    expect(screen.getByRole('link', { name: 'KI-Transparenz' })).toHaveAttribute(
-      'href',
-      '/ki-transparenz'
-    );
+    expect(hrefs).toEqual([DOKU_URL, '/transparenz', '/apps', '/datenschutz']);
     expect(screen.getByRole('link', { name: 'MCP-Server' })).toHaveAttribute('href', '/apps');
     expect(await axe(container)).toHaveNoViolations();
   });
