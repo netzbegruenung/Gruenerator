@@ -23,9 +23,19 @@ describe('archived projects', () => {
 
 describe('sortGroups', () => {
   const groups = [
-    { name: 'Zebra', created_at: '2026-01-01T00:00:00Z', last_activity_at: '2026-11-20T00:00:00Z' },
-    { name: 'Apfel', created_at: '2026-05-01T00:00:00Z', last_activity_at: null },
-    { name: 'Mango', created_at: '2026-03-01T00:00:00Z', last_activity_at: '2026-11-21T00:00:00Z' },
+    {
+      id: 'z',
+      name: 'Zebra',
+      created_at: '2026-01-01T00:00:00Z',
+      last_activity_at: '2026-11-20T00:00:00Z',
+    },
+    { id: 'a', name: 'Apfel', created_at: '2026-05-01T00:00:00Z', last_activity_at: null },
+    {
+      id: 'm',
+      name: 'Mango',
+      created_at: '2026-03-01T00:00:00Z',
+      last_activity_at: '2026-11-21T00:00:00Z',
+    },
   ];
 
   it('sorts by last activity, falling back to creation date', () => {
@@ -36,5 +46,25 @@ describe('sortGroups', () => {
     expect(sortGroups(groups, 'name').map((g) => g.name)).toEqual(['Apfel', 'Mango', 'Zebra']);
     expect(sortGroups(groups, 'newest').map((g) => g.name)).toEqual(['Apfel', 'Mango', 'Zebra']);
     expect(groups[0]?.name).toBe('Zebra');
+  });
+
+  it("'recommended' ranks used projects by count, then falls back to activity", () => {
+    const usage = {
+      a: { useCount: 5, lastUsedAt: '2026-11-01T00:00:00Z' },
+      z: { useCount: 2, lastUsedAt: '2026-11-22T00:00:00Z' },
+    };
+    expect(sortGroups(groups, 'recommended', usage).map((g) => g.name)).toEqual([
+      'Apfel',
+      'Zebra',
+      'Mango',
+    ]);
+  });
+
+  it("'recommended' without usage equals activity order", () => {
+    expect(sortGroups(groups, 'recommended').map((g) => g.name)).toEqual([
+      'Mango',
+      'Zebra',
+      'Apfel',
+    ]);
   });
 });

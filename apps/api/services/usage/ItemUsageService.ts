@@ -17,7 +17,7 @@ import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('itemUsage');
 
-export type ItemUsageType = 'notebook' | 'agent';
+export type ItemUsageType = 'notebook' | 'agent' | 'project';
 
 export interface ItemUsageStat {
   useCount: number;

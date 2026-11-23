@@ -13,15 +13,15 @@ import {
   DropdownMenuTrigger,
 } from '@gruenerator/ui';
 import { type ReactNode, useState } from 'react';
-import { PiChatsCircle, PiDotsThreeVertical, PiMagnifyingGlass } from 'react-icons/pi';
+import { PiChatsCircle, PiDotsThreeVertical, PiMagnifyingGlass, PiX } from 'react-icons/pi';
 import { Link } from 'react-router-dom';
 
 import { FEED_KIND_ICONS, feedItemHref } from '../config/groupFeedPresentation';
 
 import { type ShareActions, ShareMenuItems, hasShareMenu, projectRoleLabel } from './shareActions';
 
-/** Ab so vielen Zeilen lohnt sich ein Suchfeld. */
-const SEARCH_FROM = 6;
+/** So viele Zeilen stehen eingeklappt da; der Rest klappt auf Wunsch auf. */
+const KNOWLEDGE_SHOWN = 6;
 
 interface ProjectKnowledgeListProps {
   items: GroupFeedItem[];
@@ -49,7 +49,13 @@ export function ProjectKnowledgeList({
   onDiscuss,
 }: ProjectKnowledgeListProps) {
   const [query, setQuery] = useState('');
-  const visible = filterGroupFeed(items, query);
+  // Suche über die Lupe im Kopf, nicht als stehendes Feld.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+  const searching = searchOpen && query.trim().length > 0;
+  const matches = filterGroupFeed(items, query);
+  // Beim Suchen zählt jeder Treffer; sonst nur die ersten Zeilen, bis jemand aufklappt.
+  const visible = searching || showAll ? matches : matches.slice(0, KNOWLEDGE_SHOWN);
   const { searchable, total } = searchSummary(items);
 
   return (
@@ -57,11 +63,26 @@ export function ProjectKnowledgeList({
       aria-labelledby="projekt-wissen-titel"
       className="flex flex-col gap-xs rounded-[20px] bg-card p-md shadow-sm"
     >
-      <div className="flex items-baseline justify-between">
+      <div className="flex items-center justify-between">
         <h2 id="projekt-wissen-titel" className="m-0 text-[17px] font-semibold">
           Wissen
         </h2>
-        {items.length > 0 && <span className="text-sm text-muted-foreground">{items.length}</span>}
+        {items.length > 0 && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="-mr-1 rounded-full"
+            aria-label={searchOpen ? 'Suche im Wissen schließen' : 'Im Wissen suchen'}
+            aria-expanded={searchOpen}
+            title={searchOpen ? 'Suche schließen' : 'Im Wissen suchen'}
+            onClick={() => {
+              if (searchOpen) setQuery('');
+              setSearchOpen((v) => !v);
+            }}
+          >
+            {searchOpen ? <PiX aria-hidden /> : <PiMagnifyingGlass aria-hidden />}
+          </Button>
+        )}
       </div>
 
       {total > 0 && (
@@ -77,7 +98,7 @@ export function ProjectKnowledgeList({
         </p>
       ) : (
         <>
-          {items.length > SEARCH_FROM && (
+          {searchOpen && (
             <label className="mb-xs flex h-9 items-center gap-xs rounded-full border border-grey-200 bg-background px-3 text-muted-foreground focus-within:border-primary-500 dark:border-grey-700">
               <PiMagnifyingGlass aria-hidden className="size-4 shrink-0" />
               <span className="sr-only">Im Wissen suchen</span>
@@ -86,6 +107,8 @@ export function ProjectKnowledgeList({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Im Wissen suchen"
+                // eslint-disable-next-line jsx-a11y/no-autofocus -- opened on purpose via the magnifier
+                autoFocus
                 className="min-w-0 flex-1 border-none bg-transparent text-sm text-foreground outline-none"
               />
             </label>
@@ -106,6 +129,15 @@ export function ProjectKnowledgeList({
                 />
               ))}
             </ul>
+          )}
+          {!searching && matches.length > KNOWLEDGE_SHOWN && (
+            <button
+              type="button"
+              onClick={() => setShowAll((v) => !v)}
+              className="self-start cursor-pointer rounded-md border-none bg-transparent px-sm py-1 font-[inherit] text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              {showAll ? 'Weniger anzeigen' : `Alle ${matches.length} anzeigen`}
+            </button>
           )}
         </>
       )}

@@ -35,7 +35,6 @@ import {
 } from '../Header/menuData';
 
 import { NavTooltip } from './NavTooltip';
-import { ProjekteSidebarSection } from './ProjekteSidebarSection';
 import { buildRoleShortcuts } from './roleShortcuts';
 import { RoleShortcutsSidebarSection } from './RoleShortcutsSidebarSection';
 import SidebarAccount from './SidebarAccount';
@@ -65,6 +64,16 @@ interface SidebarProps {
   railHidden?: boolean;
 }
 
+/** Projekte in der Seitenleiste: ein gewöhnlicher Eintrag, der auf die Übersicht führt. */
+const PROJEKTE_NAV_ITEM: MenuItemType = {
+  id: 'projekte',
+  path: '/projekte',
+  title: 'Projekte',
+  description: 'Deine Projekte, Rezepte und Notebooks',
+  icon: LuFolderCog,
+  activePaths: ['/projekte', '/gruppen'],
+};
+
 const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarProps) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -88,7 +97,6 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
   const isWorkplaceRoute = isWorkplaceSurface(location.pathname);
 
   const accountMenuOpenRef = useRef(false);
-  const projekteMenuOpenRef = useRef(false);
   const roleMenuOpenRef = useRef(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -229,7 +237,7 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
       // outside the sidebar (main content, or the window).
       const rt = e.relatedTarget;
       if (rt instanceof Node && e.currentTarget.contains(rt)) return;
-      if (!accountMenuOpenRef.current && !projekteMenuOpenRef.current && !roleMenuOpenRef.current) {
+      if (!accountMenuOpenRef.current && !roleMenuOpenRef.current) {
         close();
       }
     },
@@ -445,14 +453,9 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
           <div className="flex flex-col gap-0 p-0">{itemsBeforeProjekte.map(renderNavItem)}</div>
         )}
 
-        {/* Projekte: immer da, auch in der eingeklappten Leiste */}
-        <ProjekteSidebarSection
-          openRef={projekteMenuOpenRef}
-          titleClass={titleClass}
-          collapsed={!sidebarExpanded}
-          onNavigate={handleLinkClick}
-          onClose={close}
-        />
+        {/* Projekte: immer da, auch in der eingeklappten Leiste; ein direkter
+            Link auf die Übersicht, kein Popup */}
+        <div className="flex flex-col gap-0 p-0">{renderNavItem(PROJEKTE_NAV_ITEM)}</div>
 
         {itemsAfterProjekte.length > 0 && (
           <div className="flex flex-col gap-0 p-0">{itemsAfterProjekte.map(renderNavItem)}</div>

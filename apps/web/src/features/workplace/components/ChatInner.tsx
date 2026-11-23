@@ -138,7 +138,12 @@ const ChatInnerReady: React.FC<ChatInnerProps> = ({ projectId, teamShared = fals
   return (
     <ThreadPrimitive.Root
       className={cn(
-        'w-full shrink-0 mx-auto max-w-[720px]',
+        // Auf der Projektseite bündig mit Kopf, Tabs und Chat-Liste, auf der Startseite zentriert.
+        // Auf der Projektseite schließt der Composer bündig mit der Spalte ab:
+        // ohne den Fußabstand und den seitlichen Rand des Chat-Bildschirms.
+        projectId
+          ? 'w-full shrink-0 [&>div]:pb-0! [&_form.composer-root]:mx-0 [&_form.composer-root]:max-w-none'
+          : 'w-full shrink-0 mx-auto max-w-[720px]',
         '[&>div]:px-0',
         // The hero shows the mode-toggle link instead of the disclaimer.
         '[&>div>p.text-center]:hidden'
@@ -165,7 +170,12 @@ const ChatInnerReady: React.FC<ChatInnerProps> = ({ projectId, teamShared = fals
 const ChatInner: React.FC<ChatInnerProps> = memo((props) => {
   const runtimeReady = useChatRuntimeReady();
   if (!runtimeReady) {
-    return <div className="w-full shrink-0 mx-auto max-w-[720px] min-h-24" aria-hidden />;
+    return (
+      <div
+        className={cn('w-full shrink-0 min-h-24', !props.projectId && 'mx-auto max-w-[720px]')}
+        aria-hidden
+      />
+    );
   }
   return <ChatInnerReady {...props} />;
 });

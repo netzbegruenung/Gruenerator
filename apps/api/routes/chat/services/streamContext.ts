@@ -1013,6 +1013,11 @@ async function buildStreamContextInner({
     }
   }
 
+  // A chat sent inside a project counts as a use of that project.
+  if (projectId) {
+    recordItemUsageSafe(userId, 'project', projectId);
+  }
+
   // Indexierte Docs, Tabellen, Boards des Projekts liegen im selben Scope.
   if (actualThreadId) {
     try {

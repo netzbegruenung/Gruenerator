@@ -32,8 +32,14 @@ vi.mock('../hooks/useGroups', async (importOriginal) => ({
 vi.mock('../components/PublicGroupsSection', () => ({ default: () => null }));
 // Die Rezepte darunter ebenso: eigene Abfragen, hier nicht die Frage.
 vi.mock('../components/ProjekteRecipesSection', () => ({ ProjekteRecipesSection: () => null }));
+vi.mock('../components/ProjekteRecentSection', () => ({ ProjekteRecentSection: () => null }));
 vi.mock('../components/ProjekteNotebooksSection', () => ({
   ProjekteNotebooksSection: () => null,
+}));
+
+vi.mock('../../usage/useItemUsage', () => ({
+  useItemUsage: () => ({ data: {} }),
+  useRecordItemUsage: () => {},
 }));
 
 vi.mock('@/hooks/useFirstName', () => ({ useFirstName: () => null }));

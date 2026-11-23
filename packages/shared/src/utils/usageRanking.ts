@@ -47,3 +47,26 @@ export function sortByUsage<T>(items: T[], getId: (item: T) => string, map: Usag
     compareUsageStats(getStat(map, getId(a)), getStat(map, getId(b)))
   );
 }
+
+/**
+ * "Most used" ranking for the sidebar and the "Empfohlen" sort: used items
+ * first, by use count (then most recent use); never-used items follow in the
+ * order of `fallback` (e.g. last activity), so a new user still sees something.
+ */
+export function rankByUsage<T>(
+  items: readonly T[],
+  getId: (item: T) => string,
+  map: UsageMap,
+  fallback: (a: T, b: T) => number
+): T[] {
+  return [...items].sort((a, b) => {
+    const sa = getStat(map, getId(a));
+    const sb = getStat(map, getId(b));
+    if (sa && sb) {
+      return sb.useCount - sa.useCount || toMillis(sb.lastUsedAt) - toMillis(sa.lastUsedAt);
+    }
+    if (sa) return -1;
+    if (sb) return 1;
+    return fallback(a, b);
+  });
+}
