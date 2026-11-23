@@ -84,7 +84,7 @@ const StickerIcon = getIcon('navigation', 'sticker')!;
 const SHAREPIC_DRAFT = 'Erstelle ein Sharepic zum Thema ';
 const handToChat = () => useAgentStore.getState().setPendingDraft(SHAREPIC_DRAFT);
 
-/** Each card its own hue, as in „Transparenz, MCP & Co": the Studio's tools are all green otherwise. */
+/** Each card its own hue, as in „Alles Weitere": the Studio's tools are all green otherwise. */
 const STUDIO_THEMES: Record<string, string> = {
   'canvas-ki': 'canvas-ki',
   'studio-videoeditor': 'studio-videoeditor',
