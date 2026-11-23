@@ -104,7 +104,7 @@ describe('GET /api/documents/:id/original', () => {
     expect(res.headers.get('content-type')).toBe('application/pdf');
     expect(res.headers.get('content-disposition')).toMatch(/^inline;/);
     expect(res.headers.get('x-content-type-options')).toBe('nosniff');
-    expect(res.headers.get('content-security-policy')).toBe('sandbox');
+    expect(res.headers.get('content-security-policy')).toBeNull();
     expect(res.headers.get('cache-control')).toBe('private, no-cache');
     expect(resolveReaderSource).toHaveBeenCalledWith(
       { documentId: 'd1', notebookId: 'n1', userId: 'member-1' },
