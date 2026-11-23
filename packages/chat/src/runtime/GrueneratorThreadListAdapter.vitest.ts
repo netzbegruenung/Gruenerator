@@ -11,9 +11,11 @@ import { useAgentStore } from '../stores/chatStore';
 
 import {
   createGrueneratorThreadListAdapter,
+  THREAD_LIST_PAGE_SIZE,
   getThreadAgentId,
   getThreadSlugSuffix,
   isThreadCollaborative,
+  lookupThreadBySlugSuffix,
   resolveThreadBySlugSuffix,
 } from './GrueneratorThreadListAdapter';
 
@@ -341,5 +343,143 @@ describe('list — empty-thread cleanup', () => {
     expect(apiClient.delete).toHaveBeenCalledWith(
       '/api/chat-service/threads?threadId=leer-alt&onlyIfEmpty=true'
     );
+  });
+});
+
+describe('list — paging (#5987)', () => {
+  const iso = (n: number) => new Date(Date.UTC(2026, 10, 1, 0, 0, 0) - n * 60_000).toISOString();
+  const thread = (n: number, extra: Record<string, unknown> = {}) => ({
+    id: `page-t-${n}`,
+    agentId: 'chat',
+    title: `T${n}`,
+    status: 'regular',
+    updatedAt: iso(n),
+    lastMessage: { content: 'x', role: 'user', created_at: iso(n) },
+    ...extra,
+  });
+  const page = (from: number, count: number) =>
+    Array.from({ length: count }, (_, i) => thread(from + i));
+
+  it('asks for one page and hands back a cursor when the page is full', async () => {
+    const apiClient = makeApiClient();
+    apiClient.get = vi.fn().mockResolvedValue(page(0, THREAD_LIST_PAGE_SIZE));
+    const adapter = createGrueneratorThreadListAdapter(apiClient, 'chat');
+
+    const res = await adapter.list();
+
+    expect(apiClient.get).toHaveBeenCalledWith(
+      `/api/chat-service/threads?limit=${THREAD_LIST_PAGE_SIZE}`
+    );
+    expect(res.threads).toHaveLength(THREAD_LIST_PAGE_SIZE);
+    const last = THREAD_LIST_PAGE_SIZE - 1;
+    expect(res.nextCursor).toBe(`${iso(last)}|page-t-${last}`);
+  });
+
+  it('loadMore sends the cursor and a short last page ends the list', async () => {
+    const apiClient = makeApiClient();
+    apiClient.get = vi
+      .fn()
+      .mockResolvedValueOnce(page(0, THREAD_LIST_PAGE_SIZE))
+      .mockResolvedValueOnce(page(THREAD_LIST_PAGE_SIZE, 3));
+    const adapter = createGrueneratorThreadListAdapter(apiClient, 'chat');
+
+    const first = await adapter.list();
+    const second = await adapter.list({ after: first.nextCursor });
+
+    const url = (apiClient.get as unknown as ReturnType<typeof vi.fn>).mock.calls[1][0] as string;
+    expect(url).toContain(`before=${encodeURIComponent(first.nextCursor as string)}`);
+    expect(second.threads).toHaveLength(3);
+    expect(second.nextCursor).toBeUndefined();
+  });
+
+  it('an older server that ignores limit and sends everything does not page on', async () => {
+    const apiClient = makeApiClient();
+    apiClient.get = vi.fn().mockResolvedValue(page(0, THREAD_LIST_PAGE_SIZE + 20));
+    const adapter = createGrueneratorThreadListAdapter(apiClient, 'chat');
+
+    expect((await adapter.list()).nextCursor).toBeUndefined();
+  });
+
+  it('lists external threads on the first page only', async () => {
+    const apiClient = makeApiClient();
+    apiClient.get = vi.fn().mockResolvedValue(page(0, THREAD_LIST_PAGE_SIZE));
+    const adapter = createGrueneratorThreadListAdapter(apiClient, 'chat', {
+      getExternalThreads: () => [
+        { remoteId: 'ext-1', externalId: 'e1', title: 'Notebook', updatedAt: iso(500) },
+      ],
+    } as never);
+
+    const first = await adapter.list();
+    const second = await adapter.list({ after: first.nextCursor });
+
+    expect(first.threads.some((t) => t.remoteId === 'ext-1')).toBe(true);
+    expect(second.threads.some((t) => t.remoteId === 'ext-1')).toBe(false);
+  });
+
+  it('keeps only the newest empty thread across pages', async () => {
+    const apiClient = makeApiClient();
+    const empty = (n: number) => thread(n, { lastMessage: null, updatedAt: iso(120 + n) });
+    apiClient.get = vi
+      .fn()
+      .mockResolvedValueOnce([...page(0, THREAD_LIST_PAGE_SIZE - 1), empty(900)])
+      .mockResolvedValueOnce([empty(901), thread(902)]);
+    useAgentStore.setState({ currentThreadId: null });
+    const adapter = createGrueneratorThreadListAdapter(apiClient, 'chat');
+
+    const first = await adapter.list();
+    expect(apiClient.delete).not.toHaveBeenCalled();
+    await adapter.list({ after: first.nextCursor });
+
+    expect(apiClient.delete).toHaveBeenCalledTimes(1);
+    expect(apiClient.delete).toHaveBeenCalledWith(
+      '/api/chat-service/threads?threadId=page-t-901&onlyIfEmpty=true'
+    );
+  });
+});
+
+describe('fetch — a thread outside the loaded page', () => {
+  it('looks the thread up by id instead of downloading the list', async () => {
+    const apiClient = makeApiClient();
+    apiClient.get = vi.fn().mockResolvedValue([
+      {
+        id: 'old-thread',
+        slugSuffix: 'oldsl1',
+        agentId: 'chat',
+        title: 'Alt',
+        status: 'regular',
+        threadType: 'chat',
+        updatedAt: new Date().toISOString(),
+      },
+    ]);
+    const adapter = createGrueneratorThreadListAdapter(apiClient, 'chat');
+
+    const res = await adapter.fetch('old-thread');
+
+    expect(apiClient.get).toHaveBeenCalledWith('/api/chat-service/threads?threadId=old-thread');
+    expect(res).toMatchObject({ remoteId: 'old-thread', title: 'Alt', status: 'regular' });
+    expect(resolveThreadBySlugSuffix('oldsl1')).toBe('old-thread');
+  });
+
+  it('resolves a slug that is not in the loaded pages with a one-thread lookup', async () => {
+    const apiClient = makeApiClient();
+    apiClient.get = vi
+      .fn()
+      .mockResolvedValue([
+        { id: 'slug-thread', slugSuffix: 'sLuGxx', agentId: 'chat', title: 'S', status: 'regular' },
+      ]);
+    createGrueneratorThreadListAdapter(apiClient, 'chat');
+
+    expect(resolveThreadBySlugSuffix('sLuGxx')).toBeNull();
+    expect(await lookupThreadBySlugSuffix('sLuGxx')).toBe('slug-thread');
+    expect(apiClient.get).toHaveBeenCalledWith('/api/chat-service/threads?slugSuffix=sLuGxx');
+    expect(resolveThreadBySlugSuffix('sLuGxx')).toBe('slug-thread');
+  });
+
+  it('rejects when the server has no such thread for this user', async () => {
+    const apiClient = makeApiClient();
+    apiClient.get = vi.fn().mockResolvedValue([]);
+    await expect(
+      createGrueneratorThreadListAdapter(apiClient, 'chat').fetch('nope')
+    ).rejects.toThrow('not found');
   });
 });

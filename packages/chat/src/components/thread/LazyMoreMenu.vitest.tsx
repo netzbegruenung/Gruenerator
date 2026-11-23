@@ -59,7 +59,7 @@ function configureFetch(count: number) {
         method: init?.method ?? 'GET',
         body: typeof init?.body === 'string' ? JSON.parse(init.body) : null,
       });
-      if (url === '/api/chat-service/threads') return json(threads);
+      if (url.split('?')[0] === '/api/chat-service/threads') return json(threads);
       return json({});
     },
     onUnauthorized: () => {},

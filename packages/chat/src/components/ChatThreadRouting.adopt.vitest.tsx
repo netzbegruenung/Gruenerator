@@ -38,7 +38,7 @@ function makeFetch() {
     if (url === '/api/chat-service/threads' && init?.method === 'POST') {
       return json({ id: MINTED_ID, slugSuffix: 'WehrPf' });
     }
-    if (url === '/api/chat-service/threads') return json([]);
+    if (url.split('?')[0] === '/api/chat-service/threads') return json([]);
     if (url.startsWith('/api/chat-service/messages')) return json([]);
     if (url.includes('/tabular-files')) return json({ files: [] });
     if (url.includes('/summarize')) {
