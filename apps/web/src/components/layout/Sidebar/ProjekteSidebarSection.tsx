@@ -17,6 +17,7 @@ import { type MutableRefObject, memo, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useGroups } from '../../../features/groups/hooks/useGroups';
+import { useItemUsage } from '../../../features/usage/useItemUsage';
 
 import { iconClass, menuLinkClass } from './sidebarStyles';
 
@@ -50,9 +51,16 @@ export const ProjekteSidebarSection = memo(function ProjekteSidebarSection({
   const { userGroups, isLoadingGroups, isErrorGroups } = useGroups({ isActive: true });
   const [open, setOpen] = useState(false);
 
-  // Nur die zuletzt aktiven: die Seitenleiste ist ein Sprungbrett, keine
-  // Liste. Alles Weitere (und das Archiv) steht auf /projekte.
-  const active = sortGroups(splitArchivedGroups(userGroups ?? []).active, 'activity');
+  const { data: usage } = useItemUsage('project');
+
+  // Nur die meistgenutzten (ohne Nutzung: die zuletzt aktiven): die
+  // Seitenleiste ist ein Sprungbrett, keine Liste. Alles Weitere (und das
+  // Archiv) steht auf /projekte.
+  const active = sortGroups(
+    splitArchivedGroups(userGroups ?? []).active,
+    'recommended',
+    usage ?? {}
+  );
   const projekte = active.slice(0, SIDEBAR_PROJEKTE_LIMIT);
   const hiddenCount = active.length - projekte.length;
 
