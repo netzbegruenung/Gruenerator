@@ -23,6 +23,14 @@ import { cn } from '@/utils/cn';
  * further down the page scrolls freely. Once the centred composer has scrolled
  * away, a copy docks at the bottom edge, where the thumb is.
  */
+/** The chat background drops the composer's border (it stands on a tinted band there).
+ *  Here it stands on the near-white page: borderless with a soft shadow it read as glass,
+ *  so it gets its border back. In dark mode its fill is 5 % white, which let the halo
+ *  and, when docked, the scrolling page shine through: here it is opaque, in the tone
+ *  that 5 % white makes on the page background. */
+const SOLID_COMPOSER =
+  '[--chat-composer-border:var(--color-border)] dark:[&_form.composer-root]:bg-background-alt';
+
 export function OnePageStart({ recents }: { recents: ReactNode }) {
   const isMobile = useIsMobile();
   const inlineComposerRef = useRef<HTMLDivElement>(null);
@@ -106,7 +114,11 @@ export function OnePageStart({ recents }: { recents: ReactNode }) {
             <div className={cn(chatBackgroundClass, 'contents animate-none!')}>
               <div
                 ref={inlineComposerRef}
-                className="workplace-chat-accent mx-auto w-full max-w-[852px] px-4 max-md:mt-5"
+                className={cn(
+                  'workplace-chat-accent mx-auto w-full max-w-[852px] px-4 max-md:mt-5',
+                  SOLID_COMPOSER,
+                  '[&_form.composer-root]:shadow-sm'
+                )}
                 data-tour="workplace-composer"
               >
                 {composer}
@@ -137,7 +149,12 @@ export function OnePageStart({ recents }: { recents: ReactNode }) {
         >
           <div className={cn(chatBackgroundClass, 'contents animate-none!')}>
             {/* Docked over content: a deeper shadow lifts it off whatever scrolls underneath. */}
-            <div className="workplace-chat-accent mx-auto w-full [&_form.composer-root]:shadow-[0_10px_32px_-8px_rgba(0,0,0,0.22),0_2px_6px_rgba(0,0,0,0.06)]">
+            <div
+              className={cn(
+                'workplace-chat-accent mx-auto w-full [&_form.composer-root]:shadow-[0_10px_32px_-8px_rgba(0,0,0,0.22),0_2px_6px_rgba(0,0,0,0.06)]',
+                SOLID_COMPOSER
+              )}
+            >
               {composer}
             </div>
           </div>
