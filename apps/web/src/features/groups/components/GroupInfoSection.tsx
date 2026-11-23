@@ -83,7 +83,6 @@ import { ProjectRecipesCard } from './ProjectRecipesCard';
 import { ProjectTasksCard } from './ProjectTasksCard';
 import { type ShareActions } from './shareActions';
 import { ShareNoteDialog } from './ShareNoteDialog';
-import { SpaceChatsSection } from './SpaceChatsSection';
 
 export interface GroupInfo {
   id?: string;
@@ -832,7 +831,6 @@ const GroupInfoSection = memo(
             showChats ? (
               <>
                 <ProjectChatComposer groupId={groupId} />
-                <SpaceChatsSection groupId={groupId} />
               </>
             ) : null
           }

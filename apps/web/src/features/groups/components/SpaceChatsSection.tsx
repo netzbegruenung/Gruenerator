@@ -2,7 +2,7 @@ import { getContractsClient } from '@gruenerator/shared/api';
 import { projectChatThreads } from '@gruenerator/shared/groups';
 import { buildChatThreadSlug } from '@gruenerator/shared/utils';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { PiCaretRight, PiChatCircle } from 'react-icons/pi';
 import { Link } from 'react-router-dom';
 
@@ -37,7 +37,14 @@ export function formatRelativeDate(iso: string, now: number = Date.now()): strin
 /** Aufgeklappt stehen zuerst so viele Chats da; der Rest auf Wunsch. */
 const CHATS_SHOWN = 5;
 
-export function SpaceChatsSection({ groupId }: { groupId: string }) {
+export function SpaceChatsSection({
+  groupId,
+  aside = null,
+}: {
+  groupId: string;
+  /** Steht rechts in der Zeile mit „Bisherige Chats“ (der Teilen-Schalter des Composers). */
+  aside?: ReactNode;
+}) {
   // Bisherige Chats sind eingeklappt: oben steht der neue Chat, nicht die Liste.
   const [open, setOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
@@ -62,25 +69,26 @@ export function SpaceChatsSection({ groupId }: { groupId: string }) {
     return () => window.removeEventListener('gruenerator:space-threads-changed', onChanged);
   }, [refetch]);
 
-  if (isLoading) return null;
-
   return (
     <section aria-labelledby="projekt-chats-titel" className="flex flex-col gap-xs">
-      <h2 id="projekt-chats-titel" className="m-0">
-        <button
-          type="button"
-          aria-expanded={open}
-          onClick={() => setOpen((v) => !v)}
-          className="flex cursor-pointer items-center gap-xs rounded-md border-none bg-transparent px-sm py-1 font-[inherit] text-[15px] font-semibold text-foreground hover:bg-muted"
-        >
-          <PiCaretRight
-            aria-hidden
-            className={`size-4 transition-transform ${open ? 'rotate-90' : ''}`}
-          />
-          Bisherige Chats
-          <span className="font-normal text-muted-foreground">{threads.length}</span>
-        </button>
-      </h2>
+      <div className="flex flex-wrap items-center justify-between gap-sm">
+        <h2 id="projekt-chats-titel" className="m-0">
+          <button
+            type="button"
+            aria-expanded={open}
+            onClick={() => setOpen((v) => !v)}
+            className="flex cursor-pointer items-center gap-xs rounded-md border-none bg-transparent px-sm py-1 font-[inherit] text-[15px] font-semibold text-foreground hover:bg-muted"
+          >
+            <PiCaretRight
+              aria-hidden
+              className={`size-4 transition-transform ${open ? 'rotate-90' : ''}`}
+            />
+            Bisherige Chats
+            <span className="font-normal text-muted-foreground">{threads.length}</span>
+          </button>
+        </h2>
+        {aside}
+      </div>
       {!open ? null : threads.length === 0 ? (
         <p className="m-0 px-sm text-[15px] text-muted-foreground">
           Noch keine Chats. Starte oben den ersten.

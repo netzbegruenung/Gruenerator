@@ -2,6 +2,8 @@ import { useId, useState } from 'react';
 
 import ChatInner from '../../workplace/components/ChatInner';
 
+import { SpaceChatsSection } from './SpaceChatsSection';
+
 interface ProjectChatComposerProps {
   groupId: string;
 }
@@ -25,22 +27,29 @@ export function ProjectChatComposer({ groupId }: ProjectChatComposerProps) {
         Neuen Chat im Projekt starten
       </h2>
       <ChatInner projectId={groupId} teamShared={shared} />
-      <label className="flex w-fit max-w-full cursor-pointer items-center gap-xs px-sm text-[13px] text-muted-foreground">
-        <input
-          type="checkbox"
-          role="switch"
-          checked={shared}
-          onChange={(event) => setShared(event.target.checked)}
-          aria-describedby={shared ? undefined : hintId}
-          className="size-4 shrink-0 accent-primary-600"
-        />
-        Im Projekt teilen
-      </label>
-      {shared ? null : (
-        <p id={hintId} className="px-sm text-[13px] text-muted-foreground">
-          Privat – nutzt trotzdem das Wissen des Projekts
-        </p>
-      )}
+      <SpaceChatsSection
+        groupId={groupId}
+        aside={
+          <div className="flex flex-col items-end">
+            <label className="flex max-w-full cursor-pointer items-center gap-xs px-sm text-[13px] text-muted-foreground">
+              <input
+                type="checkbox"
+                role="switch"
+                checked={shared}
+                onChange={(event) => setShared(event.target.checked)}
+                aria-describedby={shared ? undefined : hintId}
+                className="size-4 shrink-0 accent-primary-600"
+              />
+              Im Projekt teilen
+            </label>
+            {shared ? null : (
+              <p id={hintId} className="m-0 px-sm text-[13px] text-muted-foreground">
+                Privat – nutzt trotzdem das Wissen des Projekts
+              </p>
+            )}
+          </div>
+        }
+      />
     </section>
   );
 }
