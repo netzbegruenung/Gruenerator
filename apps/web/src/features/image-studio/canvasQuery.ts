@@ -1,3 +1,4 @@
+import './canvasHost';
 import { isValidCanvasType, loadCanvasConfig } from '@gruenerator/canvas-editor/config-loader';
 import { type CanvasDocument } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';

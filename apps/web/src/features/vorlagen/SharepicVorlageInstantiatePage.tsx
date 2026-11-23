@@ -1,3 +1,4 @@
+import '../image-studio/canvasHost';
 import { CanvasEditorSkeleton } from '@gruenerator/canvas-editor/skeleton';
 import { takeVorlageBeitrag } from '@gruenerator/chat';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';

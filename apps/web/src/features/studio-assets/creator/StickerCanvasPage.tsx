@@ -1,3 +1,4 @@
+import '../../image-studio/canvasHost';
 import { MasterCanvasEditor, type CanvasEditorExportApi } from '@gruenerator/canvas-editor';
 import { type StudioAssetItem } from '@gruenerator/contracts';
 import {

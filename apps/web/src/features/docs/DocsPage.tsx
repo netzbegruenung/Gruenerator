@@ -37,7 +37,6 @@ import { useFirstName } from '../../hooks/useFirstName';
 import { useAuthStore } from '../../stores/authStore';
 import { boardTemplates, getBoardTemplate } from '../boards/boardTemplates';
 import { useFeatureIndex } from '../global-search/useFeatureIndex';
-import { seedCanvasQuery } from '../image-studio/canvasQuery';
 import { openSharepicCreator } from '../image-studio/freitext/openSharepicCreator';
 import {
   getPresentationTemplate,
@@ -445,7 +444,12 @@ export function DocumentsContent({
 
   const handleCreatePresentation = useCallback(async () => {
     try {
-      const deck = await createSlideDeck(locale);
+      // canvasQuery pulls the canvas editor's host data; loaded on the click
+      // so the start page and /docs do not ship it (#5891).
+      const [deck, { seedCanvasQuery }] = await Promise.all([
+        createSlideDeck(locale),
+        import('../image-studio/canvasQuery'),
+      ]);
       seedCanvasQuery(queryClient, deck);
       void navigate(`/studio/canvas/${deck.id}`);
     } catch (err) {
