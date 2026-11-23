@@ -80,6 +80,8 @@ function buildCatalog(userLocale: (typeof LOCALES)[number]): ToolSet {
     lastUserTextNoMentions:
       'Erinnere mich jeden Montag an meine Rezepte und meine Agenten, erstelle ein Bild',
     memoryEnabled: true,
+    // Experimenteller Schalter: an, damit `recurring_tasks` mitmontiert wird.
+    scheduledTasksEnabled: true,
     cloudConnectionCount: 1,
     documentSources: [{ kind: 'document', label: 'antrag.pdf', id: 'd1' }],
     pdfFormAttachments: [{ name: 'formular.pdf', data: '' }],
