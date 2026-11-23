@@ -1,0 +1,234 @@
+/*
+ * Animated line illustrations for the front sheet of a tool card
+ * (`ToolCard.visual`). They play on hover (pointer devices) and on keyboard
+ * focus of the card, which carries the class `it-host`.
+ *
+ * Colour: strokes are `currentColor`; knock-outs use `--tile`, the colour of
+ * the sheet they sit on.
+ *
+ * Motion: an animated part of an illustration declares its animation in
+ * `--it-anim` and carries the class `it-anim`; the one rule below plays every
+ * such part while the card is active. A new illustration therefore only adds
+ * keyframes and the variable, never another hover selector. Nothing moves with
+ * reduced motion. One beat is 2.5 s: movement in the first ~60 %, then rest.
+ */
+.illustrated-tile__art {
+  --tile: var(--background-color);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .it-host:hover .it-anim {
+    animation: var(--it-anim);
+  }
+}
+.it-host:focus-visible .it-anim {
+  animation: var(--it-anim);
+}
+
+/* Parts turn and scale about their own centre; `.it-vb` about the drawing's grid. */
+.illustrated-tile__art * {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.illustrated-tile__art .it-vb {
+  transform-box: view-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .it-host .it-anim {
+    animation: none !important;
+  }
+}
+
+/* ── Book: a page turns, the lines write themselves ─────────────────────── */
+.it-book-flip {
+  opacity: 0;
+  transform-origin: 50px 50px;
+  --it-anim: it-book-flip 2.5s cubic-bezier(0.33, 0, 0.2, 1) infinite;
+}
+@keyframes it-book-flip {
+  0% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  24% {
+    opacity: 1;
+    transform: scaleX(-1);
+  }
+  30%,
+  100% {
+    opacity: 0;
+    transform: scaleX(-1);
+  }
+}
+.it-book-line {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 0;
+}
+.it-book-line[data-side='right'] {
+  --it-anim: it-book-write-right 2.5s cubic-bezier(0.33, 0, 0.2, 1) var(--it-delay, 0s) infinite;
+}
+.it-book-line[data-side='left'] {
+  --it-anim: it-book-write-left 2.5s cubic-bezier(0.33, 0, 0.2, 1) var(--it-delay, 0s) infinite;
+}
+@keyframes it-book-write-right {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  4%,
+  10% {
+    stroke-dashoffset: 24;
+  }
+  30%,
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes it-book-write-left {
+  0%,
+  20% {
+    stroke-dashoffset: 0;
+  }
+  23%,
+  28% {
+    stroke-dashoffset: 24;
+  }
+  48%,
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ── Wind turbine: the rotor spins up, gusts pass ──────────────────────── */
+.it-wind-rotor {
+  transform-origin: 50px 36px;
+  --it-anim:
+    it-wind-spin-up 1.2s cubic-bezier(0.5, 0, 1, 1) forwards, it-wind-spin 1.4s linear 1.2s infinite;
+}
+@keyframes it-wind-spin-up {
+  from {
+    transform: rotate(0);
+  }
+  to {
+    transform: rotate(240deg);
+  }
+}
+@keyframes it-wind-spin {
+  from {
+    transform: rotate(240deg);
+  }
+  to {
+    transform: rotate(600deg);
+  }
+}
+.it-wind-gust {
+  opacity: 0;
+  --it-anim: it-wind-gust 2.5s ease-out var(--it-delay, 0s) infinite;
+}
+@keyframes it-wind-gust {
+  0% {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  12% {
+    opacity: 0.8;
+  }
+  40%,
+  100% {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+}
+
+/* ── Exchange: two arrows trade places ─────────────────────────────────── */
+.it-exchange-top {
+  --it-anim: it-exchange-top 2.5s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+}
+@keyframes it-exchange-top {
+  0% {
+    transform: translateX(0);
+  }
+  24% {
+    transform: translateX(7px);
+  }
+  50%,
+  100% {
+    transform: translateX(0);
+  }
+}
+.it-exchange-bottom {
+  --it-anim: it-exchange-bottom 2.5s cubic-bezier(0.45, 0, 0.25, 1) 0.25s infinite;
+}
+@keyframes it-exchange-bottom {
+  0% {
+    transform: translateX(0);
+  }
+  24% {
+    transform: translateX(-7px);
+  }
+  50%,
+  100% {
+    transform: translateX(0);
+  }
+}
+
+/* ── Padlock: the shackle opens and snaps shut, the lock bumps and wobbles ─ */
+.it-lock-shackle {
+  --it-anim: it-lock-shackle 2.5s infinite;
+}
+@keyframes it-lock-shackle {
+  0% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0.33, 0, 0.2, 1);
+  }
+  12%,
+  18% {
+    transform: translateY(-9px);
+    animation-timing-function: cubic-bezier(0.5, 0, 0.3, 1.5);
+  }
+  28%,
+  100% {
+    transform: translateY(0);
+  }
+}
+.it-lock-body {
+  --it-anim: it-lock-bump 2.5s ease-out infinite;
+}
+@keyframes it-lock-bump {
+  0%,
+  27% {
+    transform: scale(1) rotate(0);
+  }
+  32% {
+    transform: scale(1.08) rotate(0);
+  }
+  38% {
+    transform: scale(1) rotate(-4deg);
+  }
+  44% {
+    transform: rotate(3deg);
+  }
+  50% {
+    transform: rotate(-1.5deg);
+  }
+  56%,
+  100% {
+    transform: rotate(0);
+  }
+}
+.it-lock-hole {
+  --it-anim: it-lock-hole 2.5s ease-out infinite;
+}
+@keyframes it-lock-hole {
+  0%,
+  27% {
+    transform: scale(1);
+  }
+  31% {
+    transform: scale(1.35);
+  }
+  40%,
+  100% {
+    transform: scale(1);
+  }
+}

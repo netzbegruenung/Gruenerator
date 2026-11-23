@@ -1,5 +1,5 @@
 import { resolveStoredImageUrl } from '@gruenerator/shared/media-library/shareUrl';
-import { Badge, InteractiveCard } from '@gruenerator/ui';
+import { InteractiveCard } from '@gruenerator/ui';
 import { Bookmark, ExternalLink, Heart, Image as ImageIcon } from 'lucide-react';
 import { memo, useState, type JSX, type ReactNode } from 'react';
 
@@ -225,7 +225,7 @@ const VorlagenCard = memo(
           )}
         </div>
 
-        {/* Meta row: name, then source tool + format. */}
+        {/* Meta row: name, then source tool + format in one line. */}
         <div className="flex flex-col gap-2.5 px-4 pb-4 pt-3.5">
           <h3
             className="truncate text-[0.9375rem] font-semibold text-foreground-heading"
@@ -233,9 +233,12 @@ const VorlagenCard = memo(
           >
             {title}
           </h3>
-          <div className="flex items-center gap-2 text-sm text-grey-600 dark:text-grey-400">
-            <Badge variant="outline">{format.tool}</Badge>
-            <span>{format.formatLabel}</span>
+          <div className="flex min-w-0 items-center gap-2 text-sm text-grey-600 dark:text-grey-400">
+            {/* Plain text like the media cards; a phone card drops the source and keeps the format. */}
+            <span className="min-w-0 truncate">
+              <span className="max-sm:hidden">{format.tool} · </span>
+              {format.formatLabel}
+            </span>
             {likesCount > 0 && (
               <span
                 className="ml-auto flex items-center gap-1 font-medium"

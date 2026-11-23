@@ -2,11 +2,12 @@
 
 // `Image` umbenannt: unter diesem Namen hält jsx-a11y das Icon für ein <img>.
 import { downloadDataUrl } from '@gruenerator/shared';
-import { Loader2, Image as ImageIcon, Download, X } from 'lucide-react';
+import { Loader2, Image as ImageIcon, Download, Pencil, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { cn } from '../../lib/utils';
+import { useChatConfigStore } from '../../stores/chatConfigStore';
 
 import { ImageGenerationDots } from './ImageGenerationFrame';
 
@@ -32,6 +33,7 @@ export function GeneratedImageDisplay({ image }: GeneratedImageDisplayProps) {
   // Der Dot-Grid-/Blur-Auftritt gilt nur für KI-Bilder; Sharepics behalten den
   // schlichten Decode-Spinner ihres eigenen Flows.
   const isAiImage = image.style !== 'sharepic';
+  const onEditImage = useChatConfigStore((s) => s.onEditImage);
 
   // ESC to close + lock body scroll while open. Native overlay (no Radix Dialog)
   // because this is a passive image viewer, not a modal with focus-trap needs.
@@ -114,14 +116,26 @@ export function GeneratedImageDisplay({ image }: GeneratedImageDisplayProps) {
           </span>
         </div>
 
-        <button
-          onClick={handleDownload}
-          className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-foreground-muted hover:bg-primary/10 hover:text-foreground"
-          aria-label="Bild herunterladen"
-        >
-          <Download className="h-3 w-3" />
-          <span>Herunterladen</span>
-        </button>
+        <div className="flex items-center gap-1">
+          {isAiImage && onEditImage && (
+            <button
+              type="button"
+              onClick={() => onEditImage({ src: imageSrc, title: image.prompt || 'KI-Bild' })}
+              className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-foreground-muted hover:bg-primary/10 hover:text-foreground"
+            >
+              <Pencil className="h-3 w-3" aria-hidden="true" />
+              <span>Im Editor öffnen</span>
+            </button>
+          )}
+          <button
+            onClick={handleDownload}
+            className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-foreground-muted hover:bg-primary/10 hover:text-foreground"
+            aria-label="Bild herunterladen"
+          >
+            <Download className="h-3 w-3" />
+            <span>Herunterladen</span>
+          </button>
+        </div>
       </div>
 
       {isLightboxOpen &&

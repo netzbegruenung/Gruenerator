@@ -81,6 +81,7 @@ export function useSharepicArtifact(variant: SharepicVariant) {
   const hydratedRef = useRef(false);
 
   const canvasId = live?.canvasId ?? variant.canvasId ?? null;
+  const thumbnailPending = live?.thumbnailDirty === true && live?.canvasId != null;
   const headVersion = live?.version ?? null;
   const renderInput = viewState ?? live?.state ?? initialProps;
 
@@ -101,6 +102,9 @@ export function useSharepicArtifact(variant: SharepicVariant) {
         setImageBase64(cached);
         setRenderError(false);
         setIsRendering(false);
+        // The canvas id can land after the first render: the cached head still
+        // becomes the canvas thumbnail.
+        maybeUploadThumbnail(variant.id, cached, false);
         return undefined;
       }
     }
@@ -134,7 +138,7 @@ export function useSharepicArtifact(variant: SharepicVariant) {
     return () => {
       cancelled = true;
     };
-  }, [variant.canvasType, variant.id, renderInput, viewState, headVersion]);
+  }, [variant.canvasType, variant.id, renderInput, viewState, headVersion, thumbnailPending]);
 
   // Thread-reload rehydration: a minted variant renders its CURRENT state
   // (which may have changed in the studio), not the stale initialProps.

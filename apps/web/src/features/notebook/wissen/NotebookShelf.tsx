@@ -11,6 +11,7 @@ import { lvCardImage } from '../../marketplace/landesverbandCovers';
 import { useNotebookPrefetch } from '../preload';
 
 import { OwnNotebookMenu } from './OwnNotebookMenu';
+import { OPEN_STATE, shelfEntryLink } from './shelfLinks';
 import {
   collectionSlug,
   useNotebookShelves,
@@ -32,7 +33,6 @@ import {
 } from '@/components/dashboard/dashboardStyles';
 
 const CREATE_PATH = '/notebooks/neu';
-const OPEN_STATE = { freshConversation: true };
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -45,42 +45,32 @@ function describeEntry(entry: ShelfEntry): {
   prefetchSlug: string | null;
   action: ReactNode;
 } {
+  const link = shelfEntryLink(entry);
   switch (entry.kind) {
     case 'system':
       return {
-        title: entry.notebook.title,
+        ...link,
         meta: entry.notebook.meta,
-        to: entry.notebook.path,
         prefetchSlug: null,
         action: <FavouriteStar id={entry.notebook.id} size={16} tone="notebook" />,
       };
-    case 'own': {
-      const c = entry.collection;
+    case 'own':
       return {
-        title: c.name,
-        meta: plural(c.document_count, 'Quelle', 'Quellen'),
-        to: `/notebooks/${collectionSlug(c)}`,
-        prefetchSlug: collectionSlug(c),
-        action: <OwnNotebookMenu collection={c} />,
+        ...link,
+        meta: plural(entry.collection.document_count, 'Quelle', 'Quellen'),
+        prefetchSlug: collectionSlug(entry.collection),
+        action: <OwnNotebookMenu collection={entry.collection} />,
       };
-    }
     case 'shared': {
       const c = entry.collection;
       // Der Projektname unterscheidet zwei gleichnamige geteilte Notebooks.
       const via = c.shared_via_groups?.length ? ` via ${c.shared_via_groups.join(', ')}` : '';
-      return {
-        title: c.name,
-        meta: `Geteilt${via}`,
-        to: `/notebooks/${collectionSlug(c)}`,
-        prefetchSlug: collectionSlug(c),
-        action: null,
-      };
+      return { ...link, meta: `Geteilt${via}`, prefetchSlug: collectionSlug(c), action: null };
     }
     case 'saved':
       return {
-        title: entry.item.title,
+        ...link,
         meta: entry.item.authorName ? `Gemerkt · von ${entry.item.authorName}` : 'Gemerkt',
-        to: `/notebooks/${entry.item.notebook.slug}`,
         prefetchSlug: entry.item.notebook.slug,
         action: null,
       };

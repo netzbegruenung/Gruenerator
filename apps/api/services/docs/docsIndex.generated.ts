@@ -236,7 +236,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/guides/einsteigerinnen/eigenes-notebook-erstellen",
     "title": "Wie erstelle ich ein eigenes Notebook?",
     "category": "Guides",
-    "lead": "In etwa zehn Minuten erstellst du ein Notebook, das eure Dokumente bündelt und ihren Inhalt im Grünerator durchsuchbar macht — für Anträge, Beschlüsse, Programme oder Pressemitteilungen. Du brauchst…"
+    "lead": "In etwa zehn Minuten legst du ein eigenes Notebook an, das eure Dokumente bündelt und ihren Inhalt im Grünerator durchsuchbar macht — für Anträge, Beschlüsse, Programme oder Pressemitteilungen. Du br…"
   },
   {
     "url": "/docs/guides/einsteigerinnen/erinnerungen-erstellen",
@@ -1159,7 +1159,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Drei Bereiche, dann die Einzelwerkzeuge",
     "anchor": "#drei-bereiche-dann-die-einzelwerkzeuge",
     "category": "Basics",
-    "text": "Der Arbeiten-Tab gliedert sich in drei große Bereiche — Office für Text und Zahlen, Studio für Bilder und Videos, Wissen für Recherche. Jeder öffnet eine eigene Seite mit den zugehörigen Werkzeugen. Daneben liegen die Werkzeuge zum Organisieren und ein Menü mit dem Rest. Insgesamt sind es 31 Werkzeuge: Die drei Bereiche. Office: Der Sammelpunkt für alles, woran man schreibt und plant: Dokumente, Boards, Tabellen und Präsentationen. Alle vier liegen im selben System, teilen sich Ordner und Freigaben und lassen sich gemeinsam bearbeiten. Studio: Alles Visuelle: KI-Bilder, Sharepics aus Vorlagen und untertitelte Reels. Nimm den Bereich, wenn am Ende ein Bild oder ein Video herauskommen soll — für Text und Zahlen ist Office richtig. Wissen: Recherche und Notebooks: eigene Quellensammlungen anlegen, durchsuchen und im Chat als Grundlage verwenden. Von hier aus geht es zum Briefing mit der Lage des Tages und zu den Umfragen. Office — Dokumente, Boards, Tabellen, Folien. Vorlagen: Startet ein neues Dokument aus einer fertigen Vorlage statt aus einem leeren Blatt — etwa ein Antrag oder eine Pressemitteilung mit passender Gliederung."
+    "text": "Der Arbeiten-Tab gliedert sich in drei große Bereiche — Office für Text und Zahlen, Studio für Bilder und Videos, Wissen für Recherche. Jeder öffnet eine eigene Seite mit den zugehörigen Werkzeugen. Daneben liegen die Werkzeuge zum Organisieren und ein Menü mit dem Rest. Insgesamt sind es 21 Werkzeuge: Die drei Bereiche. Office: Der Sammelpunkt für alles, woran man schreibt und plant: Dokumente, Boards, Tabellen und Präsentationen. Alle vier liegen im selben System, teilen sich Ordner und Freigaben und lassen sich gemeinsam bearbeiten. Studio: Alles Visuelle auf einer Seite: oben die Werkzeuge, darunter deine Mediathek mit allen Videos, Sharepics, KI-Bildern, Uploads und Audios — per Ziehen hochladen, filtern, durchsuchen, Titel und Alt-Text pflegen, teilen oder in den Papierkorb legen. Sharepics und KI-Bilder entstehen im Chat und landen von selbst hier. Wissen: Recherche und Notebooks: eigene Quellensammlungen anlegen, durchsuchen und im Chat als Grundlage verwenden. Von hier aus geht es zum Briefing mit der Lage des Tages und zu den Umfragen. Office — Dokumente, Boards, Tabellen, Folien."
   },
   {
     "url": "/docs/basics/tools",
@@ -1167,7 +1167,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Drei Bereiche, dann die Einzelwerkzeuge",
     "anchor": "#drei-bereiche-dann-die-einzelwerkzeuge",
     "category": "Basics",
-    "text": "Leeres Dokument: Ein Textdokument für Anträge, Pressemitteilungen, Protokolle und Notizen. Mehrere Personen können gleichzeitig schreiben. Leeres Board: Ein Kanban-Board für Aufgaben und Redaktionsplanung. Der Grünerator kann in Karten mitarbeiten und ganze Spalten automatisch befüllen. Leere Tabelle: Eine Kalkulationstabelle mit Formeln, Filtern und bedingter Formatierung. Bestehende Excel- und CSV-Dateien lassen sich importieren. Leere Präsentation: Eine Foliensammlung mit Präsentationsmodus. Aus einem Rechercheauftrag im Chat kann direkt ein fertiger Foliensatz entstehen. Studio — Bilder, Sharepics, Reels. Vorlagen: Fertige Design-Vorlagen im grünen Erscheinungsbild — Ausgangspunkt für Sharepics, wenn du nicht bei null anfangen willst. KI-Bilder: Bilder mit KI erzeugen und bearbeiten. Gut für Motive, für die es kein passendes Foto gibt. Untertitel: Untertitelt Videoclips automatisch und brennt die Untertitel ein. Gedacht für kurze Social-Clips. Video-Editor: Schneidet Clips auf einer Zeitleiste, setzt Texte ins Bild und legt Musik darunter. Nimm ihn, wenn ein Clip mehr braucht als Untertitel. Noch in der Beta."
+    "text": "Vorlagen: Startet ein neues Dokument aus einer fertigen Vorlage statt aus einem leeren Blatt — etwa ein Antrag oder eine Pressemitteilung mit passender Gliederung. Leeres Dokument: Ein Textdokument für Anträge, Pressemitteilungen, Protokolle und Notizen. Mehrere Personen können gleichzeitig schreiben. Leeres Board: Ein Kanban-Board für Aufgaben und Redaktionsplanung. Der Grünerator kann in Karten mitarbeiten und ganze Spalten automatisch befüllen. Leere Tabelle: Eine Kalkulationstabelle mit Formeln, Filtern und bedingter Formatierung. Bestehende Excel- und CSV-Dateien lassen sich importieren. Leere Präsentation: Eine Foliensammlung mit Präsentationsmodus. Aus einem Rechercheauftrag im Chat kann direkt ein fertiger Foliensatz entstehen. Studio — Bilder, Sharepics, Reels. Sharepic im Chat erstellen: Öffnet den Chat mit einem angefangenen Auftrag für ein Sharepic: Thema ergänzen, abschicken, und der Chat baut Entwürfe. Der erste Entwurf landet von selbst im Studio unter „Deine Inhalte“. Video-Editor: Schneidet Clips auf einer Zeitleiste, setzt Texte ins Bild und legt Musik darunter. Nimm ihn, wenn ein Clip mehr braucht als Untertitel. Noch in der Beta."
   },
   {
     "url": "/docs/basics/tools",
@@ -1175,7 +1175,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Drei Bereiche, dann die Einzelwerkzeuge",
     "anchor": "#drei-bereiche-dann-die-einzelwerkzeuge",
     "category": "Basics",
-    "text": "KI-Schnitt: Du lädst Rohvideos hoch, dazu auf Wunsch Bilder, Logo und Musik, und die KI schneidet daraus einen ersten Entwurf. Den verbesserst du in Korrekturrunden oder übergibst ihn in den Video Editor. Nimm ihn, wenn du noch keinen fertigen Clip hast, sondern nur Material. Parteitage: Die Reden eines Parteitags als fertige 9:16-Reels: je Rede in den Video Editor laden oder die ganze Rede nur untertiteln lassen. Vorerst nur für Instanz-Admins sichtbar, die einzelnen Parteitage sind zunächst passwortgeschützt. Voice: Grünerator Voice verwandelt Text in gesprochene Sprache — als Sprechertext für ein Reel, Ansage für den Anrufbeantworter, Vorlesefassung eines Textes oder Audiodeskription. Die Datei landet in der Mediathek. Studio — Weitere Tools. Profilbild: Macht aus einem Foto ein Profilbild: Person freistellen und den Hintergrund per Klick wechseln — als Farbe, Verlauf, Vorlage oder eigenes Bild. Im Editor setzt du Sticker und verschiebst Person und Sticker direkt im Bild. Sticker & Hintergründe: Sticker und Hintergründe für dein Profilbild: unter „Entdecken“ öffnet sich der Marktplatz mit dem, was andere geteilt haben: liken, merken oder melden."
+    "text": "Auto-Untertitel: Untertitelt Videoclips automatisch und brennt die Untertitel ein. Gedacht für kurze Social-Clips. Organisieren. Marktplatz: Offizielle, Landesverbands- und öffentliche Agents, Rezepte, Vorlagen, Sticker und Hintergründe: stöbern, ausprobieren, zu deinen Grüneratoren holen und Eigenes teilen. Projekte: Projekte bündeln Chats, Dokumente und Mitglieder zu einem Arbeitszusammenhang — etwa für eine Kampagne oder einen Ortsverband. Sites: Eine eigene Website für deine Kandidatur, dein Mandat oder dein Amt: die KI schlägt aus einer kurzen Beschreibung eine fertige Seite vor, im Editor passt du sie an. Pro Konto gibt es eine Website. In der Testphase nur nach Freischaltung. Weitere Werkzeuge. Übersetzer: Übersetzt Texte und ganze Dokumente (DOCX, PPTX, PDF …) mit DeepL — das gepflegte Grünen-Glossar wird automatisch angewendet. Apps & MCP: Verbindet den Grünerator mit ChatGPT, Claude oder Le Chat, sodass du dort auf grüne Programme und Beschlüsse zugreifen kannst. Transkription: Verschriftlicht Audioaufnahmen — für Interviews, Sitzungen und Sprachnotizen. Scanner: Wandelt Fotos und Scans in bearbeitbaren Text um — praktisch für abfotografierte Anträge oder Handzettel."
   },
   {
     "url": "/docs/basics/tools",
@@ -1183,23 +1183,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Drei Bereiche, dann die Einzelwerkzeuge",
     "anchor": "#drei-bereiche-dann-die-einzelwerkzeuge",
     "category": "Basics",
-    "text": "Eigene Sticker bleiben privat, bis du sie mit Bestätigung der Bildrechte öffentlich machst. Bild erweitern: Erweitert ein Bild per KI auf ein anderes Format, zum Beispiel von Quer- auf Hochformat. Eine Vorschau zeigt vorab, welche Flächen die KI ergänzt. Hintergrund entfernen: Entfernt den Hintergrund eines Bildes und liefert die Person oder das Motiv als PNG mit transparentem Hintergrund. Mediathek: Alle deine Bilder, Sharepics, KI-Bilder, Videos und Audios an einem Ort: hochladen (auch per Drag & Drop), nach Art filtern, durchsuchen, Titel und Alt-Text pflegen, herunterladen, teilen oder in den Papierkorb legen — ohne Obergrenze. Bildgenerator: Nur für Österreich: ein Link zum Sharepic-Bildgenerator der Grünen Österreich auf bildgenerator.gruene.at. Er läuft außerhalb des Grünerators — was du dort erstellst, landet nicht in deiner Mediathek. Organisieren. Marktplatz: Offizielle, Landesverbands- und öffentliche Agents, Rezepte, Vorlagen, Sticker und Hintergründe: stöbern, ausprobieren, zu deinen Grüneratoren holen und Eigenes teilen. Projekte: Projekte bündeln Chats, Dokumente und Mitglieder zu einem Arbeitszusammenhang — etwa für eine Kampagne oder einen Ortsverband."
-  },
-  {
-    "url": "/docs/basics/tools",
-    "pageTitle": "Alle Werkzeuge",
-    "heading": "Drei Bereiche, dann die Einzelwerkzeuge",
-    "anchor": "#drei-bereiche-dann-die-einzelwerkzeuge",
-    "category": "Basics",
-    "text": "Sites: Eine eigene Website für deine Kandidatur, dein Mandat oder dein Amt: die KI schlägt aus einer kurzen Beschreibung eine fertige Seite vor, im Editor passt du sie an. Pro Konto gibt es eine Website. In der Testphase nur nach Freischaltung. Weitere Werkzeuge. Übersetzer: Übersetzt Texte und ganze Dokumente (DOCX, PPTX, PDF …) mit DeepL — das gepflegte Grünen-Glossar wird automatisch angewendet. Apps & MCP: Verbindet den Grünerator mit ChatGPT, Claude oder Le Chat, sodass du dort auf grüne Programme und Beschlüsse zugreifen kannst. Transkription: Verschriftlicht Audioaufnahmen — für Interviews, Sitzungen und Sprachnotizen. Scanner: Wandelt Fotos und Scans in bearbeitbaren Text um — praktisch für abfotografierte Anträge oder Handzettel. Zeichenzähler: Zählt Zeichen und Wörter, mit den Grenzwerten der gängigen Social-Media-Plattformen. Newsletter: Der Grünerator-Newsletter mit neuen Funktionen und Beispielen. Führt auf ein externes Anmeldeformular. Transparenz: Zeigt, was der Grünerator insgesamt an KI verbraucht — Tokens, Energie und CO₂, mit den Konstanten, mit denen gerechnet wurde."
-  },
-  {
-    "url": "/docs/basics/tools",
-    "pageTitle": "Alle Werkzeuge",
-    "heading": "Drei Bereiche, dann die Einzelwerkzeuge",
-    "anchor": "#drei-bereiche-dann-die-einzelwerkzeuge",
-    "category": "Basics",
-    "text": "In der Expertinnenübersicht lässt sich nach Bereich (etwa Chat oder Monitor) und nach Eingabe- und Ausgabe-Tokens aufschlüsseln."
+    "text": "Zeichenzähler: Zählt Zeichen und Wörter, mit den Grenzwerten der gängigen Social-Media-Plattformen. Newsletter: Der Grünerator-Newsletter mit neuen Funktionen und Beispielen. Führt auf ein externes Anmeldeformular. Transparenz: Zeigt, was der Grünerator insgesamt an KI verbraucht — Tokens, Energie und CO₂, mit den Konstanten, mit denen gerechnet wurde. In der Expertinnenübersicht lässt sich nach Bereich (etwa Chat oder Monitor) und nach Eingabe- und Ausgabe-Tokens aufschlüsseln."
   },
   {
     "url": "/docs/basics/tools",
@@ -1895,7 +1879,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Grüneratoren und Marktplatz",
     "anchor": "",
     "category": "Features",
-    "text": "Deine Agents, Rezepte und wiederkehrenden Aufgaben findest du unter Grüneratoren. Das ist der gleichnamige Eintrag in der Seitenleiste, die Adresse ist /grueneratoren. Alles Offizielle und alles, was andere öffentlich teilen, liegt im Marktplatz unter /marktplatz. Du erreichst ihn über die gleichnamige Kachel auf der Startseite unter Arbeiten. Dort gibt es nicht nur Agents und Rezepte, sondern auch Vorlagen, Sticker und Hintergründe. Früher gab es drei getrennte Schaufenster: die Agentura für Agents und Rezepte, die öffentlichen Vorlagen auf der Vorlagen-Seite und Entdecken bei Sticker & Hintergründe. Heute liegt das alles zusammen im Marktplatz. Aus Skills sind Rezepte geworden, aus Von der Basis wurde Öffentlich. Alte Links und Lesezeichen (/agentura, /studio/sticker/entdecken, /agents) führen automatisch an die richtige Stelle."
+    "text": "Deine Agents, Rezepte und wiederkehrenden Aufgaben findest du unter Grüneratoren. Das ist der gleichnamige Eintrag in der Seitenleiste, die Adresse ist /grueneratoren. Alles Offizielle und alles, was andere öffentlich teilen, liegt im Marktplatz unter /marktplatz. Du erreichst ihn über das Laden-Symbol (Marktplatz) oben auf der Seite Grüneratoren. Dort gibt es nicht nur Agents und Rezepte, sondern auch Vorlagen, Sticker und Hintergründe. Früher gab es drei getrennte Schaufenster: die Agentura für Agents und Rezepte, die öffentlichen Vorlagen auf der Vorlagen-Seite und Entdecken bei Sticker & Hintergründe. Heute liegt das alles zusammen im Marktplatz. Aus Skills sind Rezepte geworden, aus Von der Basis wurde Öffentlich. Alte Links und Lesezeichen (/agentura, /studio/sticker/entdecken, /agents) führen automatisch an die richtige Stelle."
   },
   {
     "url": "/docs/features/marktplatz",
@@ -2671,7 +2655,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wie erstelle ich ein eigenes Notebook?",
     "anchor": "",
     "category": "Guides",
-    "text": "In etwa zehn Minuten erstellst du ein Notebook, das eure Dokumente bündelt und ihren Inhalt im Grünerator durchsuchbar macht — für Anträge, Beschlüsse, Programme oder Pressemitteilungen. Du brauchst dafür ein paar Dateien."
+    "text": "In etwa zehn Minuten legst du ein eigenes Notebook an, das eure Dokumente bündelt und ihren Inhalt im Grünerator durchsuchbar macht — für Anträge, Beschlüsse, Programme oder Pressemitteilungen. Du brauchst dafür ein paar Dateien."
   },
   {
     "url": "/docs/guides/einsteigerinnen/eigenes-notebook-erstellen",
@@ -4703,7 +4687,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Aussehen: Farbschema der Oberfläche Sprache & Region: Wortwahl und Inhalte für Deutschland oder Österreich Startseite: Welcher Bereich sich auf der Startseite zuerst zeigt Stimme: Mit welcher Stimme dir der Grünerator Texte vorliest Support-Button: Darstellung des schwebenden Support-Buttons: mit Text, nur als Icon oder ganz ausgeblendet — er lässt sich in jede Bildschirmecke ziehen Animationen reduzieren: Schaltet dekorative Animationen und Übergänge ab — folgt sonst automatisch der Einstellung deines Betriebssystems Transparenz reduzieren: Entfernt durchscheinende Flächen und Unschärfe-Effekte — folgt sonst automatisch der Einstellung deines Betriebssystems Einführungs-Touren zurücksetzen: Zeigt die Touren durch Workplace, Dokumente, Tabellen, Präsentationen und das Sharepic-Studio beim nächsten Öffnen wieder an. Geplante Aufgaben: Der Grünerator führt eine Aufgabe regelmäßig von selbst aus, etwa jeden Montag. Experimentell. Aus: keine neuen Aufgaben, weder im Chat noch in den Grüneratoren oder Projekten. Bestehende Aufgaben laufen weiter und lassen sich unter /wiederkehrend verwalten."
+    "text": "Aussehen: Farbschema der Oberfläche Sprache & Region: Wortwahl und Inhalte für Deutschland oder Österreich Aufbau der Startseite: Alles auf einer Seite oder Chat und Arbeiten als Tabs Startseite: Welcher Bereich sich auf der Startseite zuerst zeigt Stimme: Mit welcher Stimme dir der Grünerator Texte vorliest Support-Button: Darstellung des schwebenden Support-Buttons: mit Text, nur als Icon oder ganz ausgeblendet — er lässt sich in jede Bildschirmecke ziehen Animationen reduzieren: Schaltet dekorative Animationen und Übergänge ab — folgt sonst automatisch der Einstellung deines Betriebssystems Transparenz reduzieren: Entfernt durchscheinende Flächen und Unschärfe-Effekte — folgt sonst automatisch der Einstellung deines Betriebssystems Einführungs-Touren zurücksetzen: Zeigt die Touren durch Workplace, Dokumente, Tabellen, Präsentationen und das Sharepic-Studio beim nächsten Öffnen wieder an. Geplante Aufgaben: Der Grünerator führt eine Aufgabe regelmäßig von selbst aus, etwa jeden Montag. Experimentell. Aus: keine neuen Aufgaben, weder im Chat noch in den Grüneratoren oder Projekten. Bestehende Aufgaben laufen weiter und lassen sich unter /wiederkehrend verwalten."
   },
   {
     "url": "/docs/sonstiges/einstellungen",

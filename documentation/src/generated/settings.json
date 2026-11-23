@@ -94,6 +94,11 @@
       "title": "Sprache & Region",
       "description": "Wortwahl und Inhalte für Deutschland oder Österreich"
     },
+    "allgemein.startlayout": {
+      "tab": "allgemein",
+      "title": "Aufbau der Startseite",
+      "description": "Alles auf einer Seite oder Chat und Arbeiten als Tabs"
+    },
     "allgemein.startseite": {
       "tab": "allgemein",
       "title": "Startseite",

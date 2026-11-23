@@ -4,6 +4,7 @@ import { Navigate, useParams, useSearchParams } from 'react-router-dom';
 
 import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
+import { useStartLayout } from '../../hooks/useStartLayout';
 import { useAuthStore } from '../../stores/authStore';
 
 import { resolveChatBackground } from './chatBackgrounds';
@@ -16,7 +17,9 @@ import { whenIdle } from '@/utils/whenIdle';
 
 import './workplace-sunrise.css';
 
-// `/start` mit zwei Tabs, Chat und Arbeiten — wie der WorkplacePager der App.
+// `/start` mit zwei Ansichten, Chat und Arbeiten, umgeschaltet über die Tabs oben und
+// die Seitenleiste. Mit dem Aufbau „Alles auf einer Seite“ (Einstellungen) gibt es nur
+// Arbeiten, mit dem Composer obenauf; Chat bleibt per Pfad erreichbar.
 // Der Tab steht im Pfad (`/start/chat`, `/start/arbeiten`), damit Zurück,
 // Neuladen und Lesezeichen ihn behalten. Alle drei Pfade sind ein Route-Eintrag,
 // die Seite bleibt beim Wechsel also gemountet — und mit ihr beide Tabs, damit
@@ -45,13 +48,22 @@ const ArbeitenFallback = () => (
 const WorkplacePage = () => {
   const { tab: tabParam } = useParams();
   const [searchParams] = useSearchParams();
-  const home: WorkplaceTab = useAuthStore((s) => s.user?.default_startpage ?? 'chat');
+  const combined = useStartLayout() === 'combined';
+  const startPage: WorkplaceTab = useAuthStore((s) => s.user?.default_startpage ?? 'chat');
+  // One page: bare /start is always Arbeiten, whatever the start-page setting says.
+  const home: WorkplaceTab = combined ? 'arbeiten' : startPage;
   // The seeded user from the last visit may carry a stale setting.
   const homeConfirmed = useAuthStore((s) => s.hasServerConfirmed);
   const chatBackground = useAuthStore((s) => s.user?.chat_background);
 
   // The path names the tab; bare `/start` opens the one from the start-page setting.
   const tab: WorkplaceTab = isWorkplaceTab(tabParam) ? tabParam : home;
+
+  // One page: the chat view lives at /start/chat only. It mounts on its first visit and
+  // then stays (a draft survives switching); hidden from the start, it would build a
+  // second composer and its runtime on every visit to /start.
+  const [chatMounted, setChatMounted] = useState(!combined || tab === 'chat');
+  if ((!combined || tab === 'chat') && !chatMounted) setChatMounted(true);
 
   // Arbeiten mounts once — on idle or when first shown — and then stays.
   const [arbeitenMounted, setArbeitenMounted] = useState(tab === 'arbeiten');
@@ -103,7 +115,7 @@ const WorkplacePage = () => {
           tab !== 'chat' && 'invisible'
         )}
       />
-      <WorkplaceTabs active={tab} home={home} />
+      {!combined && <WorkplaceTabs active={tab} home={home} />}
       <div className="flex h-full min-h-0 flex-col">
         {/* Minimal chat hero, vertically centered in the viewport (design:
             the chat panel is a flex column with justify-center). Die Tastaturhöhe
@@ -113,7 +125,9 @@ const WorkplacePage = () => {
         <div
           hidden={tab !== 'chat'}
           className={cn(
-            'min-h-0 flex-1 flex-col justify-center-safe overflow-y-auto pb-[calc(6vh_+_var(--mobile-keyboard-offset,0px))] pt-16',
+            'min-h-0 flex-1 flex-col justify-center-safe overflow-y-auto pb-[calc(6vh_+_var(--mobile-keyboard-offset,0px))]',
+            // Tabs: room for the tab bar. One page: for the floating sidebar button on phones.
+            combined ? 'pt-12 md:pt-0' : 'pt-16',
             tab === 'chat' && 'flex'
           )}
         >
@@ -121,11 +135,23 @@ const WorkplacePage = () => {
               which the composer reads via inheritance (workplace-chat-accent,
               chat-thread-glow). `contents` keeps it out of the layout; its paint
               and entrance animation belong to the fixed layer above. */}
-          <div className={cn(chatBackgroundClass, 'contents animate-none!')}>
-            <WorkplaceChatTab />
-          </div>
+          {chatMounted && (
+            <div className={cn(chatBackgroundClass, 'contents animate-none!')}>
+              <WorkplaceChatTab />
+            </div>
+          )}
         </div>
-        <div hidden={tab !== 'arbeiten'} className="min-h-0 flex-1 overflow-y-auto pt-14">
+        <div
+          hidden={tab !== 'arbeiten'}
+          className={cn(
+            'min-h-0 flex-1 overflow-y-auto',
+            combined
+              ? // Room for the floating sidebar button on phones, a soft top edge, and a
+                // gentle pull back to the first screen near the top (proximity snap).
+                'mt-12 [mask-image:linear-gradient(to_bottom,transparent,black_12px)] max-md:snap-y max-md:snap-proximity md:mt-0'
+              : 'pt-14'
+          )}
+        >
           {arbeitenMounted && (
             <Suspense fallback={<ArbeitenFallback />}>
               <ArbeitenTab />

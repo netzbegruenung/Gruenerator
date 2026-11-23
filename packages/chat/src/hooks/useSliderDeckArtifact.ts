@@ -39,6 +39,7 @@ export function useSliderDeckArtifact(variant: SharepicVariant) {
   const canvasId = live?.canvasId ?? variant.canvasId ?? null;
   const headVersion = live?.version ?? null;
   const livePages = live?.pages ?? null;
+  const thumbnailPending = live?.thumbnailDirty === true && live?.canvasId != null;
   const headPages = useMemo(() => livePages ?? variant.pages ?? [], [livePages, variant.pages]);
   const pages = viewPages ?? headPages;
   const slideCount = pages.length;
@@ -95,7 +96,9 @@ export function useSliderDeckArtifact(variant: SharepicVariant) {
     return () => {
       cancelled = true;
     };
-  }, [renderSlide, safeIndex, slideCount, variant.id, viewPages, pages]);
+    // thumbnailPending: the canvas id (and its dirty flag) can land after slide 1
+    // rendered; re-running hits the render cache and uploads the thumbnail.
+  }, [renderSlide, safeIndex, slideCount, variant.id, viewPages, pages, thumbnailPending]);
 
   // Thread-reload rehydration: a deck renders its CURRENT pages (which may
   // have changed in the studio), not the stale generation-time pages.

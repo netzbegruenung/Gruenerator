@@ -58,7 +58,7 @@ export function WissenDashboardFrame({
 // zwischen 1024 und 1280 px blieben dem Slider sonst kaum 340 px.
 // Keine feste Zeile (`row-start`) setzen: Grid platziert Elemente mit fester
 // Zeile vor den übrigen, der Slider landete dann rechts statt links.
-const ASIDE_SLOT = 'flex min-w-0 flex-col xl:h-0 xl:min-h-full';
+export const ASIDE_SLOT = 'flex min-w-0 flex-col xl:h-0 xl:min-h-full';
 
 /** Kopf-Slider und die beiden Kennzahl-Karten in ihrem Raster. */
 export function WissenMainGrid({

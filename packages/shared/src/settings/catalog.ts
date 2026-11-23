@@ -123,6 +123,13 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     platforms: BOTH,
   },
   {
+    // Web-only: the app has its own start screen and ignores `start_layout`.
+    id: 'allgemein.startlayout',
+    tab: 'allgemein',
+    title: 'Aufbau der Startseite',
+    description: 'Alles auf einer Seite oder Chat und Arbeiten als Tabs',
+  },
+  {
     // Web-only until mobile actually acts on `default_startpage`. Nothing in the
     // app reads it today, so offering the row would be a control that visibly
     // does nothing on the device you set it on.
