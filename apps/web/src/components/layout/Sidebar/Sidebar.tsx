@@ -45,6 +45,7 @@ import { headerIconButtonClass, iconClass, menuLinkClass } from './sidebarStyles
 import { CURRENT_INSTANCE } from '@/config/instance';
 import {
   FiSidebar,
+  FiX,
   LuFolderCog,
   PiSignIn,
   PiSparkle,
@@ -138,10 +139,11 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
   const sidebarExpanded = isOpen || forceExpanded;
   // Web desktop rail: the sidebar carries its own header row (wordmark, search, toggle).
   // Search shows only in the expanded sidebar: there it sits in that row as a
-  // tool; the collapsed rail has no search entry. Mobile (Sheet) and Tauri have
-  // no header row and keep it in the list while open.
+  // tool; the collapsed rail has no search entry. Phones (Sheet) have a row of their
+  // own with search in it (see below); Tauri has no header row and keeps search in
+  // the list while open.
   const hasHeaderRow = !isDesktop && !isMobile;
-  const showSearchInList = !hasHeaderRow && sidebarExpanded;
+  const showSearchInList = isDesktop && sidebarExpanded;
 
   // Close sidebar on route change
   useEffect(() => {
@@ -371,6 +373,43 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
         </button>
       )}
 
+      {/* Phones: the panel opens over the page header (z-1010 over z-1002), so it
+          brings its own row, as in the ChatGPT app: the wordmark, then search and close. */}
+      {isMobile && !isDesktop && (
+        <div className="flex h-14 shrink-0 items-center gap-1 pr-2 pl-4">
+          <img
+            src="/images/gruenerator_logo_gruen.svg"
+            alt="Grünerator"
+            className="mr-auto h-7 w-auto shrink-0 dark:hidden"
+          />
+          <img
+            src="/images/gruenerator_logo_weiss.svg"
+            alt=""
+            aria-hidden="true"
+            className="mr-auto hidden h-7 w-auto shrink-0 dark:block"
+          />
+          {searchItem?.icon && (
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              className={headerIconButtonClass}
+              aria-label={searchItem.title}
+              aria-haspopup="dialog"
+            >
+              <searchItem.icon aria-hidden="true" className={iconClass} />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={close}
+            className={headerIconButtonClass}
+            aria-label="Menü schließen"
+          >
+            <FiX aria-hidden="true" className={iconClass} />
+          </button>
+        </div>
+      )}
+
       {hasHeaderRow && (
         <div
           className={cn(
@@ -451,7 +490,7 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
         data-tour="sidebar-nav"
         className={cn(
           'min-h-0 shrink overflow-x-hidden overflow-y-auto pb-sm',
-          isDesktop ? 'pt-3' : hasHeaderRow ? 'pt-1' : 'pt-12'
+          isDesktop ? 'pt-3' : 'pt-1'
         )}
       >
         {startItems.length > 0 && (
