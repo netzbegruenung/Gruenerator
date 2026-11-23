@@ -64,6 +64,14 @@ export {
   useVerifyJoinToken,
 } from './useGroups.js';
 
+export {
+  groupWolkeFoldersKey,
+  useAttachGroupWolkeFolder,
+  useDetachGroupWolkeFolder,
+  useGroupWolkeFolders,
+  useSyncGroupWolkeFolder,
+  wolkeSyncSummaryText,
+} from './wolkeFolders.js';
 export { type GroupPostUploadFile, type NativeUploadFile } from './postFormData.js';
 export { landesverbandOptions, type LandesverbandOption } from './landesverbandOptions.js';
 

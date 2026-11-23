@@ -81,6 +81,7 @@ import { ProjectLandesverbandSelect } from './ProjectLandesverbandSelect';
 import { ProjectMembersCard } from './ProjectMembersCard';
 import { ProjectRecipesCard } from './ProjectRecipesCard';
 import { ProjectTasksCard } from './ProjectTasksCard';
+import { ProjectWolkeFoldersCard } from './ProjectWolkeFoldersCard';
 import { type ShareActions } from './shareActions';
 import { ShareNoteDialog } from './ShareNoteDialog';
 
@@ -863,6 +864,15 @@ const GroupInfoSection = memo(
                 actions={shareActions}
                 onDiscuss={onDiscuss}
               />
+              {!isSystem && (
+                <ProjectWolkeFoldersCard
+                  groupId={groupId}
+                  isAdmin={!!data?.isAdmin}
+                  archived={isArchived}
+                  onSuccessMessage={onSuccessMessage}
+                  onErrorMessage={onErrorMessage}
+                />
+              )}
               {onUpdateLink && onDeleteLink && groupLinks.length > 0 && (
                 <div id="abschnitt-links" className="scroll-mt-lg">
                   <GroupLinksSection
