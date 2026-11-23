@@ -202,7 +202,7 @@ function ExternalThreadItem() {
         className="flex min-w-0 flex-1 items-center text-left"
       >
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm">{title ?? 'Notebook'}</p>
+          <p className="truncate text-[15px]">{title ?? 'Notebook'}</p>
         </div>
       </button>
     </div>
@@ -266,7 +266,7 @@ export function GrueneratorThreadListItem() {
         {threadPath ? (
           <a href={threadPath} onClick={handleOpen} className="flex min-w-0 flex-1 items-center">
             <div className="flex min-w-0 flex-1 items-center gap-1.5">
-              <p className="min-w-0 truncate text-sm">
+              <p className="min-w-0 truncate text-[15px]">
                 <ThreadListItemPrimitive.Title fallback="Neue Unterhaltung" />
               </p>
               {briefingUnread && (
@@ -289,7 +289,7 @@ export function GrueneratorThreadListItem() {
           // Draft row: no server-side thread yet, so there is nothing to link to.
           <ThreadListItemPrimitive.Trigger className="flex min-w-0 flex-1 items-center text-left">
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm">
+              <p className="truncate text-[15px]">
                 <ThreadListItemPrimitive.Title fallback="Neue Unterhaltung" />
               </p>
             </div>
@@ -413,7 +413,7 @@ export function GrueneratorArchivedThreadListItem() {
       {threadPath ? (
         <a href={threadPath} onClick={handleOpen} className="flex min-w-0 flex-1 items-center">
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm">
+            <p className="truncate text-[15px]">
               <ThreadListItemPrimitive.Title fallback="Neue Unterhaltung" />
             </p>
           </div>
@@ -421,7 +421,7 @@ export function GrueneratorArchivedThreadListItem() {
       ) : (
         <ThreadListItemPrimitive.Trigger className="flex min-w-0 flex-1 items-center text-left">
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm">
+            <p className="truncate text-[15px]">
               <ThreadListItemPrimitive.Title fallback="Neue Unterhaltung" />
             </p>
           </div>
