@@ -285,6 +285,19 @@ describe('looksCutOff — a short sign-off paragraph is finished (#5976)', () =>
     ).toBe(true);
   });
 
+  it('still flags a short table, list, heading or quote cut mid-line', () => {
+    for (const t of [
+      'Die Zahlen im Überblick, Stand Oktober.\n\n| Jahr | Fälle |\n|---|---|\n| 2024 | 12',
+      'Die Zahlen im Überblick, Stand Oktober.\n\n| 2024 | 12',
+      'Das sind unsere drei Forderungen.\n\n- Mehr Radwege an Schulen',
+      'Das sind unsere drei Forderungen.\n\n1. Mehr Radwege an Schulen',
+      'Das ist der erste Absatz.\n\n## Nächste Schritte im Rat',
+      'Das ist der erste Absatz.\n\n> Wir fordern sichere Schulwege für alle',
+    ]) {
+      expect(looksCutOff(t), t).toBe(true);
+    }
+  });
+
   it('still flags a last paragraph with too many lines', () => {
     expect(
       looksCutOff(

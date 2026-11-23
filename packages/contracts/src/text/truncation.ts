@@ -108,8 +108,12 @@ const SENTENCE_END_RE = /(?:[.!?…»“"”)\]*_~]|\p{Extended_Pictographic}\uF
  * emoji. A stream cut mid-sentence stops anywhere, but only rarely in the first
  * 60 characters right after a blank line; a cut line with no blank line before
  * it, a long cut paragraph, or a cut after an unfinished paragraph all stay
- * flagged. Residual risk: a cut inside the first short line of a new paragraph.
+ * flagged, and so does a short final paragraph of table rows, bullets,
+ * headings or quotes. Residual risk: a cut inside the first short line of a
+ * new plain-text paragraph.
  */
+const STRUCTURED_LINE_RE = /^(?:\||[-*+]\s|\d+[.)]\s|#{1,6}\s|>)/;
+
 function endsInSignOffParagraph(trimmed: string): boolean {
   const paragraphs = trimmed.split(/\n[ \t]*\n/);
   if (paragraphs.length < 2) return false;
@@ -119,6 +123,9 @@ function endsInSignOffParagraph(trimmed: string): boolean {
     .filter(Boolean);
   if (lines.length === 0 || lines.length > SIGNATURE_MAX_LINES) return false;
   if (lines.some((l) => l.length > SIGNATURE_LINE_MAX)) return false;
+  // A sign-off is plain text. A short table row, bullet, heading or quote cut
+  // mid-line ("| 2024 | 12") would otherwise pass as one (review of #5977).
+  if (lines.some((l) => STRUCTURED_LINE_RE.test(l))) return false;
   return SENTENCE_END_RE.test((paragraphs[paragraphs.length - 2] ?? '').trimEnd());
 }
 
