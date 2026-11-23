@@ -71,7 +71,6 @@ import { ComposerQueueList } from './ComposerQueueList';
 import { ComposerToken } from './ComposerToken';
 import { FileMentionPopover } from './FileMentionPopover';
 import { MentionPopover } from './MentionPopover';
-import { ComposerProjectPicker } from './ComposerProjectPicker';
 import { ModelPicker } from './ModelPicker';
 import { PlusMenu, type ComposerPreset } from './PlusMenu';
 import { VorlagenMentionPopover } from './VorlagenMentionPopover';
@@ -89,8 +88,6 @@ interface GrueneratorComposerProps {
   showPlusMenu?: boolean;
   showToolToggles?: boolean;
   showModelPicker?: boolean;
-  /** Projekt-Auswahl für einen neuen (leeren) Chat, links neben dem Modell. */
-  showProjectPicker?: boolean;
   /** Forwarded to ModelPicker for surfaces without a ChatSurfaceProvider
    * (e.g. NotebookChatProvider) so auto-mode resolves to the surface's
    * implicit thread mode. */
@@ -427,7 +424,6 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   showPlusMenu = true,
   showToolToggles = true,
   showModelPicker = true,
-  showProjectPicker = false,
   insideAgent = false,
   presets,
   variant = 'card',
@@ -1036,12 +1032,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     />
   ) : null;
 
-  const modelPickerNode = (
-    <>
-      {showProjectPicker ? <ComposerProjectPicker /> : null}
-      {showModelPicker ? <ModelPicker /> : null}
-    </>
-  );
+  const modelPickerNode = <>{showModelPicker ? <ModelPicker /> : null}</>;
 
   const composerInput = (
     <ComposerPrimitive.Input

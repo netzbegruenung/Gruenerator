@@ -30,6 +30,11 @@ vi.mock('../hooks/useGroups', async (importOriginal) => ({
 // nichts zu tun — leer gesetzt, damit die Zusicherungen von der eigenen Liste
 // handeln.
 vi.mock('../components/PublicGroupsSection', () => ({ default: () => null }));
+// Die Rezepte darunter ebenso: eigene Abfragen, hier nicht die Frage.
+vi.mock('../components/ProjekteRecipesSection', () => ({ ProjekteRecipesSection: () => null }));
+vi.mock('../components/ProjekteNotebooksSection', () => ({
+  ProjekteNotebooksSection: () => null,
+}));
 
 vi.mock('@/hooks/useFirstName', () => ({ useFirstName: () => null }));
 
@@ -83,7 +88,7 @@ describe('ProjektePage — Leerzustand', () => {
       })
     );
     renderWithProviders(<ProjektePage />);
-    expect(screen.getByText('Mein Projekt')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Mein Projekt' })).toBeInTheDocument();
     expect(screen.queryByText(/Projekte werden geladen/i)).not.toBeInTheDocument();
   });
 
@@ -109,7 +114,7 @@ describe('ProjektePage — Leerzustand', () => {
       })
     );
     renderWithProviders(<ProjektePage />);
-    expect(screen.getByText('Mein Projekt')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Mein Projekt' })).toBeInTheDocument();
     expect(screen.queryByText(EMPTY_TEXT)).not.toBeInTheDocument();
   });
 });
@@ -138,7 +143,7 @@ describe('ProjektePage — Archiv', () => {
     expect(details).toHaveTextContent('Alt');
     // Das aktive Projekt steht im Hauptraster, nicht im Archiv.
     expect(details).not.toHaveTextContent('Aktiv');
-    expect(screen.getByText('Aktiv')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Aktiv' })).toBeInTheDocument();
   });
 
   it('zeigt den Leerzustand nicht, solange nur archivierte Projekte existieren', () => {

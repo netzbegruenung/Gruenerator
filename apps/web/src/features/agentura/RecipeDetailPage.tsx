@@ -275,7 +275,7 @@ function UserRecipeView({
       await deleteRecipe.mutateAsync(form.mention);
       // DELETE takes the mention; the trash addresses the row id.
       showTrashUndo({ kind: 'user_text_form', id: form.id, title: form.title });
-      void navigate('/grueneratoren');
+      void navigate('/projekte');
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : 'Löschen fehlgeschlagen.');
     }
