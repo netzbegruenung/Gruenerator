@@ -32,6 +32,7 @@ import GroupDetailSection from '../components/GroupDetailSection';
 import GroupsCreateSection, { type CreateGroupExtras } from '../components/GroupsCreateSection';
 import { ProjekteComposer } from '../components/ProjekteComposer';
 import { ProjekteNotebooksSection } from '../components/ProjekteNotebooksSection';
+import { ProjekteRecentSection } from '../components/ProjekteRecentSection';
 import { ProjekteRecipesSection } from '../components/ProjekteRecipesSection';
 import { ProjektTile } from '../components/ProjektTile';
 import PublicGroupsSection from '../components/PublicGroupsSection';
@@ -231,6 +232,8 @@ const ProjektePage = () => {
           onCreate={openCreate}
         />
       </WorkplaceHero>
+
+      <ProjekteRecentSection projekte={activeGroups} />
 
       <SectionHeader
         title="Deine Projekte"

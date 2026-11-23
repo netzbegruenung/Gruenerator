@@ -31,7 +31,14 @@ function projektMeta(projekt: GroupSummary): string | null {
  * Projekt-Kachel (`TileCard`): Avatar oder Initialen, Name und Beschreibung; oben rechts das „…"-Menü. Eine gewählte
  * Projektfarbe tauscht den ganzen Tonsatz.
  */
-export function ProjektTile({ projekt }: { projekt: GroupSummary }) {
+export function ProjektTile({
+  projekt,
+  extraMeta = [],
+}: {
+  projekt: GroupSummary;
+  /** Steht vor der eigenen Meta-Zeile, z. B. „Projekt · vor 2 Std." in „Zuletzt". */
+  extraMeta?: string[];
+}) {
   const base = getToolTheme('projekte');
   const colorKey = resolveGroupColor(projekt.color);
   const palette = colorKey ? GROUP_COLOR_STYLES[colorKey] : null;
@@ -96,7 +103,7 @@ export function ProjektTile({ projekt }: { projekt: GroupSummary }) {
           <span className="text-sm font-bold">{getGroupInitials(projekt.name)}</span>
         )
       }
-      meta={[projektMeta(projekt)].filter((line): line is string => !!line)}
+      meta={[...extraMeta, projektMeta(projekt)].filter((line): line is string => !!line)}
       menu={
         <>
           <DropdownMenuItem
