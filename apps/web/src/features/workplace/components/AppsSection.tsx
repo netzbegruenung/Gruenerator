@@ -36,7 +36,7 @@ function Phones() {
       {SCREENS.map((name, i) => (
         <div key={name} className={cn(PHONE, i !== 1 && 'mt-5 @2xl:mt-6')}>
           <img
-            src={`/arbeiten-previews/${name}.jpg`}
+            src={`/arbeiten-previews/${name}.webp`}
             alt=""
             loading="lazy"
             className="size-full rounded-[18px] object-cover"

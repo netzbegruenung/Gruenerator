@@ -16,7 +16,7 @@ import { type ReactNode } from 'react';
 // (a whole painting) goes without it.
 const preview = (name: string, { zoom = true }: { zoom?: boolean } = {}): ReactNode => (
   <img
-    src={`/arbeiten-previews/${name}.jpg`}
+    src={`/arbeiten-previews/${name}.webp`}
     alt=""
     loading="lazy"
     // Dimmed in dark mode so the light picture doesn't glare on the card.

@@ -118,7 +118,7 @@ function EditorMock() {
     >
       <div className="relative aspect-video overflow-hidden rounded-lg">
         <img
-          src="/arbeiten-previews/video.jpg"
+          src="/arbeiten-previews/video.webp"
           alt=""
           loading="lazy"
           className="size-full object-cover dark:brightness-[.8]"
