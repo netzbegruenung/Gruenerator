@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 
 import { useDesktopMenu } from '../../../hooks/useDesktopMenu';
 import { useNotificationSSE } from '../../../hooks/useNotificationSSE';
@@ -12,6 +13,10 @@ const FeedbackWidget = lazy(() => import('../../../features/feedback/FeedbackWid
 export function GlobalBridges() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const feedbackButton = useAuthStore((s) => s.user?.feedback_button ?? 'text');
+  const { pathname } = useLocation();
+  // The start page keeps its bottom edge for the composer; the launcher would sit
+  // on top of it and of „Neu erstellen".
+  const onStartPage = pathname === '/' || pathname === '/start' || pathname.startsWith('/start/');
 
   useDesktopMenu();
 
@@ -35,7 +40,7 @@ export function GlobalBridges() {
 
   return (
     <Suspense fallback={null}>
-      <FeedbackWidget variant={feedbackButton} />
+      <FeedbackWidget variant={feedbackButton} showLauncher={!onStartPage} />
     </Suspense>
   );
 }
