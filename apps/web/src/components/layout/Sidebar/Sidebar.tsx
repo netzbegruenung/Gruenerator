@@ -243,7 +243,7 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
   // stehen. Gemessen: allein diese Zeile stand für 333 der 1027 Verstöße im
   // Baseline-Lauf. Siehe docs/barrierefreiheit-audit-plan.md.
   const titleClass = cn(
-    'min-w-0 flex-1 truncate text-left text-sm font-medium leading-tight transition-all duration-150',
+    'min-w-0 flex-1 truncate text-left text-[15px] font-medium leading-tight transition-all duration-150',
     sidebarExpanded ? 'opacity-100 translate-x-0' : 'sr-only'
   );
 
@@ -688,7 +688,7 @@ const SidebarFavourites = memo(function SidebarFavourites({
   if (configItems.length === 0 && projektItems.length === 0 && agentItems.length === 0) return null;
 
   const titleClass = cn(
-    'min-w-0 flex-1 truncate text-left text-sm font-medium leading-tight transition-all duration-150',
+    'min-w-0 flex-1 truncate text-left text-[15px] font-medium leading-tight transition-all duration-150',
     expanded ? 'opacity-100 translate-x-0' : 'hidden'
   );
 

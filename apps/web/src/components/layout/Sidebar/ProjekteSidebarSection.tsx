@@ -129,7 +129,7 @@ export const ProjekteSidebarSection = memo(function ProjekteSidebarSection({
                   <button
                     type="button"
                     onClick={() => openProjekt(path, g.name)}
-                    className="flex min-w-0 flex-1 items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm text-foreground"
+                    className="flex min-w-0 flex-1 items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[15px] text-foreground"
                   >
                     <LuFolderCog className="size-4 shrink-0 text-grey-500" />
                     <span className="min-w-0 flex-1 truncate">{g.name}</span>
