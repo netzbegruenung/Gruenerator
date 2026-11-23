@@ -52,6 +52,13 @@ export async function keepOriginal(
   return relative;
 }
 
+/** Undo `keepOriginal` when the run that kept it fails afterwards. */
+export async function restoreToPending(relative: string, pendingPath: string): Promise<void> {
+  const target = resolveOriginalPath(relative);
+  if (!target) return;
+  await fs.rename(target, pendingPath).catch(() => removeOriginal(relative));
+}
+
 export async function removeOriginal(relative: string | null): Promise<void> {
   if (!relative) return;
   const target = resolveOriginalPath(relative);

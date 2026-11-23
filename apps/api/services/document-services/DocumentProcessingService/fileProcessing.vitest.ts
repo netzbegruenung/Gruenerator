@@ -227,3 +227,82 @@ describe('Seitenzahlen — nur der Dokument-Ingest setzt Marken', () => {
     );
   });
 });
+
+describe('processUploadedDocument — Originale behalten', () => {
+  let originals: string;
+  let pendingDir: string;
+  let pending: string;
+
+  beforeEach(() => {
+    originals = fs.mkdtempSync(path.join(os.tmpdir(), 'originals-'));
+    vi.stubEnv('DOCUMENT_ORIGINALS_DIR', originals);
+    pendingDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pending-'));
+    pending = path.join(pendingDir, 'upload-1.pdf');
+    fs.writeFileSync(pending, '%PDF-1.4');
+    extractDocumentFromFile.mockResolvedValue(extracted('Beschluss'));
+  });
+
+  const run = (sourceType: string, updateDocumentMetadata = vi.fn().mockResolvedValue(undefined)) =>
+    processUploadedDocument(
+      {
+        updateDocumentMetadata,
+        getDocumentById: vi.fn().mockResolvedValue({
+          id: 'd1',
+          title: 'Antrag',
+          filename: 'Antrag.pdf',
+          source_type: sourceType,
+          metadata: { filePath: pending, mimetype: 'application/pdf' },
+        }),
+      } as never,
+      { storeDocumentVectors } as never,
+      'd1',
+      'u1'
+    ).then(() => updateDocumentMetadata);
+
+  it('keeps the original of a manual upload', async () => {
+    const update = await run('manual');
+
+    expect(update).toHaveBeenCalledWith(
+      'd1',
+      'u1',
+      expect.objectContaining({ status: 'completed', filePath: 'u1/d1.pdf' })
+    );
+    expect(fs.existsSync(pending)).toBe(false);
+    expect(fs.readFileSync(path.join(originals, 'u1/d1.pdf'), 'utf8')).toBe('%PDF-1.4');
+  });
+
+  it('still deletes the temp file of a wolke document', async () => {
+    const update = await run('wolke');
+
+    const completion = update.mock.calls.find(
+      (c) => (c[2] as { status?: string }).status === 'completed'
+    );
+    expect(completion?.[2]).not.toHaveProperty('filePath');
+    expect(fs.existsSync(pending)).toBe(false);
+    expect(fs.existsSync(path.join(originals, 'u1'))).toBe(false);
+  });
+
+  it('moves the file back to pending when the completion update fails', async () => {
+    const update = vi.fn(async (_id: string, _u: string, data: { status?: string }) => {
+      if (data.status === 'completed') throw new Error('db down');
+    });
+    await run('manual', update).catch(() => null);
+
+    expect(fs.existsSync(pending)).toBe(true);
+    expect(fs.existsSync(path.join(originals, 'u1/d1.pdf'))).toBe(false);
+  });
+
+  it('still completes when the original cannot be kept', async () => {
+    const blocker = path.join(originals, 'not-a-dir');
+    fs.writeFileSync(blocker, '');
+    vi.stubEnv('DOCUMENT_ORIGINALS_DIR', blocker);
+
+    const update = await run('manual');
+
+    const completion = update.mock.calls.find(
+      (c) => (c[2] as { status?: string }).status === 'completed'
+    );
+    expect(completion?.[2]).not.toHaveProperty('filePath');
+    expect(fs.existsSync(pending)).toBe(false);
+  });
+});
