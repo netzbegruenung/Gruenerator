@@ -17,8 +17,10 @@ export function useAddedRecipes() {
   const library = useUserLibrary();
   const catalog = useAgenturaCatalog();
   const own = useOwnRecipes();
-  // Die öffentliche Liste nur holen, wenn überhaupt ein Rezept verwiesen ist.
-  const wantsPublic = library.items.some((i) => i.kind === 'recipe');
+  // Die öffentliche Liste nur holen, wenn ein Verweis kein Katalog-Rezept ist.
+  const wantsPublic = library.items.some(
+    (i) => i.kind === 'recipe' && !catalog.skills.some((s) => s.mention === i.ref)
+  );
   const { data: publicRecipes = [] } = usePublicRecipes(wantsPublic);
 
   const result = useMemo(
