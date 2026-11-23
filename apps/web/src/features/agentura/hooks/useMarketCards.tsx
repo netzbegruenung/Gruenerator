@@ -126,10 +126,27 @@ export function useMarketCards() {
     );
   };
 
+  /** Was eine Rezept-Kachel kann — die Marktkarte und die Kachel auf `/projekte` teilen es. */
+  const recipeActions = (item: MarketItem & { kind: 'recipe' }) => {
+    const entry = item.entry;
+    return {
+      onSelect: () => handleSelectRecipe(entry.mention),
+      isFavorite: item.isFavorite,
+      onToggleFavorite: () => library.toggle('recipe', entry.id ?? entry.mention),
+      onEdit: entry.editable
+        ? () => navigate(`/agentura/rezept/${encodeURIComponent(entry.mention)}/bearbeiten`)
+        : undefined,
+      onShare: entry.editable
+        ? () => setShareTarget({ kind: 'recipe', mention: entry.mention })
+        : undefined,
+      onDelete: entry.onDelete,
+      onRemoveFromLibrary: removeFromLibrary(item),
+    };
+  };
+
   /** One card renderer for every recipe, catalogue or user's own/shared/public. */
   const recipeCard = (item: MarketItem & { kind: 'recipe' }): ReactNode => {
     const entry = item.entry;
-    const isFavorite = item.isFavorite;
     return (
       <MarketCard
         key={`s-${entry.id ?? entry.mention}`}
@@ -138,21 +155,7 @@ export function useMarketCards() {
         meta={recipeMeta(entry)}
         headingLevel={3}
         description={entry.description}
-        onSelect={() => handleSelectRecipe(entry.mention)}
-        isFavorite={isFavorite}
-        onToggleFavorite={() => library.toggle('recipe', entry.id ?? entry.mention)}
-        onEdit={
-          entry.editable
-            ? () => navigate(`/agentura/rezept/${encodeURIComponent(entry.mention)}/bearbeiten`)
-            : undefined
-        }
-        onShare={
-          entry.editable
-            ? () => setShareTarget({ kind: 'recipe', mention: entry.mention })
-            : undefined
-        }
-        onDelete={entry.onDelete}
-        onRemoveFromLibrary={removeFromLibrary(item)}
+        {...recipeActions(item)}
       />
     );
   };
@@ -178,5 +181,12 @@ export function useMarketCards() {
       <ShareRecipeModal mention={shareTarget.mention} open onOpenChange={closeShare} />
     ) : null;
 
-  return { toAgentItems, toRecipeItems, renderItem, asLibrary, shareDialog };
+  return {
+    toAgentItems,
+    toRecipeItems,
+    renderItem,
+    recipeActions,
+    asLibrary,
+    shareDialog,
+  };
 }

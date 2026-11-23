@@ -79,6 +79,7 @@ import { ProjectInstructionsCard } from './ProjectInstructionsCard';
 import { ProjectKnowledgeList } from './ProjectKnowledgeList';
 import { ProjectLandesverbandSelect } from './ProjectLandesverbandSelect';
 import { ProjectMembersCard } from './ProjectMembersCard';
+import { ProjectRecipesCard } from './ProjectRecipesCard';
 import { ProjectTasksCard } from './ProjectTasksCard';
 import { type ShareActions } from './shareActions';
 import { ShareNoteDialog } from './ShareNoteDialog';
@@ -341,7 +342,12 @@ const GroupInfoSection = memo(
     // Chats gibt es in Projekten und Gruppen, nicht im System-Projekt „Grünerator".
     const showChats = canShare && !isSystem;
     // Beiträge gehören in den Austausch; alles andere ist Wissen und steht als Zeile da.
-    const knowledgeItems = useMemo(() => feedItems.filter((i) => i.kind !== 'post'), [feedItems]);
+    // Rezepte haben ihre eigene Karte; „Wissen" ist alles andere außer Beiträgen.
+    const recipeItems = useMemo(() => feedItems.filter((i) => i.kind === 'recipe'), [feedItems]);
+    const knowledgeItems = useMemo(
+      () => feedItems.filter((i) => i.kind !== 'post' && i.kind !== 'recipe'),
+      [feedItems]
+    );
     const sharedKeys = useMemo(() => sharedContentKeys(feedItems), [feedItems]);
     // Wer verwalten darf, entscheidet dieselbe Regel wie auf dem Server
     // (`updateContentPermissions`, `removeGroupContent`): Admin oder die Person,
@@ -833,6 +839,16 @@ const GroupInfoSection = memo(
                 )}
                 {!isSystem && (
                   <ProjectTasksCard groupId={groupId} archived={!!data?.groupInfo?.archived_at} />
+                )}
+                {/* Im System-Projekt nur, wenn es etwas zu zeigen oder anzulegen gibt. */}
+                {(!isSystem || canShare || recipeItems.length > 0) && (
+                  <ProjectRecipesCard
+                    groupId={groupId}
+                    items={recipeItems}
+                    canAdd={canShare}
+                    actions={shareActions}
+                    onDiscuss={onDiscuss}
+                  />
                 )}
                 <ProjectKnowledgeList
                   items={knowledgeItems}

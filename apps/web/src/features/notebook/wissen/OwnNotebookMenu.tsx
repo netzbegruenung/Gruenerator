@@ -55,7 +55,7 @@ function useFlash(): [string | null, (msg: string) => void] {
  * geöffnetem Menü — sonst rendert jede Karte der Liste bei jedem Ladeschritt
  * mit. Das Löschen läuft nach dem Schließen weiter (`mutateAsync`).
  */
-function OwnNotebookActions({ collection }: { collection: NotebookCollection }) {
+export function OwnNotebookActions({ collection }: { collection: NotebookCollection }) {
   const navigate = useNavigate();
   const confirm = useConfirm();
   const showTrashUndo = useTrashUndoToast();

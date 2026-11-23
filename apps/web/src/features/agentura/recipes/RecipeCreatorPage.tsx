@@ -10,7 +10,7 @@ import {
 } from '@gruenerator/shared/grueneratoren';
 import { ConfirmDialogProvider } from '@gruenerator/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 
 import RecipeEditor from './RecipeEditor';
 import RecipeStartScreen from './RecipeStartScreen';
@@ -39,6 +39,8 @@ function RecipeCreatorPage() {
   const [error, setError] = useState<string | null>(null);
 
   useDocumentTitle('Neues Rezept');
+  // Von der Projektseite („+ Rezept"): nach dem Speichern gleich dorthin teilen.
+  const projectId = useSearchParams()[0].get('projekt');
 
   const fromAnswer = readFromAnswer(useLocation().state);
   const answerStarted = useRef(false);
@@ -93,6 +95,7 @@ function RecipeCreatorPage() {
           mode="create"
           initialState={{ ...EMPTY_RECIPE_FORM, ...initialState }}
           onCancel={handleBack}
+          projectId={projectId}
         />
       </ConfirmDialogProvider>
     );
