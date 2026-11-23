@@ -1,4 +1,7 @@
+import { type StartPage } from '@gruenerator/contracts';
+
 import { getIcon, getIconById as getIconFromRegistry } from '../../../config/icons';
+import { START_PATH, startTabPath } from '../../../utils/startpage';
 
 import type { BadgeType } from '../../common/StatusBadge';
 import type { JSX, ComponentType } from 'react';
@@ -9,6 +12,8 @@ import { PiGlobe, RiSpyLine } from '@/config/shellIcons.generated';
 export interface MenuFlags {
   isAustrian?: boolean;
   canSeeSites?: boolean;
+  /** The start-page setting: its tab is the bare `/start`, the other one `/start/<tab>`. */
+  home?: StartPage;
 }
 
 // Menu item type definition
@@ -49,19 +54,29 @@ export const GLOBAL_SEARCH_ITEM_ID = 'globalSearch';
 // Direkte Menüpunkte ohne Dropdown
 export const getDirectMenuItems = ({
   canSeeSites = false,
+  home = 'chat',
 }: MenuFlags = {}): DirectMenuItemsResult => {
   const items: DirectMenuItemsResult = {};
 
+  // Chat and Workplace are the two views of `/start` (formerly tabs at the top).
+  // The start-page view also owns `/` and the bare `/start`.
+  const homeAliases = (tab: StartPage) => (tab === home ? ['/', START_PATH] : []);
   items.startseite = {
     id: 'startseite',
-    path: '/',
+    path: startTabPath('chat', home),
+    title: 'Chat',
+    description: 'Mit dem Grünerator chatten',
+    icon: getIcon('navigation', 'home'),
+    exactActivePaths: ['/start/chat', ...homeAliases('chat')],
+  };
+
+  items.workplace = {
+    id: 'workplace',
+    path: startTabPath('arbeiten', home),
     title: 'Workplace',
     description: 'Erstellen, Dokumente & Medien',
-    icon: getIcon('navigation', 'home'),
-    // `/start` samt Tab-Pfaden; `activePaths` prüft auf `/start/`, trifft also
-    // `/startseite` nicht.
-    exactActivePaths: ['/'],
-    activePaths: ['/start'],
+    icon: getIcon('navigation', 'workplace'),
+    exactActivePaths: ['/start/arbeiten', ...homeAliases('arbeiten')],
   };
 
   // No `path`: the sidebar opens the global search palette instead of

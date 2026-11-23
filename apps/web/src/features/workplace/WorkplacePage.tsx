@@ -1,3 +1,4 @@
+import { type StartPage } from '@gruenerator/contracts';
 import { Skeleton } from '@gruenerator/ui';
 import { Suspense, lazy, useEffect, useState } from 'react';
 import { Navigate, useParams, useSearchParams } from 'react-router-dom';
@@ -8,7 +9,6 @@ import { useAuthStore } from '../../stores/authStore';
 
 import { resolveChatBackground } from './chatBackgrounds';
 import WorkplaceChatTab from './tabs/WorkplaceChatTab';
-import WorkplaceTabs, { type WorkplaceTab } from './WorkplaceTabs';
 
 import { cn } from '@/utils/cn';
 import { START_PATH, startTabLink, startTabPath } from '@/utils/startpage';
@@ -16,7 +16,7 @@ import { whenIdle } from '@/utils/whenIdle';
 
 import './workplace-sunrise.css';
 
-// `/start` mit zwei Tabs, Chat und Arbeiten — wie der WorkplacePager der App.
+// `/start` mit zwei Ansichten, Chat und Arbeiten; umgeschaltet wird über die Seitenleiste.
 // Der Tab steht im Pfad (`/start/chat`, `/start/arbeiten`), damit Zurück,
 // Neuladen und Lesezeichen ihn behalten. Alle drei Pfade sind ein Route-Eintrag,
 // die Seite bleibt beim Wechsel also gemountet — und mit ihr beide Tabs, damit
@@ -26,6 +26,9 @@ import './workplace-sunrise.css';
 // mitzuladen; er mountet, sobald der Browser Luft hat oder der Tab gewählt wird.
 // (Wissen ist die eigenständige /wissen-Seite.)
 const ArbeitenTab = lazy(() => import('./tabs/ArbeitenTab'));
+
+/** The two views of `/start`; the ids are the `default_startpage` values. */
+type WorkplaceTab = StartPage;
 
 const isWorkplaceTab = (value: string | null | undefined): value is WorkplaceTab =>
   value === 'chat' || value === 'arbeiten';
@@ -103,7 +106,6 @@ const WorkplacePage = () => {
           tab !== 'chat' && 'invisible'
         )}
       />
-      <WorkplaceTabs active={tab} home={home} />
       <div className="flex h-full min-h-0 flex-col">
         {/* Minimal chat hero, vertically centered in the viewport (design:
             the chat panel is a flex column with justify-center). Die Tastaturhöhe
@@ -113,7 +115,7 @@ const WorkplacePage = () => {
         <div
           hidden={tab !== 'chat'}
           className={cn(
-            'min-h-0 flex-1 flex-col justify-center-safe overflow-y-auto pb-[calc(6vh_+_var(--mobile-keyboard-offset,0px))] pt-16',
+            'min-h-0 flex-1 flex-col justify-center-safe overflow-y-auto pb-[calc(6vh_+_var(--mobile-keyboard-offset,0px))] pt-12 md:pt-0',
             tab === 'chat' && 'flex'
           )}
         >
@@ -125,11 +127,10 @@ const WorkplacePage = () => {
             <WorkplaceChatTab />
           </div>
         </div>
-        {/* Scrolls below the tab bar, not under it: the bar is a floating pill, and content
-            passing beside it collided with the sidebar button. The top edge fades in. */}
+        {/* On phones it leaves room for the floating sidebar button (the 48 px header); the top edge fades in. */}
         <div
           hidden={tab !== 'arbeiten'}
-          className="mt-14 min-h-0 flex-1 overflow-y-auto [mask-image:linear-gradient(to_bottom,transparent,black_12px)]"
+          className="mt-12 min-h-0 flex-1 overflow-y-auto [mask-image:linear-gradient(to_bottom,transparent,black_12px)] md:mt-0"
         >
           {arbeitenMounted && (
             <Suspense fallback={<ArbeitenFallback />}>

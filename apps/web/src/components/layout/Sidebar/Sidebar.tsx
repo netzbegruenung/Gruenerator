@@ -77,6 +77,7 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
   const locale = useAuthStore((state) => state.locale);
   const isAustrian = locale === 'de-AT';
   const canSeeSites = useCanSeeSites();
+  const home = useAuthStore((s) => s.user?.default_startpage ?? 'chat');
   // Workplace paints a wide, tinted gradient behind the (fixed, translucent)
   // sidebar. bg-background/70 alone still reads as a near-solid panel — at
   // 70% opacity barely any of the gradient shows even with blur — so
@@ -105,8 +106,8 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
   );
 
   const directMenuItems = useMemo(
-    () => getDirectMenuItems({ isAustrian, canSeeSites }),
-    [isAustrian, canSeeSites]
+    () => getDirectMenuItems({ isAustrian, canSeeSites, home }),
+    [isAustrian, canSeeSites, home]
   );
   const mobileOnlyItems = useMemo(() => getMobileOnlyMenuItems(), []);
   // The "start" icon goes straight to /start (the page picks the user's preferred
@@ -252,8 +253,10 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
     sidebarExpanded ? 'opacity-100' : 'hidden'
   );
 
-  const startItem = additionalItems.find((item) => item.id === 'startseite');
-  const restItems = additionalItems.filter((item) => item.id !== 'startseite');
+  // Chat and Workplace (the two views of `/start`) lead the list.
+  const START_IDS = ['startseite', 'workplace'];
+  const startItems = additionalItems.filter((item) => START_IDS.includes(item.id));
+  const restItems = additionalItems.filter((item) => !START_IDS.includes(item.id));
   // Projekte steht oben an der Stelle der Grüneratoren; die Grüneratoren
   // (laufen aus, alles zieht zu den Projekten) rücken nach unten.
   const grueneratorenIndex = restItems.findIndex((item) => item.id === 'grueneratoren');
@@ -261,10 +264,14 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
   const itemsBeforeProjekte =
     grueneratorenIndex >= 0 ? restItems.slice(0, grueneratorenIndex) : restItems;
   const itemsAfterProjekte = grueneratorenIndex >= 0 ? restItems.slice(grueneratorenIndex + 1) : [];
+  // The Chat logo is a filled mark with air around it: a touch larger (and
+  // square, its own size is 1.1em × 1.1em) so it weighs like the outline icons.
+  const navIconClass = (item: MenuItemType) =>
+    cn(iconClass, item.id === 'startseite' && 'size-[22px] -m-px');
   const renderNavItem = (item: MenuItemType) =>
     !item.path ? (
       <span key={item.id} className={menuLinkClass(false, true, !sidebarExpanded)}>
-        {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
+        {item.icon && <item.icon aria-hidden="true" className={navIconClass(item)} />}
         <span className={titleClass}>{item.title}</span>
         {item.badge && (
           <span className={badgeClass}>
@@ -290,7 +297,7 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
           }
           type="button"
         >
-          {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
+          {item.icon && <item.icon aria-hidden="true" className={navIconClass(item)} />}
           <span className={titleClass}>{item.title}</span>
           {item.badge && (
             <span className={badgeClass}>
@@ -304,12 +311,22 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
       <Link
         key={item.id}
         to={item.path!}
-        className={menuLinkClass(false, false, !sidebarExpanded)}
+        // Chat and Workplace replaced the tabs on /start: the sidebar shows where you are.
+        className={menuLinkClass(
+          isActive(item.path!, item.activePaths, item.activeQuery, item.exactActivePaths),
+          false,
+          !sidebarExpanded
+        )}
+        aria-current={
+          isActive(item.path!, item.activePaths, item.activeQuery, item.exactActivePaths)
+            ? 'page'
+            : undefined
+        }
         onClick={() =>
           item.id === 'chat' ? handleChatClick() : handleLinkClick(item.path!, item.title)
         }
       >
-        {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
+        {item.icon && <item.icon aria-hidden="true" className={navIconClass(item)} />}
         <span className={titleClass}>{item.title}</span>
         {item.badge && (
           <span className={badgeClass}>
@@ -422,7 +439,9 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
           isDesktop ? 'pt-3' : hasHeaderRow ? 'pt-1' : 'pt-12'
         )}
       >
-        {startItem && <div className="flex flex-col gap-0 p-0">{renderNavItem(startItem)}</div>}
+        {startItems.length > 0 && (
+          <div className="flex flex-col gap-0 p-0">{startItems.map(renderNavItem)}</div>
+        )}
 
         {showSearchInList && searchItem && (
           <div className="flex flex-col gap-0 p-0">

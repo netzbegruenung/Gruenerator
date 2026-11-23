@@ -40,8 +40,10 @@ const renderAt = (url: string) =>
     </MemoryRouter>
   );
 
-const selected = () =>
-  screen.getAllByRole('link').find((t) => t.getAttribute('aria-current') === 'page')?.textContent;
+// Which view shows: Chat (the composer) or Arbeiten. The sidebar switches them
+// by path; its entries are tested with the menu data.
+const shows = () =>
+  screen.getByLabelText('Composer').closest('[hidden]') === null ? 'Chat' : 'Arbeiten';
 const url = () => screen.getByTestId('url').textContent;
 
 describe('WorkplacePage', () => {
@@ -49,86 +51,69 @@ describe('WorkplacePage', () => {
     useAuthStore.setState({ user: { default_startpage: 'chat' }, hasServerConfirmed: true });
   });
 
-  it('opens the tab from the start-page setting on bare /start', () => {
+  it('opens the view from the start-page setting on bare /start', async () => {
     useAuthStore.setState({ user: { default_startpage: 'arbeiten' } });
     renderAt('/start');
-    expect(selected()).toBe('Arbeiten');
+    expect(await screen.findByText('Arbeiten-Inhalt')).toBeVisible();
+    expect(shows()).toBe('Arbeiten');
   });
 
   it('lets the path override the setting', async () => {
     renderAt('/start/arbeiten');
-    expect(selected()).toBe('Arbeiten');
     expect(await screen.findByText('Arbeiten-Inhalt')).toBeVisible();
+    expect(shows()).toBe('Arbeiten');
   });
 
-  it('switches tabs without remounting Chat, the home tab at bare /start', async () => {
+  it('switches views without remounting Chat, the home view at bare /start', async () => {
     renderAt('/start');
     fireEvent.change(screen.getByLabelText('Composer'), { target: { value: 'Entwurf' } });
 
-    fireEvent.click(screen.getByRole('link', { name: 'Arbeiten' }));
-    expect(url()).toBe('/start/arbeiten');
+    act(() => navigateTo('/start/arbeiten'));
     expect(await screen.findByText('Arbeiten-Inhalt')).toBeVisible();
     expect(screen.getByLabelText('Composer')).not.toBeVisible();
 
-    fireEvent.click(screen.getByRole('link', { name: 'Chat' }));
-    expect(url()).toBe('/start');
+    act(() => navigateTo('/start'));
+    expect(screen.getByLabelText('Composer')).toBeVisible();
     expect(screen.getByLabelText('Composer')).toHaveValue('Entwurf');
   });
 
-  it('gives the other tab the segment when Arbeiten is home', () => {
-    useAuthStore.setState({ user: { default_startpage: 'arbeiten' } });
-    renderAt('/start');
-    expect(screen.getByRole('link', { name: 'Arbeiten' })).toHaveAttribute('href', '/start');
-    expect(screen.getByRole('link', { name: 'Chat' })).toHaveAttribute('href', '/start/chat');
-  });
-
-  it('folds the home tab spelled out into bare /start', () => {
+  it('folds the home view spelled out into bare /start', () => {
     renderAt('/start/chat?x=1');
     expect(url()).toBe('/start?x=1');
-    expect(selected()).toBe('Chat');
+    expect(shows()).toBe('Chat');
   });
 
   it('keeps an explicit path while the setting is unconfirmed', () => {
     useAuthStore.setState({ hasServerConfirmed: false });
     renderAt('/start/chat');
     expect(url()).toBe('/start/chat');
-    expect(selected()).toBe('Chat');
+    expect(shows()).toBe('Chat');
   });
 
   it('comes back to Arbeiten after leaving the page from there', async () => {
     renderAt('/start');
-    fireEvent.click(screen.getByRole('link', { name: 'Arbeiten' }));
+    act(() => navigateTo('/start/arbeiten'));
     act(() => navigateTo('/office'));
     expect(screen.getByText('Office')).toBeInTheDocument();
 
     act(() => navigateTo(-1));
     expect(url()).toBe('/start/arbeiten');
-    expect(selected()).toBe('Arbeiten');
     expect(await screen.findByText('Arbeiten-Inhalt')).toBeVisible();
   });
 
-  it('keeps the history clean when the current tab is clicked again', () => {
-    renderAt('/start');
-    fireEvent.click(screen.getByRole('link', { name: 'Arbeiten' }));
-    fireEvent.click(screen.getByRole('link', { name: 'Arbeiten' }));
-    act(() => navigateTo(-1));
-    expect(url()).toBe('/start');
-  });
-
-  it('forwards the old ?page= links to the tab path', () => {
+  it('forwards the old ?page= links to the view path', () => {
     renderAt('/start?page=arbeiten&foo=1');
     expect(url()).toBe('/start/arbeiten?foo=1');
-    expect(selected()).toBe('Arbeiten');
   });
 
-  it('forwards ?page= for the home tab to bare /start', () => {
+  it('forwards ?page= for the home view to bare /start', () => {
     renderAt('/start?page=chat');
     expect(url()).toBe('/start');
   });
 
-  it('sends an unknown tab to /start', () => {
+  it('sends an unknown view to /start', () => {
     renderAt('/start/quatsch');
     expect(url()).toBe('/start');
-    expect(selected()).toBe('Chat');
+    expect(shows()).toBe('Chat');
   });
 });

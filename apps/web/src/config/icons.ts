@@ -1,5 +1,6 @@
 import GrueneratorGPTIcon from '../components/common/GrueneratorGPTIcon';
 import GrueneratorHomeIcon from '../components/icons/GrueneratorHomeIcon';
+import WorkplaceIcon from '../components/icons/WorkplaceIcon';
 
 import type { ComponentType } from 'react';
 import type { IconBaseProps } from 'react-icons';
@@ -151,6 +152,7 @@ export type NavigationIconName =
   | 'texte'
   | 'eigene'
   | 'home'
+  | 'workplace'
   | 'scanner'
   | 'reisekosten'
   | 'messenger'
@@ -281,6 +283,7 @@ export const ICONS: IconRegistry = {
     texte: PiArticle,
     eigene: PiWrench,
     home: GrueneratorHomeIcon,
+    workplace: WorkplaceIcon,
     scanner: PiScan,
     reisekosten: PiReceipt,
     messenger: PiChatCircle,

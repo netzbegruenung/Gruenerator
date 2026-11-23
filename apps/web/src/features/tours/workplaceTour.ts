@@ -8,7 +8,6 @@ import { startTabLink } from '@/utils/startpage';
 
 const SEL = {
   composer: '[data-tour="workplace-composer"]',
-  tabs: '[data-tour="workplace-tabs"]',
   arbeitenCreate: '[data-tour="arbeiten-create"]',
   arbeitenTools: '[data-tour="arbeiten-tools"]',
   arbeitenRecents: '[data-tour="arbeiten-recents"]',
@@ -59,12 +58,12 @@ export function startWorkplaceTour(navigate: NavigateFn): void {
         },
       },
       {
-        element: SEL.tabs,
+        element: SEL.sidebarNav,
         popover: {
           title: 'Zwei Bereiche',
           description:
-            'Chat und Arbeiten — hier oben wechselst du jederzeit zwischen den Bereichen.',
-          side: 'bottom',
+            'Chat und Workplace — in der Seitenleiste wechselst du jederzeit zwischen den Bereichen.',
+          side: 'right',
           onNextClick: crossTab(startTabLink('arbeiten'), SEL.arbeitenCreate, (drv) =>
             drv.moveNext()
           ),
@@ -77,7 +76,7 @@ export function startWorkplaceTour(navigate: NavigateFn): void {
           description:
             'Such hier nach deinen Dokumenten, Boards, Tabellen, Präsentationen und Werkzeugen. Neues legst du über „Neu erstellen“ an.',
           side: 'bottom',
-          onPrevClick: crossTab(startTabLink('chat'), SEL.tabs, (drv) => drv.movePrevious()),
+          onPrevClick: crossTab(startTabLink('chat'), SEL.sidebarNav, (drv) => drv.movePrevious()),
         },
       },
       {
