@@ -119,11 +119,14 @@ export function KnowledgeRow({
   onUseTemplate,
   actions,
   onDiscuss,
+  hideKind = false,
 }: {
   item: GroupFeedItem;
   onUseTemplate: (id: string) => void;
   actions: ShareActions | null;
   onDiscuss: ProjectKnowledgeListProps['onDiscuss'];
+  /** In einer Karte, die nur eine Art zeigt (Rezepte), ist die Art kein Hinweis. */
+  hideKind?: boolean;
 }) {
   const Icon = FEED_KIND_ICONS[item.kind];
   const content: ReactNode = (
@@ -142,7 +145,9 @@ export function KnowledgeRow({
         </span>
       )}
       <span className="shrink-0 text-[13px] text-muted-foreground">
-        {[groupFeedKindMeta(item.kind).label, projectRoleLabel(item)].filter(Boolean).join(' · ')}
+        {[hideKind ? null : groupFeedKindMeta(item.kind).label, projectRoleLabel(item)]
+          .filter(Boolean)
+          .join(' · ')}
       </span>
     </>
   );

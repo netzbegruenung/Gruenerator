@@ -34,14 +34,17 @@ export function ProjectRecipesCard({
       className="flex flex-col gap-xs rounded-[20px] bg-card px-md py-sm shadow-sm"
     >
       <div className="flex items-center gap-sm">
-        <PiNotebook aria-hidden className="size-5 shrink-0 text-primary-600" />
+        <PiNotebook
+          aria-hidden
+          className="size-5 shrink-0 text-primary-600 dark:text-primary-400"
+        />
         <h2 id="projekt-rezepte-titel" className="m-0 min-w-0 flex-1 text-[15px] font-semibold">
           Rezepte
         </h2>
         {canAdd && (
           <Link
             to={`/agentura/rezept/neu?projekt=${encodeURIComponent(groupId)}`}
-            className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-primary-600 hover:bg-muted"
+            className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-primary-600 dark:text-primary-400 hover:bg-muted"
           >
             <PiPlus aria-hidden className="size-4" />
             Rezept
@@ -62,6 +65,7 @@ export function ProjectRecipesCard({
               onUseTemplate={() => {}}
               actions={actions}
               onDiscuss={onDiscuss}
+              hideKind
             />
           ))}
         </ul>

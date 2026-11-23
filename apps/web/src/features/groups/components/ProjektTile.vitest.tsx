@@ -33,27 +33,28 @@ describe('ProjektTile', () => {
     );
   });
 
-  it('treats a projekt stored as personal like any other (no "Nur für dich")', () => {
-    renderWithProviders(<ProjektTile projekt={{ ...personalProjekt, member_count: 1 }} />);
-    expect(screen.queryByText('Nur für dich')).not.toBeInTheDocument();
-    expect(screen.getByText('1 Mitglied')).toBeInTheDocument();
-  });
-
-  it('shows the pluralized member count for a team projekt', () => {
-    renderWithProviders(<ProjektTile projekt={teamProjekt} />);
-    expect(screen.getByText('3 Mitglieder')).toBeInTheDocument();
-  });
-
-  it('shows singular "Mitglied" for exactly one member', () => {
-    renderWithProviders(<ProjektTile projekt={{ ...teamProjekt, member_count: 1 }} />);
-    expect(screen.getByText('1 Mitglied')).toBeInTheDocument();
-  });
-
-  it('falls back to the admin/member role label when member_count is absent', () => {
+  it('shows the description but no member count or activity date', () => {
     renderWithProviders(
-      <ProjektTile projekt={{ ...teamProjekt, member_count: undefined, isAdmin: true }} />
+      <ProjektTile
+        projekt={{
+          ...teamProjekt,
+          description: 'Wahlkampf 2027',
+          last_activity_at: '2026-11-22T10:00:00Z',
+        }}
+      />
     );
-    expect(screen.getByText('Admin')).toBeInTheDocument();
+    expect(screen.getByText('Wahlkampf 2027')).toBeInTheDocument();
+    expect(screen.queryByText(/Mitglied/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Gestern|Vor /)).not.toBeInTheDocument();
+  });
+
+  it('offers archiving in the menu only to admins', async () => {
+    const { user, unmount } = renderWithProviders(<ProjektTile projekt={teamProjekt} />);
+    expect(screen.queryByRole('button', { name: 'Aktionen' })).not.toBeInTheDocument();
+    unmount();
+    renderWithProviders(<ProjektTile projekt={{ ...teamProjekt, isAdmin: true }} />);
+    await user.click(screen.getByRole('button', { name: 'Aktionen' }));
+    expect(await screen.findByRole('menuitem', { name: /Archivieren/ })).toBeInTheDocument();
   });
 
   it('renders initials when there is no avatar_url', () => {
@@ -78,15 +79,15 @@ describe('ProjektTile', () => {
 
   it('renders a chosen colour through the audited palette variables', () => {
     renderWithProviders(<ProjektTile projekt={{ ...teamProjekt, color: 'gruen' }} />);
-    const link = screen.getByRole('link', { name: /Grüne NRW/ });
-    expect(link.style.getPropertyValue('--tile-bg')).toBe('#DDEFD9');
-    expect(link.style.getPropertyValue('--tile-title-dark')).toBe('#A9D8AC');
+    const card = screen.getByRole('link', { name: /Grüne NRW/ }).parentElement!;
+    expect(card.style.getPropertyValue('--tile-bg')).toBe('#DDEFD9');
+    expect(card.style.getPropertyValue('--tile-title-dark')).toBe('#A9D8AC');
   });
 
   it('ignores an unknown colour key and keeps the default tile', () => {
     renderWithProviders(<ProjektTile projekt={{ ...teamProjekt, color: 'neon' }} />);
-    const link = screen.getByRole('link', { name: /Grüne NRW/ });
-    expect(link.style.getPropertyValue('--tile-bg')).toBe('');
+    const card = screen.getByRole('link', { name: /Grüne NRW/ }).parentElement!;
+    expect(card.style.getPropertyValue('--tile-bg')).toBe('');
   });
 
   it('marks an archived projekt in the meta line', () => {

@@ -236,6 +236,8 @@ function GrueneratorenPage() {
           Projektseiten. Bis alles umgezogen ist, bleibt sie erreichbar. */}
       <StatusBanner
         variant="warning"
+        // Ein fester Hinweis, keine Statusmeldung: die Seite hat schon eine Live-Region.
+        role="note"
         className="mb-md flex flex-wrap items-center justify-between gap-sm"
       >
         <span className="min-w-0 flex-1">
