@@ -62,7 +62,10 @@ export function ProjectInstructionsCard({
         aria-labelledby="projekt-anweisungen-titel"
         className="flex items-center gap-sm rounded-[20px] bg-card px-md py-sm shadow-sm"
       >
-        <PiSlidersHorizontal aria-hidden className="size-5 shrink-0 text-primary-600" />
+        <PiSlidersHorizontal
+          aria-hidden
+          className="size-5 shrink-0 text-primary-600 dark:text-primary-400"
+        />
         <div className="min-w-0 flex-1">
           <h2 id="projekt-anweisungen-titel" className="m-0 text-[15px] font-semibold">
             Anweisungen
