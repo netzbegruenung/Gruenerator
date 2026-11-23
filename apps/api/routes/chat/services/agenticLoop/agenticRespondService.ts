@@ -70,6 +70,7 @@ import { buildUncoveredTermNote } from './questionTermCoverage.js';
 import { type RecipeRegistry } from './recipeRegistry.js';
 import { createRerankDegradedHook } from './rerankWarning.js';
 import { isPureArtifactOrder, rewritesSuppliedText } from './routing.js';
+import { createSecondArtifactGate } from './secondArtifact.js';
 import { createSourceRegistry } from './sourceRegistry.js';
 import {
   buildConnectorNotes,
@@ -626,6 +627,10 @@ export async function streamAgenticResponse(
           }
         : null;
 
+    const secondArtifact = createSecondArtifactGate(
+      () => finalState,
+      () => Object.keys(wrapped)
+    );
     const loopResult = await deps.runAgenticLoop({
       model: lanes.model,
       repairModel: lanes.repairModel,
@@ -641,7 +646,8 @@ export async function streamAgenticResponse(
       // Der Katalog ist vollständig montiert; welcher Schritt was davon
       // mitschickt, entscheidet der Umfang (toolScope.ts). Getter, weil ein
       // Lader die Menge mitten im Lauf erweitern kann.
-      activeTools: (steps) => assembled.toolScope.activeTools(steps),
+      activeTools: (steps) =>
+        secondArtifact.tools(steps?.length ?? 0) ?? assembled.toolScope.activeTools(steps),
       buildRepairSystem: (sources) => buildRepairSystem(sources, synthContext),
       // The image note rides on the source block because that is the ONLY thing
       // the tool-less repair writer sees of the tool work — it gets no tool
@@ -695,10 +701,12 @@ export async function streamAgenticResponse(
         // it must end the tool work, not the sentence being written — one
         // stream holds tools and text, so a hard timeout could only cut prose.
         Date.now() >= toolBudgetDeadline ||
-        finalState.generatedImage != null ||
-        (finalState.sharepicVariants?.length ?? 0) > 0 ||
-        finalState.createdDocument != null ||
-        finalState.createdBoard != null,
+        ((finalState.generatedImage != null ||
+          (finalState.sharepicVariants?.length ?? 0) > 0 ||
+          finalState.createdDocument != null ||
+          finalState.createdBoard != null) &&
+          // Nach dem ersten Artefakt ein Schritt für ein zweites (#5957, secondArtifact.ts).
+          !secondArtifact.open()),
       onText: (delta) => emitter.pushAnswer(delta),
       onReasoning: (delta) => sse.send('reasoning_delta', { text: delta }),
       validateAnswer: createAnswerValidator(),
