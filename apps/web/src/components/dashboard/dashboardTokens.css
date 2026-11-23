@@ -78,8 +78,9 @@
  * Grüne Variante der neutralen Bausteine (Arbeiten-Tab, Briefing): Karten, Tönungen und
  * Akzent aus der primary-Rampe. Wird zusammen mit `.dashboard-neutral` gesetzt und
  * überschreibt dessen Rollen; Rahmen und Schatten bleiben von dort.
+ * Nur im hellen Modus: dunkel bleibt der Block neutral wie die übrigen Karten.
  */
-.dashboard-surface.dashboard-neutral.dashboard-green {
+:root:not([data-theme='dark']) .dashboard-surface.dashboard-neutral.dashboard-green {
   --dash-mg: #316049; /* primary-600 */
   --dash-bar: linear-gradient(90deg, #6baa91, #316049);
   --dash-mg-ink: #123624; /* primary-950 */
@@ -90,18 +91,4 @@
   --dash-card: #f0f8f4; /* primary-50 */
   --dash-skeleton: #d8f0e6;
   --dash-card-border: rgb(49 96 73 / 0.22);
-}
-
-[data-theme='dark'] .dashboard-surface.dashboard-neutral.dashboard-green {
-  --dash-mg: #b1e0c9; /* primary-200 */
-  --dash-bar: linear-gradient(90deg, #52907a, #b1e0c9);
-  --dash-mg-ink: #d8f0e6; /* primary-100 */
-  --dash-on-mg: #123624;
-  --dash-mg-tint: #285040; /* primary-700 */
-  --dash-mg-tint-2: #316049; /* primary-600 */
-  --dash-mg-sub: #b1e0c9;
-  --dash-mg-dot: #52907a; /* primary-500 */
-  --dash-card: #1f3f33; /* primary-800 */
-  --dash-skeleton: #285040;
-  --dash-card-border: rgb(177 224 201 / 0.2);
 }
