@@ -251,6 +251,80 @@ describe('looksCutOff — a contact line is finished (#5477)', () => {
   });
 });
 
+describe('looksCutOff — a short sign-off paragraph is finished (#5976)', () => {
+  it('accepts the sign-offs recipes prescribe (live 23.11.2026)', () => {
+    for (const t of [
+      'Wir bitten den Stadtrat, die Mittel zu beantragen und das Projekt mit Bundesfördermitteln umzusetzen.\n\nFür die Fraktion: Petra Lindner, Fraktionsvorsitzende',
+      'Danke für den Hinweis, ein Radweg spart mehr als ein paar gesparte Sekunden 🚲\n\n– dein Grünen-Team Musterstadt',
+      'Wir fordern den Stadtrat auf, den Antrag zeitnah zu beschließen.\n\nPressekontakt:\nJonas Berger',
+      'Wir fordern den Stadtrat auf, den Antrag zeitnah zu beschließen.\n\n**Pressekontakt:**\nJonas Berger\nGrüne Fraktion im Stadtrat Musterstadt',
+    ]) {
+      expect(looksCutOff(t), t).toBe(false);
+    }
+  });
+
+  it('still flags a cut line without a paragraph boundary before it', () => {
+    expect(
+      looksCutOff(
+        'Wir fordern den Stadtrat auf, den Antrag zeitnah zu beschließen.\nIm Vergleich zu anderen rechtspopulistischen Pa'
+      )
+    ).toBe(true);
+  });
+
+  it('still flags a long cut paragraph after a finished one', () => {
+    expect(
+      looksCutOff(
+        'Das ist der erste Absatz.\n\nIm Vergleich zu anderen rechtspopulistischen Parteien sehen wir deutlich mehr Fälle, und zwar vor allem in den Pa'
+      )
+    ).toBe(true);
+  });
+
+  it('still flags a short last paragraph after an unfinished one', () => {
+    expect(
+      looksCutOff('Wir fordern den Stadtrat auf, den Antrag zeitnah zu\n\nFür die Fraktion: Petra')
+    ).toBe(true);
+  });
+
+  it('still flags a short table, list, heading or quote cut mid-line', () => {
+    for (const t of [
+      'Die Zahlen im Überblick, Stand Oktober.\n\n| Jahr | Fälle |\n|---|---|\n| 2024 | 12',
+      'Die Zahlen im Überblick, Stand Oktober.\n\n| 2024 | 12',
+      'Das sind unsere drei Forderungen.\n\n- Mehr Radwege an Schulen\nund Tempo 30 vor jeder Sch',
+      'Das sind unsere drei Forderungen:\n\n- Mehr Radwege an Schulen',
+      'Das sind unsere drei Forderungen.\n\n1. Mehr Radwege an Schulen',
+      'Das ist der erste Absatz.\n\n## Nächste Schritte im Rat',
+      'Das ist der erste Absatz.\n\n> Wir fordern sichere Schulwege für alle',
+    ]) {
+      expect(looksCutOff(t), t).toBe(true);
+    }
+  });
+
+  it('accepts a sign-off written with a hyphen-minus', () => {
+    expect(
+      looksCutOff(
+        'Danke für den Hinweis, ein Radweg spart mehr als ein paar gesparte Sekunden.\n\n- dein Grünen-Team Musterstadt'
+      )
+    ).toBe(false);
+  });
+
+  it('accepts a cut inside a short sign-off paragraph (documented trade-off)', () => {
+    // "Jonas Ber" and "Jonas Berger" are indistinguishable; see truncation.ts.
+    expect(
+      looksCutOff(
+        'Wir fordern den Stadtrat auf, den Antrag zeitnah zu beschließen.\n\nPressekontakt:\nJonas Ber'
+      )
+    ).toBe(false);
+  });
+
+  it('still flags a last paragraph with too many lines', () => {
+    expect(
+      looksCutOff(
+        'Das ist der erste Absatz.\n\nZeile eins hier\nZeile zwei hier\nZeile drei hier\nZeile vier hier\nZeile fünf hier'
+      )
+    ).toBe(true);
+  });
+});
+
 const SEARCHED = { sources: 10, toolCalls: 2 };
 
 describe('deniesSearchAbilityDespiteSearching', () => {
