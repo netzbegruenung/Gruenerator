@@ -81,6 +81,21 @@ export function projectInstructionsFor(agent: UserAgentRecord): string {
   return recipe ? `${role}\n\nFür Texte nutzt du das Rezept @${recipe}.` : role;
 }
 
+/** Passt die Rolle nicht in die Projekt-Anweisungen, wird sie zum Rezept des Projekts. */
+export function roleNeedsProjectRecipe(agent: UserAgentRecord): boolean {
+  return projectInstructionsFor(agent).length > GROUP_INSTRUCTIONS_MAX;
+}
+
+/** Anweisungen eines Projekts mit Rezept: nur der Hinweis auf das Standard-Rezept, sonst leer. */
+function shortProjectInstructionsFor(agent: UserAgentRecord): string {
+  const recipe = agent.defaultRecipeMention;
+  return recipe ? `Für Texte nutzt du das Rezept @${recipe}.` : '';
+}
+
+function roleTooLongMessage(length: number): string {
+  return `Die Rolle hat ${length.toLocaleString('de-DE')} Zeichen, ein Rezept fasst höchstens ${MAX_TEXT_FORM_STYLE_CHARS.toLocaleString('de-DE')}. Lass in der Rolle nur die Anleitung (Aufbau, Ton, Regeln) und lege Material wie Beschlüsse oder Beispieltexte in ein Notebook – der Grünerator durchsucht es bei Bedarf.`;
+}
+
 /**
  * Der Landesverband eines LV-Agents: sein eigener Bezeichner oder, bei einem
  * Agent mit LV-Rezept als Standard (`presse-berlin-partei`), der Besitzer
@@ -114,9 +129,7 @@ export function planAgentConversion(
   const role = agent.systemRole.trim();
 
   if (target === 'recipe') {
-    if (role.length > MAX_TEXT_FORM_STYLE_CHARS) {
-      blocked = `Die Rolle hat ${role.length.toLocaleString('de-DE')} Zeichen, ein Rezept fasst höchstens ${MAX_TEXT_FORM_STYLE_CHARS.toLocaleString('de-DE')}. Kürze die Rolle im Agent-Editor und wandle dann um.`;
-    }
+    if (role.length > MAX_TEXT_FORM_STYLE_CHARS) blocked = roleTooLongMessage(role.length);
     const titleCut = agent.title.trim().length > MAX_TEXT_FORM_TITLE_CHARS;
     items.push({
       part: 'role',
@@ -126,17 +139,26 @@ export function planAgentConversion(
         : 'Die Rolle wird zur Anleitung des Rezepts.',
     });
   } else {
-    const instructions = projectInstructionsFor(agent);
-    if (instructions.length > GROUP_INSTRUCTIONS_MAX) {
-      blocked = `Die Rolle hat ${instructions.length.toLocaleString('de-DE')} Zeichen, Projekt-Anweisungen fassen höchstens ${GROUP_INSTRUCTIONS_MAX.toLocaleString('de-DE')}. Wandle den Agent in ein Rezept um oder kürze die Rolle.`;
+    const lv = landesverbandOfConvertedAgent(agent);
+    if (roleNeedsProjectRecipe(agent)) {
+      // Zu lang für Anweisungen: die Rolle wird ein Rezept, das ins Projekt
+      // geteilt wird. Die Grenze ist dann die des Rezepts.
+      if (role.length > MAX_TEXT_FORM_STYLE_CHARS) blocked = roleTooLongMessage(role.length);
+      const title = agent.title.trim().slice(0, MAX_TEXT_FORM_TITLE_CHARS);
+      items.push({
+        part: 'role',
+        outcome: 'carried',
+        note: `Die Rolle ist zu lang für Projekt-Anweisungen und wird zum Rezept „${title}“ des Projekts.${lv ? ' Das Projekt bekommt den Landesverband des Agents.' : ''}`,
+      });
+    } else {
+      items.push({
+        part: 'role',
+        outcome: 'carried',
+        note: lv
+          ? 'Die Rolle wird zu den Anweisungen des Projekts; das Projekt bekommt den Landesverband des Agents.'
+          : 'Die Rolle wird zu den Anweisungen des Projekts.',
+      });
     }
-    items.push({
-      part: 'role',
-      outcome: 'carried',
-      note: landesverbandOfConvertedAgent(agent)
-        ? 'Die Rolle wird zu den Anweisungen des Projekts; das Projekt bekommt den Landesverband des Agents.'
-        : 'Die Rolle wird zu den Anweisungen des Projekts.',
-    });
   }
 
   const examples = agent.fewShotExamples?.length ?? 0;
@@ -148,11 +170,17 @@ export function planAgentConversion(
             outcome: 'carried',
             note: `${count(examples, 'Beispiel kommt', 'Beispiele kommen')} als Beispieltext mit.`,
           }
-        : {
-            part: 'examples',
-            outcome: 'dropped',
-            note: 'Beispiele haben im Projekt keinen Platz.',
-          }
+        : roleNeedsProjectRecipe(agent)
+          ? {
+              part: 'examples',
+              outcome: 'carried',
+              note: `${count(examples, 'Beispiel kommt', 'Beispiele kommen')} als Beispieltext des Projekt-Rezepts mit.`,
+            }
+          : {
+              part: 'examples',
+              outcome: 'dropped',
+              note: 'Beispiele haben im Projekt keinen Platz.',
+            }
     );
   }
 
@@ -417,13 +445,12 @@ interface StepResult {
   items: AgentConversionItem[];
 }
 
-async function convertToRecipe(
-  params: { userId: string; sharerName: string },
+/** Das Rezept aus der Rolle des Agents: Rezept-Ziel und Projekt-Rezept teilen sich das. */
+async function createRecipeFromAgent(
+  userId: string,
   agent: UserAgentRecord,
-  planned: AgentConversionItem[],
   deps: AgentConversionDeps
-): Promise<StepResult> {
-  const { userId } = params;
+): Promise<{ id: string; mention: string }> {
   const taken = await deps.takenMentions(userId);
   // Der Bezeichner ist der kurze Name, unter dem die Person den Agent kennt
   // (`@pressearbeit-kv`); der Titel kann länger als eine Mention sein und
@@ -431,7 +458,7 @@ async function convertToRecipe(
   const base = deriveRecipeMention(agent.identifier) || deriveRecipeMention(agent.title);
   const mention = resolveMentionCollision(base || 'rezept', taken);
 
-  const recipe = await deps.createRecipe(userId, {
+  return deps.createRecipe(userId, {
     mention,
     title: agent.title.trim().slice(0, MAX_TEXT_FORM_TITLE_CHARS),
     description: agent.description.trim().slice(0, MAX_TEXT_FORM_DESCRIPTION_CHARS),
@@ -441,6 +468,16 @@ async function convertToRecipe(
       .map((e) => ({ content: e.output.trim() }))
       .filter((e) => e.content.length > 0),
   });
+}
+
+async function convertToRecipe(
+  params: { userId: string; sharerName: string },
+  agent: UserAgentRecord,
+  planned: AgentConversionItem[],
+  deps: AgentConversionDeps
+): Promise<StepResult> {
+  const { userId } = params;
+  const recipe = await createRecipeFromAgent(userId, agent, deps);
 
   let items = planned;
   const groupIds = await deps.listAgentGroupIds(agent.id);
@@ -489,8 +526,14 @@ async function convertToProject(
     description: agent.description.trim(),
   });
 
+  const withRecipe = roleNeedsProjectRecipe(agent);
   try {
-    await deps.setInstructions(project.id, userId, projectInstructionsFor(agent));
+    // Mit Projekt-Rezept bleiben die Anweisungen kurz (oder leer): die Rolle
+    // steht im Rezept, das der Chat im Projekt von selbst lädt.
+    const instructions = withRecipe
+      ? shortProjectInstructionsFor(agent)
+      : projectInstructionsFor(agent);
+    if (instructions) await deps.setInstructions(project.id, userId, instructions);
     // Ein LV-Agent bindet die Wahl an seinen Verband; das Projekt übernimmt das.
     const landesverband = landesverbandOfConvertedAgent(agent);
     if (landesverband) await deps.setLandesverband(project.id, userId, landesverband);
@@ -502,6 +545,40 @@ async function convertToProject(
   }
 
   let items = planned;
+  if (withRecipe) {
+    let recipe: { id: string; mention: string };
+    try {
+      recipe = await createRecipeFromAgent(userId, agent, deps);
+    } catch (error) {
+      // Ohne Rezept hätte das Projekt gar keine Rolle: wieder abräumen.
+      await deps.trashProject(userId, project.id).catch(() => undefined);
+      throw error;
+    }
+    let shared = false;
+    try {
+      const outcome = await deps.share({
+        userId,
+        groupId: project.id,
+        contentType: 'user_text_forms',
+        contentId: recipe.id,
+        sharerName: params.sharerName,
+      });
+      shared = outcome.success;
+      if (!outcome.success) log.warn(`[convert] project recipe share refused: ${outcome.message}`);
+    } catch (error) {
+      log.warn('[convert] project recipe share failed:', error);
+    }
+    if (!shared) {
+      // Das Rezept liegt dann nur in den eigenen Rezepten; das sagt der Posten.
+      items = withNote(
+        items,
+        'role',
+        `Das Rezept „${agent.title.trim().slice(0, MAX_TEXT_FORM_TITLE_CHARS)}“ mit der Rolle ließ sich nicht ins Projekt teilen und liegt in deinen Rezepten (@${recipe.mention}). Teile es im Projekt selbst.`,
+        'later'
+      );
+    }
+  }
+
   const notebookIds = agent.defaultNotebookIds ?? [];
   if (notebookIds.length > 0) {
     let shared = 0;
