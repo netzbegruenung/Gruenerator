@@ -162,8 +162,8 @@ export const MEDIA_GRID = 'grid grid-cols-2 gap-3 md:grid-cols-3 lg:gap-4';
 export const MEDIA_TOOLS = pickTools([
   // The Studio: video tools and the Mediathek with every Sharepic, KI-Bild and video.
   { id: 'canvas', theme: 'canvas', title: 'Videos & Sharepics' },
-  // The Notebooks live on /wissen (/notebooks redirects there).
-  { id: 'wissen', theme: 'wissen', title: 'Notebooks durchsuchen' },
+  // Projekte take in the Notebooks later; the card already carries their name.
+  { id: 'projekte', theme: 'projekte', title: 'In Projekten arbeiten' },
   { id: 'canvas-vorlagen', theme: 'canvas-vorlagen', title: 'Vorlagen durchsuchen' },
   { id: 'profilbild', theme: 'profilbild', title: 'Profilbild erstellen' },
   { id: 'voice', theme: 'voice', title: 'Vertonen & transkribieren' },
