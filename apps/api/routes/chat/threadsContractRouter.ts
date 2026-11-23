@@ -45,7 +45,9 @@ import type { Application, Request } from 'express';
 
 const log = createLogger('threadsContractRouter');
 
-function getUserId(req: Request): string {
+// Pick, not Request: a contract with a typed (coerced number) query makes the
+// ts-rest request no longer assignable to Express' string-only ParsedQs.
+function getUserId(req: Pick<Request, 'user' | 'originalUrl' | 'headers'>): string {
   const user = req.user as UserProfile | undefined;
   if (!user?.id) {
     // This should never happen — the requireAuth middleware in routes.ts is
@@ -64,6 +66,8 @@ function getUserId(req: Request): string {
 
 const s = initServer();
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export const threadsContractRouter = s.router(threadsContract, {
   list: async (args) => {
     try {
@@ -76,6 +80,42 @@ export const threadsContractRouter = s.router(threadsContract, {
       if (statusFilter) {
         statusClause = ' AND COALESCE(status, $3) = $3';
         params.push(statusFilter);
+      }
+
+      // Opt-in paging / single lookup. None of these set = the whole list, as
+      // shipped clients expect (F0).
+      const { limit, before, threadId, slugSuffix } = args.query;
+      let cursorClause = '';
+      if (threadId) {
+        params.push(threadId);
+        cursorClause = ` AND t.id = $${params.length}::uuid`;
+      }
+      if (slugSuffix) {
+        params.push(slugSuffix);
+        cursorClause += ` AND t.slug_suffix = $${params.length}`;
+      }
+      // Keyset on (updated_at at millisecond precision, id): the cursor travels
+      // as an ISO string, which cannot carry Postgres' microseconds, so both the
+      // order and the comparison use the truncated value or rows would be
+      // skipped or repeated at a page boundary.
+      const paged = limit !== undefined || before !== undefined;
+      if (before !== undefined) {
+        const [cursorTime, cursorId] = before.split('|');
+        if (
+          !cursorTime ||
+          Number.isNaN(Date.parse(cursorTime)) ||
+          !cursorId ||
+          !UUID_RE.test(cursorId)
+        ) {
+          return { status: 400 as const, body: { error: 'Invalid cursor' } };
+        }
+        params.push(cursorTime, cursorId);
+        cursorClause += ` AND (date_trunc('milliseconds', t.updated_at), t.id) < ($${params.length - 1}::timestamptz, $${params.length}::uuid)`;
+      }
+      let limitClause = '';
+      if (limit !== undefined) {
+        params.push(limit);
+        limitClause = ` LIMIT $${params.length}`;
       }
 
       const rows = await postgres.query(
@@ -139,8 +179,8 @@ export const threadsContractRouter = s.router(threadsContract, {
              WHERE gcs.content_type = 'chat_threads'
                AND COALESCE((gcs.permissions->>'read')::boolean, true) = true
            )
-         )${statusClause}
-         ORDER BY t.updated_at DESC`,
+         )${statusClause}${cursorClause}
+         ORDER BY ${paged ? "date_trunc('milliseconds', t.updated_at) DESC, t.id DESC" : 't.updated_at DESC'}${limitClause}`,
         params
       );
 

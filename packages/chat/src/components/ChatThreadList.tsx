@@ -1,6 +1,6 @@
 'use client';
 
-import { ThreadListPrimitive, useAuiState } from '@assistant-ui/react';
+import { ThreadListPrimitive, useAui, useAuiState } from '@assistant-ui/react';
 import { Archive, ChevronDown, ChevronRight } from 'lucide-react';
 import { useState, useCallback, useEffect, useRef, type ComponentType } from 'react';
 
@@ -16,45 +16,47 @@ const archivedComponents = { ThreadListItem: GrueneratorArchivedThreadListItem }
 
 const THREADS_EXPANDED_KEY = 'sidebar-threads-expanded';
 
-/** Rows rendered per page. Accounts with thousands of threads otherwise put
- *  every row (and its listeners) on every page that shows the sidebar. */
-export const THREAD_PAGE_SIZE = 50;
-
 interface PagedThreadItemsProps {
   archived?: boolean;
   components: { ThreadListItem: ComponentType };
 }
 
 /**
- * Renders the newest THREAD_PAGE_SIZE threads and grows by a page whenever the
- * "Mehr anzeigen" button scrolls into view (or is clicked). The observer uses
- * the viewport as root, which also works inside the host's own scroll region.
+ * Renders the threads the runtime has loaded and asks it for the next page
+ * (`loadMore`, THREAD_LIST_PAGE_SIZE rows at a time) whenever the "Mehr
+ * anzeigen" button scrolls into view (or is clicked). The runtime holds only
+ * the pages loaded so far: it scans that list on every composer state change,
+ * so loading everything made typing lag for accounts with thousands of chats
+ * (#5987). The observer uses the viewport as root, which also works inside the
+ * host's own scroll region.
  */
 function PagedThreadItems({ archived = false, components }: PagedThreadItemsProps) {
+  const aui = useAui();
   const threadIds = useAuiState((s) =>
     archived ? s.threads.archivedThreadIds : s.threads.threadIds
   );
-  const [limit, setLimit] = useState(THREAD_PAGE_SIZE);
-  const showMore = useCallback(() => setLimit((prev) => prev + THREAD_PAGE_SIZE), []);
-  const visible = Math.min(threadIds.length, limit);
-  const hasMore = threadIds.length > visible;
+  const hasMore = useAuiState((s) => s.threads.hasMore);
+  const isLoadingMore = useAuiState((s) => s.threads.isLoadingMore);
+  const showMore = useCallback(() => {
+    void aui.threads.loadMore();
+  }, [aui]);
 
   const moreRef = useRef<HTMLButtonElement>(null);
-  // `visible` re-subscribes after each page: an observer only reports changes,
-  // so a button that stays in view after growing would never fire again.
+  // `threadIds.length` re-subscribes after each page: an observer only reports
+  // changes, so a button that stays in view after growing would never fire again.
   useEffect(() => {
     const node = moreRef.current;
-    if (!hasMore || !node || typeof IntersectionObserver === 'undefined') return;
+    if (!hasMore || isLoadingMore || !node || typeof IntersectionObserver === 'undefined') return;
     const observer = new IntersectionObserver((entries) => {
       if (entries.some((e) => e.isIntersecting)) showMore();
     });
     observer.observe(node);
     return () => observer.disconnect();
-  }, [hasMore, visible, showMore]);
+  }, [hasMore, isLoadingMore, threadIds.length, showMore]);
 
   return (
     <>
-      {threadIds.slice(0, visible).map((threadId, index) => (
+      {threadIds.map((threadId, index) => (
         <ThreadListPrimitive.ItemByIndex
           key={threadId}
           index={index}
@@ -67,6 +69,7 @@ function PagedThreadItems({ archived = false, components }: PagedThreadItemsProp
           ref={moreRef}
           type="button"
           onClick={showMore}
+          disabled={isLoadingMore}
           className="w-full rounded-md px-3 py-1.5 text-left text-xs text-foreground-muted transition-colors hover:text-foreground"
         >
           Mehr anzeigen
