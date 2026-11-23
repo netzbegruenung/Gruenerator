@@ -37,7 +37,8 @@ const rowCls =
 
 /**
  * „Wissen": was Chats im Projekt nutzen können — Dateien, Texte, Notebooks,
- * Rezepte, Agents … — als eine kompakte Liste statt großer Karten. Ein Klick
+ * Agents … — als eine kompakte Liste statt großer Karten. Rezepte stehen in
+ * ihrer eigenen Karte (`ProjectRecipesCard`). Ein Klick
  * öffnet das bestehende Ziel; Entfernen und „Im Austausch besprechen" hängen am
  * Zeilenmenü.
  */
@@ -112,16 +113,20 @@ export function ProjectKnowledgeList({
   );
 }
 
-function KnowledgeRow({
+/** Eine Zeile: öffnet das Ziel, Entfernen und Besprechen hängen am Menü. Auch die Rezepte-Karte nutzt sie. */
+export function KnowledgeRow({
   item,
   onUseTemplate,
   actions,
   onDiscuss,
+  hideKind = false,
 }: {
   item: GroupFeedItem;
   onUseTemplate: (id: string) => void;
   actions: ShareActions | null;
   onDiscuss: ProjectKnowledgeListProps['onDiscuss'];
+  /** In einer Karte, die nur eine Art zeigt (Rezepte), ist die Art kein Hinweis. */
+  hideKind?: boolean;
 }) {
   const Icon = FEED_KIND_ICONS[item.kind];
   const content: ReactNode = (
@@ -140,7 +145,9 @@ function KnowledgeRow({
         </span>
       )}
       <span className="shrink-0 text-[13px] text-muted-foreground">
-        {[groupFeedKindMeta(item.kind).label, projectRoleLabel(item)].filter(Boolean).join(' · ')}
+        {[hideKind ? null : groupFeedKindMeta(item.kind).label, projectRoleLabel(item)]
+          .filter(Boolean)
+          .join(' · ')}
       </span>
     </>
   );

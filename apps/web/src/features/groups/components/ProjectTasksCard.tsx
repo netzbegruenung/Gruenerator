@@ -25,14 +25,17 @@ export function ProjectTasksCard({ groupId, archived }: { groupId: string; archi
       className="flex flex-col gap-xs rounded-[20px] bg-card px-md py-sm shadow-sm"
     >
       <div className="flex items-center gap-sm">
-        <PiClockCounterClockwise aria-hidden className="size-5 shrink-0 text-primary-600" />
+        <PiClockCounterClockwise
+          aria-hidden
+          className="size-5 shrink-0 text-primary-600 dark:text-primary-400"
+        />
         <h2 id="projekt-geplant-titel" className="m-0 min-w-0 flex-1 text-[15px] font-semibold">
           Geplant
         </h2>
         {!archived && (
           <Link
             to={`/wiederkehrend/neu?projekt=${groupId}`}
-            className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-primary-600 hover:bg-muted"
+            className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-primary-600 dark:text-primary-400 hover:bg-muted"
           >
             <PiPlus aria-hidden className="size-4" />
             Aufgabe

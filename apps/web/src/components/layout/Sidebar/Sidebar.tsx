@@ -1,5 +1,6 @@
 import { useAgentStore, setThreadListSlot, useUserProfileStore } from '@gruenerator/chat/stores';
 import { getAgentSlug, getSystemAgent } from '@gruenerator/shared/agents';
+import { buildGroupPath } from '@gruenerator/shared/groups';
 import { sortByUsage } from '@gruenerator/shared/utils';
 import {
   Sheet,
@@ -17,10 +18,13 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getFavouriteItemsById } from '../../../config/sidebarFavouritesConfig';
 import { useCanSeeSites } from '../../../config/sitesGate';
 import { useUserAgents } from '../../../features/agents/api';
+import { useGroups } from '../../../features/groups/hooks/useGroups';
 import { useItemUsage } from '../../../features/usage/useItemUsage';
 import useAgentFavoritesStore from '../../../stores/agentFavoritesStore';
 import { useAuthStore } from '../../../stores/authStore';
-import useSidebarFavouritesStore from '../../../stores/sidebarFavouritesStore';
+import useSidebarFavouritesStore, {
+  projektFavouriteId,
+} from '../../../stores/sidebarFavouritesStore';
 import useSidebarStore from '../../../stores/sidebarStore';
 import { StatusBadge } from '../../common/StatusBadge';
 import {
@@ -39,7 +43,13 @@ import { getAgentIcon } from './sidebarAgentConfig';
 import { headerIconButtonClass, iconClass, menuLinkClass } from './sidebarStyles';
 
 import { CURRENT_INSTANCE } from '@/config/instance';
-import { FiSidebar, PiSignIn, PiSparkle, PiStarFill } from '@/config/shellIcons.generated';
+import {
+  FiSidebar,
+  LuFolderCog,
+  PiSignIn,
+  PiSparkle,
+  PiStarFill,
+} from '@/config/shellIcons.generated';
 import { cn } from '@/utils/cn';
 import { isWorkplaceSurface, startTabLink } from '@/utils/startpage';
 import '../../../assets/styles/components/layout/sidebar.css';
@@ -114,14 +124,11 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
   const searchItem = directMenuItems[GLOBAL_SEARCH_ITEM_ID];
   const sidebarExpanded = isOpen || forceExpanded;
   // Web desktop rail: the sidebar carries its own header row (wordmark, search, toggle).
-  // Expanded, search sits in that row as a tool; collapsed, the row shrinks to
-  // the toggle and search drops into the rail. Mobile (Sheet) and Tauri keep
-  // their own chrome.
+  // Search shows only in the expanded sidebar: there it sits in that row as a
+  // tool; the collapsed rail has no search entry. Mobile (Sheet) and Tauri have
+  // no header row and keep it in the list while open.
   const hasHeaderRow = !isDesktop && !isMobile;
-  const showSearchInList = !hasHeaderRow || !sidebarExpanded;
-  // The collapsed rail stays minimal (Workplace, search, the direct items);
-  // Projekte appears once expanded. Mobile and Tauri keep them in every state.
-  const showQuickViews = !hasHeaderRow || sidebarExpanded;
+  const showSearchInList = !hasHeaderRow && sidebarExpanded;
 
   // Close sidebar on route change
   useEffect(() => {
@@ -247,6 +254,13 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
 
   const startItem = additionalItems.find((item) => item.id === 'startseite');
   const restItems = additionalItems.filter((item) => item.id !== 'startseite');
+  // Projekte steht oben an der Stelle der Grüneratoren; die Grüneratoren
+  // (laufen aus, alles zieht zu den Projekten) rücken nach unten.
+  const grueneratorenIndex = restItems.findIndex((item) => item.id === 'grueneratoren');
+  const grueneratorenItem = grueneratorenIndex >= 0 ? restItems[grueneratorenIndex] : null;
+  const itemsBeforeProjekte =
+    grueneratorenIndex >= 0 ? restItems.slice(0, grueneratorenIndex) : restItems;
+  const itemsAfterProjekte = grueneratorenIndex >= 0 ? restItems.slice(grueneratorenIndex + 1) : [];
   const renderNavItem = (item: MenuItemType) =>
     !item.path ? (
       <span key={item.id} className={menuLinkClass(false, true, !sidebarExpanded)}>
@@ -426,9 +440,22 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
           </div>
         )}
 
-        {/* Direct menu items - main navigation */}
-        {restItems.length > 0 && (
-          <div className="flex flex-col gap-0 p-0">{restItems.map(renderNavItem)}</div>
+        {/* Direct menu items - main navigation, with Projekte in the old Grüneratoren slot */}
+        {itemsBeforeProjekte.length > 0 && (
+          <div className="flex flex-col gap-0 p-0">{itemsBeforeProjekte.map(renderNavItem)}</div>
+        )}
+
+        {/* Projekte: immer da, auch in der eingeklappten Leiste */}
+        <ProjekteSidebarSection
+          openRef={projekteMenuOpenRef}
+          titleClass={titleClass}
+          collapsed={!sidebarExpanded}
+          onNavigate={handleLinkClick}
+          onClose={close}
+        />
+
+        {itemsAfterProjekte.length > 0 && (
+          <div className="flex flex-col gap-0 p-0">{itemsAfterProjekte.map(renderNavItem)}</div>
         )}
 
         {/* Role quick-select (Landesverband, Grüne Jugend) — also in the collapsed rail */}
@@ -443,15 +470,9 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
           />
         )}
 
-        {/* Projekte quick-view popup */}
-        {showQuickViews && (
-          <ProjekteSidebarSection
-            openRef={projekteMenuOpenRef}
-            titleClass={titleClass}
-            collapsed={!sidebarExpanded}
-            onNavigate={handleLinkClick}
-            onClose={close}
-          />
+        {/* Grüneratoren laufen aus: nur in der ausgeklappten Seitenleiste */}
+        {sidebarExpanded && grueneratorenItem && (
+          <div className="flex flex-col gap-0 p-0">{renderNavItem(grueneratorenItem)}</div>
         )}
 
         {/* Favourites */}
@@ -609,6 +630,17 @@ const SidebarFavourites = memo(function SidebarFavourites({
   const favouriteIds = useSidebarFavouritesStore((s) => s.favouriteIds);
   const removeFavourite = useSidebarFavouritesStore((s) => s.removeFavourite);
   const configItems = getFavouriteItemsById(favouriteIds);
+  // Projekte in den Favoriten (`projekt:<id>`): aufgelöst über die eigene
+  // Projektliste (dieselbe Abfrage wie der Projekte-Abschnitt). Ein Projekt,
+  // das man verlassen hat oder das gelöscht ist, fällt still heraus.
+  const { userGroups } = useGroups({ isActive: true });
+  const projektItems = useMemo(() => {
+    const byId = new Map((userGroups ?? []).map((g) => [projektFavouriteId(g.id), g]));
+    return favouriteIds.flatMap((id) => {
+      const g = byId.get(id);
+      return g ? [{ id, title: g.name, path: buildGroupPath(g) }] : [];
+    });
+  }, [favouriteIds, userGroups]);
 
   const favoriteIdentifiers = useAgentFavoritesStore((s) => s.favoriteIdentifiers);
   const favoriteTitles = useAgentFavoritesStore((s) => s.favoriteTitles);
@@ -653,7 +685,7 @@ const SidebarFavourites = memo(function SidebarFavourites({
 
   // Favourites only show in the expanded sidebar (no icon-only rail entries).
   if (!expanded) return null;
-  if (configItems.length === 0 && agentItems.length === 0) return null;
+  if (configItems.length === 0 && projektItems.length === 0 && agentItems.length === 0) return null;
 
   const titleClass = cn(
     'min-w-0 flex-1 truncate text-left text-sm font-medium leading-tight transition-all duration-150',
@@ -726,6 +758,15 @@ const SidebarFavourites = memo(function SidebarFavourites({
           item.title,
           item.path,
           removeStar(() => removeFavourite(item.id), item.title)
+        )
+      )}
+      {projektItems.map((p) =>
+        renderRow(
+          p.id,
+          <LuFolderCog aria-hidden="true" className={iconClass} />,
+          p.title,
+          p.path,
+          removeStar(() => removeFavourite(p.id), p.title)
         )
       )}
       {agentItems.map((a) =>

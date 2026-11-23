@@ -6,6 +6,9 @@ import { LEGACY_TOOL_ID_ALIASES } from '../config/toolRegistry';
 
 const MAX_FAVOURITES = 6;
 
+/** Ein Projekt in den Favoriten: `projekt:<groupId>` neben den Werkzeug-Ids. */
+export const projektFavouriteId = (groupId: string): string => `projekt:${groupId}`;
+
 // Pinned ids survive tool renames in localStorage: map them onto the current
 // ids on rehydrate so the star state and favourites-first ordering keep
 // matching the renamed tiles. The alias map lives in the registry.

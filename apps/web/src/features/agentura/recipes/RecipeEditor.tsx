@@ -12,10 +12,12 @@ import {
 } from '@gruenerator/contracts';
 import { SKILL_CATEGORY_LABELS, SKILL_CATEGORY_ORDER } from '@gruenerator/shared/agents';
 import { isApiErrorWithStatus } from '@gruenerator/shared/api';
+import { groupContentKey } from '@gruenerator/shared/groups';
 import {
   useDeleteRecipe,
   useOwnRecipes,
   useSaveRecipe,
+  useShareRecipeWithGroup,
   classifyRecipeMention,
   splitExamples,
   effectiveMention,
@@ -23,7 +25,8 @@ import {
   type RecipeFormState,
 } from '@gruenerator/shared/grueneratoren';
 import { slugifyName } from '@gruenerator/shared/utils';
-import { Button, Input, Textarea, useConfirm } from '@gruenerator/ui';
+import { Button, Input, Textarea, toast, useConfirm } from '@gruenerator/ui';
+import { useQueryClient } from '@tanstack/react-query';
 import { useId, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -94,6 +97,8 @@ interface RecipeEditorProps {
   /** EMPTY_RECIPE_FORM (or a classification-seeded variant) for create, hydrateRecipeForm(form) for edit. */
   initialState: RecipeFormState;
   onCancel?: () => void;
+  /** Aus einem Projekt angelegt: nach dem ersten Speichern gleich dorthin teilen und zurück. */
+  projectId?: string | null;
 }
 
 /**
@@ -108,8 +113,10 @@ interface RecipeEditorProps {
  * tab the examples disclosure could not see, so that disclosure grew a second
  * name field of its own. One form, one name field.
  */
-function RecipeEditor({ mode, initialState, onCancel }: RecipeEditorProps) {
+function RecipeEditor({ mode, initialState, onCancel, projectId = null }: RecipeEditorProps) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const shareMut = useShareRecipeWithGroup();
   const confirm = useConfirm();
   const saveMut = useSaveRecipe();
   const deleteMut = useDeleteRecipe();
@@ -214,7 +221,22 @@ function RecipeEditor({ mode, initialState, onCancel }: RecipeEditorProps) {
     try {
       const payload = recipeFormToPayload(form);
       const saved = await saveMut.mutateAsync({ mention, body: payload });
-      if (mode === 'create') {
+      if (mode === 'create' && projectId) {
+        // Das Rezept ist gespeichert und gehört der Person; scheitert nur das
+        // Teilen, landet sie auf dem Rezept und kann es dort nachholen.
+        try {
+          await shareMut.mutateAsync({ mention: saved.mention, groupId: projectId });
+          void queryClient.invalidateQueries({ queryKey: groupContentKey(projectId) });
+          void navigate(`/projekte/${encodeURIComponent(projectId)}`);
+        } catch (shareErr) {
+          toast.error(
+            `Rezept gespeichert, aber nicht ins Projekt geteilt: ${
+              shareErr instanceof Error ? shareErr.message : 'unbekannter Fehler'
+            }`
+          );
+          void navigate(`/agentura/rezept/${encodeURIComponent(saved.mention)}`);
+        }
+      } else if (mode === 'create') {
         void navigate(`/agentura/rezept/${encodeURIComponent(saved.mention)}`);
       } else {
         setJustSaved(true);
@@ -253,7 +275,7 @@ function RecipeEditor({ mode, initialState, onCancel }: RecipeEditorProps) {
       if (recipeId) {
         showTrashUndo({ kind: 'user_text_form', id: recipeId, title: form.title || mention });
       }
-      void navigate('/grueneratoren');
+      void navigate('/projekte');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Löschen fehlgeschlagen.');
     }
@@ -307,7 +329,7 @@ function RecipeEditor({ mode, initialState, onCancel }: RecipeEditorProps) {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => (onCancel ? onCancel() : navigate('/grueneratoren'))}
+            onClick={() => (onCancel ? onCancel() : navigate('/projekte'))}
             disabled={saveMut.isPending}
           >
             Abbrechen
