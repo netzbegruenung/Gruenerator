@@ -19,6 +19,7 @@ import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
 import { useProjekteTone } from '../../../components/projekte/projekteTone';
 import { ProjektTile } from '../../../components/projekte/ProjektTile';
 import { pickRecentEntries } from '../../../components/projekte/recentEntries';
+import { useAddedRecipes } from '../../../hooks/agents/useAddedRecipes';
 import { useOwnRecipes } from '../../../hooks/agents/useOwnRecipes';
 import { useUserGroups, type GroupSummary } from '../../../hooks/useGroups';
 import { useItemUsage } from '../../../hooks/useItemUsage';
@@ -59,7 +60,25 @@ export default function ProjekteScreen() {
   const { data: projectUsage } = useItemUsage('project');
   const { data: notebookUsage } = useItemUsage('notebook');
   const { collections: notebooks, isLoading: notebooksLoading } = useNotebookCollections();
-  const { data: recipes = [], isSuccess: recipesLoaded, isError: recipesFailed } = useOwnRecipes();
+  const own = useOwnRecipes();
+  const added = useAddedRecipes();
+  // Web's order: own first, then what came from the Marktplatz, each A–Z.
+  const recipes = useMemo(() => {
+    const byTitle = <T extends { title: string }>(list: T[]) =>
+      [...list].sort((a, b) => a.title.localeCompare(b.title, 'de'));
+    const toTile = (r: { title: string; mention: string; description?: string | null }) => ({
+      title: r.title,
+      mention: r.mention,
+      meta: r.description || `@${r.mention}`,
+    });
+    return [
+      ...byTitle(own.data ?? []).map((r) => ({ key: `r-${r.id}`, ...toTile(r) })),
+      ...byTitle(added.skills).map((s) => ({ key: `s-${s.mention}`, ...toTile(s) })),
+      ...byTitle(added.forms).map((r) => ({ key: `p-${r.id}`, ...toTile(r) })),
+    ];
+  }, [own.data, added.skills, added.forms]);
+  const recipesLoaded = own.isSuccess && (added.loaded || added.failed);
+  const recipesFailed = own.isError;
   const recent = useMemo(
     () => pickRecentEntries(groups, notebooks, projectUsage, notebookUsage),
     [groups, notebooks, projectUsage, notebookUsage]
@@ -248,11 +267,11 @@ export default function ProjekteScreen() {
             <View style={styles.grid}>
               {recipes.map((r) => (
                 <InfoTile
-                  key={r.id}
+                  key={r.key}
                   size={tile}
                   icon="restaurant-outline"
                   title={r.title}
-                  meta={r.description ?? `@${r.mention}`}
+                  meta={r.meta}
                   onPress={() => openRecipe(r.mention)}
                 />
               ))}
