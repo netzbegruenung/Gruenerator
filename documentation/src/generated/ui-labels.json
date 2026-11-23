@@ -382,13 +382,16 @@
     "path": "/sites"
   },
   "menu.startseite": {
-    "title": "Workplace",
-    "subtitle": "Erstellen, Dokumente & Medien",
-    "path": "/"
+    "title": "Chat",
+    "subtitle": "Mit dem Grünerator chatten"
   },
   "menu.support": {
     "title": "Support",
     "path": "/support"
+  },
+  "menu.workplace": {
+    "title": "Workplace",
+    "subtitle": "Erstellen, Dokumente & Medien"
   },
   "workplace.boards": {
     "title": "Leeres Board",
