@@ -48,7 +48,8 @@ const ArbeitenFallback = () => (
 const WorkplacePage = () => {
   const { tab: tabParam } = useParams();
   const [searchParams] = useSearchParams();
-  const home: WorkplaceTab = useAuthStore((s) => s.user?.default_startpage ?? 'chat');
+  // TRIAL: no Chat page, /start always opens the Workplace.
+  const home: WorkplaceTab = 'arbeiten';
   // The seeded user from the last visit may carry a stale setting.
   const homeConfirmed = useAuthStore((s) => s.hasServerConfirmed);
   const chatBackground = useAuthStore((s) => s.user?.chat_background);
@@ -130,7 +131,8 @@ const WorkplacePage = () => {
         {/* On phones it leaves room for the floating sidebar button (the 48 px header); the top edge fades in. */}
         <div
           hidden={tab !== 'arbeiten'}
-          className="mt-12 min-h-0 flex-1 overflow-y-auto [mask-image:linear-gradient(to_bottom,transparent,black_12px)] md:mt-0"
+          // TRIAL: phones snap between the greeting screen and „Zuletzt" (a heavy, stopping scroll).
+          className="mt-12 min-h-0 flex-1 overflow-y-auto [mask-image:linear-gradient(to_bottom,transparent,black_12px)] max-md:snap-y max-md:snap-mandatory md:mt-0"
         >
           {arbeitenMounted && (
             <Suspense fallback={<ArbeitenFallback />}>

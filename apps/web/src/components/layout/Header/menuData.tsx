@@ -75,7 +75,7 @@ export const getDirectMenuItems = ({
     path: startTabPath('arbeiten', home),
     title: 'Workplace',
     description: 'Erstellen, Dokumente & Medien',
-    icon: getIcon('navigation', 'workplace'),
+    icon: getIcon('navigation', 'home'), // TRIAL: the Grünerator mark from the Chat entry
     exactActivePaths: ['/start/arbeiten', ...homeAliases('arbeiten')],
   };
 

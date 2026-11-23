@@ -51,36 +51,37 @@ describe('WorkplacePage', () => {
     useAuthStore.setState({ user: { default_startpage: 'chat' }, hasServerConfirmed: true });
   });
 
-  it('opens the view from the start-page setting on bare /start', async () => {
-    useAuthStore.setState({ user: { default_startpage: 'arbeiten' } });
+  // TRIAL: /start always opens Arbeiten; the start-page setting no longer picks
+  // the view, Chat stays reachable by path.
+  it('opens Arbeiten on bare /start, whatever the start-page setting says', async () => {
     renderAt('/start');
     expect(await screen.findByText('Arbeiten-Inhalt')).toBeVisible();
     expect(shows()).toBe('Arbeiten');
   });
 
-  it('lets the path override the setting', async () => {
-    renderAt('/start/arbeiten');
-    expect(await screen.findByText('Arbeiten-Inhalt')).toBeVisible();
-    expect(shows()).toBe('Arbeiten');
+  it('still opens Chat by path', () => {
+    renderAt('/start/chat');
+    expect(url()).toBe('/start/chat');
+    expect(shows()).toBe('Chat');
   });
 
   it('switches views without remounting Chat, the home view at bare /start', async () => {
-    renderAt('/start');
+    renderAt('/start/chat');
     fireEvent.change(screen.getByLabelText('Composer'), { target: { value: 'Entwurf' } });
 
-    act(() => navigateTo('/start/arbeiten'));
+    act(() => navigateTo('/start'));
     expect(await screen.findByText('Arbeiten-Inhalt')).toBeVisible();
     expect(screen.getByLabelText('Composer')).not.toBeVisible();
 
-    act(() => navigateTo('/start'));
+    act(() => navigateTo('/start/chat'));
     expect(screen.getByLabelText('Composer')).toBeVisible();
     expect(screen.getByLabelText('Composer')).toHaveValue('Entwurf');
   });
 
   it('folds the home view spelled out into bare /start', () => {
-    renderAt('/start/chat?x=1');
+    renderAt('/start/arbeiten?x=1');
     expect(url()).toBe('/start?x=1');
-    expect(shows()).toBe('Chat');
+    expect(shows()).toBe('Arbeiten');
   });
 
   it('keeps an explicit path while the setting is unconfirmed', () => {
@@ -91,29 +92,29 @@ describe('WorkplacePage', () => {
   });
 
   it('comes back to Arbeiten after leaving the page from there', async () => {
-    renderAt('/start');
-    act(() => navigateTo('/start/arbeiten'));
+    renderAt('/start/chat');
+    act(() => navigateTo('/start'));
     act(() => navigateTo('/office'));
     expect(screen.getByText('Office')).toBeInTheDocument();
 
     act(() => navigateTo(-1));
-    expect(url()).toBe('/start/arbeiten');
+    expect(url()).toBe('/start');
     expect(await screen.findByText('Arbeiten-Inhalt')).toBeVisible();
   });
 
   it('forwards the old ?page= links to the view path', () => {
-    renderAt('/start?page=arbeiten&foo=1');
-    expect(url()).toBe('/start/arbeiten?foo=1');
+    renderAt('/start?page=chat&foo=1');
+    expect(url()).toBe('/start/chat?foo=1');
   });
 
   it('forwards ?page= for the home view to bare /start', () => {
-    renderAt('/start?page=chat');
+    renderAt('/start?page=arbeiten');
     expect(url()).toBe('/start');
   });
 
-  it('sends an unknown view to /start', () => {
+  it('sends an unknown view to /start', async () => {
     renderAt('/start/quatsch');
     expect(url()).toBe('/start');
-    expect(shows()).toBe('Chat');
+    expect(await screen.findByText('Arbeiten-Inhalt')).toBeVisible();
   });
 });

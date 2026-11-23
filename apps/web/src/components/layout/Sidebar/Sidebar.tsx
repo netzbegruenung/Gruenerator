@@ -86,7 +86,7 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
   const locale = useAuthStore((state) => state.locale);
   const isAustrian = locale === 'de-AT';
   const canSeeSites = useCanSeeSites();
-  const home = useAuthStore((s) => s.user?.default_startpage ?? 'chat');
+  const home = 'arbeiten' as const; // TRIAL: no Chat page
   // Workplace paints a wide, tinted gradient behind the (fixed, translucent)
   // sidebar. bg-background/70 alone still reads as a near-solid panel — at
   // 70% opacity barely any of the gradient shows even with blur — so
@@ -262,9 +262,11 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
   );
 
   // Chat and Workplace (the two views of `/start`) lead the list.
-  const START_IDS = ['startseite', 'workplace'];
+  const START_IDS = ['workplace']; // TRIAL: Chat entry hidden
   const startItems = additionalItems.filter((item) => START_IDS.includes(item.id));
-  const restItems = additionalItems.filter((item) => !START_IDS.includes(item.id));
+  const restItems = additionalItems.filter(
+    (item) => !START_IDS.includes(item.id) && item.id !== 'startseite'
+  );
   // Projekte steht oben an der Stelle der Grüneratoren; die Grüneratoren
   // (laufen aus, alles zieht zu den Projekten) rücken nach unten.
   const grueneratorenIndex = restItems.findIndex((item) => item.id === 'grueneratoren');
@@ -275,7 +277,7 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
   // The Chat logo is a filled mark with air around it: a touch larger (and
   // square, its own size is 1.1em × 1.1em) so it weighs like the outline icons.
   const navIconClass = (item: MenuItemType) =>
-    cn(iconClass, item.id === 'startseite' && 'size-[22px] -m-px');
+    cn(iconClass, item.icon === directMenuItems.startseite?.icon && 'size-[22px] -m-px');
   const renderNavItem = (item: MenuItemType) =>
     !item.path ? (
       <span key={item.id} className={menuLinkClass(false, true, !sidebarExpanded)}>
@@ -523,7 +525,12 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
 
       {/* Account block (authenticated) or login button */}
       {user ? (
-        <SidebarAccount sidebarExpanded={sidebarExpanded} openRef={accountMenuOpenRef} />
+        <SidebarAccount
+          sidebarExpanded={sidebarExpanded}
+          openRef={accountMenuOpenRef}
+          // TRIAL: the collapsed web rail has search at the bottom, above the bell.
+          onSearch={hasHeaderRow ? () => setSearchOpen(true) : undefined}
+        />
       ) : (
         <div className="mt-auto px-2 py-2 shrink-0">
           <NavTooltip label="Anmelden" collapsed={!sidebarExpanded}>
