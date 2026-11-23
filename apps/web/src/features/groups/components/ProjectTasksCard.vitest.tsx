@@ -1,6 +1,6 @@
 import { type RecurringTask } from '@gruenerator/contracts';
 import { screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { axe, renderWithProviders } from '../../../test-utils';
 
@@ -9,6 +9,11 @@ import { ProjectTasksCard } from './ProjectTasksCard';
 const tasks = vi.hoisted(() => ({ value: [] as RecurringTask[] }));
 vi.mock('../../recurring-tasks/api', () => ({
   useRecurringTasks: () => ({ data: tasks.value }),
+}));
+
+const enabled = vi.hoisted(() => ({ value: true }));
+vi.mock('../../recurring-tasks/useScheduledTasksEnabled', () => ({
+  useScheduledTasksEnabled: () => enabled.value,
 }));
 
 const task = (id: string, groupId: string | null): RecurringTask =>
@@ -21,6 +26,18 @@ const task = (id: string, groupId: string | null): RecurringTask =>
   }) as RecurringTask;
 
 describe('ProjectTasksCard', () => {
+  beforeEach(() => {
+    enabled.value = true;
+  });
+
+  it('renders nothing while „Geplante Aufgaben“ is off', () => {
+    enabled.value = false;
+    tasks.value = [task('a', 'g1')];
+    const { container } = renderWithProviders(<ProjectTasksCard groupId="g1" archived={false} />);
+    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByText('Geplant')).not.toBeInTheDocument();
+  });
+
   it('lists only the tasks of this project and links „+ Aufgabe“ with the project preselected', async () => {
     tasks.value = [task('a', 'g1'), task('b', 'g2'), task('c', null)];
     const { container } = renderWithProviders(<ProjectTasksCard groupId="g1" archived={false} />);

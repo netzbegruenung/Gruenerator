@@ -1265,7 +1265,10 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
     // 3. Das Vokabular fürs Verwalten: „pausier die Erinnerung", „welche
     //    Aufgaben laufen bei mir".
     const agenturaText = state.lastUserTextNoMentions ?? lastUserText(state);
+    // Experimentell: ohne den Schalter `scheduled_tasks_enabled` (Einstellungen)
+    // montiert nichts, damit das Modell die Funktion gar nicht erst anbietet.
     if (
+      state.scheduledTasksEnabled &&
       state.enabledTools?.['recurring_tasks'] !== false &&
       (state.mentionPinnedTool === 'recurring_tasks' ||
         looksLikeRecurringOrder(agenturaText) ||

@@ -24,14 +24,15 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../../components/common/PageContainer';
-import { getToolGradient } from '../../../config/toolTheme';
 import { useFirstName } from '../../../hooks/useFirstName';
 import { useDocumentsStore } from '../../../stores/documentsStore';
+import { useItemUsage, useRecordItemUsage } from '../../usage/useItemUsage';
 import { WorkplaceHero } from '../../workplace/components/WorkplaceHero';
 import GroupDetailSection from '../components/GroupDetailSection';
 import GroupsCreateSection, { type CreateGroupExtras } from '../components/GroupsCreateSection';
 import { ProjekteComposer } from '../components/ProjekteComposer';
 import { ProjekteNotebooksSection } from '../components/ProjekteNotebooksSection';
+import { ProjekteRecentSection } from '../components/ProjekteRecentSection';
 import { ProjekteRecipesSection } from '../components/ProjekteRecipesSection';
 import { ProjektTile } from '../components/ProjektTile';
 import PublicGroupsSection from '../components/PublicGroupsSection';
@@ -40,6 +41,7 @@ import { useGroups, useInviteToGroup, type GroupSummary } from '../hooks/useGrou
 import { serverMessage } from '../serverMessage';
 
 const SORT_LABELS: Record<GroupSort, string> = {
+  recommended: 'Empfohlen',
   activity: 'Zuletzt aktiv',
   name: 'Name',
   newest: 'Neueste',
@@ -78,11 +80,14 @@ const ProjektePage = () => {
     createGroupError,
   } = useGroups({ isActive: true });
   const inviteToGroup = useInviteToGroup();
-  const [sort, setSort] = useState<GroupSort>('activity');
+  // Öffnen der Projektseite zählt als Nutzung (Chats im Projekt zählt der Server).
+  useRecordItemUsage('project', idOrSlug ? resolvedGroupId : null);
+  const { data: projectUsage } = useItemUsage('project');
+  const [sort, setSort] = useState<GroupSort>('recommended');
   const { active: activeGroups, archived: archivedGroups } = useMemo(() => {
     const split = splitArchivedGroups(userGroups ?? []);
-    return { active: sortGroups(split.active, sort), archived: split.archived };
-  }, [userGroups, sort]);
+    return { active: sortGroups(split.active, sort, projectUsage ?? {}), archived: split.archived };
+  }, [userGroups, sort, projectUsage]);
 
   const showSuccess = useCallback((msg: string) => {
     if (successTimer.current) clearTimeout(successTimer.current);
@@ -214,10 +219,10 @@ const ProjektePage = () => {
     );
   }
 
-  // Overview — Office/Studio landing recipe: tinted gradient shell, hero greeting,
+  // Overview — plain page (no tinted shell), hero greeting,
   // a create-or-search composer, the create "tool", then the project grids.
   return (
-    <PageContainer maxWidth="lg" noPadTop bgClassName={getToolGradient('projekte')}>
+    <PageContainer maxWidth="lg" noPadTop>
       {banners}
 
       <WorkplaceHero title={firstName ? `Deine Projekte, ${firstName}` : 'Deine Projekte'}>
@@ -227,6 +232,8 @@ const ProjektePage = () => {
           onCreate={openCreate}
         />
       </WorkplaceHero>
+
+      <ProjekteRecentSection projekte={activeGroups} />
 
       <SectionHeader
         title="Deine Projekte"

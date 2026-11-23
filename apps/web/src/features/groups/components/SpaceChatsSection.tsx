@@ -2,8 +2,8 @@ import { getContractsClient } from '@gruenerator/shared/api';
 import { projectChatThreads } from '@gruenerator/shared/groups';
 import { buildChatThreadSlug } from '@gruenerator/shared/utils';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect } from 'react';
-import { PiChatCircle } from 'react-icons/pi';
+import { type ReactNode, useEffect, useState } from 'react';
+import { PiCaretRight, PiChatCircle } from 'react-icons/pi';
 import { Link } from 'react-router-dom';
 
 const MINUTE = 60_000;
@@ -34,7 +34,24 @@ export function formatRelativeDate(iso: string, now: number = Date.now()): strin
  * slim list: title and relative date. Client-side filter over the thread list —
  * no dedicated endpoint needed.
  */
-export function SpaceChatsSection({ groupId }: { groupId: string }) {
+/** Gemeinsamer Look der beiden Bedienelemente unter dem Composer (Liste, Teilen-Schalter). */
+export const PROJECT_CHAT_ROW_CONTROL =
+  'inline-flex h-8 items-center gap-xs rounded-full border-none bg-transparent px-3 font-[inherit] text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground';
+
+/** Aufgeklappt stehen zuerst so viele Chats da; der Rest auf Wunsch. */
+const CHATS_SHOWN = 5;
+
+export function SpaceChatsSection({
+  groupId,
+  aside = null,
+}: {
+  groupId: string;
+  /** Steht rechts in der Zeile mit „Bisherige Chats“ (der Teilen-Schalter des Composers). */
+  aside?: ReactNode;
+}) {
+  // Bisherige Chats sind eingeklappt: oben steht der neue Chat, nicht die Liste.
+  const [open, setOpen] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const {
     data: threads = [],
     isLoading,
@@ -56,20 +73,34 @@ export function SpaceChatsSection({ groupId }: { groupId: string }) {
     return () => window.removeEventListener('gruenerator:space-threads-changed', onChanged);
   }, [refetch]);
 
-  if (isLoading) return null;
-
   return (
     <section aria-labelledby="projekt-chats-titel" className="flex flex-col gap-xs">
-      <h2 id="projekt-chats-titel" className="sr-only">
-        Chats in diesem Projekt
-      </h2>
-      {threads.length === 0 ? (
+      {/* -mx-3: die Polsterung der beiden Flächen liegt außerhalb, der Text
+          steht bündig mit Überschrift und Composer. */}
+      <div className="-mx-3 flex flex-wrap items-center justify-between gap-sm">
+        <button
+          id="projekt-chats-titel"
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+          className={`${PROJECT_CHAT_ROW_CONTROL} cursor-pointer`}
+        >
+          <PiCaretRight
+            aria-hidden
+            className={`size-4 transition-transform ${open ? 'rotate-90' : ''}`}
+          />
+          Bisherige Chats
+          <span className="font-normal">{threads.length}</span>
+        </button>
+        {aside}
+      </div>
+      {!open ? null : threads.length === 0 ? (
         <p className="m-0 px-sm text-[15px] text-muted-foreground">
           Noch keine Chats. Starte oben den ersten.
         </p>
       ) : (
         <ul className="m-0 flex list-none flex-col p-0">
-          {threads.map((t) => {
+          {(showAll ? threads : threads.slice(0, CHATS_SHOWN)).map((t) => {
             const slug = t.slugSuffix ? buildChatThreadSlug(t.title, t.slugSuffix) : t.id;
             const isTeam = t.teamShared === true || t.accessType === 'group';
             const isOwn = !t.accessType || t.accessType === 'owner';
@@ -111,6 +142,15 @@ export function SpaceChatsSection({ groupId }: { groupId: string }) {
             );
           })}
         </ul>
+      )}
+      {open && threads.length > CHATS_SHOWN && (
+        <button
+          type="button"
+          onClick={() => setShowAll((v) => !v)}
+          className="self-start cursor-pointer rounded-md border-none bg-transparent px-sm py-1 font-[inherit] text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          {showAll ? 'Weniger anzeigen' : `Alle ${threads.length} Chats anzeigen`}
+        </button>
       )}
     </section>
   );

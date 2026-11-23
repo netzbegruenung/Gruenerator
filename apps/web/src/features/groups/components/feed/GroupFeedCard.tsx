@@ -27,6 +27,7 @@ import {
 } from '@gruenerator/ui';
 import { useState } from 'react';
 import {
+  PiCaretUp,
   PiChatCircle,
   PiDotsThreeVertical,
   PiFlag,
@@ -57,6 +58,8 @@ export interface GroupFeedCardProps {
   isCloning: boolean;
   /** Rolle ändern und entfernen; null: der Viewer verwaltet hier nichts. */
   actions: ShareActions | null;
+  /** In der Austausch-Liste: die Karte ist die aufgeklappte Zeile; null = keine Zeile, nichts einzuklappen. */
+  onCollapse?: (() => void) | null;
 }
 
 const BOARD_CELLS = [1, 1, 1, 1, 1, 0, 1].map((filled, i) => ({ id: `c${i}`, filled: !!filled }));
@@ -186,6 +189,7 @@ export function GroupFeedCard({
   onUseTemplate,
   isCloning,
   actions,
+  onCollapse = null,
 }: GroupFeedCardProps) {
   const [open, setOpen] = useState(defaultOpen);
   const [editing, setEditing] = useState(false);
@@ -346,6 +350,12 @@ export function GroupFeedCard({
           <h3 className="m-0 min-w-0 truncate text-[17px] font-semibold">{item.title}</h3>
         )}
         <div className="flex shrink-0 items-center gap-1">
+          {onCollapse && (
+            <Button variant="ghost" size="sm" onClick={onCollapse}>
+              <PiCaretUp aria-hidden />
+              Einklappen
+            </Button>
+          )}
           {canComment && share && (
             <Button
               variant="ghost"

@@ -665,12 +665,30 @@ describe('toolCatalog recurring_tasks — drei Tore, sonst nicht montiert', () =
       sourceRegistry,
       loop: {
         sse,
-        state: { intent: 'agentic', enabledTools: {}, ...state } as unknown as ChatGraphState,
+        state: {
+          intent: 'agentic',
+          enabledTools: {},
+          scheduledTasksEnabled: true,
+          ...state,
+        } as unknown as ChatGraphState,
       },
     }).toolNames;
   }
   const withText = (text: string, over: Record<string, unknown> = {}) =>
     catalogFor({ messages: [{ role: 'user', content: text }], ...over });
+
+  it('montiert nie, wenn „Geplante Aufgaben" ausgeschaltet ist — auch nicht gegen Pin und Vokabular', () => {
+    const off = { scheduledTasksEnabled: false };
+    expect(
+      withText('Erinnere mich jeden Montag an den Bericht', {
+        ...off,
+        mentionPinnedTool: 'recurring_tasks',
+      })
+    ).not.toContain('recurring_tasks');
+    expect(withText('Welche wiederkehrenden Aufgaben laufen bei mir?', off)).not.toContain(
+      'recurring_tasks'
+    );
+  });
 
   it('bleibt bei einem gewöhnlichen Turn weg — das Schema kostet auf jedem Turn', () => {
     expect(withText('Was sagt das Wahlprogramm zum Tempolimit?')).not.toContain('recurring_tasks');

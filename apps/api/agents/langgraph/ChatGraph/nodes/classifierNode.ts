@@ -2399,7 +2399,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // Erwähnung tut — nur dass hier der Detektor pinnt. Der Loop-Planer füllt
     // Takt und Zustellung selbst, und das Anlegen ist eine Karte; bis 09/2026
     // schrieb der Intent `create_recurring_task` ohne Bestätigung in die DB.
-    if (looksLikeRecurringOrder(userContent)) {
+    if (state.scheduledTasksEnabled && looksLikeRecurringOrder(userContent)) {
       log.info('[Classifier] Recurring order → loop with recurring_tasks pinned (LLM skipped)');
       recordDecision('classifier.tier', 'tier3.4_recurring_order', {});
       return {

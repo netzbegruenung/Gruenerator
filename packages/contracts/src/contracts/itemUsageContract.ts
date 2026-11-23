@@ -1,10 +1,10 @@
 /**
  * ts-rest contract for /api/item-usage
  *
- * Read-only: returns the current user's usage aggregate for one item type so
+ * Returns the current user's usage aggregate for one item type so
  * the client can rank static lists (system notebooks / agents) the same way the
  * server ranks user notebooks / agents. Writes happen server-side from the chat
- * stream and notebook QA paths — there is no client write endpoint.
+ * stream and notebook QA paths — the client only records what it opens itself (projects).
  */
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
@@ -12,6 +12,8 @@ import { z } from 'zod';
 import {
   itemUsageTypeSchema,
   getItemUsageResponseSchema,
+  recordItemUsageBodySchema,
+  recordItemUsageResponseSchema,
   itemUsageErrorResponseSchema,
 } from '../schemas/itemUsage.js';
 
@@ -32,7 +34,21 @@ export const itemUsageContract = c.router(
         400: itemUsageErrorResponseSchema,
         500: itemUsageErrorResponseSchema,
       },
-      summary: 'Get usage stats for notebooks or agents',
+      summary: 'Get usage stats for notebooks, agents or projects',
+    },
+    /**
+     * POST /api/item-usage — record one use of an item the client opened
+     * (a project page). Chat paths still record server-side.
+     */
+    recordUsage: {
+      method: 'POST',
+      path: '/api/item-usage',
+      body: recordItemUsageBodySchema,
+      responses: {
+        200: recordItemUsageResponseSchema,
+        500: itemUsageErrorResponseSchema,
+      },
+      summary: 'Record one use of a notebook, agent or project',
     },
   },
   { pathPrefix: '' }

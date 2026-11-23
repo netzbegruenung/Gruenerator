@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { cn, Switch } from '@gruenerator/ui';
+import { useId, useState } from 'react';
 
 import ChatInner from '../../workplace/components/ChatInner';
 
+import { PROJECT_CHAT_ROW_CONTROL, SpaceChatsSection } from './SpaceChatsSection';
+
 interface ProjectChatComposerProps {
   groupId: string;
-  /** Nobody else in the Projekt (or the system Projekt): there is no team to share with. */
-  solo?: boolean;
 }
 
 /**
@@ -13,25 +14,43 @@ interface ProjectChatComposerProps {
  * Modell, Werkzeuge, Anhänge auf „Auto"), ohne Projekt-Picker: die Seite ist die
  * Wahl. Der Chat legt den Thread dann MIT `groupId` an (`pendingGroup`),
  * bevor der erste Turn läuft — der liest den Projekt-Kontext zur Laufzeit.
+ * Der Schalter „Im Projekt teilen" entscheidet nur, ob der Chat für die anderen
+ * Mitglieder sichtbar ist; das Wissen des Projekts nutzt er auch privat.
  */
-export function ProjectChatComposer({ groupId, solo = false }: ProjectChatComposerProps) {
-  const [teamShared, setTeamShared] = useState(true);
+export function ProjectChatComposer({ groupId }: ProjectChatComposerProps) {
+  const [shared, setShared] = useState(true);
+  const hintId = useId();
+  const titleId = useId();
+  const switchId = useId();
 
   return (
-    <div className="flex flex-col gap-xs">
-      <ChatInner projectId={groupId} teamShared={!solo && teamShared} />
-      {solo ? null : (
-        <label className="mx-auto flex w-full max-w-[720px] cursor-pointer items-center gap-xs px-sm text-[13px] text-muted-foreground">
-          <input
-            type="checkbox"
-            role="switch"
-            checked={teamShared}
-            onChange={(event) => setTeamShared(event.target.checked)}
-            className="size-4 accent-primary-600"
-          />
-          Für das Team
-        </label>
-      )}
-    </div>
+    <section aria-labelledby={titleId} className="flex flex-col gap-xs">
+      <h2 id={titleId} className="m-0 text-[17px] font-semibold">
+        Neuen Chat im Projekt starten
+      </h2>
+      <ChatInner projectId={groupId} teamShared={shared} />
+      <SpaceChatsSection
+        groupId={groupId}
+        aside={
+          <div className="flex flex-col items-end">
+            <label htmlFor={switchId} className={cn(PROJECT_CHAT_ROW_CONTROL, 'cursor-pointer')}>
+              Im Projekt teilen
+              <Switch
+                id={switchId}
+                size="sm"
+                checked={shared}
+                onCheckedChange={setShared}
+                aria-describedby={shared ? undefined : hintId}
+              />
+            </label>
+            {shared ? null : (
+              <p id={hintId} className="m-0 px-sm text-[13px] text-muted-foreground">
+                Privat – nutzt trotzdem das Wissen des Projekts
+              </p>
+            )}
+          </div>
+        }
+      />
+    </section>
   );
 }

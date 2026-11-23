@@ -20,6 +20,7 @@ export interface Profile {
   beta_features?: Record<string, unknown>;
   memory_enabled?: boolean;
   proactive_briefing_enabled?: boolean;
+  scheduled_tasks_enabled?: boolean;
   [key: string]: unknown;
 }
 
@@ -170,6 +171,7 @@ export interface ProfileUpdateData {
   custom_prompt?: string | null;
   memory_enabled?: boolean;
   proactive_briefing_enabled?: boolean;
+  scheduled_tasks_enabled?: boolean;
 }
 
 // === AVATAR DISPLAY TYPES ===
@@ -261,6 +263,7 @@ export const profileApiService = {
       beta_features: profile.beta_features || {},
       memory_enabled: profile.memory_enabled || false,
       proactive_briefing_enabled: profile.proactive_briefing_enabled ?? false,
+      scheduled_tasks_enabled: profile.scheduled_tasks_enabled ?? false,
       custom_prompt: profile.custom_prompt || '',
     };
 
@@ -312,11 +315,14 @@ export const profileApiService = {
       custom_prompt?: string;
       memory_enabled?: boolean;
       proactive_briefing_enabled?: boolean;
+      scheduled_tasks_enabled?: boolean;
     } = {};
     if (profileData.display_name !== undefined) body.display_name = profileData.display_name;
     if (profileData.memory_enabled !== undefined) body.memory_enabled = profileData.memory_enabled;
     if (profileData.proactive_briefing_enabled !== undefined)
       body.proactive_briefing_enabled = profileData.proactive_briefing_enabled;
+    if (profileData.scheduled_tasks_enabled !== undefined)
+      body.scheduled_tasks_enabled = profileData.scheduled_tasks_enabled;
     if (profileData.username !== undefined) body.username = profileData.username ?? '';
     if (profileData.email !== undefined) body.email = profileData.email ?? '';
     if (profileData.custom_prompt !== undefined)

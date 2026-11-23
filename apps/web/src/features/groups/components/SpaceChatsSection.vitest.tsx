@@ -55,7 +55,10 @@ describe('SpaceChatsSection', () => {
         ])
       )
     );
-    const { container } = renderWithProviders(<SpaceChatsSection groupId="g1" />);
+    const { container, user } = renderWithProviders(<SpaceChatsSection groupId="g1" />);
+    // Eingeklappt: erst die Zeile, dann die Liste.
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: /Bisherige Chats\s*2/ }));
     const links = await screen.findAllByRole('link');
     expect(links.map((l) => l.textContent)).toEqual([
       expect.stringContaining('Neuer Chat'),
@@ -67,7 +70,8 @@ describe('SpaceChatsSection', () => {
 
   it('shows one short line when there are no chats', async () => {
     server.use(http.get('http://localhost/api/chat-service/threads', () => HttpResponse.json([])));
-    renderWithProviders(<SpaceChatsSection groupId="g1" />);
+    const { user } = renderWithProviders(<SpaceChatsSection groupId="g1" />);
+    await user.click(screen.getByRole('button', { name: /Bisherige Chats/ }));
     expect(await screen.findByText(/Noch keine Chats/)).toBeInTheDocument();
   });
 
@@ -93,7 +97,8 @@ describe('SpaceChatsSection', () => {
         ])
       )
     );
-    const { container } = renderWithProviders(<SpaceChatsSection groupId="g1" />);
+    const { container, user } = renderWithProviders(<SpaceChatsSection groupId="g1" />);
+    await user.click(await screen.findByRole('button', { name: /Bisherige Chats\s*3/ }));
     const items = await screen.findAllByRole('listitem');
     expect(items[0]).toHaveTextContent('Team');
     expect(items[0]).toHaveTextContent('Anna Beispiel');
@@ -102,5 +107,25 @@ describe('SpaceChatsSection', () => {
     expect(items[1]).not.toHaveTextContent('Team');
     expect(items[2]).toHaveTextContent('Team');
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('shows five chats, then all of them on request', async () => {
+    server.use(
+      http.get('http://localhost/api/chat-service/threads', () =>
+        HttpResponse.json(
+          Array.from({ length: 7 }, (_, i) =>
+            thread(`t${i}`, `Chat ${i}`, `2026-11-0${i + 1}T10:00:00Z`, 'g1')
+          )
+        )
+      )
+    );
+    const { user } = renderWithProviders(
+      <SpaceChatsSection groupId="g1" aside={<span>DANEBEN</span>} />
+    );
+    expect(screen.getByText('DANEBEN')).toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: /Bisherige Chats\s*7/ }));
+    expect(await screen.findAllByRole('link')).toHaveLength(5);
+    await user.click(screen.getByRole('button', { name: 'Alle 7 Chats anzeigen' }));
+    expect(screen.getAllByRole('link')).toHaveLength(7);
   });
 });

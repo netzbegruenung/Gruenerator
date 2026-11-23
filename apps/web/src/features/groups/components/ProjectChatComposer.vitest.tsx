@@ -15,18 +15,15 @@ vi.mock('../../workplace/components/ChatInner', () => ({
 }));
 
 describe('ProjectChatComposer', () => {
-  it('uses the start composer with this project, shared with the team by default', async () => {
+  it('uses the start composer with this project, shared in the project by default', async () => {
     const { user, container } = renderWithProviders(<ProjectChatComposer groupId="g1" />);
     expect(screen.getByText('composer g1 team=true')).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Im Projekt teilen' })).toBeChecked();
     expect(await axe(container)).toHaveNoViolations();
 
-    await user.click(screen.getByRole('switch', { name: 'Für das Team' }));
+    await user.click(screen.getByRole('switch', { name: 'Im Projekt teilen' }));
     expect(screen.getByText('composer g1 team=false')).toBeInTheDocument();
-  });
-
-  it('offers no team switch when nobody else is in the project', () => {
-    renderWithProviders(<ProjectChatComposer groupId="g1" solo />);
-    expect(screen.getByText('composer g1 team=false')).toBeInTheDocument();
-    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+    expect(screen.getByText('Privat – nutzt trotzdem das Wissen des Projekts')).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
   });
 });
