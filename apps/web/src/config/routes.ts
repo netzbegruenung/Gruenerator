@@ -932,7 +932,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/studio/ki/:type', component: ImageStudioKiTypeRedirect },
   { path: '/studio/video', component: GrueneratorenBundle.Reel },
   // One start page for Untertitel, KI-Schnitt and the Video Editor.
-  { accent: 'studio', path: '/video', component: VideoStartPage },
+  { path: '/video', component: VideoStartPage },
   {
     path: '/studio/videoeditor',
     component: VideoEditorPage,
