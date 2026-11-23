@@ -82,6 +82,11 @@ vi.mock('../recurring-tasks/api', () => ({
   useRecurringTasks: () => ({ data: [], isSuccess: true }),
 }));
 
+const scheduledTasks = vi.hoisted(() => ({ enabled: true }));
+vi.mock('../recurring-tasks/useScheduledTasksEnabled', () => ({
+  useScheduledTasksEnabled: () => scheduledTasks.enabled,
+}));
+
 vi.mock('../usage/useItemUsage', () => ({
   useItemUsage: () => ({ data: {} }),
 }));
@@ -595,6 +600,19 @@ describe('GrueneratorenPage — „Neu"-Menü', () => {
     // tabindex) — "Rezept".
     await userEvent.keyboard('{Enter}');
     expect(navigate).toHaveBeenCalledWith('/agentura/rezept/neu');
+  });
+
+  it('blendet Aufgabe und Verlauf aus, solange „Geplante Aufgaben" aus ist', async () => {
+    scheduledTasks.enabled = false;
+    try {
+      renderPage();
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Neu' }));
+      const items = await screen.findAllByRole('menuitem');
+      expect(items.map((el) => el.textContent)).toEqual(['Rezept']);
+    } finally {
+      scheduledTasks.enabled = true;
+    }
   });
 
   it('navigiert bei Klick auf „Rezept" zum Rezept-Ersteller', async () => {

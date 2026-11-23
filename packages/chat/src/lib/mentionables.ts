@@ -271,6 +271,16 @@ export function setMentionLandesverbaende(lvIds: readonly string[] | null): void
   mentionLandesverbaende = lvIds;
 }
 
+// „Geplante Aufgaben" is experimental and off by default
+// (profiles.scheduled_tasks_enabled); the host sets the switch like the locale
+// above. It hides `@wiederkehrend` from the picker only — resolution stays
+// unfiltered, and the server mounts the `recurring_tasks` tool on the same flag.
+let scheduledTasksEnabled = false;
+
+export function setScheduledTasksEnabled(enabled: boolean): void {
+  scheduledTasksEnabled = enabled;
+}
+
 /**
  * Agent/skill mentionables visible for the current locale, minus admin-hidden
  * Rezepte and minus what this instance does not offer.
@@ -307,7 +317,9 @@ export function getAgentMentionables(): Mentionable[] {
  */
 export function visibleToolMentionables(): Mentionable[] {
   return toolMentionables.filter(
-    (m) => m.audience === undefined || m.audience === 'all' || m.audience === mentionLocale
+    (m) =>
+      (m.audience === undefined || m.audience === 'all' || m.audience === mentionLocale) &&
+      (scheduledTasksEnabled || m.mention !== 'wiederkehrend')
   );
 }
 

@@ -25,17 +25,13 @@ const isOwned = (c: NotebookCollection) => c.access_source == null || c.access_s
 const byName = (a: NotebookCollection, b: NotebookCollection) => a.name.localeCompare(b.name);
 
 /**
- * „Deine Notebooks" auf `/projekte`: eigene Notebooks und die, die andere in
- * ein gemeinsames Projekt geteilt haben — dieselbe Kachel wie Projekte und
- * Rezepte. Die System-Notebooks (Landesverbände, Parlamente …) bleiben auf
- * `/wissen`.
+ * Eigene Notebooks und die, die andere in ein gemeinsames Projekt geteilt
+ * haben (ohne Doppelte). Die System-Notebooks bleiben auf `/wissen`.
  */
-export function ProjekteNotebooksSection() {
-  const tone = getToolTheme('projekte') ?? FALLBACK_TONE;
+export function useMyNotebooks() {
   const { query } = useNotebookCollections({ isActive: true });
   const sharedQuery = useSharedNotebookCollections();
-
-  const { own, shared } = useMemo(() => {
+  const lists = useMemo(() => {
     const ownList = (query.data ?? EMPTY).filter(isOwned);
     const ownIds = new Set(ownList.map((c) => c.id));
     return {
@@ -43,6 +39,47 @@ export function ProjekteNotebooksSection() {
       shared: (sharedQuery.data ?? EMPTY).filter((c) => !ownIds.has(c.id)).sort(byName),
     };
   }, [query.data, sharedQuery.data]);
+  return { ...lists, loading: query.isLoading, failed: query.isError };
+}
+
+/** Notebook-Kachel: dieselbe wie Projekte und Rezepte; das Menü nur am eigenen. */
+export function NotebookTile({
+  collection: c,
+  isOwn,
+  extraMeta = [],
+}: {
+  collection: NotebookCollection;
+  isOwn: boolean;
+  /** Steht vor der eigenen Meta-Zeile, z. B. „Notebook · vor 2 Std." in „Zuletzt". */
+  extraMeta?: string[];
+}) {
+  const tone = getToolTheme('projekte') ?? FALLBACK_TONE;
+  return (
+    <TileCard
+      href={`/notebooks/${collectionSlug(c)}`}
+      title={c.name}
+      tone={tone}
+      badge={<PiBooks aria-hidden className="size-5" />}
+      meta={[
+        ...extraMeta,
+        ...(!isOwn && c.shared_via_groups?.length
+          ? [`Geteilt in ${c.shared_via_groups.join(', ')}`]
+          : []),
+      ]}
+      description={c.description}
+      // Bearbeiten, Teilen und Löschen nur am eigenen — dieselben Einträge wie auf /wissen.
+      menu={isOwn ? <OwnNotebookActions collection={c} /> : null}
+    />
+  );
+}
+
+/**
+ * „Deine Notebooks" auf `/projekte`: eigene Notebooks und die, die andere in
+ * ein gemeinsames Projekt geteilt haben — dieselbe Kachel wie Projekte und
+ * Rezepte.
+ */
+export function ProjekteNotebooksSection() {
+  const { own, shared, loading, failed } = useMyNotebooks();
 
   const newButton = (
     <Button asChild variant="ghost" size="icon" title="Neues Notebook">
@@ -52,34 +89,17 @@ export function ProjekteNotebooksSection() {
     </Button>
   );
 
-  const tile = (c: NotebookCollection, isOwn: boolean) => (
-    <TileCard
-      key={c.id}
-      href={`/notebooks/${collectionSlug(c)}`}
-      title={c.name}
-      tone={tone}
-      badge={<PiBooks aria-hidden className="size-5" />}
-      meta={
-        !isOwn && c.shared_via_groups?.length
-          ? [`Geteilt in ${c.shared_via_groups.join(', ')}`]
-          : []
-      }
-      description={c.description}
-      // Bearbeiten, Teilen und Löschen nur am eigenen — dieselben Einträge wie auf /wissen.
-      menu={isOwn ? <OwnNotebookActions collection={c} /> : null}
-    />
-  );
-
-  const loading = query.isLoading;
-  const failed = query.isError;
-
   return (
     <section aria-label="Deine Notebooks" className="mt-xl">
       <SectionHeader title="Deine Notebooks" actions={newButton} />
       {own.length + shared.length > 0 ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] sm:gap-4">
-          {own.map((c) => tile(c, true))}
-          {shared.map((c) => tile(c, false))}
+          {own.map((c) => (
+            <NotebookTile key={c.id} collection={c} isOwn />
+          ))}
+          {shared.map((c) => (
+            <NotebookTile key={c.id} collection={c} isOwn={false} />
+          ))}
         </div>
       ) : (
         // „Noch keine" nur aus einer bestätigt leeren Liste.

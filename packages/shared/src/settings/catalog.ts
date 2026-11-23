@@ -194,6 +194,14 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
       'Zeigt die Touren durch Workplace, Dokumente, Tabellen, Präsentationen und das Sharepic-Studio beim nächsten Öffnen wieder an.',
   },
   {
+    // Web-only: der Schalter steht in Allgemein; die Aufgaben selbst laufen unabhängig davon.
+    id: 'allgemein.geplanteAufgaben',
+    tab: 'allgemein',
+    title: 'Geplante Aufgaben',
+    description:
+      'Der Grünerator führt eine Aufgabe regelmäßig von selbst aus, etwa jeden Montag. Experimentell. Aus: keine neuen Aufgaben, weder im Chat noch in den Grüneratoren oder Projekten. Bestehende Aufgaben laufen weiter und lassen sich unter /wiederkehrend verwalten.',
+  },
+  {
     // Web-only, wie der Bereich selbst: die Einrichtung stellt Rolle, Friend und
     // Hintergrund ein, und die Rollen legt man laut Katalog ohnehin am Rechner
     // an. Die Zeile steht in Allgemein, weil der Bereich „Onboarding" nach dem

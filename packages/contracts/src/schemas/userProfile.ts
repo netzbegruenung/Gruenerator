@@ -81,6 +81,8 @@ export const profileUpdateBodySchema = z.object({
   memory_enabled: z.boolean().optional(),
   /** The Tagesbriefing switch (profiles.proactive_briefing_enabled). */
   proactive_briefing_enabled: z.boolean().optional(),
+  /** The experimental „Geplante Aufgaben" switch (profiles.scheduled_tasks_enabled). */
+  scheduled_tasks_enabled: z.boolean().optional(),
   /**
    * Ausdrückliche Einwilligung nach Art. 9 Abs. 2 lit. a DSGVO. Der Client
    * schreibt nur „erteilt/widerrufen" — den Zeitstempel setzt der Server, damit
@@ -241,6 +243,7 @@ export const userProfileSchema = z.object({
   bundestag_api_enabled: z.boolean().optional(),
   memory_enabled: z.boolean().optional(),
   proactive_briefing_enabled: z.boolean().optional(),
+  scheduled_tasks_enabled: z.boolean().optional(),
   /**
    * „Panda" lane unlock, written only by an instance admin; null = instance
    * default. Deliberately absent from `profileUpdateBodySchema`.

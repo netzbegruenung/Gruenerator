@@ -1,10 +1,11 @@
 import { getContractsClient } from '@gruenerator/shared/api';
 import { type UsageMap } from '@gruenerator/shared/utils';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 
 import { useOptimizedAuth } from '../../hooks/useAuth';
 
-export type ItemUsageType = 'notebook' | 'agent';
+export type ItemUsageType = 'notebook' | 'agent' | 'project';
 
 /**
  * Fetches the current user's usage aggregate for one item type as a
@@ -31,4 +32,21 @@ export function useItemUsage(type: ItemUsageType) {
     // Ordering rarely changes within a session; avoid refetch churn.
     staleTime: 60_000,
   });
+}
+
+/**
+ * Records one use of an item when the page for it opens (once per id and
+ * mount). Fire-and-forget: a failed write must never disturb the page.
+ */
+export function useRecordItemUsage(type: ItemUsageType, itemId: string | null) {
+  const { user, isAuthenticated } = useOptimizedAuth();
+  const queryClient = useQueryClient();
+  const enabled = !!user?.id && isAuthenticated;
+  useEffect(() => {
+    if (!enabled || !itemId) return;
+    void getContractsClient()
+      .itemUsage.recordUsage({ body: { type, item_id: itemId } })
+      .then(() => queryClient.invalidateQueries({ queryKey: ['item-usage', type] }))
+      .catch(() => {});
+  }, [enabled, type, itemId, queryClient]);
 }
