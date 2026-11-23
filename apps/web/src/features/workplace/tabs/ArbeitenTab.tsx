@@ -8,11 +8,11 @@ import {
   BriefingSection,
   MEDIA_GRID,
   MEDIA_TOOLS,
-  MarketplaceSection,
   ToolCardsSection,
 } from '../components/ArbeitenSections';
 import { InfoTilesSection } from '../components/InfoTilesSection';
 import { NewContentMenu } from '../components/NewContentMenu';
+import { StudioSection } from '../components/StudioSection';
 
 import { OnePageStart } from './OnePageStart';
 
@@ -26,7 +26,7 @@ import { cn } from '@/utils/cn';
 const RecentlyCreatedSection = lazy(() => import('../components/RecentlyCreatedSection'));
 
 // "Arbeiten": a hero, then one column of sections on a shared grid — Zuletzt,
-// Mach mehr mit deinem Grünerator, Grünerator Briefing, Marktplatz, Apps & Newsletter.
+// Mach mehr mit deinem Grünerator, Apps & Newsletter, Grünerator Briefing, Studio.
 // With tabs the hero is the greeting and search; on the one-page layout it is the
 // chat greeting and composer (see OnePageStart).
 const ArbeitenTab = () => {
@@ -67,9 +67,9 @@ const ArbeitenTab = () => {
           gridClassName={MEDIA_GRID}
           data-tour="arbeiten-tools"
         />
-        <BriefingSection />
-        <MarketplaceSection />
         <AppsNewsletterSection />
+        <BriefingSection />
+        <StudioSection />
         <InfoTilesSection />
       </div>
     </PageContainer>
