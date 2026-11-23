@@ -74,8 +74,11 @@ test.describe('Sites: Zugang und Anlegen', () => {
     await input.fill('website');
     await expect(page.getByRole('option', { name: /Sites/ })).toHaveCount(0);
 
-    await page.goto('/sites');
-    await expect(page.getByRole('heading', { name: 'Seite nicht gefunden' })).toBeVisible();
+    // A cold dev server compiles the route on first visit: don't wait for `load`.
+    await page.goto('/sites', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Seite nicht gefunden' })).toBeVisible({
+      timeout: 15_000,
+    });
   });
 
   test('create, edit, publish, public page', async ({ page, context }) => {
