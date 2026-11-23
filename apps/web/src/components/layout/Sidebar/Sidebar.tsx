@@ -257,6 +257,13 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
 
   const startItem = additionalItems.find((item) => item.id === 'startseite');
   const restItems = additionalItems.filter((item) => item.id !== 'startseite');
+  // Projekte steht oben an der Stelle der Grüneratoren; die Grüneratoren
+  // (laufen aus, alles zieht zu den Projekten) rücken nach unten.
+  const grueneratorenIndex = restItems.findIndex((item) => item.id === 'grueneratoren');
+  const grueneratorenItem = grueneratorenIndex >= 0 ? restItems[grueneratorenIndex] : null;
+  const itemsBeforeProjekte =
+    grueneratorenIndex >= 0 ? restItems.slice(0, grueneratorenIndex) : restItems;
+  const itemsAfterProjekte = grueneratorenIndex >= 0 ? restItems.slice(grueneratorenIndex + 1) : [];
   const renderNavItem = (item: MenuItemType) =>
     !item.path ? (
       <span key={item.id} className={menuLinkClass(false, true, !sidebarExpanded)}>
@@ -436,9 +443,24 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
           </div>
         )}
 
-        {/* Direct menu items - main navigation */}
-        {restItems.length > 0 && (
-          <div className="flex flex-col gap-0 p-0">{restItems.map(renderNavItem)}</div>
+        {/* Direct menu items - main navigation, with Projekte in the old Grüneratoren slot */}
+        {itemsBeforeProjekte.length > 0 && (
+          <div className="flex flex-col gap-0 p-0">{itemsBeforeProjekte.map(renderNavItem)}</div>
+        )}
+
+        {/* Projekte quick-view popup */}
+        {showQuickViews && (
+          <ProjekteSidebarSection
+            openRef={projekteMenuOpenRef}
+            titleClass={titleClass}
+            collapsed={!sidebarExpanded}
+            onNavigate={handleLinkClick}
+            onClose={close}
+          />
+        )}
+
+        {itemsAfterProjekte.length > 0 && (
+          <div className="flex flex-col gap-0 p-0">{itemsAfterProjekte.map(renderNavItem)}</div>
         )}
 
         {/* Role quick-select (Landesverband, Grüne Jugend) — also in the collapsed rail */}
@@ -453,15 +475,8 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
           />
         )}
 
-        {/* Projekte quick-view popup */}
-        {showQuickViews && (
-          <ProjekteSidebarSection
-            openRef={projekteMenuOpenRef}
-            titleClass={titleClass}
-            collapsed={!sidebarExpanded}
-            onNavigate={handleLinkClick}
-            onClose={close}
-          />
+        {grueneratorenItem && (
+          <div className="flex flex-col gap-0 p-0">{renderNavItem(grueneratorenItem)}</div>
         )}
 
         {/* Favourites */}
