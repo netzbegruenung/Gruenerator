@@ -92,6 +92,7 @@ import mcpServerRouter from './routes/mcp-server/index.js';
 import { mountMediaImportContractRouter } from './routes/media/mediaImportContractRouter.js';
 import { mountMemoryContractRouter } from './routes/memory/memoryContractRouter.js';
 import { mountMonitorContractRouter } from './routes/monitor/monitorContractRouter.js';
+import { mountNewsletterContractRouter } from './routes/newsletter/newsletterContractRouter.js';
 import { mountNotebookCollectionsContractRouter } from './routes/notebook/notebookCollectionsContractRouter.js';
 import { mountNotebookContractRouter } from './routes/notebook/notebookContractRouter.js';
 import { mountNotebookSharingContractRouter } from './routes/notebook/notebookSharingContractRouter.js';
@@ -239,6 +240,18 @@ const feedbackLimiter = isRateLimitDisabled
   : rateLimit({
       windowMs: 15 * 60 * 1000,
       max: 30,
+      standardHeaders: true,
+      legacyHeaders: false,
+      keyGenerator: perUserOrIpKey,
+      message: { error: 'Too many requests, please try again later.' },
+    });
+
+// Each signup call triggers a Brevo mail to the person's address — cap per user.
+const newsletterLimiter = isRateLimitDisabled
+  ? (_req: Request, _res: Response, next: NextFunction) => next()
+  : rateLimit({
+      windowMs: 60 * 60 * 1000,
+      max: 5,
       standardHeaders: true,
       legacyHeaders: false,
       keyGenerator: perUserOrIpKey,
@@ -925,6 +938,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   // handler can attribute feedback to the signed-in user; tight dedicated limiter.
   app.use('/api/feedback', requireAuth, feedbackLimiter);
   mountFeedbackContractRouter(app);
+  // One-click newsletter double opt-in for the signed-in person's address.
+  app.use('/api/newsletter', requireAuth, newsletterLimiter);
+  mountNewsletterContractRouter(app);
 
   // Content reports (UGC / AI output) → emails the operator, attributed to the user.
   app.use('/api/content-reports', requireAuth, contentReportLimiter);

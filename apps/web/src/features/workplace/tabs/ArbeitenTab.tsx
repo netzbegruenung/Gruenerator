@@ -2,7 +2,7 @@ import { Suspense, lazy } from 'react';
 
 import PageContainer from '../../../components/common/PageContainer';
 import { DocsHome } from '../../docs/DocsPage';
-import { AppsSection } from '../components/AppsSection';
+import { AppsNewsletterSection } from '../components/AppsNewsletterSection';
 import {
   BriefingSection,
   MEDIA_GRID,
@@ -10,6 +10,7 @@ import {
   MarketplaceSection,
   ToolCardsSection,
 } from '../components/ArbeitenSections';
+import { InfoTilesSection } from '../components/InfoTilesSection';
 import { NewContentMenu } from '../components/NewContentMenu';
 // "Grünerators Favoriten" (externe Dienste) sind vorerst ausgeblendet — zum
 // Reaktivieren `FavoritesSection` aus `../components/ToolsSection` importieren
@@ -20,15 +21,17 @@ import { NewContentMenu } from '../components/NewContentMenu';
 const RecentlyCreatedSection = lazy(() => import('../components/RecentlyCreatedSection'));
 
 // "Arbeiten": composer on top, then one column of sections on a shared grid —
-// Zuletzt, Mach mehr mit deinem Grünerator, Grünerator Briefing, Marktplatz, Apps.
+// Zuletzt, Mach mehr mit deinem Grünerator, Grünerator Briefing, Marktplatz, Apps & Newsletter.
 const ArbeitenTab = () => {
   return (
-    <PageContainer maxWidth="lg" noPadTop gradient={false} className="max-md:pt-lg">
+    // Phones start right under the tab bar: the greeting is hidden there (see DocsHome),
+    // so „Zuletzt" sits 16 px into the scroll area, ~26 px below the tab pill.
+    <PageContainer maxWidth="lg" noPadTop gradient={false} className="max-md:pt-0">
       <div data-tour="arbeiten-create">
         <DocsHome />
       </div>
 
-      <div className="mt-lg flex flex-col gap-10 pb-2xl md:gap-12 lg:gap-14">
+      <div className="mt-lg flex flex-col gap-10 pb-2xl max-md:mt-4 md:gap-12 lg:gap-14">
         <div data-tour="arbeiten-recents">
           <Suspense fallback={null}>
             <RecentlyCreatedSection headerAction={<NewContentMenu />} />
@@ -42,7 +45,8 @@ const ArbeitenTab = () => {
         />
         <BriefingSection />
         <MarketplaceSection />
-        <AppsSection />
+        <AppsNewsletterSection />
+        <InfoTilesSection />
       </div>
     </PageContainer>
   );

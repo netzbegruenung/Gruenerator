@@ -125,7 +125,12 @@ const WorkplacePage = () => {
             <WorkplaceChatTab />
           </div>
         </div>
-        <div hidden={tab !== 'arbeiten'} className="min-h-0 flex-1 overflow-y-auto pt-14">
+        {/* Scrolls below the tab bar, not under it: the bar is a floating pill, and content
+            passing beside it collided with the sidebar button. The top edge fades in. */}
+        <div
+          hidden={tab !== 'arbeiten'}
+          className="mt-14 min-h-0 flex-1 overflow-y-auto [mask-image:linear-gradient(to_bottom,transparent,black_12px)]"
+        >
           {arbeitenMounted && (
             <Suspense fallback={<ArbeitenFallback />}>
               <ArbeitenTab />

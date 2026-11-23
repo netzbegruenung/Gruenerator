@@ -34,7 +34,7 @@ vi.mock('../user/ProfileService.js', () => ({
 
 import { getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
 
-import { isNewsletterSubscriber } from './brevoNewsletter.js';
+import { isNewsletterSubscriber, subscribeToNewsletter } from './brevoNewsletter.js';
 
 const fetchMock = vi.fn();
 vi.stubGlobal('fetch', fetchMock);
@@ -134,5 +134,118 @@ describe('isNewsletterSubscriber', () => {
   it('fragt ohne userId nicht an', async () => {
     await expect(isNewsletterSubscriber('')).resolves.toBe(false);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('subscribeToNewsletter', () => {
+  const REDIRECT = 'https://app.test/start/arbeiten?newsletter=bestaetigt';
+  const notSubscribed = { ok: false, status: 404, json: async () => ({}) };
+  const created = { ok: true, status: 201, json: async () => ({}) };
+
+  it('meldet already_subscribed und ruft Brevo nicht zum Anmelden', async () => {
+    fetchMock.mockResolvedValueOnce(brevoContact([5]));
+    await expect(subscribeToNewsletter('u1', REDIRECT)).resolves.toEqual({
+      status: 'already_subscribed',
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toContain('/v3/contacts/a%40b.de');
+  });
+
+  it('schickt das Double-Opt-In mit genau diesem Body', async () => {
+    getProfileByIdMock.mockResolvedValue({
+      id: 'u1',
+      email: 'a@b.de',
+      first_name: ' Anna ',
+      last_name: 'Grün',
+    });
+    fetchMock.mockResolvedValueOnce(notSubscribed).mockResolvedValueOnce(created);
+
+    await expect(subscribeToNewsletter('u1', REDIRECT)).resolves.toEqual({
+      status: 'confirmation_sent',
+    });
+
+    const [url, init] = fetchMock.mock.calls[1];
+    expect(url).toBe('https://api.brevo.com/v3/contacts/doubleOptinConfirmation');
+    expect(init.method).toBe('POST');
+    expect(init.headers['api-key']).toBe('xkeysib-test');
+    expect(JSON.parse(init.body)).toEqual({
+      email: 'a@b.de',
+      attributes: { VORNAME: 'Anna', NACHNAME: 'Grün' },
+      includeListIds: [5],
+      templateId: 1,
+      redirectionUrl: REDIRECT,
+    });
+  });
+
+  it('lässt leere Namen weg', async () => {
+    getProfileByIdMock.mockResolvedValue({
+      id: 'u1',
+      email: 'a@b.de',
+      first_name: '',
+      last_name: null,
+    });
+    fetchMock.mockResolvedValueOnce(notSubscribed).mockResolvedValueOnce(created);
+    await subscribeToNewsletter('u1', REDIRECT);
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body).attributes).toEqual({});
+  });
+
+  it('meldet no_email ohne Brevo anzufragen', async () => {
+    getProfileByIdMock.mockResolvedValue({ id: 'u1', email: null });
+    await expect(subscribeToNewsletter('u1', REDIRECT)).resolves.toEqual({
+      status: 'error',
+      code: 'no_email',
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('meldet not_configured ohne API-Schlüssel', async () => {
+    envMock.BREVO_API_KEY = undefined;
+    await expect(subscribeToNewsletter('u1', REDIRECT)).resolves.toEqual({
+      status: 'error',
+      code: 'not_configured',
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('meldet brevo_failed bei Fehlerstatus, nie Erfolg', async () => {
+    fetchMock
+      .mockResolvedValueOnce(notSubscribed)
+      .mockResolvedValueOnce({ ok: false, status: 400, json: async () => ({}) });
+    await expect(subscribeToNewsletter('u1', REDIRECT)).resolves.toEqual({
+      status: 'error',
+      code: 'brevo_failed',
+    });
+  });
+
+  it('meldet brevo_failed, wenn Brevo nicht erreichbar ist', async () => {
+    fetchMock.mockResolvedValueOnce(notSubscribed).mockRejectedValueOnce(new Error('timeout'));
+    await expect(subscribeToNewsletter('u1', REDIRECT)).resolves.toEqual({
+      status: 'error',
+      code: 'brevo_failed',
+    });
+  });
+});
+
+describe('subscribeToNewsletter mit eingegebener Adresse', () => {
+  it('nutzt die Adresse aus dem Dialog und fragt Brevo direkt nach ihrem Abo', async () => {
+    getProfileByIdMock.mockResolvedValue({ id: 'u1', email: 'a@b.de', first_name: 'Anna' });
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({}) })
+      .mockResolvedValueOnce({ ok: true, status: 201, json: async () => ({}) });
+
+    const result = await subscribeToNewsletter('u1', 'https://x/start', 'privat@example.org');
+
+    expect(result).toEqual({ status: 'confirmation_sent' });
+    expect(String(fetchMock.mock.calls[0][0])).toContain(encodeURIComponent('privat@example.org'));
+    const body = JSON.parse(String(fetchMock.mock.calls[1][1].body));
+    expect(body.email).toBe('privat@example.org');
+    expect(body.attributes).toEqual({ VORNAME: 'Anna' });
+  });
+
+  it('meldet „schon abonniert" für eine andere Adresse, die in Liste 5 steht', async () => {
+    fetchMock.mockResolvedValueOnce(brevoContact([5]));
+    const result = await subscribeToNewsletter('u1', 'https://x/start', 'privat@example.org');
+    expect(result).toEqual({ status: 'already_subscribed' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

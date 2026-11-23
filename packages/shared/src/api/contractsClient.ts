@@ -273,6 +273,7 @@ const NAMESPACES = {
   memory: { contract: 'memoryContract', opts: 'plain' },
   email: { contract: 'emailContract', opts: 'plain' },
   feedback: { contract: 'feedbackContract', opts: 'plain' },
+  newsletter: { contract: 'newsletterContract', opts: 'plain' },
   contentReports: { contract: 'contentReportContract', opts: 'plain' },
   adminReports: { contract: 'adminReportsContract', opts: 'plain' },
   translation: { contract: 'translationContract', opts: 'plain' },

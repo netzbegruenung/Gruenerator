@@ -1,0 +1,345 @@
+/*
+ * „Transparenz, MCP & Co": five soft green squares.
+ *
+ * Surface: a two-stop sage gradient per tile (the hue walks from moss to
+ * eucalyptus along the row), a soft light from the top-left corner and a
+ * hairline. Title ink #1D4230 is at least 7.5:1 on the darkest stop (light),
+ * #DDEBDD at least 9.2:1 on the lightest stop (dark).
+ *
+ * Motion: the tile lifts and its shadow and glow fade in (transform/opacity on
+ * the tile and two pseudo-elements, no animated box-shadow). Each icon part
+ * carries its own animation in `--it-anim`; one rule plays it on hover (pointer
+ * devices) and on keyboard focus. Nothing moves with reduced motion.
+ */
+.info-tile {
+  --it-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --it-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --it-a: #dcede0;
+  --it-b: #c2ddcb;
+  --it-ink: #1d4230;
+  --it-icon: #2c6449;
+  --it-light: rgb(255 255 255 / 0.55);
+  --it-line: rgb(29 66 48 / 0.1);
+  --it-shine: rgb(255 255 255 / 0.7);
+  --it-chip: rgb(255 255 255 / 0.6);
+  --it-chip-line: rgb(255 255 255 / 0.75);
+  --it-glow: rgb(44 100 73 / 0.16);
+  --it-shadow: 0 14px 28px -14px rgb(29 66 48 / 0.4), 0 3px 8px -3px rgb(29 66 48 / 0.18);
+
+  isolation: isolate;
+  color: var(--it-ink);
+  background:
+    radial-gradient(120% 90% at 0% 0%, var(--it-light), transparent 60%),
+    linear-gradient(150deg, var(--it-a), var(--it-b));
+  box-shadow:
+    inset 0 0 0 1px var(--it-line),
+    inset 0 1px 0 var(--it-shine);
+  transition: transform 200ms var(--it-ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.info-tile[data-tone='moss'] {
+  --it-a: #e4efd9;
+  --it-b: #cfe2bf;
+}
+.info-tile[data-tone='fern'] {
+  --it-a: #e0eedc;
+  --it-b: #c8e0c5;
+}
+.info-tile[data-tone='mint'] {
+  --it-a: #d9ece3;
+  --it-b: #bedcd0;
+}
+.info-tile[data-tone='eucalyptus'] {
+  --it-a: #d7ebe6;
+  --it-b: #bcdad4;
+}
+
+[data-theme='dark'] .info-tile {
+  --it-a: #243f2f;
+  --it-b: #1a2e22;
+  --it-ink: #ddebdd;
+  --it-icon: #a5d3b1;
+  --it-light: rgb(255 255 255 / 0.06);
+  --it-line: rgb(255 255 255 / 0.08);
+  --it-shine: rgb(255 255 255 / 0.1);
+  --it-chip: rgb(255 255 255 / 0.07);
+  --it-chip-line: rgb(255 255 255 / 0.1);
+  --it-glow: rgb(165 211 177 / 0.14);
+  --it-shadow: 0 14px 28px -14px rgb(0 0 0 / 0.7), 0 3px 8px -3px rgb(0 0 0 / 0.4);
+}
+[data-theme='dark'] .info-tile[data-tone='moss'] {
+  --it-a: #2b3f27;
+  --it-b: #1f2e1c;
+}
+[data-theme='dark'] .info-tile[data-tone='fern'] {
+  --it-a: #273f2a;
+  --it-b: #1c2e1f;
+}
+[data-theme='dark'] .info-tile[data-tone='mint'] {
+  --it-a: #223f34;
+  --it-b: #182e26;
+}
+[data-theme='dark'] .info-tile[data-tone='eucalyptus'] {
+  --it-a: #213e38;
+  --it-b: #172d29;
+}
+
+/* Glow from the bottom-right corner and the lifted shadow: both fade, neither repaints. */
+.info-tile::before,
+.info-tile::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+}
+.info-tile::before {
+  background: radial-gradient(90% 70% at 100% 100%, var(--it-glow), transparent 70%);
+}
+.info-tile::after {
+  box-shadow: var(--it-shadow);
+}
+
+.info-tile__chip {
+  color: var(--it-icon);
+  background: var(--it-chip);
+  box-shadow:
+    inset 0 0 0 1px var(--it-chip-line),
+    0 1px 2px rgb(29 66 48 / 0.08);
+}
+
+.info-tile__icon {
+  width: 58%;
+  height: 58%;
+  overflow: visible;
+}
+
+.info-tile__arrow {
+  color: var(--it-icon);
+  transition: transform 200ms var(--it-ease-out);
+}
+
+/* Press feedback, also on touch. */
+.info-tile:active {
+  transform: scale(0.97);
+  transition-duration: 160ms;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .info-tile:hover::before,
+  .info-tile:hover::after {
+    opacity: 1;
+  }
+}
+.info-tile:focus-visible::before {
+  opacity: 1;
+}
+
+/* ── Icon parts: rest states ───────────────────────────────────────────── */
+/* SVG parts transform in viewBox units around the icon's centre. */
+.it-part,
+.it-move {
+  transform-origin: 12px 12px;
+}
+
+.it-book-leaf {
+  --it-anim: it-book-leaf 700ms var(--it-ease-in-out);
+}
+.it-book-lines {
+  --it-anim: it-book-lines 700ms ease;
+}
+.it-spark-main {
+  --it-anim: it-spark-turn 800ms var(--it-ease-in-out), it-spark-dip 800ms ease-in-out;
+  transform-origin: 10.5px 12.5px;
+}
+.it-spark-a {
+  --it-anim: it-twinkle 520ms var(--it-ease-out) 120ms backwards;
+  transform-origin: 18.5px 5.5px;
+}
+.it-spark-b {
+  --it-anim: it-twinkle 520ms var(--it-ease-out) 260ms backwards;
+  transform-origin: 19px 18px;
+}
+.it-eye-lids {
+  --it-anim: it-eye-blink 900ms ease-in-out;
+}
+.it-eye-iris {
+  --it-anim: it-eye-look 900ms ease-in-out;
+}
+.it-shield-body {
+  --it-anim: it-shield-body 520ms ease-in-out;
+}
+.it-shield-check {
+  --it-anim: it-shield-check 460ms var(--it-ease-out) 140ms backwards;
+  stroke-dasharray: 1;
+}
+.it-plug-spark {
+  --it-anim: it-plug-spark 420ms var(--it-ease-out) 170ms both;
+  opacity: 0;
+}
+/* The plug is a state, not a one-shot: a transition, so leaving mid-way reverses it. */
+.it-move {
+  transition: transform 300ms var(--it-ease-out);
+}
+.it-plug-socket {
+  --it-to: translateX(1.25px);
+  transform: translateX(-0.75px);
+}
+.it-plug-pins {
+  --it-to: translateX(-1.75px);
+  transform: translateX(0.75px);
+}
+
+/* ── Play ──────────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: no-preference) {
+  @media (hover: hover) and (pointer: fine) {
+    .info-tile:hover {
+      transform: translateY(-2px);
+    }
+    .info-tile:hover:active {
+      transform: scale(0.97);
+    }
+    .info-tile:hover .info-tile__arrow {
+      transform: translate(1.5px, -1.5px);
+    }
+    .info-tile:hover .it-part {
+      animation: var(--it-anim);
+    }
+    .info-tile:hover .it-move {
+      transform: var(--it-to);
+    }
+  }
+  .info-tile:focus-visible .it-part {
+    animation: var(--it-anim);
+  }
+  .info-tile:focus-visible .it-move {
+    transform: var(--it-to);
+  }
+}
+/* The in-app „Bewegung reduzieren" switch only shortens durations globally; here nothing moves at all. */
+:root[data-reduce-motion='true'] .info-tile.info-tile,
+:root[data-reduce-motion='true'] .info-tile .info-tile__arrow {
+  transform: none;
+}
+:root[data-reduce-motion='true'] .info-tile .it-plug-socket {
+  transform: translateX(-0.75px);
+}
+:root[data-reduce-motion='true'] .info-tile .it-plug-pins {
+  transform: translateX(0.75px);
+}
+:root[data-reduce-motion='true'] .info-tile .it-part {
+  animation: none;
+}
+
+/* Dokumentation: a leaf turns over the spine; the page under it shows its lines again. */
+@keyframes it-book-leaf {
+  0% {
+    transform: scaleX(1);
+  }
+  100% {
+    transform: scaleX(-1);
+  }
+}
+@keyframes it-book-lines {
+  0%,
+  35% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+/* KI-Transparenz: the big star dips and turns a quarter, the small ones pop in after it. */
+@keyframes it-spark-turn {
+  0% {
+    rotate: 0deg;
+  }
+  100% {
+    rotate: 90deg;
+  }
+}
+@keyframes it-spark-dip {
+  0%,
+  100% {
+    scale: 1;
+  }
+  45% {
+    scale: 0.84;
+  }
+}
+@keyframes it-twinkle {
+  0% {
+    opacity: 0.2;
+    transform: scale(0.5);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+/* Transparenz: one blink, then a look to the right and to the left. */
+@keyframes it-eye-blink {
+  0%,
+  30%,
+  100% {
+    transform: scaleY(1);
+  }
+  15% {
+    transform: scaleY(0.08);
+  }
+}
+@keyframes it-eye-look {
+  0%,
+  32%,
+  100% {
+    transform: translateX(0);
+  }
+  52% {
+    transform: translateX(2.4px);
+  }
+  78% {
+    transform: translateX(-2.4px);
+  }
+}
+/* MCP-Server: two sparks as the pins seat. */
+@keyframes it-plug-spark {
+  0% {
+    opacity: 0;
+    transform: scaleY(0.75);
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scaleY(1.12);
+  }
+}
+/* Datenschutz: the shield firms up, the check is drawn. */
+@keyframes it-shield-body {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.07);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes it-shield-check {
+  0% {
+    stroke-dashoffset: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}

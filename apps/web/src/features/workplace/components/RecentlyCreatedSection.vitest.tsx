@@ -79,8 +79,12 @@ describe('RecentlyCreatedSection canvas cards', () => {
 describe('RecentlyCreatedSection layout', () => {
   it('reports the expanded state on the toggle button', async () => {
     loading = false;
-    // jsdom has no grid layout: columns fall back to 2, so 3 items overflow one row.
-    items.splice(0, items.length, image('a', 'A'), image('b', 'B'), image('c', 'C'));
+    // jsdom has no grid layout: columns fall back to 2 (phone), so 5 items overflow two rows.
+    items.splice(
+      0,
+      items.length,
+      ...['a', 'b', 'c', 'd', 'e'].map((id) => image(id, id.toUpperCase()))
+    );
     const { user } = renderWithProviders(<RecentlyCreatedSection />);
 
     const toggle = screen.getByRole('button', { name: 'Mehr anzeigen' });
@@ -92,12 +96,22 @@ describe('RecentlyCreatedSection layout', () => {
     ).toBe('true');
   });
 
-  it('renders one row of skeletons (phone fallback of 2 when unmeasured)', () => {
+  it('shows two rows on a phone and doubles them with „Mehr anzeigen"', async () => {
+    loading = false;
+    const ids = Array.from({ length: 10 }, (_, i) => `i${i}`);
+    items.splice(0, items.length, ...ids.map((id) => image(id, id.toUpperCase())));
+    const { user } = renderWithProviders(<RecentlyCreatedSection />);
+
+    expect(screen.getAllByRole('button', { name: /^I\d$/ })).toHaveLength(4);
+    await user.click(screen.getByRole('button', { name: 'Mehr anzeigen' }));
+    expect(screen.getAllByRole('button', { name: /^I\d$/ })).toHaveLength(8);
+  });
+
+  it('renders two rows of skeletons (phone fallback of 2 columns when unmeasured)', () => {
     loading = true;
     const { container } = renderWithProviders(<RecentlyCreatedSection />);
     loading = false;
 
-    // The heading row plus two skeletons (jsdom has no grid layout, so the phone fallback applies).
-    expect(container.querySelectorAll('section > div > div')).toHaveLength(3);
+    expect(container.querySelectorAll('section > .grid > div')).toHaveLength(4);
   });
 });

@@ -39,6 +39,7 @@ import {
   explainablesContract,
   exportsContract,
   feedbackContract,
+  newsletterContract,
   globalSearchContract,
   groupsContract,
   imageEditContract,
@@ -142,6 +143,7 @@ export type ContractRegistryName =
   | 'explainablesContract'
   | 'exportsContract'
   | 'feedbackContract'
+  | 'newsletterContract'
   | 'globalSearchContract'
   | 'groupsContract'
   | 'imageEditContract'
@@ -241,6 +243,7 @@ export const CONTRACTS: Pick<typeof ContractsModule, ContractRegistryName> = {
   explainablesContract,
   exportsContract,
   feedbackContract,
+  newsletterContract,
   globalSearchContract,
   groupsContract,
   imageEditContract,
