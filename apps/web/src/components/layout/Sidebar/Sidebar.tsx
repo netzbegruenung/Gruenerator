@@ -81,7 +81,6 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
 
   const accountMenuOpenRef = useRef(false);
   const projekteMenuOpenRef = useRef(false);
-  const notebooksMenuOpenRef = useRef(false);
   const roleMenuOpenRef = useRef(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -225,12 +224,7 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
       // outside the sidebar (main content, or the window).
       const rt = e.relatedTarget;
       if (rt instanceof Node && e.currentTarget.contains(rt)) return;
-      if (
-        !accountMenuOpenRef.current &&
-        !projekteMenuOpenRef.current &&
-        !notebooksMenuOpenRef.current &&
-        !roleMenuOpenRef.current
-      ) {
+      if (!accountMenuOpenRef.current && !projekteMenuOpenRef.current && !roleMenuOpenRef.current) {
         close();
       }
     },
@@ -451,16 +445,6 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
           />
         )}
 
-        {/* Notebooks quick-view popup */}
-        {showQuickViews && (
-          <NotebooksSidebarSection
-            openRef={notebooksMenuOpenRef}
-            titleClass={titleClass}
-            collapsed={!sidebarExpanded}
-            onNavigate={handleLinkClick}
-          />
-        )}
-
         {/* Projekte quick-view popup */}
         {showQuickViews && (
           <ProjekteSidebarSection
@@ -490,6 +474,11 @@ const Sidebar = ({ isDesktop = false, onNavigate, railHidden = false }: SidebarP
           !sidebarExpanded && 'hidden'
         )}
       >
+        {/* Notebooks, folded like the chats below (only while the sidebar is open) */}
+        {showQuickViews && sidebarExpanded && (
+          <NotebooksSidebarSection onNavigate={handleLinkClick} />
+        )}
+
         {/* Registers the slot node synchronously (ref callback fires during
             commit), so the global chat runtime's thread-list portal follows it
             atomically across per-route remounts — no flicker. */}
