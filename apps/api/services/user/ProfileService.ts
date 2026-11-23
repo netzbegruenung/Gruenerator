@@ -171,6 +171,7 @@ class ProfileService {
         'bundestag_api_enabled',
         'memory_enabled',
         'proactive_briefing_enabled',
+        'scheduled_tasks_enabled',
         'reduce_motion',
         'reduce_transparency',
         'show_skip_link',

@@ -1501,6 +1501,7 @@ async function buildStreamContextInner({
     threadToolHistory = history;
   }
   initialState.memoryEnabled = memoryEnabled;
+  initialState.scheduledTasksEnabled = user.scheduled_tasks_enabled ?? false;
   if (memoryContext) {
     initialState.memoryContext = memoryContext;
     initialState.memories = memories;

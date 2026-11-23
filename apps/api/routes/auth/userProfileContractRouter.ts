@@ -152,6 +152,7 @@ export const userProfileContractRouter = s.router(userProfileContract, {
         tts_voice_id,
         memory_enabled,
         proactive_briefing_enabled,
+        scheduled_tasks_enabled,
         ai_consent,
       } = args.body;
 
@@ -174,6 +175,8 @@ export const userProfileContractRouter = s.router(userProfileContract, {
       if (memory_enabled !== undefined) updateData.memory_enabled = memory_enabled;
       if (proactive_briefing_enabled !== undefined)
         updateData.proactive_briefing_enabled = proactive_briefing_enabled;
+      if (scheduled_tasks_enabled !== undefined)
+        updateData.scheduled_tasks_enabled = scheduled_tasks_enabled;
       // Der Zeitstempel kommt vom Server, nicht vom Client: er ist der Nachweis
       // der Einwilligung (Art. 7 Abs. 1 DSGVO). Widerruf löscht ihn, damit der
       // Dialog beim nächsten Aufruf wieder erscheint.

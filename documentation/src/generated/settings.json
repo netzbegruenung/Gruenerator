@@ -134,6 +134,11 @@
       "title": "Einführungs-Touren zurücksetzen",
       "description": "Zeigt die Touren durch Workplace, Dokumente, Tabellen, Präsentationen und das Sharepic-Studio beim nächsten Öffnen wieder an."
     },
+    "allgemein.geplanteAufgaben": {
+      "tab": "allgemein",
+      "title": "Geplante Aufgaben",
+      "description": "Der Grünerator führt eine Aufgabe regelmäßig von selbst aus, etwa jeden Montag. Experimentell. Aus: keine neuen Aufgaben, weder im Chat noch in den Grüneratoren oder Projekten. Bestehende Aufgaben laufen weiter und lassen sich unter /wiederkehrend verwalten."
+    },
     "allgemein.onboarding": {
       "tab": "allgemein",
       "title": "Einrichtung erneut starten",
