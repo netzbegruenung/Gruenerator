@@ -1,5 +1,6 @@
 import { useAgentStore, setThreadListSlot, useUserProfileStore } from '@gruenerator/chat/stores';
 import { getAgentSlug, getSystemAgent } from '@gruenerator/shared/agents';
+import { buildGroupPath } from '@gruenerator/shared/groups';
 import { sortByUsage } from '@gruenerator/shared/utils';
 import {
   Sheet,
@@ -17,10 +18,13 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getFavouriteItemsById } from '../../../config/sidebarFavouritesConfig';
 import { useCanSeeSites } from '../../../config/sitesGate';
 import { useUserAgents } from '../../../features/agents/api';
+import { useGroups } from '../../../features/groups/hooks/useGroups';
 import { useItemUsage } from '../../../features/usage/useItemUsage';
 import useAgentFavoritesStore from '../../../stores/agentFavoritesStore';
 import { useAuthStore } from '../../../stores/authStore';
-import useSidebarFavouritesStore from '../../../stores/sidebarFavouritesStore';
+import useSidebarFavouritesStore, {
+  projektFavouriteId,
+} from '../../../stores/sidebarFavouritesStore';
 import useSidebarStore from '../../../stores/sidebarStore';
 import { StatusBadge } from '../../common/StatusBadge';
 import {
@@ -39,7 +43,13 @@ import { getAgentIcon } from './sidebarAgentConfig';
 import { headerIconButtonClass, iconClass, menuLinkClass } from './sidebarStyles';
 
 import { CURRENT_INSTANCE } from '@/config/instance';
-import { FiSidebar, PiSignIn, PiSparkle, PiStarFill } from '@/config/shellIcons.generated';
+import {
+  FiSidebar,
+  PiSignIn,
+  PiSparkle,
+  PiStarFill,
+  PiUsersThree,
+} from '@/config/shellIcons.generated';
 import { cn } from '@/utils/cn';
 import { isWorkplaceSurface, startTabLink } from '@/utils/startpage';
 import '../../../assets/styles/components/layout/sidebar.css';
@@ -609,6 +619,17 @@ const SidebarFavourites = memo(function SidebarFavourites({
   const favouriteIds = useSidebarFavouritesStore((s) => s.favouriteIds);
   const removeFavourite = useSidebarFavouritesStore((s) => s.removeFavourite);
   const configItems = getFavouriteItemsById(favouriteIds);
+  // Projekte in den Favoriten (`projekt:<id>`): aufgelöst über die eigene
+  // Projektliste (dieselbe Abfrage wie der Projekte-Abschnitt). Ein Projekt,
+  // das man verlassen hat oder das gelöscht ist, fällt still heraus.
+  const { userGroups } = useGroups({ isActive: true });
+  const projektItems = useMemo(() => {
+    const byId = new Map((userGroups ?? []).map((g) => [projektFavouriteId(g.id), g]));
+    return favouriteIds.flatMap((id) => {
+      const g = byId.get(id);
+      return g ? [{ id, title: g.name, path: buildGroupPath(g) }] : [];
+    });
+  }, [favouriteIds, userGroups]);
 
   const favoriteIdentifiers = useAgentFavoritesStore((s) => s.favoriteIdentifiers);
   const favoriteTitles = useAgentFavoritesStore((s) => s.favoriteTitles);
@@ -653,7 +674,7 @@ const SidebarFavourites = memo(function SidebarFavourites({
 
   // Favourites only show in the expanded sidebar (no icon-only rail entries).
   if (!expanded) return null;
-  if (configItems.length === 0 && agentItems.length === 0) return null;
+  if (configItems.length === 0 && projektItems.length === 0 && agentItems.length === 0) return null;
 
   const titleClass = cn(
     'min-w-0 flex-1 truncate text-left text-sm font-medium leading-tight transition-all duration-150',
@@ -726,6 +747,15 @@ const SidebarFavourites = memo(function SidebarFavourites({
           item.title,
           item.path,
           removeStar(() => removeFavourite(item.id), item.title)
+        )
+      )}
+      {projektItems.map((p) =>
+        renderRow(
+          p.id,
+          <PiUsersThree aria-hidden="true" className={iconClass} />,
+          p.title,
+          p.path,
+          removeStar(() => removeFavourite(p.id), p.title)
         )
       )}
       {agentItems.map((a) =>

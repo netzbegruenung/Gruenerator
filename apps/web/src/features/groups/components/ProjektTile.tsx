@@ -8,8 +8,14 @@ import {
 } from '@gruenerator/shared/groups';
 import { DropdownMenuItem, toast } from '@gruenerator/ui';
 import { HiOutlineArchive } from 'react-icons/hi';
+import { PiStar, PiStarFill } from 'react-icons/pi';
 
 import { getToolTheme } from '../../../config/toolTheme';
+import useSidebarFavouritesStore, {
+  projektFavouriteId,
+  useIsFavourite,
+  useIsFavouritesFull,
+} from '../../../stores/sidebarFavouritesStore';
 import { resolveApiAssetUrl } from '../../../utils/platform';
 
 import { TileCard } from './TileCard';
@@ -30,6 +36,10 @@ export function ProjektTile({ projekt }: { projekt: GroupSummary }) {
   const colorKey = resolveGroupColor(projekt.color);
   const palette = colorKey ? GROUP_COLOR_STYLES[colorKey] : null;
   const setArchived = useSetGroupArchived(projekt.id);
+  const favouriteId = projektFavouriteId(projekt.id);
+  const isFavourite = useIsFavourite(favouriteId);
+  const favouritesFull = useIsFavouritesFull();
+  const toggleFavourite = useSidebarFavouritesStore((s) => s.toggleFavourite);
   // A chosen colour swaps the whole tone set (background, title, description, icon) so the
   // contrast pairs stay the audited ones, in both modes.
   const tone = palette
@@ -87,15 +97,29 @@ export function ProjektTile({ projekt }: { projekt: GroupSummary }) {
         )
       }
       meta={[projektMeta(projekt)].filter((line): line is string => !!line)}
-      // Archivieren wie im Projektmenü: nur Admins, nie das System-Projekt.
-      // Löschen und Verlassen brauchen eine Rückfrage und bleiben dort.
       menu={
-        projekt.isAdmin && !projekt.is_system ? (
-          <DropdownMenuItem onClick={toggleArchived} disabled={setArchived.isPending}>
-            <HiOutlineArchive />
-            {archived ? 'Wiederherstellen' : 'Archivieren'}
+        <>
+          <DropdownMenuItem
+            onClick={() => {
+              if (!isFavourite && favouritesFull) {
+                toast.error('Die Favoriten sind voll. Entferne zuerst einen.');
+                return;
+              }
+              toggleFavourite(favouriteId);
+            }}
+          >
+            {isFavourite ? <PiStarFill /> : <PiStar />}
+            {isFavourite ? 'Aus Favoriten entfernen' : 'Zu Favoriten'}
           </DropdownMenuItem>
-        ) : null
+          {/* Archivieren wie im Projektmenü: nur Admins, nie das System-Projekt.
+              Löschen und Verlassen brauchen eine Rückfrage und bleiben dort. */}
+          {projekt.isAdmin && !projekt.is_system && (
+            <DropdownMenuItem onClick={toggleArchived} disabled={setArchived.isPending}>
+              <HiOutlineArchive />
+              {archived ? 'Wiederherstellen' : 'Archivieren'}
+            </DropdownMenuItem>
+          )}
+        </>
       }
     />
   );

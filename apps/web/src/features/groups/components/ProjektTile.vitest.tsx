@@ -7,6 +7,8 @@ import { ProjektTile } from './ProjektTile';
 
 import type { GroupSummary } from '@gruenerator/shared/groups';
 
+import useSidebarFavouritesStore from '@/stores/sidebarFavouritesStore';
+
 const personalProjekt: GroupSummary = {
   id: 'projekt-1',
   name: 'Mein Projekt',
@@ -48,13 +50,22 @@ describe('ProjektTile', () => {
     expect(screen.queryByText(/Gestern|Vor /)).not.toBeInTheDocument();
   });
 
-  it('offers archiving in the menu only to admins', async () => {
+  it('offers favourites to everyone and archiving only to admins', async () => {
     const { user, unmount } = renderWithProviders(<ProjektTile projekt={teamProjekt} />);
-    expect(screen.queryByRole('button', { name: 'Aktionen' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Aktionen' }));
+    expect(await screen.findByRole('menuitem', { name: /Zu Favoriten/ })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /Archivieren/ })).not.toBeInTheDocument();
     unmount();
     renderWithProviders(<ProjektTile projekt={{ ...teamProjekt, isAdmin: true }} />);
     await user.click(screen.getByRole('button', { name: 'Aktionen' }));
     expect(await screen.findByRole('menuitem', { name: /Archivieren/ })).toBeInTheDocument();
+  });
+
+  it('puts the project into the sidebar favourites', async () => {
+    const { user } = renderWithProviders(<ProjektTile projekt={teamProjekt} />);
+    await user.click(screen.getByRole('button', { name: 'Aktionen' }));
+    await user.click(await screen.findByRole('menuitem', { name: /Zu Favoriten/ }));
+    expect(useSidebarFavouritesStore.getState().favouriteIds).toContain('projekt:projekt-2');
   });
 
   it('renders initials when there is no avatar_url', () => {
