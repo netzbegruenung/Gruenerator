@@ -2,6 +2,7 @@
  * `@docs` and `@sheets` mentionables read the same `GET /api/docs` list. Both
  * queries mounting together (the composer does) must cost one request, not two.
  */
+import { ApiError } from '@gruenerator/shared/api';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { type ReactNode } from 'react';
@@ -9,7 +10,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { useChatConfigStore } from '../stores/chatConfigStore';
 
-import { useDocsQuery, useSheetsQuery } from './useMentionablesQuery';
+import { useDocsQuery, useSheetsQuery, useUserNotebooksQuery } from './useMentionablesQuery';
 
 afterEach(() => {
   useChatConfigStore.getState().configure(undefined);
@@ -45,5 +46,66 @@ describe('docs and sheets mentionables', () => {
     expect(spy).toHaveBeenCalledTimes(1);
     expect(result.current.docs.data?.map((d) => d.id)).toEqual(['a']);
     expect(result.current.sheets.data?.map((d) => d.id)).toEqual(['b']);
+  });
+});
+
+describe('user notebooks mentionable', () => {
+  const makeWrapper = (queryClient: QueryClient) =>
+    function Wrapper({ children }: { children: ReactNode }) {
+      return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+    };
+
+  it('reads through the host fetcher and issues no request of its own', async () => {
+    const spy = vi.fn(() => Promise.reject(new Error('must not fetch')));
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    // The host's own cache entry, fetched once and shared with the mention hook.
+    const hostFetch = vi.fn(() => Promise.resolve([{ id: 'n1', name: 'Klima' }]));
+    const hostKey = ['notebookCollections', 'u1'];
+    useChatConfigStore.getState().configure({
+      fetch: spy,
+      fetchUserNotebooks: () =>
+        queryClient.fetchQuery({ queryKey: hostKey, queryFn: hostFetch, staleTime: 60_000 }),
+    });
+
+    await queryClient.fetchQuery({ queryKey: hostKey, queryFn: hostFetch, staleTime: 60_000 });
+    const { result } = renderHook(() => useUserNotebooksQuery(), {
+      wrapper: makeWrapper(queryClient),
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(result.current.data?.map((n) => n.id)).toEqual(['n1']);
+    expect(hostFetch).toHaveBeenCalledTimes(1);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('resolves an unauthorized host fetch to an empty list', async () => {
+    useChatConfigStore.getState().configure({
+      fetchUserNotebooks: () => Promise.reject(new ApiError(401, 'Unauthorized')),
+    });
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { result } = renderHook(() => useUserNotebooksQuery(), {
+      wrapper: makeWrapper(queryClient),
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toEqual([]);
+  });
+
+  it('falls back to GET /api/auth/notebook-collections without a host fetcher', async () => {
+    const spy = vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ collections: [{ id: 'n2', name: 'Verkehr' }] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+    );
+    useChatConfigStore.getState().configure({ fetch: spy });
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { result } = renderHook(() => useUserNotebooksQuery(), {
+      wrapper: makeWrapper(queryClient),
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(result.current.data?.map((n) => n.id)).toEqual(['n2']);
   });
 });

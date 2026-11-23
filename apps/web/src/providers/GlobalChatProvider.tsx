@@ -7,7 +7,7 @@ import {
 } from '@gruenerator/chat';
 import { type RoleRef } from '@gruenerator/contracts';
 import { ApiError, getContractsClient, type UnauthorizedInfo } from '@gruenerator/shared/api';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -83,6 +83,20 @@ function mintChatSharepic(variant: SharepicVariant, threadId: string): Promise<s
   return mint;
 }
 
+/**
+ * The one notebook-collections cache entry: the thread list reads it here, the
+ * profile/notebook pages share its key, and the chat @mention list fetches through
+ * it (`fetchUserNotebooks`), so `GET /api/auth/notebook-collections` runs once.
+ */
+function notebookCollectionsQueryOptions(userId: string | undefined) {
+  return {
+    queryKey: QUERY_KEYS.notebookCollections(userId),
+    queryFn: profileApiService.getNotebookCollections,
+    enabled: !!userId,
+    staleTime: 15 * 60_000,
+  };
+}
+
 // DOM id of the sidebar slot the global thread list renders into. The slot
 // element lives in the layout Sidebar; the chat runtime renders the thread list
 // into it (see GrueneratorChatRuntimeProvider's threadListPortalSlotId).
@@ -112,12 +126,8 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
   // Notebook collections name the notebook chats in the thread list. Same key and
   // fetcher as the profile/notebook pages (and the /auth/init seed), so it joins
   // their request instead of issuing a second one.
-  const { data: notebookCollections } = useQuery({
-    queryKey: QUERY_KEYS.notebookCollections(userId),
-    queryFn: profileApiService.getNotebookCollections,
-    enabled: !!userId,
-    staleTime: 15 * 60_000,
-  });
+  const queryClient = useQueryClient();
+  const { data: notebookCollections } = useQuery(notebookCollectionsQueryOptions(userId));
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -317,6 +327,14 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
           console.warn('[Sharepic] auto-save failed:', err);
           return null;
         }),
+      // The @mention list reads the same cache entry, so the endpoint runs once.
+      // `chatConfig` is built once, so the user is read at call time.
+      fetchUserNotebooks: () => {
+        const id = useAuthStore.getState().user?.id;
+        return id
+          ? queryClient.fetchQuery(notebookCollectionsQueryOptions(id))
+          : Promise.resolve([]);
+      },
       fetchSharepicState: async (canvasId: string) => {
         const result = await getContractsClient().canvas.getState({ params: { id: canvasId } });
         if (result.status !== 200) return null;
@@ -389,7 +407,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
         }
       },
     }),
-    [isInstanceAdmin]
+    [isInstanceAdmin, queryClient]
   );
 
   return (
