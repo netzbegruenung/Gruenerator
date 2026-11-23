@@ -107,7 +107,7 @@ export function startWorkplaceTour(navigate: NavigateFn, layout: StartLayout = '
         popover: {
           title: 'Deine Werkzeuge',
           description:
-            'Unter „Mach mehr mit deinem Grünerator“ liegen Videos, Notebooks, Vorlagen, Profilbild, Vertonen & Transkribieren und der Übersetzer.',
+            'Unter „Mehr Produktivität mit dem Grünerator“ liegen Videos, Notebooks, Vorlagen, Profilbild, Vertonen & Transkribieren und der Übersetzer.',
           side: 'top',
           onNextClick: (_el, _step, opts) => {
             expandSidebar(() => opts.driver.moveNext());
