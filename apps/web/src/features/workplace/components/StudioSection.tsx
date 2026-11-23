@@ -1,11 +1,13 @@
 import { useAgentStore } from '@gruenerator/chat/stores';
+import { sharepicVorlageThumbPath } from '@gruenerator/contracts';
 import { Button, cn } from '@gruenerator/ui';
 import { type ReactNode, useEffect, useRef } from 'react';
-import { HiArrowRight, HiPlay } from 'react-icons/hi2';
+import { HiPlay } from 'react-icons/hi2';
 import { PiFilmSlate, PiMusicNotes, PiTextT } from 'react-icons/pi';
 import { Link } from 'react-router-dom';
 
 import { DASH_CARD } from '../../../components/dashboard/dashboardStyles';
+import { usePopularVorlagen } from '../../vorlagen/hooks/usePopularVorlagen';
 
 import { SECTION_LINK } from './arbeitenGrid';
 import { ArbeitenSection } from './ArbeitenSections';
@@ -133,48 +135,49 @@ function EditorMock() {
 const SHEET =
   'absolute bottom-0 aspect-[4/5] w-[116px] overflow-hidden rounded-lg shadow-[0_14px_28px_-12px_rgba(0,0,0,0.35)] transition-transform duration-300 ease-out motion-reduce:transition-none';
 
-/** Three Vorlagen fanned out: two drawn, the front one with a real picture; they spread on hover. */
+// Left, right, front: the front sheet sits on top and lifts on hover, the others spread.
+const FAN = [
+  {
+    place: 'left-0 -rotate-12 group-hover/fan:-translate-x-2 group-hover/fan:-rotate-[16deg]',
+    fallback: 'bg-primary-600',
+  },
+  {
+    place: 'right-0 rotate-12 group-hover/fan:translate-x-2 group-hover/fan:rotate-[16deg]',
+    fallback: 'bg-secondary-400',
+  },
+  {
+    place: 'left-1/2 z-10 -translate-x-1/2 group-hover/fan:-translate-y-2',
+    fallback: 'bg-primary-200 dark:bg-primary-800',
+  },
+] as const;
+
+/**
+ * The three most popular Grünerator-Vorlagen fanned out, as in „Beliebte
+ * Sharepic-Vorlagen" in the Studio. Plain coloured sheets until they have loaded,
+ * or if there are none.
+ */
 function VorlagenFan() {
+  const { data } = usePopularVorlagen(FAN.length);
+  const thumbs = (data ?? []).map(({ vorlage }) =>
+    sharepicVorlageThumbPath(vorlage.id, 1, vorlage.thumbVersion)
+  );
   return (
     <div aria-hidden className="group/fan relative h-[150px] w-[220px]">
-      <span
-        className={cn(
-          SHEET,
-          'left-0 -rotate-12 bg-primary-600 p-2.5 group-hover/fan:-translate-x-2 group-hover/fan:-rotate-[16deg]'
-        )}
-      >
-        <span className="absolute inset-x-2.5 bottom-3 flex flex-col gap-1.5">
-          <span className="h-1.5 w-4/5 rounded-full bg-white/85" />
-          <span className="h-1.5 w-3/5 rounded-full bg-white/85" />
+      {FAN.map((sheet, i) => (
+        <span key={sheet.place} className={cn(SHEET, sheet.place, sheet.fallback)}>
+          {thumbs[i] && (
+            // Eager, not lazy: the list arrives with the page, so the pictures are
+            // loaded before anyone scrolls down to them.
+            <img
+              src={thumbs[i]}
+              alt=""
+              loading="eager"
+              decoding="async"
+              className="size-full object-cover"
+            />
+          )}
         </span>
-      </span>
-      <span
-        className={cn(
-          SHEET,
-          'right-0 rotate-12 bg-secondary-400 group-hover/fan:translate-x-2 group-hover/fan:rotate-[16deg]'
-        )}
-      >
-        <span className="absolute inset-x-2.5 top-3 flex flex-col gap-1.5">
-          <span className="h-1.5 w-3/5 rounded-full bg-white/85" />
-          <span className="h-1.5 w-4/5 rounded-full bg-white/85" />
-        </span>
-      </span>
-      <span
-        className={cn(
-          SHEET,
-          'left-1/2 z-10 -translate-x-1/2 bg-white group-hover/fan:-translate-y-2'
-        )}
-      >
-        <img
-          src="/arbeiten-previews/vorlagen.jpg"
-          alt=""
-          loading="lazy"
-          className="size-full object-cover dark:brightness-[.8]"
-        />
-        <span className="absolute inset-x-0 bottom-0 bg-primary-700 px-2 py-1.5">
-          <span className="block h-1.5 w-3/4 rounded-full bg-white/90" />
-        </span>
-      </span>
+      ))}
     </div>
   );
 }
@@ -253,7 +256,6 @@ export function StudioSection() {
                 onClick={() => useAgentStore.getState().setPendingDraft(SHAREPIC_DRAFT)}
               >
                 Sharepic erstellen
-                <HiArrowRight className="size-4" aria-hidden="true" />
               </Link>
             </Button>
           }
@@ -265,10 +267,7 @@ export function StudioSection() {
           text="Fertige Designs für Sharepics und Drucksachen: aussuchen und anpassen."
           action={
             <Button asChild variant="brand" size="lg">
-              <Link to="/vorlagen">
-                Vorlagen ansehen
-                <HiArrowRight className="size-4" aria-hidden="true" />
-              </Link>
+              <Link to="/vorlagen">Vorlagen ansehen</Link>
             </Button>
           }
           picture={<VorlagenFan />}
@@ -280,10 +279,7 @@ export function StudioSection() {
           text="Reels schneiden, mit Text und Musik. Direkt im Browser."
           action={
             <Button asChild variant="brand" size="lg">
-              <Link to="/studio/videoeditor">
-                Video schneiden
-                <HiArrowRight className="size-4" aria-hidden="true" />
-              </Link>
+              <Link to="/studio/videoeditor">Video schneiden</Link>
             </Button>
           }
           picture={<EditorMock />}
