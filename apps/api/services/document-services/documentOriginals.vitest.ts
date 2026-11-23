@@ -42,11 +42,14 @@ describe('originalResponseHeaders', () => {
     expect(h['Content-Type']).toBe('application/pdf');
     expect(h['Content-Disposition']).toMatch(/^inline;/);
     expect(h['X-Content-Type-Options']).toBe('nosniff');
-    expect(h['Content-Security-Policy']).toBe('sandbox');
+    // Chrome's PDF viewer does not run inside a sandboxed document.
+    expect(h).not.toHaveProperty('Content-Security-Policy');
   });
 
-  it('serves an image inline', () => {
-    expect(originalResponseHeaders('Plakat.png', null)['Content-Disposition']).toMatch(/^inline;/);
+  it('serves an image inline and sandboxed', () => {
+    const h = originalResponseHeaders('Plakat.png', null);
+    expect(h['Content-Disposition']).toMatch(/^inline;/);
+    expect(h['Content-Security-Policy']).toBe('sandbox');
   });
 
   it('sends a DOCX as attachment', () => {
@@ -76,7 +79,7 @@ describe('originalResponseHeaders', () => {
 });
 
 describe('keepOriginal', () => {
-  it('moves the pending file and returns the relative path', async () => {
+  it('copies the pending file and returns the relative path', async () => {
     const pendingDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pending-'));
     const pending = path.join(pendingDir, 'upload-123.pdf');
     fs.writeFileSync(pending, '%PDF-1.4');
@@ -84,7 +87,7 @@ describe('keepOriginal', () => {
     const rel = await keepOriginal(pending, { userId: 'u1', documentId: 'd1', filename: 'a.PDF' });
 
     expect(rel).toBe('u1/d1.pdf');
-    expect(fs.existsSync(pending)).toBe(false);
+    expect(fs.existsSync(pending)).toBe(true);
     expect(fs.readFileSync(path.join(base, 'u1/d1.pdf'), 'utf8')).toBe('%PDF-1.4');
     fs.rmSync(pendingDir, { recursive: true, force: true });
   });

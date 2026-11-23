@@ -6,7 +6,7 @@
 import fs from 'fs';
 
 import { hasAiConsent } from '../../../middleware/requireAiConsent.js';
-import { keepOriginal, restoreToPending } from '../documentOriginals.js';
+import { keepOriginal, removeOriginal } from '../documentOriginals.js';
 
 import { chunkAndEmbedText } from './chunkingPipeline.js';
 import { ingestRetryDelayMs } from './ingestRetry.js';
@@ -353,13 +353,13 @@ export async function processUploadedDocument(
         },
       });
     } catch (error) {
-      // Put the file back where a retry of this run looks for it.
-      if (keptOriginal && filePath) await restoreToPending(keptOriginal, filePath);
+      // The pending file is still there for the retry; drop the unreferenced copy.
+      if (keptOriginal) await removeOriginal(keptOriginal).catch(() => undefined);
       throw error;
     }
 
     // Clean up temp file (a reindex fetched its original into memory)
-    if (filePath && !reindex && !keptOriginal) {
+    if (filePath && !reindex) {
       try {
         fs.unlinkSync(filePath);
         const dir = filePath.substring(0, filePath.lastIndexOf('/'));

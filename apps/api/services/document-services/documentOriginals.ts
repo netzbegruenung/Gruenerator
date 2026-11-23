@@ -38,7 +38,11 @@ export function resolveOriginalPath(relative: string): string | null {
   return resolved;
 }
 
-/** Move a finished upload into the originals dir; returns the relative path to store. */
+/**
+ * Copy a finished upload into the originals dir; returns the relative path to
+ * store. A copy, not a move: the pending file must survive until the row
+ * points at the copy, or a crash in between leaves the ingest retry nothing.
+ */
 export async function keepOriginal(
   pendingPath: string,
   input: { userId: string; documentId: string; filename: string | null }
@@ -48,15 +52,8 @@ export async function keepOriginal(
   const target = resolveOriginalPath(relative);
   if (!target) throw new Error(`Invalid original path for document ${input.documentId}`);
   await fs.mkdir(path.dirname(target), { recursive: true });
-  await fs.rename(pendingPath, target);
+  await fs.copyFile(pendingPath, target);
   return relative;
-}
-
-/** Undo `keepOriginal` when the run that kept it fails afterwards. */
-export async function restoreToPending(relative: string, pendingPath: string): Promise<void> {
-  const target = resolveOriginalPath(relative);
-  if (!target) return;
-  await fs.rename(target, pendingPath).catch(() => removeOriginal(relative));
 }
 
 export async function removeOriginal(relative: string | null): Promise<void> {
@@ -83,8 +80,8 @@ function rfc5987(value: string): string {
 /**
  * Headers for serving an original. The type comes from the extension table,
  * never from the client-supplied mimetype; only PDFs and images open inline,
- * everything else downloads. `sandbox` keeps an inline file from running
- * script on our origin.
+ * everything else downloads. `sandbox` (not for PDFs, see below) is defence
+ * in depth against an inline file running script on our origin.
  */
 export function originalResponseHeaders(
   filename: string | null,
@@ -99,6 +96,8 @@ export function originalResponseHeaders(
     'Content-Type': contentType,
     'Content-Disposition': `${inline ? 'inline' : 'attachment'}; filename="${ascii}"; filename*=UTF-8''${rfc5987(name)}`,
     'X-Content-Type-Options': 'nosniff',
-    'Content-Security-Policy': 'sandbox',
+    // Chrome's PDF viewer refuses to run in a sandboxed document; a PDF cannot
+    // script our origin anyway, so only the other types get the sandbox.
+    ...(contentType === 'application/pdf' ? {} : { 'Content-Security-Policy': 'sandbox' }),
   };
 }

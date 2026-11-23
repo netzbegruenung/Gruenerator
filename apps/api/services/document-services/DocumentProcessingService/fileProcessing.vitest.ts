@@ -273,6 +273,19 @@ describe('processUploadedDocument — Originale behalten', () => {
     expect(fs.readFileSync(path.join(originals, 'u1/d1.pdf'), 'utf8')).toBe('%PDF-1.4');
   });
 
+  it('keeps the pending file until the completion update has committed', async () => {
+    let pendingDuringUpdate: boolean | null = null;
+    const update = vi.fn(async (_id: string, _u: string, data: { status?: string }) => {
+      if (data.status === 'completed') pendingDuringUpdate = fs.existsSync(pending);
+    });
+    await run('manual', update);
+
+    // A crash inside the update must leave the retry its file.
+    expect(pendingDuringUpdate).toBe(true);
+    expect(fs.existsSync(pending)).toBe(false);
+    expect(fs.existsSync(path.join(originals, 'u1/d1.pdf'))).toBe(true);
+  });
+
   it('still deletes the temp file of a wolke document', async () => {
     const update = await run('wolke');
 
@@ -284,7 +297,7 @@ describe('processUploadedDocument — Originale behalten', () => {
     expect(fs.existsSync(path.join(originals, 'u1'))).toBe(false);
   });
 
-  it('moves the file back to pending when the completion update fails', async () => {
+  it('keeps the pending file and drops the copy when the completion update fails', async () => {
     const update = vi.fn(async (_id: string, _u: string, data: { status?: string }) => {
       if (data.status === 'completed') throw new Error('db down');
     });
