@@ -36,10 +36,10 @@ export function GroupColorPicker({ value, onChange, disabled = false }: GroupCol
         title="Standard"
         disabled={disabled}
         onClick={() => onChange(null)}
-        className={`${swatch} bg-[#DCE6F2] dark:bg-[#14202E] ${current === null ? 'ring-2 ring-primary-600 ring-offset-1' : ''}`}
+        className={`${swatch} bg-[#D6EBE8] dark:bg-[#112423] ${current === null ? 'ring-2 ring-primary-600 ring-offset-1' : ''}`}
       >
         {current === null && (
-          <HiCheck aria-hidden className="size-4 text-[#1E3A5E] dark:text-[#A2C0E4]" />
+          <HiCheck aria-hidden className="size-4 text-[#12504A] dark:text-[#9AD6CF]" />
         )}
       </button>
       {GROUP_COLOR_KEYS.map((key) => {
