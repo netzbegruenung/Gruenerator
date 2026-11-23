@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getCuratableSystemAgents } from './audience.js';
+import { getCuratableSystemAgents } from './audienceCatalog.js';
 import { isAdminVisibleAgent } from './agentVisibility.js';
 import { getHubMemberAgentIds } from './landesverbandHubs.js';
 

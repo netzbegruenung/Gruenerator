@@ -1,4 +1,4 @@
-import { getSystemAgent, SYSTEM_AGENTS } from './system.js';
+import { SLIM_AGENTS, getSlimAgent } from './slim.js';
 
 const AGENT_ID_PREFIX = 'gruenerator-';
 
@@ -8,7 +8,7 @@ const AGENT_ID_PREFIX = 'gruenerator-';
  * verbose identifier (`gruenerator-oeffentlichkeitsarbeit-berlin`).
  */
 const customSlugToIdentifier = new Map<string, string>(
-  SYSTEM_AGENTS.flatMap((agent) => (agent.slug ? [[agent.slug, agent.identifier] as const] : []))
+  SLIM_AGENTS.flatMap((agent) => (agent.slug ? [[agent.slug, agent.identifier] as const] : []))
 );
 
 /**
@@ -40,7 +40,7 @@ export function agentRef(agent: { id?: string; identifier: string }, isOwn: bool
  * Identifiers without the prefix (user-defined agents) pass through unchanged.
  */
 export function getAgentSlug(identifier: string): string {
-  const explicit = getSystemAgent(identifier)?.slug;
+  const explicit = getSlimAgent(identifier)?.slug;
   if (explicit) return explicit;
   return identifier.startsWith(AGENT_ID_PREFIX)
     ? identifier.slice(AGENT_ID_PREFIX.length)
@@ -65,5 +65,5 @@ export function resolveAgentSlug(slug: string): string {
   if (custom) return custom;
   if (slug.startsWith(AGENT_ID_PREFIX)) return slug;
   const candidate = `${AGENT_ID_PREFIX}${slug}`;
-  return getSystemAgent(candidate) ? candidate : slug;
+  return getSlimAgent(candidate) ? candidate : slug;
 }
