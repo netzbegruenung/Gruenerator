@@ -26,11 +26,13 @@ import {
   HOST_CAPABILITY_FILE_TRANSFER,
   HOST_CAPABILITY_SHARE,
   hostSupports,
-  parseHostMessage,
   postToNativeHost,
   sanitizeDownloadFilename,
   WEBVIEW_DOWNLOAD_MAX_BASE64_LENGTH,
+  type WebViewInboundMessage,
 } from './webviewBridge.js';
+
+type ParseHostMessage = (raw: unknown) => WebViewInboundMessage | null;
 
 /**
  * Thrown when a file is too large to hand across the WebView bridge.
@@ -137,7 +139,7 @@ async function chunkToBase64(blob: Blob): Promise<string> {
  * The host's answers to one transfer: `waitFor(n)` resolves once the host has
  * acknowledged `n` chunks and rejects on `FILE_TRANSFER_FAILED` or silence.
  */
-function hostAcks(transferId: string) {
+function hostAcks(transferId: string, parseHostMessage: ParseHostMessage) {
   let received = -1;
   let failure: string | null = null;
   let wake: (() => void) | null = null;
@@ -187,7 +189,11 @@ function hostAcks(transferId: string) {
  */
 export async function transferInChunks(blob: Blob, filename: string, mime: string): Promise<void> {
   const transferId = crypto.randomUUID();
-  const acks = hostAcks(transferId);
+  // The parser carries the creator messages' zod schemas; loading it here keeps
+  // them out of the web entry, which reaches this file at boot (#5891). The
+  // listener is still in place before FILE_TRANSFER_BEGIN goes out.
+  const { parseHostMessage } = await import('./webviewBridgeParse.js');
+  const acks = hostAcks(transferId, parseHostMessage);
   try {
     postToNativeHost({ type: 'FILE_TRANSFER_BEGIN', transferId, filename, mime, size: blob.size });
     await acks.waitFor(0);

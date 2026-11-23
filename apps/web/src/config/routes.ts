@@ -1,5 +1,4 @@
 import { isChannelVisibleIn, type InstanceChannel } from '@gruenerator/shared/instances';
-import { stickerDiscoverToMarketplaceHref } from '@gruenerator/shared/marketplace';
 import {
   lazy,
   type ComponentType,
@@ -224,18 +223,9 @@ const ProfilbildPage = lazy(() => import('../features/studio-tools/pages/Profilb
 const BildErweiternPage = lazy(() => import('../features/studio-tools/pages/BildErweiternPage'));
 const FreistellenPage = lazy(() => import('../features/studio-tools/pages/FreistellenPage'));
 const StudioAssetsPage = lazy(() => import('../features/studio-assets/StudioAssetsPage'));
-// „Entdecken" ist im Marktplatz aufgegangen; der alte Pfad leitet für immer
-// weiter (URL-Sonderrecht, CLAUDE.md), samt Suche.
-export const StickerDiscoverRedirectComponent: FC<Record<string, unknown>> = () => {
-  const { search } = useLocation();
-  return createElement(Navigate, {
-    to: stickerDiscoverToMarketplaceHref(new URLSearchParams(search)),
-    replace: true,
-  });
-};
-const StickerDiscoverRedirect = lazy(() =>
-  Promise.resolve({ default: StickerDiscoverRedirectComponent })
-);
+// „Entdecken" ist im Marktplatz aufgegangen; der Redirect liegt in einer
+// eigenen Datei, damit der Marktplatz-Code nicht im Entry landet (#5891).
+const StickerDiscoverRedirect = lazy(() => import('./StickerDiscoverRedirect'));
 const StickerCreatorPage = lazy(
   () => import('../features/studio-assets/creator/StickerCreatorPage')
 );
