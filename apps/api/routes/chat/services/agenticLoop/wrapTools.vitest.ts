@@ -1,5 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 
+import { EndgueltigerWerkzeugFehler, werkzeugFehler } from '../../agents/toolFailure.js';
+
 import { createToolLoopGuards } from './loopGuards.js';
 import { createToolActivity } from './toolActivity.js';
 import { createToolApprovalGate } from './toolApprovalGate.js';
@@ -98,6 +100,33 @@ describe('wrapToolsForLoop', () => {
     expect(out.error).toContain('kaputt');
     expect(events[1].data).toMatchObject({ ok: false });
     expect(ctx.guards.checkFailureCap('boom')).toBeNull(); // 1 failure, cap is 2
+  });
+
+  it('passes a final tool error through as a guarded refusal, not as a crash', async () => {
+    const onToolCallError = vi.fn();
+    const { ctx, events } = makeCtx({ hooks: { onToolCallError } });
+    const fehler = werkzeugFehler({
+      art: 'nicht_verfuegbar',
+      ursache: 'Geht hier nicht',
+      naechsterSchritt: 'Nicht erneut versuchen',
+    });
+    const tools = wrapToolsForLoop(
+      {
+        card: {
+          execute: async () => {
+            throw new EndgueltigerWerkzeugFehler(fehler);
+          },
+        },
+      } as unknown as ToolSet,
+      ctx
+    );
+
+    const out = await run(tools, 'card', {});
+    // The model gets the finished shape; `guard` keeps the retry nudge away.
+    expect(out).toEqual({ ...fehler, guard: 'endgueltig' });
+    expect(events[1].data).toMatchObject({ ok: false });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(onToolCallError).not.toHaveBeenCalled();
   });
 
   it('Zeitüberschreitung: Karte zeigt nur Ursache+Befund, der nächste Schritt geht ans Modell', async () => {

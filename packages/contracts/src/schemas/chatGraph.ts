@@ -217,6 +217,11 @@ export const chatStreamBodySchema = z.object({
   // the enum, so a newer client listing a kind this backend does not know yet
   // is not rejected.
   visualBlocks: z.array(z.string()).nullish(),
+  // Confirm-card types this client renders (`confirmActionTypeSchema`). A
+  // shipped client drops a card whose type its enum lacks, silently; the server
+  // only emits the types listed here and tells the model otherwise. Absent =
+  // `CONFIRM_ACTION_TYPES_APP_1_7_0`. Free strings, like `visualBlocks`.
+  confirmActions: z.array(z.string()).nullish(),
   defaultNotebookId: z.string().nullish(),
   boardIds: z.array(z.string()).nullish(),
   sheetIds: z.array(z.string()).nullish(),

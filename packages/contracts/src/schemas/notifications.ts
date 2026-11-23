@@ -44,6 +44,7 @@ export const notificationTypeSchema = z.enum([
   'group_join_requested',
   'group_join_approved',
   'group_join_denied',
+  'group_content_reported',
   'transfer_downloaded',
   'notebook_liked',
   'template_liked',

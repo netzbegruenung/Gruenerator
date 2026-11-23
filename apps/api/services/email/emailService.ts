@@ -241,7 +241,7 @@ export async function sendGroupInviteEmail(params: GroupInviteEmailParams): Prom
 
   return sendEmail({
     to: params.recipientEmail,
-    subject: `Einladung zur Gruppe „${params.groupName}"`,
+    subject: `Einladung zum Projekt „${params.groupName}"`,
     html,
     text,
   });

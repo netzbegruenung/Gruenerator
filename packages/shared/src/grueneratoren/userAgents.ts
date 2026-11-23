@@ -1,13 +1,16 @@
 import {
+  type AgentConversionResponse,
+  type AgentConversionTarget,
   type CreateUserAgentBody,
   type UpdateUserAgentBody,
-  type DraftedAgentSpec,
 } from '@gruenerator/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { SYSTEM_AGENTS, agentKey, type Agent } from '../agents/index.js';
 import { ApiError, apiErrorFromResponse, getContractsClient } from '../api/index.js';
-import { type GroupSummary } from '../groups/index.js';
+import { GROUPS_QUERY_KEY, type GroupSummary } from '../groups/index.js';
+
+import { requestAgentConversion } from './agentConversion.js';
 
 // Derived from the ts-rest contract schemas — the single source of truth for
 // the /api/user-agents request shapes.
@@ -46,35 +49,6 @@ export function useUserAgent(identifier: string | undefined) {
   });
 }
 
-export function useCreateUserAgent() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (input: UserAgentInput): Promise<Agent> => {
-      const res = await getContractsClient().userAgents.create({ body: input });
-      if (res.status === 201) return res.body.agent;
-      throw apiErrorFromResponse(res);
-    },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: KEY });
-    },
-  });
-}
-
-/**
- * Synthesize an agent spec from a one-shot freeform brief (the guided-assistant
- * start screen). The backend runs a Mistral structured-generation pass and
- * returns the validated spec to pre-fill the wizard.
- */
-export function useDraftAgent() {
-  return useMutation({
-    mutationFn: async (input: { description: string }): Promise<DraftedAgentSpec> => {
-      const res = await getContractsClient().userAgents.draft({ body: input });
-      if (res.status === 200) return res.body.spec;
-      throw apiErrorFromResponse(res);
-    },
-  });
-}
-
 export function useUpdateUserAgent(identifier: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -88,6 +62,52 @@ export function useUpdateUserAgent(identifier: string) {
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: KEY });
+    },
+  });
+}
+
+/**
+ * Was das Umwandeln eines eigenen Agents in `target` mitnimmt — ein Probelauf
+ * (`dryRun`), der nichts anlegt. Nennt auch einen schon bestehenden Nachfolger.
+ */
+export function useAgentConversionPreview(
+  identifier: string,
+  target: AgentConversionTarget,
+  enabled: boolean
+) {
+  return useQuery({
+    queryKey: [...KEY, identifier, 'convert', target],
+    enabled,
+    queryFn: (): Promise<AgentConversionResponse> =>
+      requestAgentConversion(
+        identifier,
+        { target, dryRun: true },
+        'Vorschau konnte nicht geladen werden.'
+      ),
+  });
+}
+
+/**
+ * Wandelt einen eigenen Agent in ein Rezept oder ein persönliches Projekt um.
+ * Der Agent bleibt unverändert; ein zweiter Aufruf liefert denselben
+ * Nachfolger, außer `fresh` verlangt eine neue Kopie.
+ */
+export function useConvertUserAgent(identifier: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      target: AgentConversionTarget;
+      fresh?: boolean;
+    }): Promise<AgentConversionResponse> =>
+      requestAgentConversion(
+        identifier,
+        { target: input.target, ...(input.fresh ? { fresh: true } : {}) },
+        'Umwandeln hat nicht geklappt.'
+      ),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: KEY });
+      void qc.invalidateQueries({ queryKey: ['text-forms'] });
+      void qc.invalidateQueries({ queryKey: GROUPS_QUERY_KEY });
     },
   });
 }

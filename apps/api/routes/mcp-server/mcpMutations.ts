@@ -36,12 +36,7 @@ import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { getAgentForUser } from '../chat/agents/agentLoader.js';
 import { createNotebookDirect, notebookUrl } from '../chat/agents/notebookTools.js';
 import { RECURRING_TASKS_URL } from '../chat/agents/recurringTaskTools.js';
-import {
-  createUserAgentSafely,
-  prepareUserAgentInput,
-  resolveUserAgentDeps,
-  userAgentUrl,
-} from '../chat/agents/userAgentTools.js';
+import { AGENT_CREATION_CLOSED } from '../chat/agents/userAgentTools.js';
 import { hasWriteAccess } from '../chat/confirmController.js';
 import { checkNotebookAccess } from '../notebook/notebookAccess.js';
 
@@ -100,7 +95,7 @@ export async function createGroupDirect(
   const slug = group.slug_suffix ? buildGroupSlug(group.name, group.slug_suffix) : group.id;
   return {
     ok: true,
-    note: `Gruppe „${group.name}" wurde erstellt (${absolutizeUrl(`/gruppen/${slug}`)}).`,
+    note: `Projekt „${group.name}" wurde erstellt (${absolutizeUrl(`/gruppen/${slug}`)}).`,
   };
 }
 
@@ -118,7 +113,7 @@ export async function joinGroupDirect(
     if (!group) return { error: 'Ungültiger oder abgelaufener Einladungslink.' };
     return {
       needsConfirmation: true,
-      note: `Der Gruppe „${group.name}" beitreten? Die Mitglieder werden benachrichtigt. Frage die Person und rufe join erst mit confirm=true erneut auf.`,
+      note: `Dem Projekt „${group.name}" beitreten? Die Mitglieder werden benachrichtigt. Frage die Person und rufe join erst mit confirm=true erneut auf.`,
     };
   }
 
@@ -134,7 +129,7 @@ export async function joinGroupDirect(
     ok: true,
     note: outcome.alreadyMember
       ? `Du bist bereits Mitglied von „${outcome.group.name}".`
-      : `Du bist der Gruppe „${outcome.group.name}" beigetreten.`,
+      : `Du bist dem Projekt „${outcome.group.name}" beigetreten.`,
   };
 }
 
@@ -198,12 +193,12 @@ export async function shareDocToGroupMcp(
   // Only member groups — findGroups also returns public groups with empty role.
   const groups = await findGroups(userId, groupName, 5);
   const group = groups.find((g) => g.role);
-  if (!group) return { error: `Keine Gruppe „${groupName}" gefunden, der du angehörst.` };
+  if (!group) return { error: `Kein Projekt „${groupName}" gefunden, der du angehörst.` };
 
   if (args.confirm !== true) {
     return {
       needsConfirmation: true,
-      note: `„${doc.title}" mit der Gruppe „${group.name}" teilen (${permission === 'editor' ? 'Bearbeiten' : 'Nur lesen'})? Frage die Person und rufe share_to_group erst mit confirm=true erneut auf.`,
+      note: `„${doc.title}" mit dem Projekt „${group.name}" teilen (${permission === 'editor' ? 'Bearbeiten' : 'Nur lesen'})? Frage die Person und rufe share_to_group erst mit confirm=true erneut auf.`,
     };
   }
 
@@ -516,51 +511,12 @@ export async function createRecurringTaskMcp(
 }
 
 /**
- * `user_agents` create als zweistufiges confirm-Protokoll — im Chat ist das
- * eine Karte, weil die Rolle ein LLM-Entwurf ist, den die Person vor dem
- * Speichern sehen soll. Der Entwurf wird bei JEDEM Aufruf neu gemacht, auch
- * beim zweiten mit confirm=true: der Rückfragetext ist keine Reservierung,
- * und zwischen den Aufrufen gibt es keinen Speicher. Wer die gezeigte Rolle
- * exakt will, gibt sie als systemRole mit.
+ * `user_agents` create: Agents laufen aus, neue gibt es nicht mehr. Die Aktion
+ * bleibt im MCP-Werkzeug (Aktionsnamen sind F0 für externe Clients) und nennt
+ * den Grund.
  */
-export async function createUserAgentMcp(
-  userId: string,
-  args: Record<string, unknown>
-): Promise<ToolResult> {
-  const profile = await getProfileService().getProfileById(userId);
-  const userLocale = profile?.locale === 'de-AT' ? 'de-AT' : 'de-DE';
-  const strings = (key: string): string[] | undefined =>
-    Array.isArray(args[key]) ? (args[key] as unknown[]).map(String) : undefined;
-  const prepared = await prepareUserAgentInput({
-    userId,
-    userLocale,
-    // MCP kennt die Profilrollen nicht — ungefiltert heißt: alle Rezepte gelten.
-    roles: null,
-    brief: typeof args.brief === 'string' ? args.brief : '',
-    ...(typeof args.title === 'string' ? { title: args.title } : {}),
-    ...(typeof args.systemRole === 'string' ? { systemRole: args.systemRole } : {}),
-    fields: {
-      ...(strings('enabledTools') ? { enabledTools: strings('enabledTools') } : {}),
-      ...(strings('skillMentions') ? { skillMentions: strings('skillMentions') } : {}),
-      ...(strings('defaultNotebookIds')
-        ? { defaultNotebookIds: strings('defaultNotebookIds') }
-        : {}),
-    },
-    deps: resolveUserAgentDeps(undefined),
-  });
-  if ('error' in prepared) return prepared;
-  const { input, preview } = prepared;
-  if (args.confirm !== true) {
-    return {
-      needsConfirmation: true,
-      note: `Grünerator-Agent anlegen? ${preview.map((p) => `${p.key}: ${p.value}`).join(' · ')}. Frage die Person und rufe create erst mit confirm=true erneut auf (gern mit systemRole, wenn die Rolle genau so bleiben soll).`,
-    };
-  }
-  const agent = await createUserAgentSafely(userId, input);
-  return {
-    ok: true,
-    note: `Grünerator-Agent „${agent.title}" angelegt (${absolutizeUrl(userAgentUrl(agent.identifier))}).`,
-  };
+export function createUserAgentMcp(): Promise<ToolResult> {
+  return Promise.resolve({ error: AGENT_CREATION_CLOSED });
 }
 
 export async function shareUserAgentMcp(

@@ -1,8 +1,10 @@
 import {
   type GroupAudience,
+  type GroupColor,
   type GroupLink,
   type GroupRole,
   type JoinRequestStatus,
+  type LandesverbandId,
 } from '@gruenerator/contracts';
 import { type InferSelectModel } from 'drizzle-orm';
 import {
@@ -46,6 +48,13 @@ export const groups = pgTable('groups', {
   // The one system group: every profile is a member, only instance admins
   // share, and member info is never exposed. See services/groups/systemGroup.ts.
   is_system: boolean('is_system').notNull().default(false),
+  // Explicit Landesverband of the project (id of `LANDESVERBAENDE`); beats the
+  // active role when picking LV recipe variants. Narrowed in contracts.
+  landesverband: text('landesverband').$type<LandesverbandId>(),
+  // Set by a project admin: leaves the main lists, stays readable, takes no new content.
+  archived_at: timestamp('archived_at', { withTimezone: true }),
+  // Optional tile colour from the fixed palette; null = the default blue.
+  color: text('color').$type<GroupColor>(),
 });
 
 export const group_memberships = pgTable('group_memberships', {
@@ -124,6 +133,9 @@ export const group_instructions = pgTable('group_instructions', {
   custom_prompt: text('custom_prompt').default(''),
   instructions_enabled: boolean('instructions_enabled').default(false),
   is_active: boolean('is_active').default(true),
+  // Projekt-Start (Begrüßung + Startfragen); getrennt von den Anweisungen, teilt nur die Zeile.
+  welcome_message: text('welcome_message').default(''),
+  start_questions: jsonb('start_questions').$type<string[]>().default([]),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });

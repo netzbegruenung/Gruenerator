@@ -246,9 +246,9 @@ export const DOCS_PAGES: readonly DocPage[] = [
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "title": "Wie erstelle ich ein gemeinsames Projekt?",
+    "title": "Wie erstelle ich ein Projekt und lade andere ein?",
     "category": "Guides",
-    "lead": "Am Ende hast du einen gemeinsamen Bereich, in den du andere Menschen einladen und Inhalte wie Notebooks aufnehmen kannst. Die Team-Variante eines Projekts heißt in der aktuellen Oberfläche noch „Grup…"
+    "lead": "Am Ende hast du ein Projekt, in dem du Wissen wie Dateien und Notebooks ablegst, mit Chats darauf zugreifst und bei Bedarf andere Menschen einlädst. Es gibt nur eine Art von Projekt: Du legst es imme…"
   },
   {
     "url": "/docs/guides/einsteigerinnen/gruenerator-personalisieren",
@@ -615,7 +615,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Unsere europäischen Partner",
     "anchor": "#unsere-europäischen-partner",
     "category": "Basics",
-    "text": "Mistral AI (Frankreich) — Mistral Large 4 (mistral-large-4) für die Stufe Ultra, Sharepic-Texte, Rechenschritte und als Ausweichweg (seit Oktober 2026 anstelle von Mistral Medium 3.5), Suche und Notebooks mit mistral-embed, Transkription mit Voxtral (wenn Sprecherinnen erkannt werden sollen, sonst als Ausweichweg) KugelAudio (Berlin, Deutschland) — Sprachausgabe mit kugel-3: das Vorlesen von Antworten und die Stimme im Sprachdialog, ausschließlich über den EU-Endpunkt api.eu.kugelaudio.com. Seit September 2026 anstelle von Mistral Speech. Keine dauerhafte Speicherung der Inhalte, kein Training; jede erzeugte Audiodatei trägt ein Wasserzeichen nach Art. 50 KI-VO Black Forest Labs (Freiburg, Deutschland) — Bilderzeugung und -bearbeitung mit FLUX 3 (flux-3-image, seit Oktober 2026 anstelle von FLUX 2 Pro/Max) und FLUX 2 Klein, über den EU-Endpunkt api.eu.bfl.ai — nur wenn dieser gar nicht erreichbar ist, über den globalen Endpunkt api.bfl.ai, der auch in den USA rechnet; die Websuche des Modells (grounding) ist abgeschaltet Cortecs (Vermittler, EU) — vermittelt Gemma 4 (gemma-4-31b-it) an Infercom SCS (Luxemburg, Verarbeitung in Deutschland)."
+    "text": "Mistral AI (Frankreich) — Mistral Large 4 (mistral-large-4) für die Stufe Ultra, Sharepic-Texte, Rechenschritte und als Ausweichweg (seit Oktober 2026 anstelle von Mistral Medium 3.5), Suche und Notebooks mit mistral-embed, Transkription mit Voxtral (wenn Sprecherinnen erkannt werden sollen, sonst als Ausweichweg) KugelAudio (Berlin, Deutschland) — Sprachausgabe mit kugel-3.5 (seit November 2026, davor kugel-3): das Vorlesen von Antworten und die Stimme im Sprachdialog, ausschließlich über den EU-Endpunkt api.eu.kugelaudio.com. Seit September 2026 anstelle von Mistral Speech. Keine dauerhafte Speicherung der Inhalte, kein Training; jede erzeugte Audiodatei trägt ein Wasserzeichen nach Art. 50 KI-VO Black Forest Labs (Freiburg, Deutschland) — Bilderzeugung und -bearbeitung mit FLUX 3 (flux-3-image, seit Oktober 2026 anstelle von FLUX 2 Pro/Max) und FLUX 2 Klein, über den EU-Endpunkt api.eu.bfl.ai — nur wenn dieser gar nicht erreichbar ist, über den globalen Endpunkt api.bfl.ai, der auch in den USA rechnet; die Websuche des Modells (grounding) ist abgeschaltet Cortecs (Vermittler, EU) — vermittelt Gemma 4 (gemma-4-31b-it) an Infercom SCS (Luxemburg, Verarbeitung in Deutschland)."
   },
   {
     "url": "/docs/basics/gruenerator-pro-eu",
@@ -1415,7 +1415,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Gespräch starten",
     "anchor": "#gespräch-starten",
     "category": "Chat",
-    "text": "Den Chat erreichst du über den Menüpunkt Chat in der Seitenleiste oder direkt unter /chat. Dort siehst du: Eingabefeld unten zum Schreiben deiner Nachricht Seitenleiste links mit deinem Gesprächsverlauf — Gespräche kannst du dort auch in Projekten bündeln (eigene Projekte und Gruppen, mit Übersicht unter /projekte) „+\"-Menü links im Eingabefeld — Dateien anhängen, Websuche und Dokumentensuche ein- und ausschalten, Rezepte, Rollen, Konnektoren und die Erstellen-Werkzeuge Modell-Auswahl rechts unten im Eingabefeld Jedes Gespräch wird als eigener Thread mit eigener Adresse (/chat/…) gespeichert. Du kannst jederzeit ein neues Gespräch beginnen oder in der Seitenleiste zu einem früheren Gespräch zurückkehren."
+    "text": "Den Chat erreichst du über den Menüpunkt Chat in der Seitenleiste oder direkt unter /chat. Dort siehst du: Eingabefeld unten zum Schreiben deiner Nachricht Seitenleiste links mit deinem Gesprächsverlauf — Gespräche kannst du dort auch in Projekten bündeln (auch gemeinsam mit anderen, mit Übersicht unter /projekte) „+\"-Menü links im Eingabefeld — Dateien anhängen, Websuche und Dokumentensuche ein- und ausschalten, Rezepte, Rollen, Konnektoren und die Erstellen-Werkzeuge Modell-Auswahl rechts unten im Eingabefeld Jedes Gespräch wird als eigener Thread mit eigener Adresse (/chat/…) gespeichert. Du kannst jederzeit ein neues Gespräch beginnen oder in der Seitenleiste zu einem früheren Gespräch zurückkehren."
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -2119,7 +2119,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Teilen und veröffentlichen",
     "anchor": "#teilen-und-veröffentlichen",
     "category": "Features",
-    "text": "Sichtbarkeit und Veröffentlichung sind aus der Erstellung herausgelöst. Der Einstieg ist der „Teilen\"-Button: Öffne dein Notebook über Bearbeiten, dann findest du oben rechts — neben „Alle Quellen aktualisieren\" — den Button „Teilen\". Er ist nur für die Eigentümer*in sichtbar und öffnet den Dialog „Notebook teilen\", in dem du die gesamte Sichtbarkeit steuerst. (Das „Teilen\"-Untermenü im Drei-Punkte-Menü der Notebook-Übersicht ist davon getrennt: Es bietet nur „Link kopieren\" und das direkte Teilen mit einer Gruppe, aber nicht die Sichtbarkeits- und Veröffentlichungseinstellungen.) Im Dialog „Notebook teilen\" stellst du die Sichtbarkeit ein: „Privat — nur ich\" — Standard. Nur du siehst das Notebook. „Mit Gruppen geteilt\" — sichtbar für ausgewählte Gruppen. Du fügst Gruppen hinzu und legst unter „Wer darf bearbeiten?\" fest, wer Änderungen vornehmen darf (nur ich / Gruppen-Admins / alle Mitglieder). „Mit Anmeldung — alle eingeloggten Nutzer*innen\" — sichtbar für alle eingeloggten Nutzer*innen aus deinem Land."
+    "text": "Sichtbarkeit und Veröffentlichung sind aus der Erstellung herausgelöst. Der Einstieg ist der „Teilen\"-Button: Öffne dein Notebook über Bearbeiten, dann findest du oben rechts — neben „Alle Quellen aktualisieren\" — den Button „Teilen\". Er ist nur für die Eigentümer*in sichtbar und öffnet den Dialog „Notebook teilen\", in dem du die gesamte Sichtbarkeit steuerst. (Das „Teilen\"-Untermenü im Drei-Punkte-Menü der Notebook-Übersicht ist davon getrennt: Es bietet nur „Link kopieren\" und das direkte Hinzufügen zu einem Projekt, aber nicht die Sichtbarkeits- und Veröffentlichungseinstellungen.) Im Dialog „Notebook teilen\" stellst du die Sichtbarkeit ein: „Privat — nur ich\" — Standard. Nur du siehst das Notebook. „Mit Projekten geteilt\" — sichtbar für ausgewählte Projekte. Du fügst Projekte hinzu und legst unter „Wer darf bearbeiten?\" fest, wer Änderungen vornehmen darf („Nur ich\" / „Admins der geteilten Projekte\" / „Alle Mitglieder der geteilten Projekte\"). „Mit Anmeldung — alle eingeloggten Nutzer*innen\" — sichtbar für alle eingeloggten Nutzer*innen aus deinem Land."
   },
   {
     "url": "/docs/features/notebooks",
@@ -2127,7 +2127,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Verwalten",
     "anchor": "#verwalten",
     "category": "Features",
-    "text": "Hinter der Kachel „Meine Notebooks\" auf der Wissen-Seite erscheint jedes deiner Notebooks als Karte, zusammen mit den Notebooks, die andere über ein Projekt mit dir teilen, und denen, die du im Marktplatz gemerkt hast. Ein Klick auf die Karte öffnet die Notebook-Detailseite, von der aus du chatten und durchsuchen kannst. Über das Drei-Punkte-Menü der Karte erreichst du weitere Aktionen: Bearbeiten — öffnet wieder den Editor (Quellen, Details, Labels, Wolke, Docs). Auf der Bearbeiten-Seite kannst du Name und Beschreibung auch direkt im Kopfbereich ändern und alle Quellen per „Alle Quellen aktualisieren\" neu synchronisieren. Teilen — Untermenü mit „Link kopieren\" und — falls du in Gruppen bist — Optionen zum direkten Teilen mit einer Gruppe. Die volle Sichtbarkeitssteuerung liegt dagegen im „Teilen\"-Button auf der Bearbeiten-Seite (siehe oben). Löschen — entfernt das Notebook unwiderruflich. Wichtig: Die enthaltenen Dokumente bleiben in deiner persönlichen Bibliothek erhalten und können in andere Notebooks aufgenommen werden."
+    "text": "Hinter der Kachel „Meine Notebooks\" auf der Wissen-Seite erscheint jedes deiner Notebooks als Karte, zusammen mit den Notebooks, die andere über ein Projekt mit dir teilen, und denen, die du im Marktplatz gemerkt hast. Ein Klick auf die Karte öffnet die Notebook-Detailseite, von der aus du chatten und durchsuchen kannst. Über das Drei-Punkte-Menü der Karte erreichst du weitere Aktionen: Bearbeiten — öffnet wieder den Editor (Quellen, Details, Labels, Wolke, Docs). Auf der Bearbeiten-Seite kannst du Name und Beschreibung auch direkt im Kopfbereich ändern und alle Quellen per „Alle Quellen aktualisieren\" neu synchronisieren. Teilen — Untermenü mit „Link kopieren\" und — falls du in Projekten bist — Optionen, das Notebook direkt zu einem Projekt hinzuzufügen. Die volle Sichtbarkeitssteuerung liegt dagegen im „Teilen\"-Button auf der Bearbeiten-Seite (siehe oben). Löschen — entfernt das Notebook unwiderruflich. Wichtig: Die enthaltenen Dokumente bleiben in deiner persönlichen Bibliothek erhalten und können in andere Notebooks aufgenommen werden."
   },
   {
     "url": "/docs/features/notebooks",
@@ -2731,91 +2731,83 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
-    "heading": "Wie erstelle ich ein gemeinsames Projekt?",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
+    "heading": "Wie erstelle ich ein Projekt und lade andere ein?",
     "anchor": "",
     "category": "Guides",
-    "text": "Am Ende hast du einen gemeinsamen Bereich, in den du andere Menschen einladen und Inhalte wie Notebooks aufnehmen kannst. Die Team-Variante eines Projekts heißt in der aktuellen Oberfläche noch „Gruppe“."
+    "text": "Am Ende hast du ein Projekt, in dem du Wissen wie Dateien und Notebooks ablegst, mit Chats darauf zugreifst und bei Bedarf andere Menschen einlädst. Es gibt nur eine Art von Projekt: Du legst es immer auf demselben Weg an, nutzt es allein oder mit anderen und kannst jederzeit Mitglieder einladen."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
-    "heading": "Beiträge, Erwähnungen und Benachrichtigungen",
-    "anchor": "#beiträge-erwähnungen-und-benachrichtigungen",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
+    "heading": "Austausch: Beiträge, Kommentare und Erwähnungen",
+    "anchor": "#austausch-beiträge-kommentare-und-erwähnungen",
     "category": "Guides",
-    "text": "Im Feed einer Gruppe öffnet „Schreib etwas an die Gruppe …“ den Beitragseditor. Schreibe deinen Text, hänge bei Bedarf über „Dateien“ Anhänge an und klicke auf „Posten“. Ein Beitrag darf bis zu 5.000 Zeichen und zehn Dateien mit jeweils höchstens 25 MiB enthalten; auch ein Beitrag nur mit Dateien ist möglich. Über die Sprechblase unter einem Beitrag oder geteilten Inhalt öffnest du die Kommentare. Schreibe ins Kommentarfeld und klicke auf „Senden“. Auf vorhandene Kommentare kannst du antworten; Antworten werden als Thread zusammengefasst. Kommentare dürfen bis zu 2.000 Zeichen enthalten. Über das Stecknadel-Symbol können Admins bis zu drei Einträge anheften. Eine weitere Anheftung löst die älteste. Die anderen Mitglieder bekommen eine Benachrichtigung, wenn jemand einen Beitrag schreibt oder einen Inhalt teilt. Tippe @ und wähle eine Person aus der Liste, um sie gezielt anzusprechen. Sie bekommt eine eigene Benachrichtigung. Mit @alle benachrichtigst du alle Mitglieder der Gruppe. Antwortest du auf einen Kommentar, ist die Person, der du antwortest, schon erwähnt."
+    "text": "Sobald außer dir noch andere im Projekt sind oder es schon Beiträge gibt, erscheint neben Übersicht die Registerkarte Austausch. Dort schreibst du Beiträge, teilst Inhalte mit einer Notiz und kommentierst. Im Austausch findest du Einträge über das Feld „Im Austausch suchen“. Klicke auf „Schreib etwas an das Projekt …“. Der Beitragseditor öffnet sich. Schreibe deinen Text, hänge bei Bedarf über „Dateien“ Anhänge an und klicke auf „Posten“. Ein Beitrag darf bis zu 5.000 Zeichen und zehn Dateien mit jeweils höchstens 25 MiB enthalten; auch ein Beitrag nur mit Dateien ist möglich. Über „Aus meinen Inhalten“ teilst du stattdessen einen vorhandenen Inhalt mit einer Notiz. Bei einem Eintrag im Wissen holt „Im Austausch besprechen“ ihn in den Austausch, damit ihr darüber schreiben könnt. Über die Sprechblase unter einem Beitrag öffnest du die Kommentare. Schreibe ins Feld „Kommentieren …“ und klicke auf „Senden“. Auf vorhandene Kommentare kannst du antworten; Antworten werden als Thread zusammengefasst. Kommentare dürfen bis zu 2.000 Zeichen enthalten. Über das Stecknadel-Symbol können Admins bis zu drei Einträge anheften. Eine weitere Anheftung löst die älteste."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
-    "heading": "Beiträge, Erwähnungen und Benachrichtigungen",
-    "anchor": "#beiträge-erwähnungen-und-benachrichtigungen",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
+    "heading": "Austausch: Beiträge, Kommentare und Erwähnungen",
+    "anchor": "#austausch-beiträge-kommentare-und-erwähnungen",
     "category": "Guides",
-    "text": "Wie viele Benachrichtigungen du bekommst und welche auch per E-Mail kommen, stellst du in den Einstellungen unter Benachrichtigungen ein. „Benachrichtigungen stummschalten“ im Drei-Punkte-Menü der Gruppe stoppt die E-Mails dieser Gruppe; in der Glocke erscheinen sie weiterhin."
+    "text": "Angeheftete Einträge stehen im Austausch oben. Die anderen Mitglieder bekommen eine Benachrichtigung, wenn jemand einen Beitrag schreibt oder einen Inhalt teilt. Tippe @ und wähle eine Person aus der Liste, um sie gezielt anzusprechen. Sie bekommt eine eigene Benachrichtigung. Mit @alle benachrichtigst du alle Mitglieder des Projekts. Antwortest du auf einen Kommentar, ist die Person, der du antwortest, schon erwähnt. Wie viele Benachrichtigungen du bekommst und welche auch per E-Mail kommen, stellst du in den Einstellungen unter Benachrichtigungen ein. „Benachrichtigungen stummschalten“ im Menü „Projektoptionen“ stoppt die E-Mails dieses Projekts; in der Glocke erscheinen sie weiterhin."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
-    "heading": "Ein Notebook hinzufügen",
-    "anchor": "#ein-notebook-hinzufügen",
-    "category": "Guides",
-    "text": "Klicke oben rechts auf „Inhalte teilen“. Im geöffneten Beitragseditor erreichst du dieselbe Auswahl über „Aus meinen Inhalten“. Wähle „Notebooks“. Klicke auf das Notebook, das du freigeben möchtest. Ein Häkchen zeigt die Auswahl an. Du kannst auch mehrere Notebooks auswählen. Optional kannst du eine Notiz für die Gruppe ergänzen. Klicke unten rechts auf „1 hinzufügen“. Bei mehreren ausgewählten Inhalten passt sich die Zahl automatisch an. Das Notebook erscheint danach im Feed und unter „Alle“ im Abschnitt „Notebooks“. Mitglieder des Projekts können es dort öffnen und lesen; durch das Hinzufügen erhalten sie keine Schreibrechte am Notebook."
-  },
-  {
-    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
-    "heading": "Einladungslink kopieren",
-    "anchor": "#einladungslink-kopieren",
-    "category": "Guides",
-    "text": "Öffne oben rechts das Drei-Punkte-Menü „Gruppenoptionen“. Klicke auf „Einladungslink kopieren“. Der Link wird direkt in die Zwischenablage kopiert. Füge den Link in eine Nachricht an die Personen ein, die beitreten sollen. Der Link ist eine Einladung zu deinem Projekt. Teile ihn nur mit den vorgesehenen Personen. Nur Admins sehen diese Aktion. Alternativ kannst du im selben Menü „Per E-Mail einladen“ wählen."
-  },
-  {
-    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
-    "heading": "Feed und Inhaltsübersicht",
-    "anchor": "#feed-und-inhaltsübersicht",
-    "category": "Guides",
-    "text": "Gemeinsame Projekte haben zwei Ansichten: „Feed“ zeigt Beiträge und geteilte Inhalte, „Alle“ sortiert die Inhalte nach Art. Angeheftete Einträge stehen im Feed oben. Über das Suchfeld findest du Inhalte anhand von Titel, Notiz, Beitragstext oder Dateinamen."
-  },
-  {
-    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
-    "heading": "Gemeinsames Projekt anlegen",
-    "anchor": "#gemeinsames-projekt-anlegen",
-    "category": "Guides",
-    "text": "Öffne im Bereich Arbeiten die Seite Projekte. Direkt erreichbar ist sie auch unter /projekte. Klicke auf „Gruppe erstellen“. Nimm nicht „Projekt erstellen“: Damit legst du ein persönliches Projekt ohne Mitglieder und Einladungslink an. Gib einen Namen ein. Er darf höchstens 100 Zeichen lang sein. Optional kannst du schon jetzt E-Mail-Adressen eingeben. Bestätige jede Adresse mit Enter oder einem Komma. Diese Personen erhalten nach dem Erstellen eine E-Mail mit einem Beitrittslink. Klicke auf „Gruppe erstellen“ beziehungsweise, wenn du Adressen hinzugefügt hast, auf „Erstellen & einladen“. Das neue gemeinsame Projekt öffnet sich automatisch. Du bist Admin und kannst Mitglieder sowie geteilte Inhalte verwalten."
-  },
-  {
-    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
     "heading": "Inhalte wieder entfernen",
     "anchor": "#inhalte-wieder-entfernen",
     "category": "Guides",
-    "text": "Als Admin kannst du einen geteilten Inhalt über das Aktionsmenü seiner Karte im Feed wieder aus dem Projekt nehmen. Das löscht das ursprüngliche Notebook nicht — nur seine Freigabe im Projekt wird entfernt."
+    "text": "Jede Zeile im Wissen hat ein Menü „Weitere Aktionen für …“. Dort nimmst du den Inhalt mit „Aus dem Projekt entfernen“ wieder heraus, wenn du dazu berechtigt bist. Das löscht das ursprüngliche Notebook nicht, nur seine Freigabe im Projekt wird entfernt. Dasselbe Menü legt auch fest, ob Mitglieder den Inhalt „Bearbeiten“ oder „Nur lesen“ dürfen."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
-    "heading": "Projekt oder Gruppe?",
-    "anchor": "#projekt-oder-gruppe",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
+    "heading": "Menschen einladen",
+    "anchor": "#menschen-einladen",
     "category": "Guides",
-    "text": "Ein Projekt ist dein persönlicher Bereich. Es hat keine Mitglieder und keinen Einladungslink. Eine Gruppe ist für die Zusammenarbeit gedacht: Mitglieder können die dort freigegebenen Inhalte öffnen, Admins verwalten zusätzlich Mitglieder, Einladungen und geteilte Inhalte. Für diesen Guide brauchst du deshalb eine Gruppe."
+    "text": "Du kannst jederzeit einladen, auch wenn du das Projekt zunächst allein genutzt hast. Öffne oben rechts auf der Projektseite das Drei-Punkte-Menü „Projektoptionen“ und wähle „Per E-Mail einladen“. Den Eintrag sehen nur Admins. Gib im Dialog „Einladen“ E-Mail-Adressen ein (Platzhalter: name@beispiel.de) und bestätige jede mit Enter oder einem Komma. Eingeladene erhalten eine E-Mail mit einem Beitrittslink zu diesem Projekt. Oder klicke auf „Einladungslink kopieren“ und schicke den Link selbst, etwa per Messenger. Teile ihn nur mit den vorgesehenen Personen. Klicke auf „Einladen“, um die E-Mails zu verschicken. Im selben Menü findest du auch „Einladungslink kopieren“ und „Mitglieder verwalten“. In einem archivierten Projekt kannst du nicht einladen."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
+    "heading": "Projekt anlegen",
+    "anchor": "#projekt-anlegen",
+    "category": "Guides",
+    "text": "Öffne im Bereich Arbeiten die Seite Projekte. Direkt erreichbar ist sie auch unter /projekte. Klicke unter dem Eingabefeld auf „Projekt erstellen“. Alternativ tippst du im Feld oben einen Namen ein und wählst „… als Projekt erstellen“. Es öffnet sich der Dialog „Neues Projekt“. Gib unter Name den Namen des Projekts ein. Er darf höchstens 100 Zeichen lang sein. Optional beschreibst du unter „Worum geht es in diesem Projekt?“ das Thema in ein bis zwei Sätzen. Optional hängst du über „Dateien auswählen“ gleich Dateien an. Optional gibst du E-Mail-Adressen ein, um Menschen einzuladen. Bestätige jede Adresse mit Enter oder einem Komma. Klicke auf „Projekt erstellen“. Hast du Adressen eingetragen, heißt der Knopf „Erstellen & einladen“. Das neue Projekt öffnet sich automatisch. Du bist Admin und kannst Mitglieder und Inhalte verwalten."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
+    "heading": "Projekt archivieren oder verlassen",
+    "anchor": "#projekt-archivieren-oder-verlassen",
+    "category": "Guides",
+    "text": "Im Menü „Projektoptionen“ findest du „Archivieren“ (und später „Wiederherstellen“) sowie „Projekt verlassen“. Archivierte Projekte stehen auf der Seite Projekte unter Archiviert."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
     "heading": "Weiterlesen",
     "anchor": "#weiterlesen",
     "category": "Guides",
-    "text": "Wie erstelle ich ein eigenes Notebook? — ein eigenes Notebook anlegen und mit Quellen füllen"
+    "text": "Wie erstelle ich ein eigenes Notebook? — Quellen sammeln und ein Notebook aufbauen"
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
     "heading": "Wenn etwas fehlt",
     "anchor": "#wenn-etwas-fehlt",
     "category": "Guides",
-    "text": "Kein Einladungslink im Menü? Dann handelt es sich wahrscheinlich um ein persönliches Projekt oder du bist kein Admin. Einladungen gibt es nur bei gemeinsamen Projekten. „Notebooks“ wird nicht angeboten? Die Auswahl zeigt nur Kategorien, in denen dir Inhalte zur Verfügung stehen. Erstelle zunächst eines oder prüfe, ob du Zugriff auf ein Notebook hast. „Inhalte teilen“ fehlt? Im System-Projekt „Grünerator“ dürfen nur Instanz-Admins Inhalte teilen und Beiträge schreiben. In normalen gemeinsamen Projekten dürfen Mitglieder teilen; Entfernen geteilter Inhalte bleibt eine Admin-Aktion."
+    "text": "Kein „Einladen“-Knopf? Dann bist du kein Admin des Projekts, das Projekt ist archiviert, oder es ist das System-Projekt „Grünerator“. Keine Registerkarte „Austausch“? Sie erscheint erst, wenn außer dir jemand im Projekt ist oder es Beiträge gibt. Lade zuerst jemanden ein. Notebooks fehlen im Auswahlfenster? Es zeigt nur Inhalte, die dir gehören. Erstelle dafür zuerst ein Notebook. „Hinzufügen“ fehlt? Im System-Projekt „Grünerator“ dürfen nur Instanz-Admins Inhalte teilen und Beiträge schreiben. In allen anderen Projekten dürfen Mitglieder Inhalte hinzufügen; Entfernen bleibt eine Admin-Aktion."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
+    "heading": "Wissen und Notebooks hinzufügen",
+    "anchor": "#wissen-und-notebooks-hinzufügen",
+    "category": "Guides",
+    "text": "Alles, was du ins Projekt legst, steht auf der Registerkarte Übersicht im Abschnitt Wissen. Chats in diesem Projekt nutzen es als Grundlage. Klicke oben rechts auf „Hinzufügen“. Wähle „Vorhandenes hinzufügen …“, um etwas aus deinen eigenen Inhalten zu übernehmen, zum Beispiel ein Notebook. Mit „Neues Doc“, „Neues Sheet“, „Neue Präsentation“ oder „Neues Board“ legst du direkt im Projekt etwas Neues an. „Datei hochladen“, „Text“ und „Link“ (nur für Admins) bringen weiteres Material ein. Wähle im Auswahlfenster das Notebook aus, das du freigeben möchtest. Mitglieder des Projekts können das Notebook danach öffnen und lesen; durch das Hinzufügen erhalten sie keine Schreibrechte. Über dem Wissen steht, wie viel davon Chats tatsächlich durchsuchen können, zum Beispiel „3 von 4 durchsuchbar“. Bei Dateien, die noch eingelesen werden oder sich nicht auslesen ließen, ist die Zahl niedriger. Ab sieben Einträgen hilft dir das Feld „Im Wissen suchen“."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gruenerator-personalisieren",
@@ -4743,7 +4735,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Wenig: Nur kritische & persönliche Benachrichtigungen Mittel: Empfohlen – wichtige Ereignisse Viele: Alle Benachrichtigungen Dokument geteilt: Wenn ein Dokument mit dir geteilt wird Berechtigung geändert: Wenn deine Berechtigung an einem Dokument geändert wird Zugriff entzogen: Wenn dein Zugriff auf ein Dokument entzogen wird Aufgaben-Updates: Updates zu deinen Board-Aufgaben Neue Kommentare: Neue Kommentare auf Karten Antworten: Antworten auf deine Kommentare Erwähnungen: Wenn du in einem Kommentar erwähnt wirst Zuweisungen: Wenn dir eine Karte zugewiesen wird Statusänderungen: Wenn sich der Status einer beobachteten Karte ändert Neue Anhänge: Wenn eine Datei an eine beobachtete Karte angehängt wird Fälligkeits-Erinnerung: Erinnerung, wenn eine Karte demnächst fällig ist Beobachtete Karten: Aktivität auf Karten, die du beobachtest Lauf erledigt: Wenn eine wiederkehrende Aufgabe oder ein Board-Zeitplan fertig ist Lauf fehlgeschlagen: Wenn ein geplanter Lauf nicht ausgeführt werden konnte Lauf wartet auf Freigabe: Wenn ein geplanter Lauf auf deine Freigabe wartet Mitglied tritt bei: Wenn ein Mitglied einer deiner Gruppen beitritt Mitglied tritt aus: Wenn ein Mitglied eine deiner"
+    "text": "Wenig: Nur kritische & persönliche Benachrichtigungen Mittel: Empfohlen – wichtige Ereignisse Viele: Alle Benachrichtigungen Dokument geteilt: Wenn ein Dokument mit dir geteilt wird Berechtigung geändert: Wenn deine Berechtigung an einem Dokument geändert wird Zugriff entzogen: Wenn dein Zugriff auf ein Dokument entzogen wird Aufgaben-Updates: Updates zu deinen Board-Aufgaben Neue Kommentare: Neue Kommentare auf Karten Antworten: Antworten auf deine Kommentare Erwähnungen: Wenn du in einem Kommentar erwähnt wirst Zuweisungen: Wenn dir eine Karte zugewiesen wird Statusänderungen: Wenn sich der Status einer beobachteten Karte ändert Neue Anhänge: Wenn eine Datei an eine beobachtete Karte angehängt wird Fälligkeits-Erinnerung: Erinnerung, wenn eine Karte demnächst fällig ist Beobachtete Karten: Aktivität auf Karten, die du beobachtest Lauf erledigt: Wenn eine wiederkehrende Aufgabe oder ein Board-Zeitplan fertig ist Lauf fehlgeschlagen: Wenn ein geplanter Lauf nicht ausgeführt werden konnte Lauf wartet auf Freigabe: Wenn ein geplanter Lauf auf deine Freigabe wartet Mitglied tritt bei: Wenn ein Mitglied einem deiner Projekte beitritt Mitglied tritt aus: Wenn ein Mitglied eines deiner"
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4751,7 +4743,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Gruppen verlässt Rollenänderung: Wenn sich eine Rolle in der Gruppe ändert Geteilte Inhalte: Wenn Inhalte in einer deiner Gruppen geteilt werden Kommentare in Gruppen: Wenn jemand deinen geteilten Inhalt oder einen Beitrag kommentiert, den du kommentiert hast Neue Beiträge: Wenn jemand in einem deiner Projekte einen Beitrag schreibt Team-Chats: Wenn jemand in einem Team-Chat schreibt, an dem du beteiligt bist Erwähnungen: Wenn dich jemand in einem Projekt mit @Name erwähnt @alle: Wenn jemand in einem deiner Projekte alle mit @alle anspricht Gruppe aufgelöst: Wenn eine deiner Gruppen aufgelöst wird Beitrittsanfragen: Wenn jemand deiner öffentlichen Gruppe beitreten möchte Beitritt angenommen: Wenn deine Beitrittsanfrage angenommen wird Beitritt abgelehnt: Wenn deine Beitrittsanfrage abgelehnt wird Transfer-Download: Wenn jemand deine geteilte Datei herunterlädt Notebook-Likes: Wenn jemand dein öffentliches Notebook mag Vorlagen-Likes: Wenn jemand deine veröffentlichte Vorlage mag Vorlage freigegeben: Wenn deine eingereichte Vorlage freigegeben wird Vorlage abgelehnt: Wenn deine eingereichte Vorlage abgelehnt wird Neue Wolke-Dateien: Neue Dateien in den Wolke-Ordnern deiner"
+    "text": "Projekte verlässt Rollenänderung: Wenn sich eine Rolle in dem Projekt ändert Geteilte Inhalte: Wenn Inhalte in einem deiner Projekte geteilt werden Kommentare in Projekten: Wenn jemand deinen geteilten Inhalt oder einen Beitrag kommentiert, den du kommentiert hast Neue Beiträge: Wenn jemand in einem deiner Projekte einen Beitrag schreibt Team-Chats: Wenn jemand in einem Team-Chat schreibt, an dem du beteiligt bist Erwähnungen: Wenn dich jemand in einem Projekt mit @Name erwähnt @alle: Wenn jemand in einem deiner Projekte alle mit @alle anspricht Projekt aufgelöst: Wenn eines deiner Projekte aufgelöst wird Beitrittsanfragen: Wenn jemand deinem öffentlichen Projekt beitreten möchte Beitritt angenommen: Wenn deine Beitrittsanfrage angenommen wird Beitritt abgelehnt: Wenn deine Beitrittsanfrage abgelehnt wird Gemeldete Inhalte: Wenn jemand einen Inhalt in einem Projekt meldet, das du verwaltest Transfer-Download: Wenn jemand deine geteilte Datei herunterlädt Notebook-Likes: Wenn jemand dein öffentliches Notebook mag Vorlagen-Likes: Wenn jemand deine veröffentlichte Vorlage mag Vorlage freigegeben: Wenn deine eingereichte Vorlage freigegeben wird Vorlage abgelehnt: Wenn deine"
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4759,7 +4751,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Notebooks Tagesbriefing: Deine Übersicht beim ersten Besuch des Tages KI-Schnitt fertig: Wenn dein KI-Schnitt zur Vorschau bereitsteht KI-Schnitt fehlgeschlagen: Wenn ein KI-Schnitt nicht erstellt werden konnte Neue Avatare: Wenn neue Profil-Avatare verfügbar sind Datenschutz. Die beiden Einwilligungen, die der Grünerator von dir einholt: Beide gelten mit Wirkung für die Zukunft und lassen sich jederzeit zurücknehmen — was bereits verarbeitet wurde, bleibt davon unberührt. Reichweitenmessung: Anonyme Statistik mit Umami (eigene Server, EU). Nur nach Einwilligung — jederzeit widerrufbar Einwilligung in die KI-Verarbeitung: Ausdrückliche Einwilligung nach Art. 9 DSGVO, weil sich aus deinen Eingaben politische Meinungen ergeben können Reichweitenmessung steuert die anonyme Statistik mit Umami, die wir auf eigenen Servern in der EU betreiben. Ohne deine Zustimmung wird das Skript gar nicht erst geladen; der Schalter gilt für den Browser, in dem du ihn umlegst. Einwilligung in die KI-Verarbeitung ist die ausdrückliche Einwilligung nach Art. 9 DSGVO: Weil über den Grünerator politische Inhalte entstehen, können sich aus deinen Eingaben politische Meinungen ergeben."
+    "text": "eingereichte Vorlage abgelehnt wird Neue Wolke-Dateien: Neue Dateien in den Wolke-Ordnern deiner Notebooks Tagesbriefing: Deine Übersicht beim ersten Besuch des Tages KI-Schnitt fertig: Wenn dein KI-Schnitt zur Vorschau bereitsteht KI-Schnitt fehlgeschlagen: Wenn ein KI-Schnitt nicht erstellt werden konnte Neue Avatare: Wenn neue Profil-Avatare verfügbar sind Datenschutz. Die beiden Einwilligungen, die der Grünerator von dir einholt: Beide gelten mit Wirkung für die Zukunft und lassen sich jederzeit zurücknehmen — was bereits verarbeitet wurde, bleibt davon unberührt. Reichweitenmessung: Anonyme Statistik mit Umami (eigene Server, EU). Nur nach Einwilligung — jederzeit widerrufbar Einwilligung in die KI-Verarbeitung: Ausdrückliche Einwilligung nach Art. 9 DSGVO, weil sich aus deinen Eingaben politische Meinungen ergeben können Reichweitenmessung steuert die anonyme Statistik mit Umami, die wir auf eigenen Servern in der EU betreiben. Ohne deine Zustimmung wird das Skript gar nicht erst geladen; der Schalter gilt für den Browser, in dem du ihn umlegst. Einwilligung in die KI-Verarbeitung ist die ausdrückliche Einwilligung nach Art."
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4767,7 +4759,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Nimmst du sie zurück, fragen wir beim nächsten Aufruf der KI-Funktionen erneut. Personalisierung. Dauerhafte Hinweise, die der Grünerator bei jeder Antwort mitdenkt — ohne dass du sie jedes Mal neu schreiben musst. Rollen: Deine Ämter und Ebenen — der Grünerator richtet Ansprache und Inhalte danach aus. Anlegen und Ändern am Rechner. Anweisungen: ein freies Textfeld für Vorlieben wie „Duze die Leserinnen und schreibe knapp.\" Deine Rollen: Ebene (Bund, Land, Kommune), Bundesland und Funktion. Daraus weiß der Grünerator, aus welcher Perspektive du schreibst, und schlägt passende Quellen und Formulierungen vor. Erinnerungen. Was sich der Grünerator aus euren Gesprächen dauerhaft gemerkt hat. Du siehst jeden Eintrag, kannst suchen, einzelne löschen oder eigene hinzufügen. Gedächtnis: Der Grünerator merkt sich nur, was du ihm ausdrücklich sagst („merk dir …\") — und berücksichtigt es in jedem Chat. Aus: nichts wird gespeichert oder verwendet. Erinnerungen entstehen im Gespräch von selbst — dieser Bereich ist die Kontrolle darüber, nicht die einzige Quelle. Alles auf einmal löschen ist möglich und wird vorher abgefragt. Tagesbriefing."
+    "text": "9 DSGVO: Weil über den Grünerator politische Inhalte entstehen, können sich aus deinen Eingaben politische Meinungen ergeben. Nimmst du sie zurück, fragen wir beim nächsten Aufruf der KI-Funktionen erneut. Personalisierung. Dauerhafte Hinweise, die der Grünerator bei jeder Antwort mitdenkt — ohne dass du sie jedes Mal neu schreiben musst. Rollen: Deine Ämter und Ebenen — der Grünerator richtet Ansprache und Inhalte danach aus. Anlegen und Ändern am Rechner. Anweisungen: ein freies Textfeld für Vorlieben wie „Duze die Leserinnen und schreibe knapp.\" Deine Rollen: Ebene (Bund, Land, Kommune), Bundesland und Funktion. Daraus weiß der Grünerator, aus welcher Perspektive du schreibst, und schlägt passende Quellen und Formulierungen vor. Erinnerungen. Was sich der Grünerator aus euren Gesprächen dauerhaft gemerkt hat. Du siehst jeden Eintrag, kannst suchen, einzelne löschen oder eigene hinzufügen. Gedächtnis: Der Grünerator merkt sich nur, was du ihm ausdrücklich sagst („merk dir …\") — und berücksichtigt es in jedem Chat. Aus: nichts wird gespeichert oder verwendet. Erinnerungen entstehen im Gespräch von selbst — dieser Bereich ist die Kontrolle darüber, nicht die einzige Quelle."
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4775,7 +4767,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Ob dir der Grünerator beim ersten Besuch des Tages zuerst schreibt. Das Tagesbriefing ist aus, bis du es einschaltest, und braucht deine Einwilligung in die KI-Verarbeitung. Tagesbriefing im Chat: Wenn du es einschaltest, schreibt dir der Grünerator beim ersten Besuch des Tages eine kurze Übersicht: deine offenen Aufgaben, was los ist, und eine Idee für heute. Es erscheint als neuer Chat in der Seitenleiste: deine offenen Aufgaben aus den Boards, Schlagzeilen aus Partei und Welt mit Quelle, ein Rückblick auf deine Arbeit und zwei bis vier Ideen für heute. Ein Briefing, auf das du nicht geantwortet hast, wird am nächsten Tag durch das neue ersetzt. Briefe. Absenderangaben für den PDF-Export von Briefen. Du kannst mehrere Briefköpfe anlegen — etwa einen für den Kreisverband und einen für die Fraktion — und beim Export auswählen, welcher oben links erscheint. Genau ein Briefkopf ist der Standard; der Export schlägt ihn vor. Löschst du den Standard, rückt automatisch ein anderer nach. Konnektoren. Externe Dienste, die der Chat mitbenutzen darf. Ist einer verbunden, kannst du ihn im Gespräch ansprechen — wie das im Detail geht, steht unter Konnektoren."
+    "text": "Alles auf einmal löschen ist möglich und wird vorher abgefragt. Tagesbriefing. Ob dir der Grünerator beim ersten Besuch des Tages zuerst schreibt. Das Tagesbriefing ist aus, bis du es einschaltest, und braucht deine Einwilligung in die KI-Verarbeitung. Tagesbriefing im Chat: Wenn du es einschaltest, schreibt dir der Grünerator beim ersten Besuch des Tages eine kurze Übersicht: deine offenen Aufgaben, was los ist, und eine Idee für heute. Es erscheint als neuer Chat in der Seitenleiste: deine offenen Aufgaben aus den Boards, Schlagzeilen aus Partei und Welt mit Quelle, ein Rückblick auf deine Arbeit und zwei bis vier Ideen für heute. Ein Briefing, auf das du nicht geantwortet hast, wird am nächsten Tag durch das neue ersetzt. Briefe. Absenderangaben für den PDF-Export von Briefen. Du kannst mehrere Briefköpfe anlegen — etwa einen für den Kreisverband und einen für die Fraktion — und beim Export auswählen, welcher oben links erscheint. Genau ein Briefkopf ist der Standard; der Export schlägt ihn vor. Löschst du den Standard, rückt automatisch ein anderer nach. Konnektoren. Externe Dienste, die der Chat mitbenutzen darf."
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4783,7 +4775,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Konnektoren: Verbundene Dienste, die im Chat als eigene Quelle ansprechbar sind Microsoft 365 (experimentell) verbindet dein OneDrive; danach wählst du Dateien im Chat über die Erwähnung aus. Google Workspace (experimentell) verbindet dein Google Drive. Im Chat öffnet sich dafür die Dateiauswahl von Google; der Grünerator liest nur die Dateien, die du dort auswählst. Immer erlaubte Werkzeuge listet, was du im Chat mit „Immer erlauben\" freigegeben hast — diese Werkzeuge laufen ohne Rückfrage. Entfernst du eines, fragt der Chat vor der nächsten Ausführung wieder nach. Die Liste erscheint erst, wenn es eine solche Freigabe gibt. Wolke. Die Verbindung zur Grünen Wolke (Nextcloud). Über einen Freigabe-Link liest der Grünerator die Dateien eines Ordners — im Chat per Erwähnung, in Notebooks und im Docs-Editor. Er liest nur, er schreibt nichts zurück. Ein Assistent führt durch die Einrichtung. Meine Websites. Eigene Websites verbinden, damit ihre Beiträge in Notebooks zur Verfügung stehen — etwa die Seite deines Kreisverbands als Quelle für Recherche und Textentwürfe. Funktioniert mit WordPress-Websites, deren REST-Schnittstelle öffentlich erreichbar ist."
+    "text": "Ist einer verbunden, kannst du ihn im Gespräch ansprechen — wie das im Detail geht, steht unter Konnektoren. Konnektoren: Verbundene Dienste, die im Chat als eigene Quelle ansprechbar sind Microsoft 365 (experimentell) verbindet dein OneDrive; danach wählst du Dateien im Chat über die Erwähnung aus. Google Workspace (experimentell) verbindet dein Google Drive. Im Chat öffnet sich dafür die Dateiauswahl von Google; der Grünerator liest nur die Dateien, die du dort auswählst. Immer erlaubte Werkzeuge listet, was du im Chat mit „Immer erlauben\" freigegeben hast — diese Werkzeuge laufen ohne Rückfrage. Entfernst du eines, fragt der Chat vor der nächsten Ausführung wieder nach. Die Liste erscheint erst, wenn es eine solche Freigabe gibt. Wolke. Die Verbindung zur Grünen Wolke (Nextcloud). Über einen Freigabe-Link liest der Grünerator die Dateien eines Ordners — im Chat per Erwähnung, in Notebooks und im Docs-Editor. Er liest nur, er schreibt nichts zurück. Ein Assistent führt durch die Einrichtung. Meine Websites. Eigene Websites verbinden, damit ihre Beiträge in Notebooks zur Verfügung stehen — etwa die Seite deines Kreisverbands als Quelle für Recherche und Textentwürfe."
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4791,7 +4783,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Die Kategorien der Website werden einmal abgefragt und stehen danach überall zur Auswahl. Antragsgrün. Die Antragsgrün-Seiten, die der Grünerator für dich auf antragsgruen.de angelegt hat (experimentell). Solange er dort Admin ist, kann er im Chat Anträge einreichen und die Tagesordnung pflegen — jeweils erst, wenn du bestätigst. Der Bereich erscheint nur, wo der Grünerator Antragsgrün-Seiten anlegen kann oder du schon eine hast. Antragsgrün lässt den Grünerator sich nicht selbst austragen. Zugriff entziehen zeigt, welches Konto du in der Personenverwaltung deiner Seite entfernst, und prüft danach, ob der Zugriff weg ist. Aus der Liste entfernen löscht nur unseren Eintrag: Der Grünerator speichert danach nichts mehr über die Seite, die Seite selbst bleibt bestehen. Umfragen. Die Umfragen und Terminfindungen, die der Grünerator für dich auf nuudel.digitalcourage.de angelegt hat (experimentell). Im Chat kann er ihr Ergebnis lesen, zum Beispiel welcher Termin am besten passt, und sie nach deiner Freigabe ändern oder löschen. Öffnen führt zur Umfrage, wie die Teilnehmenden sie sehen; Verwalten zur Admin-Seite bei nuudel, auf der du die Umfrage bearbeitest, exportierst oder löschst."
+    "text": "Funktioniert mit WordPress-Websites, deren REST-Schnittstelle öffentlich erreichbar ist. Die Kategorien der Website werden einmal abgefragt und stehen danach überall zur Auswahl. Antragsgrün. Die Antragsgrün-Seiten, die der Grünerator für dich auf antragsgruen.de angelegt hat (experimentell). Solange er dort Admin ist, kann er im Chat Anträge einreichen und die Tagesordnung pflegen — jeweils erst, wenn du bestätigst. Der Bereich erscheint nur, wo der Grünerator Antragsgrün-Seiten anlegen kann oder du schon eine hast. Antragsgrün lässt den Grünerator sich nicht selbst austragen. Zugriff entziehen zeigt, welches Konto du in der Personenverwaltung deiner Seite entfernst, und prüft danach, ob der Zugriff weg ist. Aus der Liste entfernen löscht nur unseren Eintrag: Der Grünerator speichert danach nichts mehr über die Seite, die Seite selbst bleibt bestehen. Umfragen. Die Umfragen und Terminfindungen, die der Grünerator für dich auf nuudel.digitalcourage.de angelegt hat (experimentell). Im Chat kann er ihr Ergebnis lesen, zum Beispiel welcher Termin am besten passt, und sie nach deiner Freigabe ändern oder löschen."
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4799,7 +4791,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Aus der Liste entfernen löscht nur unseren Eintrag: Der Grünerator vergisst den Admin-Link, die Umfrage bleibt bei nuudel bestehen, bis sie abläuft. Nutzung. Dein Stand heute und was du mit dem Grünerator gemacht hast: oben die Bäume, darunter deine Werke über die gesamte Zeit und der KI-Verbrauch der letzten 7, 30 oder 90 Tage — Anfragen, Bilder, Transkriptionen, Web-Recherchen und Sprachausgabe. Bäume: Dein tägliches Kontingent für Bilder, Sprachausgabe, Übersetzungen und Tiefenrecherche Nutzung: Was du erstellt hast und wie viele Anfragen, Bilder und Recherchen auf dein Konto gehen Bäume sind dein tägliches Guthaben für alles, was spürbar Rechenleistung braucht: KI-Bilder, Grünerator Voice, den Übersetzer und die Tiefenrecherche. Jedes Konto hat 10 Bäume am Tag; sie werden um Mitternacht (UTC) zurückgesetzt, angezeigt in deiner Ortszeit. Wer den Grünerator-Newsletter abonniert hat, bekommt 5 Bäume mehr — 15 statt 10. Das zählt nur, wenn die abonnierte Adresse dieselbe ist wie die deines Grünerator-Kontos."
+    "text": "Öffnen führt zur Umfrage, wie die Teilnehmenden sie sehen; Verwalten zur Admin-Seite bei nuudel, auf der du die Umfrage bearbeitest, exportierst oder löschst. Aus der Liste entfernen löscht nur unseren Eintrag: Der Grünerator vergisst den Admin-Link, die Umfrage bleibt bei nuudel bestehen, bis sie abläuft. Nutzung. Dein Stand heute und was du mit dem Grünerator gemacht hast: oben die Bäume, darunter deine Werke über die gesamte Zeit und der KI-Verbrauch der letzten 7, 30 oder 90 Tage — Anfragen, Bilder, Transkriptionen, Web-Recherchen und Sprachausgabe. Bäume: Dein tägliches Kontingent für Bilder, Sprachausgabe, Übersetzungen und Tiefenrecherche Nutzung: Was du erstellt hast und wie viele Anfragen, Bilder und Recherchen auf dein Konto gehen Bäume sind dein tägliches Guthaben für alles, was spürbar Rechenleistung braucht: KI-Bilder, Grünerator Voice, den Übersetzer und die Tiefenrecherche. Jedes Konto hat 10 Bäume am Tag; sie werden um Mitternacht (UTC) zurückgesetzt, angezeigt in deiner Ortszeit. Wer den Grünerator-Newsletter abonniert hat, bekommt 5 Bäume mehr — 15 statt 10. Das zählt nur, wenn die abonnierte Adresse dieselbe ist wie die deines Grünerator-Kontos."
   },
   {
     "url": "/docs/sonstiges/einstellungen",

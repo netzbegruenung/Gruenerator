@@ -457,9 +457,10 @@ describe('toolCatalog domain tool mounting', () => {
     for (const [kind, toolName] of Object.entries(TOOL_FOR)) {
       const names = genCatalog({ kind: kind as 'sharepic' }).toolNames;
       expect(names, `${kind} mounts ${toolName}`).toContain(toolName);
-      // No cross-mount: no OTHER generation tool leaks in.
+      // No cross-mount: no OTHER generation tool leaks in — except the deck tool,
+      // which every loop turn offers unforced (#5956, #5957).
       for (const other of Object.values(TOOL_FOR)) {
-        if (other !== toolName)
+        if (other !== toolName && other !== 'create_presentation')
           expect(names, `${kind} must not mount ${other}`).not.toContain(other);
       }
     }
@@ -493,6 +494,26 @@ describe('toolCatalog domain tool mounting', () => {
     expect(
       genCatalog({ kind: 'board', enabledTools: { create_board: false } }).toolNames
     ).not.toContain('create_board');
+  });
+
+  it('offers create_presentation on a loop turn without a kind, unforced (#5956)', () => {
+    // „Ich brauche eine PowerPoint…" carries no verb next to the noun: no kind, but
+    // the model must still be able to build the deck it was asked for.
+    expect(genCatalog({ kind: null }).toolNames).toContain('create_presentation');
+    // The guarantee stays with a recognised kind: nothing forces this tool.
+    expect(genCatalog({ kind: null }).toolNames).not.toContain('create_sheet');
+    // Next to another kind too: „Präsentation und dazu ein Sharepic" (#5957).
+    const both = genCatalog({ kind: 'sharepic' }).toolNames;
+    expect(both).toContain('sharepic');
+    expect(both).toContain('create_presentation');
+    // A presentation turn mounts it once, through its kind.
+    expect(
+      genCatalog({ kind: 'presentation' }).toolNames.filter((t) => t === 'create_presentation')
+    ).toHaveLength(1);
+    expect(genCatalog({ kind: null, req: false }).toolNames).not.toContain('create_presentation');
+    expect(
+      genCatalog({ kind: null, enabledTools: { create_presentation: false } }).toolNames
+    ).not.toContain('create_presentation');
   });
 
   it('mounts edit_document for the sharepic studio surface (plan-and-send)', () => {

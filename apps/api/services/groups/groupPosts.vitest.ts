@@ -18,6 +18,7 @@ interface Fake {
   role?: 'admin' | 'member' | null;
   groupType?: 'standard' | 'personal';
   isSystem?: boolean;
+  archived?: boolean;
   instanceAdmin?: boolean;
   post?: { id: string; author_id: string | null; body: string; share_id: string | null } | null;
   fileCount?: number;
@@ -34,6 +35,7 @@ function fakeDeps(f: Fake = {}) {
         group_type: f.groupType ?? 'standard',
         created_by: 'creator',
         is_system: f.isSystem ?? false,
+        archived_at: f.archived ? '2026-11-22T10:00:00Z' : null,
       };
     }
     if (sql.includes('FROM group_posts')) {
@@ -124,7 +126,6 @@ describe('createGroupPost', () => {
 
   it.each([
     ['empty', { body: '   ', files: [] as UploadedPostFile[] }, {}],
-    ['a personal project', { body: 'x', files: [file('a.pdf')] }, { groupType: 'personal' }],
     ['an unknown file type', { body: 'x', files: [file('a.pdf'), file('run.exe')] }, {}],
     [
       'too many files',
@@ -137,6 +138,12 @@ describe('createGroupPost', () => {
     expect(out.status).toBe(400);
     expect(txQueryOne).not.toHaveBeenCalled();
     expect(deleteFile).toHaveBeenCalledTimes(input.files.length);
+  });
+
+  it('lets members post in a project stored as personal (type does not matter)', async () => {
+    const { deps } = fakeDeps({ groupType: 'personal' });
+    const out = await createGroupPost({ ...base, body: 'Hallo', files: [file('a.png')] }, deps);
+    expect(out.status).toBe(201);
   });
 
   it('lets only instance admins post in the system group, and removes the files', async () => {
@@ -152,6 +159,13 @@ describe('createGroupPost', () => {
       201
     );
     expect(admin.notify).toHaveBeenCalledWith(expect.objectContaining({ isSystem: true }));
+  });
+
+  it('refuses posts in an archived project, even for admins', async () => {
+    const { deps, deleteFile } = fakeDeps({ role: 'admin', archived: true });
+    const out = await createGroupPost({ ...base, body: 'Hallo', files: [file('a.png')] }, deps);
+    expect(out).toMatchObject({ status: 403 });
+    expect(deleteFile).toHaveBeenCalledWith('stored-a.png');
   });
 
   it('removes the files when the user is not a member', async () => {

@@ -20,9 +20,12 @@ import {
 import {
   createGroupForUser,
   joinGroupByToken,
+  removeGroupMember,
+  setGroupArchived,
   updateGroupInfo,
 } from '../../../../services/groups/groupMutations.js';
 import { trashGroup } from '../../../../services/groups/groupTrash.js';
+import { teamChatShareExistsSql } from '../../../../services/groups/projectThreadScope.js';
 import { SYSTEM_GROUP_FORBIDDEN } from '../../../../services/groups/systemGroup.js';
 import {
   createNotification,
@@ -41,7 +44,7 @@ import {
 } from './shared.js';
 
 import type { UserProfile } from '../../../../services/user/types.js';
-import type { GroupLinkBody } from '@gruenerator/contracts';
+import type { GroupColor, GroupLinkBody, LandesverbandId } from '@gruenerator/contracts';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -65,11 +68,20 @@ export const coreRoutes = {
       const groupIds = memberships.map((m) => m.group_id);
       const groupsData = (await postgres.query(
         `SELECT g.id, g.name, g.description, g.created_at, g.created_by, g.join_token, g.settings,
-                g.avatar_url, g.links, g.slug_suffix, g.group_type, g.is_system,
-                (SELECT COUNT(*)::int FROM group_memberships gm WHERE gm.group_id = g.id) AS member_count
+                g.avatar_url, g.links, g.slug_suffix, g.group_type, g.is_system, g.archived_at, g.color,
+                (SELECT COUNT(*)::int FROM group_memberships gm WHERE gm.group_id = g.id) AS member_count,
+                GREATEST(
+                  g.created_at,
+                  (SELECT MAX(gp.created_at) FROM group_posts gp WHERE gp.group_id = g.id),
+                  (SELECT MAX(gcs.shared_at) FROM group_content_shares gcs WHERE gcs.group_id = g.id),
+                  (SELECT MAX(gsc.created_at) FROM group_share_comments gsc WHERE gsc.group_id = g.id),
+                  (SELECT MAX(ct.updated_at) FROM chat_threads ct
+                    WHERE ct.group_id = g.id AND ct.deleted_at IS NULL
+                      AND (ct.user_id::text = $2::text OR ${teamChatShareExistsSql('ct', 'g.id')}))
+                ) AS last_activity_at
            FROM groups g WHERE g.id = ANY($1) AND g.deleted_at IS NULL
-          ORDER BY g.created_at DESC`, // neuestes Projekt zuerst — ohne das ist die Reihenfolge beliebig
-        [groupIds],
+          ORDER BY last_activity_at DESC, g.created_at DESC`, // zuletzt aktives Projekt zuerst
+        [groupIds, userId],
         { table: 'groups' }
       )) as Array<{
         id: string;
@@ -84,7 +96,10 @@ export const coreRoutes = {
         slug_suffix: string | null;
         group_type: 'standard' | 'personal' | null;
         is_system: boolean | null;
+        archived_at: string | Date | null;
+        color: GroupColor | null;
         member_count: number;
+        last_activity_at: string | Date | null;
       }>;
 
       // The system group has no group admins; only instance admins act there.
@@ -115,6 +130,9 @@ export const coreRoutes = {
           // No member info in the system group — everyone is in it.
           member_count: isSystem ? 0 : group.member_count,
           slug_suffix: group.slug_suffix ?? null,
+          archived_at: toIsoOrNull(group.archived_at),
+          color: group.color ?? null,
+          last_activity_at: toIsoOrNull(group.last_activity_at),
         };
       });
 
@@ -123,7 +141,7 @@ export const coreRoutes = {
       log.error('[groupsContract.listUserGroups] Error:', error);
       return {
         status: 500 as const,
-        body: { success: false as const, message: 'Fehler beim Laden der Gruppen.' },
+        body: { success: false as const, message: 'Fehler beim Laden der Projekte.' },
       };
     }
   }),
@@ -140,7 +158,7 @@ export const coreRoutes = {
       if (!suffix && !UUID_RE.test(input)) {
         return {
           status: 404 as const,
-          body: { success: false as const, message: 'Gruppe nicht gefunden.' },
+          body: { success: false as const, message: 'Projekt nicht gefunden.' },
         };
       }
 
@@ -155,7 +173,7 @@ export const coreRoutes = {
       if (!row) {
         return {
           status: 404 as const,
-          body: { success: false as const, message: 'Gruppe nicht gefunden.' },
+          body: { success: false as const, message: 'Projekt nicht gefunden.' },
         };
       }
 
@@ -164,7 +182,7 @@ export const coreRoutes = {
       log.error('[groupsContract.resolveGroup] Error:', error);
       return {
         status: 500 as const,
-        body: { success: false as const, message: 'Fehler beim Auflösen der Gruppe.' },
+        body: { success: false as const, message: 'Fehler beim Auflösen des Projekts.' },
       };
     }
   }),
@@ -196,7 +214,7 @@ export const coreRoutes = {
       log.error('[groupsContract.createGroup] Error:', error);
       return {
         status: 500 as const,
-        body: { success: false as const, message: 'Fehler beim Erstellen der Gruppe.' },
+        body: { success: false as const, message: 'Fehler beim Erstellen des Projekts.' },
       };
     }
   }),
@@ -210,7 +228,7 @@ export const coreRoutes = {
       if (result === 'not_found') {
         return {
           status: 404 as const,
-          body: { success: false as const, message: 'Gruppe nicht gefunden.' },
+          body: { success: false as const, message: 'Projekt nicht gefunden.' },
         };
       }
       if (result === 'system') {
@@ -224,20 +242,20 @@ export const coreRoutes = {
           status: 403 as const,
           body: {
             success: false as const,
-            message: 'Keine Berechtigung zum Löschen dieser Gruppe.',
+            message: 'Keine Berechtigung zum Löschen dieses Projekts.',
           },
         };
       }
 
       return {
         status: 200 as const,
-        body: { success: true as const, message: 'Gruppe erfolgreich gelöscht.' },
+        body: { success: true as const, message: 'Projekt erfolgreich gelöscht.' },
       };
     } catch (error) {
       log.error('[groupsContract.deleteGroup] Error:', error);
       return {
         status: 500 as const,
-        body: { success: false as const, message: 'Fehler beim Löschen der Gruppe.' },
+        body: { success: false as const, message: 'Fehler beim Löschen des Projekts.' },
       };
     }
   }),
@@ -253,7 +271,7 @@ export const coreRoutes = {
         `SELECT gm.role, gm.joined_at, gm.notifications_muted,
                 g.id, g.name, g.description, g.created_at, g.created_by, g.join_token,
                 g.settings, g.avatar_url, g.links, g.is_public, g.audience, g.slug_suffix,
-                g.group_type, g.is_system
+                g.group_type, g.is_system, g.landesverband, g.archived_at, g.color
            FROM group_memberships gm
            JOIN groups g ON g.id = gm.group_id
           WHERE gm.group_id = $1 AND gm.user_id = $2 AND g.deleted_at IS NULL`,
@@ -277,12 +295,15 @@ export const coreRoutes = {
         slug_suffix: string | null;
         group_type: 'standard' | 'personal' | null;
         is_system: boolean | null;
+        landesverband: LandesverbandId | null;
+        archived_at: string | Date | null;
+        color: GroupColor | null;
       } | null;
 
       if (!row) {
         return {
           status: 403 as const,
-          body: { success: false as const, message: 'Du bist nicht Mitglied dieser Gruppe.' },
+          body: { success: false as const, message: 'Du bist nicht Mitglied dieses Projekts.' },
         };
       }
 
@@ -310,6 +331,9 @@ export const coreRoutes = {
             group_type: row.group_type ?? 'standard',
             is_system: isSystem,
             slug_suffix: row.slug_suffix ?? null,
+            landesverband: row.landesverband ?? null,
+            archived_at: toIsoOrNull(row.archived_at),
+            color: row.color ?? null,
           },
           membership: {
             role: row.role,
@@ -323,20 +347,22 @@ export const coreRoutes = {
       log.error('[groupsContract.getDetails] Error:', error);
       return {
         status: 500 as const,
-        body: { success: false as const, message: 'Fehler beim Laden der Gruppendetails.' },
+        body: { success: false as const, message: 'Fehler beim Laden der Projektdetails.' },
       };
     }
   }),
 
   updateInfo: s.route(groupsContract.updateInfo, async (args) => {
     const { groupId } = args.params;
-    const { name, description, settings } = args.body;
+    const { name, description, settings, landesverband, color } = args.body;
     try {
       const userId = getUserId(args.req);
       const outcome = await updateGroupInfo(groupId, userId, {
         ...(name !== undefined ? { name } : {}),
         ...(description !== undefined ? { description } : {}),
         ...(settings !== undefined ? { settings } : {}),
+        ...(landesverband !== undefined ? { landesverband } : {}),
+        ...(color !== undefined ? { color } : {}),
       });
       switch (outcome.status) {
         case 200:
@@ -359,7 +385,7 @@ export const coreRoutes = {
       log.error('[groupsContract.updateInfo] Error:', error);
       return {
         status: 500 as const,
-        body: { success: false as const, message: 'Fehler beim Aktualisieren der Gruppendetails.' },
+        body: { success: false as const, message: 'Fehler beim Aktualisieren der Projektdetails.' },
       };
     }
   }),
@@ -402,7 +428,7 @@ export const coreRoutes = {
       if (!name?.trim()) {
         return {
           status: 400 as const,
-          body: { success: false as const, message: 'Gruppenname ist erforderlich.' },
+          body: { success: false as const, message: 'Projektname ist erforderlich.' },
         };
       }
       const { postgres } = await getPostgresAndCheckMembership(groupId, userId, true);
@@ -413,12 +439,12 @@ export const coreRoutes = {
       if (result.changes === 0) throw new Error('Group not found or no changes made');
       return {
         status: 200 as const,
-        body: { success: true as const, message: 'Gruppenname erfolgreich aktualisiert.' },
+        body: { success: true as const, message: 'Projektname erfolgreich aktualisiert.' },
       };
     } catch (error) {
       return groupErrorResponse(
         'updateName',
-        'Fehler beim Aktualisieren des Gruppennamens.',
+        'Fehler beim Aktualisieren des Projektnamens.',
         error
       );
     }
@@ -498,15 +524,15 @@ export const coreRoutes = {
           group: outcome.group,
           alreadyMember: outcome.alreadyMember,
           message: outcome.alreadyMember
-            ? 'Du bist bereits Mitglied dieser Gruppe.'
-            : `Erfolgreich der Gruppe "${outcome.group.name}" beigetreten.`,
+            ? 'Du bist bereits Mitglied dieses Projekts.'
+            : `Erfolgreich dem Projekt "${outcome.group.name}" beigetreten.`,
         },
       };
     } catch (error) {
       log.error('[groupsContract.joinByToken] Error:', error);
       return {
         status: 500 as const,
-        body: { success: false as const, message: 'Fehler beim Beitritt zur Gruppe.' },
+        body: { success: false as const, message: 'Fehler beim Beitritt zum Projekt.' },
       };
     }
   }),
@@ -525,7 +551,7 @@ export const coreRoutes = {
           status: 403 as const,
           body: {
             success: false as const,
-            message: 'Keine Berechtigung, zu dieser Gruppe einzuladen.',
+            message: 'Keine Berechtigung, zu diesem Projekt einzuladen.',
           },
         };
       }
@@ -539,7 +565,7 @@ export const coreRoutes = {
       if (!group?.join_token) {
         return {
           status: 404 as const,
-          body: { success: false as const, message: 'Gruppe nicht gefunden.' },
+          body: { success: false as const, message: 'Projekt nicht gefunden.' },
         };
       }
 
@@ -593,7 +619,7 @@ export const coreRoutes = {
       if (!row) {
         return {
           status: 404 as const,
-          body: { success: false as const, message: 'Du bist nicht Mitglied dieser Gruppe.' },
+          body: { success: false as const, message: 'Du bist nicht Mitglied dieses Projekts.' },
         };
       }
 
@@ -614,7 +640,7 @@ export const coreRoutes = {
           body: {
             success: false as const,
             message:
-              'Als Gruppenersteller*in kannst du die Gruppe nicht verlassen. Lösche sie stattdessen.',
+              'Als Projektersteller*in kannst du das Projekt nicht verlassen. Lösche es stattdessen.',
           },
         };
       }
@@ -638,13 +664,13 @@ export const coreRoutes = {
 
       return {
         status: 200 as const,
-        body: { success: true as const, message: 'Gruppe erfolgreich verlassen.' },
+        body: { success: true as const, message: 'Projekt erfolgreich verlassen.' },
       };
     } catch (error) {
       log.error('[groupsContract.leaveGroup] Error:', error);
       return {
         status: 500 as const,
-        body: { success: false as const, message: 'Fehler beim Verlassen der Gruppe.' },
+        body: { success: false as const, message: 'Fehler beim Verlassen des Projekts.' },
       };
     }
   }),
@@ -665,7 +691,7 @@ export const coreRoutes = {
       if (result.changes === 0) {
         return {
           status: 404 as const,
-          body: { success: false as const, message: 'Du bist nicht Mitglied dieser Gruppe.' },
+          body: { success: false as const, message: 'Du bist nicht Mitglied dieses Projekts.' },
         };
       }
 
@@ -725,7 +751,7 @@ export const coreRoutes = {
         },
       };
     } catch (error) {
-      return groupErrorResponse('listMembers', 'Fehler beim Laden der Gruppenmitglieder.', error);
+      return groupErrorResponse('listMembers', 'Fehler beim Laden der Projektmitglieder.', error);
     }
   }),
 
@@ -767,7 +793,7 @@ export const coreRoutes = {
           status: 400 as const,
           body: {
             success: false as const,
-            message: 'Die Rolle der Gruppenersteller*in kann nicht geändert werden.',
+            message: 'Die Rolle der Projektersteller*in kann nicht geändert werden.',
           },
         };
       }
@@ -775,7 +801,7 @@ export const coreRoutes = {
       if (!targetMembership) {
         return {
           status: 404 as const,
-          body: { success: false as const, message: 'Mitglied nicht in dieser Gruppe gefunden.' },
+          body: { success: false as const, message: 'Mitglied nicht in diesem Projekt gefunden.' },
         };
       }
 
@@ -788,7 +814,7 @@ export const coreRoutes = {
         userId: memberId,
         type: 'group_role_changed',
         title: 'Rolle geändert',
-        body: `Du bist jetzt ${role === 'admin' ? 'Admin' : 'Mitglied'} in „${group?.name || 'deiner Gruppe'}"`,
+        body: `Du bist jetzt ${role === 'admin' ? 'Admin' : 'Mitglied'} in „${group?.name || 'deinem Projekt'}"`,
         actionUrl: `/gruppen/${groupId}`,
         metadata: { groupId, role },
         groupKey: `group:${groupId}`,
@@ -800,6 +826,56 @@ export const coreRoutes = {
       };
     } catch (error) {
       return groupErrorResponse('updateMemberRole', 'Fehler beim Aktualisieren der Rolle.', error);
+    }
+  }),
+
+  setGroupArchived: s.route(groupsContract.setGroupArchived, async (args) => {
+    try {
+      const outcome = await setGroupArchived(
+        args.params.groupId,
+        getUserId(args.req),
+        args.body.archived
+      );
+      if (outcome.status === 400) {
+        return {
+          status: 400 as const,
+          body: { success: false as const, message: outcome.message },
+        };
+      }
+      return { status: 200 as const, body: { success: true as const, message: outcome.message } };
+    } catch (error) {
+      return groupErrorResponse('setGroupArchived', 'Fehler beim Archivieren des Projekts.', error);
+    }
+  }),
+
+  removeMember: s.route(groupsContract.removeMember, async (args) => {
+    const { groupId, memberId } = args.params;
+    try {
+      const outcome = await removeGroupMember(groupId, getUserId(args.req), memberId);
+      switch (outcome.status) {
+        case 200:
+          return {
+            status: 200 as const,
+            body: { success: true as const, message: outcome.message },
+          };
+        case 400:
+          return {
+            status: 400 as const,
+            body: { success: false as const, message: outcome.message },
+          };
+        case 403:
+          return {
+            status: 403 as const,
+            body: { success: false as const, message: outcome.message },
+          };
+        case 404:
+          return {
+            status: 404 as const,
+            body: { success: false as const, message: outcome.message },
+          };
+      }
+    } catch (error) {
+      return groupErrorResponse('removeMember', 'Fehler beim Entfernen des Mitglieds.', error);
     }
   }),
 
@@ -821,7 +897,7 @@ export const coreRoutes = {
       if (links.length >= MAX_LINKS) {
         return {
           status: 400 as const,
-          body: { success: false as const, message: `Maximal ${MAX_LINKS} Links pro Gruppe.` },
+          body: { success: false as const, message: `Maximal ${MAX_LINKS} Links pro Projekt.` },
         };
       }
 

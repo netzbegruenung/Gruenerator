@@ -15,6 +15,7 @@
 import { randomUUID } from 'node:crypto';
 
 import {
+  CONFIRM_ACTION_TYPES_APP_1_7_0,
   type chatGraphContract,
   isVisualBlockKind,
   type NotebookSourceRef,
@@ -36,7 +37,16 @@ import {
 } from '../../../config/notebookCollectionMap.js';
 import { acquireThreadRun, type ThreadRunLease } from '../../../services/chat/threadRunLock.js';
 import { readThreadProjectInstructions } from '../../../services/groups/groupInstructions.js';
-import { getProjectFileSources } from '../../../services/groups/projectFiles.js';
+import {
+  getProjectCollabDocs,
+  getProjectCollabDocumentIds,
+  type ProjectCollabDoc,
+} from '../../../services/groups/projectCollabDocs.js';
+import { getProjectFileDocumentIds } from '../../../services/groups/projectFiles.js';
+import { readThreadProjectLandesverband } from '../../../services/groups/projectLandesverband.js';
+import { getProjectNotebookIds } from '../../../services/groups/projectNotebooks.js';
+import { getProjectRecipeIds } from '../../../services/groups/projectRecipes.js';
+import { getThreadProjectId } from '../../../services/groups/projectRunContext.js';
 import { extractLocaleFromRequest } from '../../../services/localization/index.js';
 import {
   loadTurnMemories,
@@ -344,7 +354,11 @@ async function buildStreamContextInner({
     webpageUrls: rawWebpageUrls,
     platform: rawPlatform,
     visualBlocks: rawVisualBlocks,
+    confirmActions: rawConfirmActions,
   } = body;
+  // Which confirm cards this client draws: a card it would drop is refused at
+  // `emitToolConfirmAction` instead of being promised to the model.
+  sse.setConfirmActionTypes(rawConfirmActions ?? CONFIRM_ACTION_TYPES_APP_1_7_0);
   // `currentCanvas.sharepic` is read with `.catch(null)`: an invalid spec
   // context silently drops the turn to the op path. Say so here, where the
   // raw body is still at hand.
@@ -977,26 +991,72 @@ async function buildStreamContextInner({
   }
 
   // === Dateien des Projekts ===
-  // Liegt der Chat in einem Projekt, sind dessen Dateien Material jedes Turns —
-  // nach Mitgliedschaft geprüft, nicht am Thread gespeichert (`projectFiles.ts`).
-  // Sie laufen als „mitgetragen": sie erzwingen keine Route, ein Duplikat zu
-  // einer gewählten @datei zählt nur einmal.
+  // Liegt der Chat in einem Projekt, sind dessen Dateien ein stilles Notebook:
+  // alle fertigen Dateien als EIN Dokument-Scope, wie die Dokumente eines
+  // Nutzer-Notebooks (`defaultNotebookDocumentIds`). Nach Mitgliedschaft
+  // geprüft, nicht am Thread gespeichert (`projectFiles.ts`). Eine @datei- oder
+  // @notebook-Wahl des Turns schlägt die Vorgabe (`agentNotebookDocIds`).
+  let projectFileDocumentIds: string[] = [];
+  let projectId: string | null = null;
   if (actualThreadId) {
     try {
-      const have = new Set(
-        notebookSources.flatMap((s) => (s.kind === 'user' ? [s.documentId] : []))
-      );
-      const projectFiles = await withTimeout(
-        getProjectFileSources(actualThreadId, userId),
+      [projectId, projectFileDocumentIds] = await withTimeout(
+        Promise.all([
+          getThreadProjectId(actualThreadId, userId),
+          getProjectFileDocumentIds(actualThreadId, userId),
+        ]),
         EXTERNAL_CONTEXT_TIMEOUT_MS,
         'project files'
       );
-      notebookSources = [
-        ...notebookSources,
-        ...projectFiles.filter((s) => s.kind !== 'user' || !have.has(s.documentId)),
-      ];
     } catch (err) {
       log.warn('[StreamContext] Could not load project files (continuing):', err);
+    }
+  }
+
+  // Indexierte Docs, Tabellen, Boards des Projekts liegen im selben Scope.
+  if (actualThreadId) {
+    try {
+      const collabIds = await withTimeout(
+        getProjectCollabDocumentIds(actualThreadId, userId),
+        EXTERNAL_CONTEXT_TIMEOUT_MS,
+        'project collab docs'
+      );
+      projectFileDocumentIds = [...new Set([...projectFileDocumentIds, ...collabIds])];
+    } catch (err) {
+      log.warn('[StreamContext] Could not load project collab doc ids (continuing):', err);
+    }
+  }
+
+  // === Docs, Tabellen, Boards des Projekts ===
+  // Nicht im Prompt: nur eine Titelliste (`projectDocs`); den ganzen Inhalt liest
+  // das Modell bei Bedarf mit `read_artifact`, Fundstellen kommen aus der Suche oben.
+  let projectDocs: ProjectCollabDoc[] | null = null;
+  if (actualThreadId) {
+    try {
+      projectDocs = await withTimeout(
+        getProjectCollabDocs(actualThreadId, userId),
+        EXTERNAL_CONTEXT_TIMEOUT_MS,
+        'project docs'
+      );
+    } catch (err) {
+      log.warn('[StreamContext] Could not load project docs (continuing):', err);
+    }
+  }
+
+  // === Notebooks des Projekts ===
+  // Ins Projekt geteilte Notebooks sind Vorgabe-Suche jedes Turns, wie die
+  // `defaultNotebookIds` eines Agents; gebunden (Tor, Lesezugriff) werden sie
+  // in `initializeChatState`, und eine @notebook-Wahl schlägt sie dort.
+  let projectNotebookIds: string[] = [];
+  if (actualThreadId) {
+    try {
+      projectNotebookIds = await withTimeout(
+        getProjectNotebookIds(actualThreadId, userId),
+        EXTERNAL_CONTEXT_TIMEOUT_MS,
+        'project notebooks'
+      );
+    } catch (err) {
+      log.warn('[StreamContext] Could not load project notebooks (continuing):', err);
     }
   }
 
@@ -1185,6 +1245,31 @@ async function buildStreamContextInner({
       })
     : null;
 
+  // Ausdrücklicher Landesverband des Projekts — schlägt die aktive Rolle im
+  // LV-Rezept-Vorzug. Ein Ausfall heißt: Rolle entscheidet wie bisher.
+  const projectLandesverband = actualThreadId
+    ? await withTimeout(
+        readThreadProjectLandesverband(actualThreadId, userId),
+        EXTERNAL_CONTEXT_TIMEOUT_MS,
+        'project landesverband'
+      ).catch((err: unknown) => {
+        log.warn('[StreamContext] Could not load project landesverband (continuing):', err);
+        return null;
+      })
+    : null;
+
+  // Rezepte des Projekts — der Katalog listet sie als eigenen Block.
+  const projectRecipeIds = actualThreadId
+    ? await withTimeout(
+        getProjectRecipeIds(actualThreadId, userId),
+        EXTERNAL_CONTEXT_TIMEOUT_MS,
+        'project recipes'
+      ).catch((err: unknown) => {
+        log.warn('[StreamContext] Could not load project recipes (continuing):', err);
+        return [];
+      })
+    : [];
+
   // Leeres Profil (Land noch nicht gewählt) heißt nicht Deutschland: dann
   // entscheidet, was der Client mitschickt (X-User-Locale, Accept-Language).
   // Gilt für den Rollen-Baustein ({{partyName}}) wie für den Graph-Zustand.
@@ -1265,8 +1350,11 @@ async function buildStreamContextInner({
     notebookIds: notebookIds.length > 0 ? notebookIds : undefined,
     notebookDocumentIds: notebookDocumentIds.length > 0 ? notebookDocumentIds : undefined,
     defaultNotebookId,
+    projectNotebookIds: projectNotebookIds.length > 0 ? projectNotebookIds : undefined,
     defaultNotebookDocumentIds:
-      defaultNotebookDocumentIds.length > 0 ? defaultNotebookDocumentIds : undefined,
+      defaultNotebookDocumentIds.length > 0 || projectFileDocumentIds.length > 0
+        ? [...new Set([...defaultNotebookDocumentIds, ...projectFileDocumentIds])]
+        : undefined,
     documentNotebookIds:
       Object.keys(documentNotebookIds).length > 0 ? documentNotebookIds : undefined,
     documentIds: authorizedDocumentIds.length ? authorizedDocumentIds : undefined,
@@ -1350,6 +1438,10 @@ async function buildStreamContextInner({
       ) ?? undefined,
     userInstructions,
     projectInstructions,
+    projectDocs,
+    project: projectId ? { id: projectId, documentIds: projectFileDocumentIds } : null,
+    ...(projectRecipeIds.length > 0 && { projectRecipeIds }),
+    ...(projectLandesverband && { projectLandesverband }),
     contextWindowTokens,
   });
 

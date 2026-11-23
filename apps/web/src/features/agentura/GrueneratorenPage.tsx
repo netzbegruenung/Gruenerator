@@ -17,11 +17,11 @@ import {
   PiFileText,
   PiPlus,
   PiRepeat,
-  PiSparkle,
   PiStorefront,
 } from 'react-icons/pi';
 import { Link, useNavigate } from 'react-router-dom';
 
+import { OwnAgentsConversionNotice } from '../agents/AgentDeprecationNotice';
 import { MarketplaceDialog } from '../marketplace/MarketplaceDialog';
 import { SubscribedCollectionSection } from '../marketplace/SubscribedCollectionSection';
 import { useRecurringTasks } from '../recurring-tasks/api';
@@ -280,15 +280,11 @@ function GrueneratorenPage() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => navigate('/agents/new')}>
-                  <PiSparkle />
-                  <span>Agent</span>
-                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate('/agentura/rezept/neu')}>
                   <PiFileText />
                   <span>Rezept</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate('/agents/new?mode=recurring')}>
+                <DropdownMenuItem onClick={() => navigate('/wiederkehrend/neu')}>
                   <PiRepeat />
                   <span>Wiederkehrende Aufgabe</span>
                 </DropdownMenuItem>
@@ -304,6 +300,8 @@ function GrueneratorenPage() {
           </>
         }
       />
+
+      <OwnAgentsConversionNotice agents={userAgents} className="mb-md" />
 
       {/* Die Zahl steht nicht mehr sichtbar da, bleibt aber hörbar: ohne sie
           wechselt bei Suche oder Filter lautlos der Inhalt. */}
@@ -358,16 +356,10 @@ function GrueneratorenPage() {
       ) : nothingYet ? (
         <GalleryEmptyState
           title="Noch nichts angelegt"
-          hint="Du hast noch keine eigenen Agents oder Rezepte erstellt. Leg los oder stöbere im Marktplatz."
+          hint="Du hast noch keine eigenen Rezepte erstellt. Leg los oder stöbere im Marktplatz."
           action={
             <div className="flex flex-wrap items-center justify-center gap-sm">
               <Button asChild variant="brand" size="brand-sm">
-                <Link to="/agents/new">
-                  <PiPlus />
-                  Agent erstellen
-                </Link>
-              </Button>
-              <Button asChild variant="outline" size="brand-sm">
                 <Link to="/agentura/rezept/neu">
                   <PiFileText />
                   Rezept erstellen

@@ -7,6 +7,7 @@
 import { recurringTasksContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { getProjectTaskTarget } from '../../services/groups/projectRunContext.js';
 import { runRecurringTask } from '../../services/recurringTasks/recurringTaskRunner.js';
 import {
   createRecurringTask,
@@ -33,6 +34,29 @@ const notFound = {
   body: { success: false, message: 'Aufgabe nicht gefunden.' },
 };
 
+const notProjectMember = {
+  status: 400 as const,
+  body: { success: false, message: 'Du bist in diesem Projekt nicht Mitglied.' },
+};
+
+const projectArchived = {
+  status: 400 as const,
+  body: {
+    success: false,
+    message:
+      'Das Projekt ist archiviert — seine Aufgaben ruhen. Stell es zuerst wieder her, um hier Aufgaben anzulegen.',
+  },
+};
+
+/** `null` = Ziel in Ordnung, sonst die Antwort für den Client. */
+async function projectTargetRefusal(groupId: string | null | undefined, userId: string) {
+  if (!groupId) return null;
+  const target = await getProjectTaskTarget(groupId, userId);
+  if (target === 'not_member') return notProjectMember;
+  if (target === 'archived') return projectArchived;
+  return null;
+}
+
 const s = initServer();
 
 export const recurringTasksContractRouter = s.router(recurringTasksContract, {
@@ -51,6 +75,8 @@ export const recurringTasksContractRouter = s.router(recurringTasksContract, {
   create: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
+      const refusal = await projectTargetRefusal(args.body.groupId, userId);
+      if (refusal) return refusal;
       const task = await createRecurringTask(userId, args.body);
       return { status: 201 as const, body: { success: true, task } };
     } catch (error) {
@@ -76,6 +102,8 @@ export const recurringTasksContractRouter = s.router(recurringTasksContract, {
   update: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
+      const refusal = await projectTargetRefusal(args.body.groupId, userId);
+      if (refusal) return refusal;
       const task = await updateRecurringTask(userId, args.params.id, args.body);
       if (!task) return notFound;
       return { status: 200 as const, body: { success: true, task } };

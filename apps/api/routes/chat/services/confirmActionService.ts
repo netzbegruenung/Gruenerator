@@ -7,10 +7,10 @@
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { createLogger } from '../../../utils/logger.js';
+import { EndgueltigerWerkzeugFehler, werkzeugFehler } from '../agents/toolFailure.js';
 
 import { pendingActionStore } from './pendingActionStore.js';
 
-import type { SSEWriter } from './sseHelpers.js';
 import type {
   ChatGraphState,
   PendingAction,
@@ -18,6 +18,7 @@ import type {
   SearchIntent,
   ConfirmActionType,
 } from '../../../agents/langgraph/ChatGraph/types.js';
+import type { SSEWriter } from './sseHelpers.js';
 
 const log = createLogger('ChatGraphController');
 
@@ -63,19 +64,19 @@ export const CONFIRM_ACTION_CONFIG: Record<
   },
   share_doc: {
     title: 'Dokument teilen',
-    description: 'Das Dokument wird mit der Gruppe geteilt.',
+    description: 'Das Dokument wird mit dem Projekt geteilt.',
     icon: 'share-2',
     confirmLabel: 'Teilen',
   },
   create_group: {
-    title: 'Gruppe erstellen',
-    description: 'Eine neue Gruppe wird angelegt, mit dir als Administrator*in.',
+    title: 'Projekt erstellen',
+    description: 'Ein neues Projekt wird angelegt, mit dir als Administrator*in.',
     icon: 'users',
     confirmLabel: 'Erstellen',
   },
   join_group: {
-    title: 'Gruppe beitreten',
-    description: 'Du trittst der Gruppe über den Einladungslink bei.',
+    title: 'Projekt beitreten',
+    description: 'Du trittst dem Projekt über den Einladungslink bei.',
     icon: 'user-plus',
     confirmLabel: 'Beitreten',
   },
@@ -111,6 +112,13 @@ export const CONFIRM_ACTION_CONFIG: Record<
       'Öffentlich heißt: das Projekt erscheint unter „Projekte entdecken" und andere können um Aufnahme bitten. Privat heißt: Beitritt nur per Einladungslink.',
     icon: 'eye',
     confirmLabel: 'Ändern',
+  },
+  add_project_text: {
+    title: 'Im Projekt speichern',
+    description:
+      'Der Text wird als Datei ins Projekt gelegt. Alle Mitglieder können ihn lesen, und Chats im Projekt finden ihn in ihrer Suche.',
+    icon: 'file-text',
+    confirmLabel: 'Speichern',
   },
   create_recurring_task: {
     title: 'Wiederkehrende Aufgabe einrichten',
@@ -347,7 +355,7 @@ export async function emitConfirmAction(opts: {
     case 'share_doc':
       metadataEntries = [
         { key: 'Dokument', value: pendingAction.payload.docTitle },
-        { key: 'Gruppe', value: pendingAction.payload.groupName },
+        { key: 'Projekt', value: pendingAction.payload.groupName },
         {
           key: 'Berechtigung',
           value: pendingAction.payload.permissionLevel === 'editor' ? 'Bearbeiten' : 'Nur lesen',
@@ -387,6 +395,14 @@ export function newActionId(): string {
   return `action_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+const CONFIRM_CARD_UNSUPPORTED = werkzeugFehler({
+  art: 'nicht_verfuegbar',
+  ursache: 'Diese Bestätigung kann deine App-Version noch nicht anzeigen',
+  befund: 'Aktualisiere die App oder erledige es in der Web-Version',
+  naechsterSchritt:
+    'Nicht erneut versuchen und nichts als angefordert ankündigen; sag der Person, dass es nach einem App-Update oder in der Web-Version geht',
+});
+
 /**
  * Store + emit a `confirm_action` for a TOOL-initiated pending action (agentic
  * loop). Reuses the same `CONFIRM_ACTION_CONFIG` card and Redis store as the
@@ -399,6 +415,14 @@ export async function emitToolConfirmAction(
   action: PendingAction,
   metadata: Array<{ key: string; value: string }>
 ): Promise<void> {
+  // Ein Client, dessen Enum den Typ nicht kennt, verwirft die Karte still —
+  // dann hielte das Modell sie für angezeigt und bäte um eine Bestätigung, die
+  // niemand sieht. Geworfen statt zurückgegeben: alle Werkzeuge rufen hier
+  // durch, und `wrapToolsForLoop` macht daraus die Absage ans Modell.
+  if (!sse.rendersConfirmAction(action.type)) {
+    log.info(`[ChatGraph] Confirm card ${action.type} not supported by this client`);
+    throw new EndgueltigerWerkzeugFehler(CONFIRM_CARD_UNSUPPORTED);
+  }
   const cfg = CONFIRM_ACTION_CONFIG[action.type];
   sse.send('confirm_action', {
     actionId: action.actionId,

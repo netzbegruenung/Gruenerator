@@ -39,6 +39,10 @@ import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
 import {
+  getProjectTaskTarget,
+  getThreadProjectId,
+} from '../../../services/groups/projectRunContext.js';
+import {
   DELIVERY_LABELS_DE,
   describeRecurrence,
   formatNextRun,
@@ -78,6 +82,10 @@ export interface RecurringTaskToolDeps {
   /** `false` ⇒ für diese Aufgabe läuft bereits ein Lauf (Lease, #3221). */
   runRecurringTask: (row: RecurringTaskRow) => Promise<boolean>;
   getAgentForUser: typeof getAgentForUser;
+  /** Projekt des Chats (nur mit aktiver Mitgliedschaft), sonst `null`. */
+  getThreadProjectId: typeof getThreadProjectId;
+  /** Archiviertes Projekt = keine neuen Aufgaben (#5951). */
+  getProjectTaskTarget: typeof getProjectTaskTarget;
 }
 
 /** `PersonalToolCtx` plus optionale Fakes — der Katalog reicht den Ctx ohne `deps`. */
@@ -109,6 +117,8 @@ function resolveDeps(partial: Partial<RecurringTaskToolDeps> | undefined): Recur
         return true;
       }),
     getAgentForUser: partial?.getAgentForUser ?? getAgentForUser,
+    getThreadProjectId: partial?.getThreadProjectId ?? getThreadProjectId,
+    getProjectTaskTarget: partial?.getProjectTaskTarget ?? getProjectTaskTarget,
   };
 }
 
@@ -142,7 +152,7 @@ export function makeRecurringTasksTool(ctx: RecurringTaskToolCtx): Tool {
 
 NUTZE FÜR: bestehende Aufgaben auflisten (list), Details samt letzten Läufen ansehen (get mit taskId), eine neue Aufgabe einrichten — „erinnere mich jeden Montag um 9 an …", „schick mir täglich eine Übersicht zu …" (create mit title, instruction, recurrence; optional delivery, agentIdentifier, emailNotify, timezone), Titel/Anweisung/Takt/Zustellung ändern (update), pausieren (pause) und fortsetzen (resume), einmal sofort laufen lassen (run_now), löschen (delete mit confirm=true nach Zustimmung).
 
-NICHT für: Aufgaben oder Karten auf einem Kanban-Board (dafür 'boards_tasks'), einen Grünerator-Agent anlegen oder ändern (im Chat nicht möglich — auf die Übersicht „Grüneratoren“ verweisen), einmalige Aufträge, die jetzt erledigt werden sollen (die führst du selbst aus).
+NICHT für: Aufgaben oder Karten auf einem Kanban-Board (dafür 'boards_tasks'), einen Grünerator-Agent anlegen oder ändern (dafür 'user_agents'; neue Agents gibt es nicht mehr), einmalige Aufträge, die jetzt erledigt werden sollen (die führst du selbst aus).
 
 Für create formulierst du instruction als vollständige Arbeitsanweisung an den Agenten und wählst recurrence selbst: ohne genannte Uhrzeit 9:00; „wöchentlich" ohne Wochentag → byweekday weglassen. Eine Aufgabe wird über taskId (aus list, Feld ref) benannt. Das Einrichten wird der Person als Karte zur Bestätigung angezeigt — kündige nichts als eingerichtet an, was nur angefordert ist.`,
     inputSchema: z.object({
@@ -323,6 +333,16 @@ Für create formulierst du instruction als vollständige Arbeitsanweisung an den
     const agent = await resolveAgentTitle(userId, agentIdentifier);
     if ('error' in agent) return agent;
 
+    // Aus einem Projekt-Chat heraus gehört die Aufgabe ins Projekt: Anweisungen
+    // und Wissen des Projekts gelten dann auch im Lauf.
+    const groupId = await deps.getThreadProjectId(threadId, userId).catch(() => null);
+    if (groupId && (await deps.getProjectTaskTarget(groupId, userId)) === 'archived') {
+      return {
+        error:
+          'Dieses Projekt ist archiviert — seine Aufgaben ruhen, neue lassen sich hier nicht anlegen. Sag der Person, dass sie das Projekt zuerst wiederherstellen kann.',
+      };
+    }
+
     const validated = createRecurringTaskBodySchema.safeParse({
       title: args.title.trim(),
       instruction: args.instruction.trim(),
@@ -330,6 +350,7 @@ Für create formulierst du instruction als vollständige Arbeitsanweisung an den
       ...(args.delivery ? { delivery: args.delivery } : {}),
       ...(args.emailNotify !== undefined ? { emailNotify: args.emailNotify } : {}),
       agentIdentifier,
+      ...(groupId ? { groupId } : {}),
       timezone: args.timezone?.trim() || (locale === 'de-AT' ? 'Europe/Vienna' : 'Europe/Berlin'),
       locale,
     });
@@ -358,6 +379,7 @@ Für create formulierst du instruction als vollständige Arbeitsanweisung an den
       { key: 'Takt', value: takt },
       { key: 'Zustellung', value: zustellung },
       { key: 'Agent', value: agentTitle ?? 'Grünerator (Standard)' },
+      ...(groupId ? [{ key: 'Projekt', value: 'Dieses Projekt' }] : []),
     ]);
     const note = `Bestätigung angefordert: wiederkehrende Aufgabe „${body.title}" (${takt}, ${zustellung}) einrichten.`;
     groundNote(sourceRegistry, 'Wiederkehrende Aufgabe einrichten', note);

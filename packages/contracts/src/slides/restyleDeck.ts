@@ -7,7 +7,7 @@
 
 import { type BrandLocale } from '../brand/grueneBrand.js';
 
-import { buildFolie, deckStilBoxes, type DeckStilId } from './deckStile/index.js';
+import { buildFolie, deckStilBoxes, deckStilFlow, type DeckStilId } from './deckStile/index.js';
 import { fitSlideTexts, type MeasureText } from './fitText.js';
 import { type FolieSpec } from './folienTypen.js';
 import { readFolie } from './slideDeck.js';
@@ -57,8 +57,13 @@ export function restylePage(
       index,
     }) as unknown as Record<string, unknown>;
     if (ctx.measure) {
-      next = fitSlideTexts(next as never, deckStilBoxes(stil, folie.typ), ctx.measure)
-        .state as unknown as Record<string, unknown>;
+      next = fitSlideTexts(
+        next as never,
+        deckStilBoxes(stil, folie.typ),
+        ctx.measure,
+        null,
+        deckStilFlow(stil, folie.typ)
+      ).state as unknown as Record<string, unknown>;
     }
 
     const layerOrder = Array.isArray(next['layerOrder'])

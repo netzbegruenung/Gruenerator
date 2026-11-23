@@ -21,6 +21,7 @@ import {
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { CURRENT_INSTANCE } from '../../config/instance';
+import { AgentConversionNotice } from '../agents/AgentDeprecationNotice';
 import { useUserAgents } from '../agents/api';
 import { PhosphorIcon } from '../agents/icons/PhosphorIcon';
 import { MarketplaceDiscussion } from '../marketplace/MarketplaceDiscussion';
@@ -216,6 +217,8 @@ function AgentDetailPage() {
           ))}
         </div>
       )}
+
+      {isOwnAgent && isUserAgent && <AgentConversionNotice agent={agent} className="mb-lg" />}
 
       {isOwnAgent && <ShareAgentModal agent={agent} open={shareOpen} onOpenChange={setShareOpen} />}
 

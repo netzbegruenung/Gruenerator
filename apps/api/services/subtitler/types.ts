@@ -44,6 +44,7 @@ export interface SubtitlerProject extends Omit<
 export type SubtitlerProjectListItem = Omit<
   SubtitlerProjectRow,
   | 'subtitles'
+  | 'words'
   | 'video_path'
   | 'source_system_media_id'
   | 'user_id'
@@ -70,6 +71,8 @@ export interface CreateProjectData {
   videoSourcePath?: string | undefined;
   /** Source lives in system storage: the project references it, the file is not copied. */
   sourceSystemMediaId?: string | undefined;
+  /** Provider word timings in seconds; handed to the video editor on „Bearbeiten“. */
+  words?: { word: string; start: number; end: number }[] | undefined;
 }
 
 /**

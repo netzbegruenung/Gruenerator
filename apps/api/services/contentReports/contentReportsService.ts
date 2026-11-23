@@ -1,6 +1,7 @@
 /**
  * Stored content reports: what users report, the auto-hide for public
- * Agents, Rezepte, Vorlagen and studio assets, and the admin queue that
+ * Agents, Rezepte, Vorlagen and studio assets, the project admins' notice
+ * for project content (`projectReports.ts`), and the admin queue that
  * resolves reports per target.
  *
  * One open row per reporter and target (`uq_content_reports_open_reporter_target`),
@@ -32,6 +33,11 @@ import {
   MODERATION_TARGETS,
   moderationTargetFor,
 } from './moderationTargets.js';
+import {
+  isProjectReportKind,
+  loadProjectReportTarget,
+  notifyProjectAdminsOfReport,
+} from './projectReports.js';
 
 /** Distinct open reporters that hide a public moderatable target until an admin looks. */
 export const AUTO_HIDE_REPORT_THRESHOLD = 3;
@@ -74,6 +80,17 @@ export async function recordContentReport(
     }
   }
 
+  const projectKind = isProjectReportKind(body.kind) ? body.kind : null;
+  const projectTarget = projectKind
+    ? await loadProjectReportTarget(projectKind, body.targetId, reporterId)
+    : null;
+  if (projectKind) {
+    if (!projectTarget) return fail(404, 'Element nicht gefunden.');
+    if (projectTarget.ownerId === reporterId) {
+      return fail(400, 'Eigene Inhalte kannst du nicht melden.');
+    }
+  }
+
   const inserted = await db
     .insert(contentReports)
     .values({
@@ -83,7 +100,8 @@ export async function recordContentReport(
       reason: body.reason,
       note: body.note ?? null,
       excerpt: body.excerpt ?? null,
-      group_id: body.groupId && isRowId(body.groupId) ? body.groupId : null,
+      group_id:
+        projectTarget?.groupId ?? (body.groupId && isRowId(body.groupId) ? body.groupId : null),
       thread_id: body.threadId ?? null,
     })
     .onConflictDoNothing({
@@ -105,6 +123,16 @@ export async function recordContentReport(
            WHERE cr.kind = ${body.kind} AND cr.target_id = ${body.targetId}
              AND cr.status = 'open') >= ${AUTO_HIDE_REPORT_THRESHOLD}`
     ));
+
+  if (stored && projectKind && projectTarget) {
+    await notifyProjectAdminsOfReport({
+      kind: projectKind,
+      targetId: body.targetId,
+      reason: body.reason,
+      reporterId,
+      target: projectTarget,
+    });
+  }
 
   return { ok: true, value: { stored, hidden } };
 }

@@ -27,12 +27,11 @@ import {
 import express, { type Router, type Response, type NextFunction, type Request } from 'express';
 import multer from 'multer';
 
-import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { kickIngestWorker } from '../../services/document-services/DocumentProcessingService/documentIngestWorker.js';
 import { getDocumentProcessingService } from '../../services/document-services/DocumentProcessingService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
-import { purgeDocument } from '../../services/document-services/PostgresDocumentService/metadataOperations.js';
 import {
+  addTextToGroup,
   CREATE_IN_GROUP_FORBIDDEN,
   mayShareIntoGroup,
   shareNewDocumentIntoGroup,
@@ -409,27 +408,12 @@ router.post('/add-text', async (req: DocumentRequest, res: Response): Promise<vo
       return;
     }
     const groupId = parsedGroup.data.groupId ?? null;
-    if (groupId && !(await mayShareIntoGroup(groupId, userId))) {
-      res.status(403).json({ success: false, message: CREATE_IN_GROUP_FORBIDDEN });
-      return;
-    }
 
-    // Use document processing service
-    const result = await documentProcessingService.processTextContent(
-      userId,
-      title,
-      content,
-      'manual'
-    );
-
-    // Text samt Vektoren steht schon; scheitert das Teilen, geht beides restlos
-    // (Papierkorb, dann sofort endgültig — die Person hat dieses Dokument nie gesehen).
-    if (groupId) {
-      await shareNewDocumentIntoGroup({ userId, groupId, documentId: result.id }, async () => {
-        await postgresDocumentService.trashDocuments([result.id], userId);
-        await purgeDocument(getPostgresInstance(), result.id, null);
-      });
-    }
+    // Mit Projekt: Prüfen, Anlegen und Teilen in einem Dienst (`addTextToGroup`),
+    // derselbe Weg wie die Chat-Karte „Text im Projekt speichern".
+    const result = groupId
+      ? await addTextToGroup({ userId, groupId, title, content })
+      : await documentProcessingService.processTextContent(userId, title, content, 'manual');
 
     res.json({
       success: true,

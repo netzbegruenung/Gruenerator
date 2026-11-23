@@ -9,6 +9,7 @@ import { type NotebookSourceRef, type RoleRef } from '@gruenerator/contracts';
 import { generateSlugSuffix } from '@gruenerator/shared/utils';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
+import { signalTeamChatTurn } from '../../../services/collab/chatTurnSignal.js';
 
 import { type PersistedStep } from './agenticLoop/types.js';
 import { type ArtifactKindId } from './artifactKindRegistry.js';
@@ -25,8 +26,10 @@ import {
   type ArtifactMetadataShape,
   ROW_WINDOW,
   toArtifacts,
+  toRecipesUsed,
   toSources,
   toToolSteps,
+  type UsedRecipeRef,
 } from './threadToolProjections.js';
 
 import type { SearchResult, ThreadToolContext } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -75,6 +78,8 @@ export async function createThread(
   options?: {
     notebookCollectionId?: string;
     notebookCollectionIds?: string[];
+    /** Projekt, in dem der Thread liegt (nur nach geprüfter Mitgliedschaft setzen). */
+    groupId?: string;
   }
 ): Promise<{
   id: string;
@@ -87,8 +92,8 @@ export async function createThread(
   const postgres = getPostgresInstance();
   const result = (await insertThreadWithSlugRetry((slugSuffix) =>
     postgres.query(
-      `INSERT INTO chat_threads (user_id, agent_id, title, thread_type, notebook_collection_id, notebook_collection_ids, slug_suffix)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO chat_threads (user_id, agent_id, title, thread_type, notebook_collection_id, notebook_collection_ids, slug_suffix, group_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING id, user_id, agent_id, title, thread_type, slug_suffix`,
       [
         userId,
@@ -98,6 +103,7 @@ export async function createThread(
         options?.notebookCollectionId || null,
         options?.notebookCollectionIds ? JSON.stringify(options.notebookCollectionIds) : null,
         slugSuffix,
+        options?.groupId ?? null,
       ]
     )
   )) as {
@@ -154,6 +160,7 @@ export async function createMessage(
      RETURNING id`,
     [threadId, role, toTextParam(content), toJsonbParam(metadata), userId || null]
   )) as { id: string }[];
+  void signalTeamChatTurn(threadId, 'message', userId || null);
   return result[0]!.id;
 }
 
@@ -176,6 +183,7 @@ export async function createPendingAssistantMessage(
      RETURNING id`,
     [threadId, userId || null]
   )) as { id: string }[];
+  void signalTeamChatTurn(threadId, 'started', userId || null);
   return result[0].id;
 }
 
@@ -230,9 +238,11 @@ export async function finalizeAssistantMessage(
          END,
          status = 'complete'
      WHERE id = $1
-     RETURNING id`,
+     RETURNING id, thread_id, user_id`,
     [messageId, toTextParam(content), toJsonbParam(metadata)]
-  )) as unknown[];
+  )) as { thread_id?: string; user_id?: string | null }[];
+  const row = result[0];
+  if (row?.thread_id) void signalTeamChatTurn(row.thread_id, 'message', row.user_id ?? null);
   return result.length === 1;
 }
 
@@ -755,6 +765,7 @@ interface ThreadToolRow extends ArtifactMetadataShape {
   searchResults?: unknown[] | null;
   intent?: unknown;
   offer?: unknown;
+  recipesUsed?: unknown;
 }
 
 function intentOf(row: ThreadToolRow | undefined): string | null {
@@ -833,6 +844,8 @@ export interface ThreadToolHistory {
   lastTurnIntent(): string | null;
   /** The artifact the assistant turn right before this one offered — null when none. */
   lastTurnOffer(): ArtifactKindId | null;
+  /** The recipes the assistant turn right before this one loaded — empty when it loaded none. */
+  lastTurnRecipes(): UsedRecipeRef[];
   sources(limit?: number): SearchResult[];
   lastGeneratedImageUrl(): string | null;
 }
@@ -865,6 +878,7 @@ export async function readThreadToolHistory(threadId: string): Promise<ThreadToo
       newestIsLastTurn ? toArtifacts(rows.slice(0, 1), Number.MAX_SAFE_INTEGER) : [],
     lastTurnIntent: () => (newestIsLastTurn ? intentOf(rows[0]) : null),
     lastTurnOffer: () => (newestIsLastTurn ? parseRecordedOffer(rows[0]?.offer) : null),
+    lastTurnRecipes: () => (newestIsLastTurn ? toRecipesUsed(rows[0]) : []),
     sources: (limit = 10) => toSources(rows, limit),
     lastGeneratedImageUrl: () => toLastGeneratedImageUrl(rows),
   };

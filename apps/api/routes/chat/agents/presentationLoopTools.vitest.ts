@@ -29,7 +29,7 @@ vi.mock('../services/confirmActionService.js', () => ({
   emitToolConfirmAction: (...a: unknown[]) => confirm.emitToolConfirmAction(...a),
   newActionId: () => 'act1',
 }));
-const sse = { send: vi.fn() };
+const sse = { send: vi.fn(), rendersConfirmAction: () => true };
 vi.mock('../services/presentationEditCore.js', () => ({
   planAndApplyPresentationEdit: (...a: unknown[]) => mocks.planAndApplyPresentationEdit(...a),
 }));

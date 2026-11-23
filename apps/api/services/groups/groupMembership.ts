@@ -12,12 +12,18 @@
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { isInstanceAdmin } from '../../utils/adminAuthz.js';
 
+/** Shown whenever a write hits an archived project. */
+export const ARCHIVED_PROJECT_READ_ONLY =
+  'Dieses Projekt ist archiviert und nur noch lesbar. Stelle es wieder her, um etwas hinzuzufügen.';
+
 export interface MembershipCheckResult {
   postgres: ReturnType<typeof getPostgresInstance>;
   membership: { role: string };
   /** Admin in this group: role/creator, or — in the system group — instance admin only. */
   isAdmin: boolean;
   isSystem: boolean;
+  /** Archived by an admin: readable, but no new content goes in. */
+  isArchived: boolean;
 }
 
 /**
@@ -36,15 +42,20 @@ export async function getPostgresAndCheckMembership(
   await postgres.ensureInitialized();
 
   const row = (await postgres.queryOne(
-    `SELECT gm.role, g.created_by, g.is_system
+    `SELECT gm.role, g.created_by, g.is_system, g.archived_at
      FROM group_memberships gm JOIN groups g ON g.id = gm.group_id
      WHERE gm.group_id = $1 AND gm.user_id = $2 AND g.deleted_at IS NULL`,
     [groupId, userId],
     { table: 'group_memberships' }
-  )) as { role: string; created_by: string | null; is_system: boolean | null } | null;
+  )) as {
+    role: string;
+    created_by: string | null;
+    is_system: boolean | null;
+    archived_at: string | Date | null;
+  } | null;
 
   if (!row) {
-    throw new Error('Du bist nicht Mitglied dieser Gruppe.');
+    throw new Error('Du bist nicht Mitglied dieses Projekts.');
   }
 
   const isSystem = Boolean(row.is_system);
@@ -56,7 +67,13 @@ export async function getPostgresAndCheckMembership(
     throw new Error('Keine Berechtigung für diese Aktion.');
   }
 
-  return { postgres, membership: { role: row.role }, isAdmin, isSystem };
+  return {
+    postgres,
+    membership: { role: row.role },
+    isAdmin,
+    isSystem,
+    isArchived: row.archived_at != null,
+  };
 }
 
 /**
@@ -73,6 +90,7 @@ export async function assertCanShareToGroup(
   if (result.isSystem && !result.isAdmin) {
     throw new Error('Keine Berechtigung für diese Aktion.');
   }
+  if (result.isArchived) throw new Error(ARCHIVED_PROJECT_READ_ONLY);
   return result;
 }
 
@@ -80,7 +98,7 @@ export interface ShareTargetGroup {
   id: string;
   name: string;
   role: string;
-  /** Team-Projekt (weder persönlich noch System): Docs gehen dort mit Schreibrecht hinein. */
+  /** Projekt (nicht das System-Projekt): Docs gehen dort mit Schreibrecht hinein. */
   team: boolean;
 }
 
@@ -92,15 +110,14 @@ export interface ShareTargetGroup {
 export async function listShareTargetGroups(userId: string): Promise<ShareTargetGroup[]> {
   const postgres = getPostgresInstance();
   const rows = (await postgres.query(
-    `SELECT g.id, g.name, gm.role, g.is_system, g.group_type
+    `SELECT g.id, g.name, gm.role, g.is_system
        FROM groups g
        INNER JOIN group_memberships gm ON gm.group_id = g.id
       WHERE gm.user_id = $1 AND gm.is_active = TRUE AND g.deleted_at IS NULL
+        AND g.archived_at IS NULL
       ORDER BY g.name ASC`,
     [userId]
-  )) as Array<
-    Omit<ShareTargetGroup, 'team'> & { is_system: boolean | null; group_type: string | null }
-  >;
+  )) as Array<Omit<ShareTargetGroup, 'team'> & { is_system: boolean | null }>;
   const canShareToSystem = rows.some((r) => r.is_system) && (await isInstanceAdmin(userId));
   return rows
     .filter((r) => !r.is_system || canShareToSystem)
@@ -108,6 +125,6 @@ export async function listShareTargetGroups(userId: string): Promise<ShareTarget
       id: String(r.id),
       name: String(r.name),
       role: String(r.role ?? 'member'),
-      team: !r.is_system && (r.group_type ?? 'standard') !== 'personal',
+      team: !r.is_system,
     }));
 }

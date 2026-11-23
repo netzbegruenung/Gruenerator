@@ -395,7 +395,11 @@ describe('a pure board order runs in the loop', () => {
     expect(generatorControl.calls).toHaveLength(1);
     expect(generatorControl.calls[0]?.generator).toBe('board');
     expect(loopScript.calls).toHaveLength(1);
-    expect(loopScript.calls[0]?.toolChoice).toBe('none');
+    // One more step for a second artifact (#5957): only the creation tools of the
+    // free slots, never the board tool again.
+    expect(loopScript.calls[0]?.toolChoice).toBeNull();
+    expect(loopScript.calls[0]?.firstStepActiveTools).toContain('create_presentation');
+    expect(loopScript.calls[0]?.firstStepActiveTools).not.toContain('create_board');
     // Boards have no card: the client seeds the board from `done`.
     const done = events.find((e) => e.event === 'done');
     expect(done?.data.boardId).toBeTruthy();
@@ -434,7 +438,10 @@ describe('a pure sharepic order runs in the loop', () => {
     expect(trace.agentic).toBe(true);
     expect(sharepicCalls).toHaveLength(1);
     expect(loopScript.calls).toHaveLength(1);
-    expect(loopScript.calls[0]?.toolChoice).toBe('none');
+    // The extra step offers the deck tool, never a second sharepic (#5957).
+    expect(loopScript.calls[0]?.toolChoice).toBeNull();
+    expect(loopScript.calls[0]?.firstStepActiveTools).toContain('create_presentation');
+    expect(loopScript.calls[0]?.firstStepActiveTools).not.toContain('sharepic');
     expect(trace.toolCalls.map((c) => c.toolName)).toContain('sharepic');
     expect(trace.fullText).toContain(ANSWER);
     expect(threads.get(trace.threadId as string)?.lastToolContext).toMatchObject({
@@ -560,5 +567,32 @@ describe('a chosen notebook runs in the loop (phase 7)', () => {
       messages: [userTurn('Förderung beim Heizungstausch und Wärmepumpen')],
     });
     expect(loopScript.calls[0]?.system ?? '').not.toContain('bloßes Thema');
+  });
+});
+
+describe('a sharepic order that also asks for a deck (#5957)', () => {
+  it('builds the sharepic first, then the deck in the one extra step', async () => {
+    loopScript.script({
+      calls: [
+        {
+          tool: 'create_presentation',
+          args: { prompt: 'Präsentation zum 365-Euro-Ticket, 5 Folien' },
+        },
+      ],
+      text: ANSWER,
+    });
+    const { trace } = await runTurn(app.baseUrl, {
+      messages: [
+        userTurn('Mach ein Sharepic zum 365-Euro-Ticket und dazu eine Präsentation mit 5 Folien'),
+      ],
+    });
+
+    expect(sharepicCalls).toHaveLength(1);
+    // The step after the pre-built sharepic still offers the deck tool (it was tool-less).
+    expect(loopScript.calls[0]?.toolChoice).toBeNull();
+    expect(loopScript.calls[0]?.firstStepActiveTools).toContain('create_presentation');
+    expect(trace.toolCalls.map((c) => c.toolName)).toEqual(['sharepic', 'create_presentation']);
+    expect(generatorControl.calls.map((c) => c.generator)).toEqual(['doc']);
+    expect(trace.fullText).toContain(ANSWER);
   });
 });

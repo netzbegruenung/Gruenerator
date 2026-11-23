@@ -3,20 +3,16 @@ import { EMPTY_FORM } from '@gruenerator/shared/grueneratoren';
 import { describe, expect, it } from 'vitest';
 
 import {
-  copyTitle,
   currentModelId,
   customRecipeOptions,
   defaultScheduleFor,
   missingForSave,
   MODEL_OPTIONS,
-  newAgentIdentifier,
   taskInstructionTooLong,
   toggleIn,
 } from './agentEditorLogic';
 
 const valid = { ...EMPTY_FORM, title: 'T', description: 'D', systemRole: 'Du bist hilfreich.' };
-
-const bytes = (n: number) => Uint8Array.from({ length: n }, (_, i) => i * 11);
 
 describe('agentEditorLogic', () => {
   it('gates saving on title, description and a 10-char Anleitung', () => {
@@ -29,16 +25,6 @@ describe('agentEditorLogic', () => {
   it('caps the Anleitung at the task instruction limit', () => {
     expect(taskInstructionTooLong({ ...valid, systemRole: 'x'.repeat(4000) })).toBe(false);
     expect(taskInstructionTooLong({ ...valid, systemRole: 'x'.repeat(4001) })).toBe(true);
-  });
-
-  it('builds identifiers that satisfy the contract regex', () => {
-    expect(newAgentIdentifier('Presse & Medien!', bytes)).toMatch(/^[a-z0-9-]+$/);
-    expect(newAgentIdentifier('', bytes)).toMatch(/^agent-[a-z0-9]+$/);
-  });
-
-  it('keeps a copied title within 100 characters', () => {
-    expect(copyTitle('Klima')).toBe('Klima (Kopie)');
-    expect(copyTitle('x'.repeat(100))).toHaveLength(100);
   });
 
   it('toggles list membership', () => {

@@ -47,6 +47,7 @@ export function GridSizeToggle({
       aria-label="Große Kacheln"
       aria-pressed={gridSize === 'large'}
       title="Große Kacheln"
+      className="touch-target"
       onClick={onToggle}
     >
       {gridSize === 'large' ? (

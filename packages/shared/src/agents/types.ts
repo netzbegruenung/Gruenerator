@@ -107,6 +107,9 @@ export interface Agent {
    * `agentSharePath`). Absent on registry agents and on rows from before
    * the column existed. */
   slugSuffix?: string;
+  /** Nur Nutzer-Agents: Nachfolger nach dem Umwandeln (Row-Ids von Rezept bzw.
+   * Projekt). Der Agent selbst bleibt dabei unverändert. */
+  migratedTo?: { recipe?: string; project?: string };
   /**
    * Optional URL slug override. When set, `/agents/<slug>` resolves here and
    * link-builders emit this instead of the `gruenerator-`-stripped identifier.
@@ -266,7 +269,7 @@ export interface Agent {
 export type AgentCategory = 'gruppen';
 
 export const AGENT_CATEGORY_LABELS: Record<AgentCategory, string> = {
-  gruppen: 'Geteilt mit Gruppen',
+  gruppen: 'Geteilt mit Projekten',
 };
 
 export type SkillCategory = 'presse' | 'social' | 'dokumente' | 'recherche' | 'sonstiges';

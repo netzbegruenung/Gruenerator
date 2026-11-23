@@ -44,16 +44,14 @@ export const GroupShareControls = ({
     <>
       {availableGroups.length > 0 && (
         <div>
-          <label className="mb-1 block text-xs font-medium text-grey-500">
-            Mit Projekt oder Gruppe teilen
-          </label>
+          <label className="mb-1 block text-xs font-medium text-grey-500">Mit Projekt teilen</label>
           <div className="flex flex-wrap gap-2">
             <select
               value={selectedGroupId}
               onChange={(e) => setSelectedGroupId(e.target.value)}
               className="min-w-[10rem] flex-1 rounded-md border border-grey-200 bg-background px-2 py-1.5 text-sm outline-none focus:border-primary-500 dark:border-grey-700"
             >
-              <option value="">Projekt oder Gruppe auswählen...</option>
+              <option value="">Projekt auswählen...</option>
               {availableGroups.map((g) => (
                 <option key={g.id} value={g.id}>
                   {g.name}
@@ -78,9 +76,7 @@ export const GroupShareControls = ({
 
       {groupShares.length > 0 && (
         <div>
-          <label className="mb-1 block text-xs font-medium text-grey-500">
-            Projekte und Gruppen
-          </label>
+          <label className="mb-1 block text-xs font-medium text-grey-500">Projekte</label>
           <div className="space-y-1.5">
             {groupShares.map((share) => (
               <div

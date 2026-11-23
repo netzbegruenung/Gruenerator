@@ -11,7 +11,9 @@ import {
 } from '../folienTypen.js';
 import { buildSlideLayout } from '../slideLayouts.js';
 
-import { buildFolie, DECK_STILE, deckStilBoxes, type DeckStilId } from './index.js';
+import { fitSlideTexts, type FlowSpec, type MeasureText } from '../fitText.js';
+
+import { buildFolie, DECK_STILE, deckStilBoxes, deckStilFlow, type DeckStilId } from './index.js';
 
 const DATE = new Date('2026-10-30T12:00:00Z');
 const LOCALES: BrandLocale[] = ['de-DE', 'de-AT'];
@@ -79,7 +81,9 @@ describe('deck stile', () => {
               expect(texts.get(slot.elementId)?.text, slotName).toBe(given);
             } else {
               slotElementIds(slot).forEach((id, i) => {
-                expect(texts.get(id)?.text, id).toContain((given as string[])[i]);
+                // Ein Symbol-Slot sind Icons, keine Texte; unbekannte Schlüssel ergeben das neutrale Symbol.
+                if (slot.iconKeys) expect(state.iconStates[id]?.iconId, id).toBeTruthy();
+                else expect(texts.get(id)?.text, id).toContain((given as string[])[i]);
               });
             }
           }
@@ -87,6 +91,7 @@ describe('deck stile', () => {
             ...texts.keys(),
             ...state.shapeInstances.map((s) => s.id),
             ...state.assetInstances.map((a) => a.id),
+            ...Object.keys(state.iconStates),
           ]);
           for (const id of state.layerOrder) expect(known.has(id), id).toBe(true);
           expect(new Set(state.layerOrder).size).toBe(state.layerOrder.length);
@@ -272,7 +277,7 @@ describe('deck stile titel subline', () => {
         const state = buildFolie(stil, fullFolie('titel'), ctx(locale));
         const sub = state.additionalTexts.find((t) => t.id === 'folie-text')!;
         expect(sub.fontSize, `${stil} ${locale}`).toBeGreaterThanOrEqual(40);
-        if (stil === 'cd') expect(sub.fontSize).toBe(46);
+        if (stil === 'cd') expect(sub.fontSize).toBe(52);
         const box = deckStilBoxes(stil, 'titel')['folie-text']!;
         expect(sub.y + box.maxHeight, `${stil} ${locale} above footer`).toBeLessThanOrEqual(1028);
       }
@@ -304,6 +309,8 @@ describe('deck stile box limits', () => {
   it('keeps every list cell within the item pitch of its style', () => {
     for (const stil of STILE) {
       for (const typ of ['liste', 'kernsatz'] as const) {
+        // Mit Fluss stehen die Punkte nach gemessener Höhe; das prüft `deck flow`.
+        if (deckStilFlow(stil, typ)) continue;
         const cell = deckStilBoxes(stil, typ)['folie-punkt-*']?.maxHeight;
         expect(cell, `${stil} ${typ}`).toBeGreaterThan(0);
         const state = buildFolie(stil, fullFolie(typ), ctx('de-DE'));
@@ -322,20 +329,6 @@ describe('deck stile box limits', () => {
   });
 });
 
-/** Box eines Textelements: Breite × Zeilenhöhe (eine Zeile, `lineHeight` sonst 1,2). */
-const lineBox = (t: {
-  x: number;
-  y: number;
-  width?: number;
-  fontSize: number;
-  lineHeight?: number;
-}) => ({
-  x0: t.x,
-  x1: t.x + (t.width ?? 0),
-  y0: t.y,
-  y1: t.y + t.fontSize * (t.lineHeight ?? 1.2),
-});
-
 /**
  * Wo die Tinte der Anführung liegt, großzügig: Die Lage des Glyphen hängt an
  * den vertikalen Metriken der ausgelieferten Schrift (OTF und Web-Schrift
@@ -349,19 +342,21 @@ const quoteInk = (t: { x: number; y: number; fontSize: number }) => ({
   y1: t.y + t.fontSize * 0.45,
 });
 
-const overlaps = (
-  a: { x0: number; x1: number; y0: number; y1: number },
-  b: { x0: number; x1: number; y0: number; y1: number }
-) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
-
 describe('cd kernsatz', () => {
   for (const locale of LOCALES) {
-    it(`keeps the headline and the Kernsatz clear of the quote ornament (${locale})`, () => {
+    it(`sets the Kernsatz without a quote ornament: it is no quote (${locale})`, () => {
       const state = buildFolie('cd', fullFolie('kernsatz'), ctx(locale));
+      expect(state.additionalTexts.some((t) => t.id === 'folie-anfuehrung')).toBe(false);
+      expect(state.layerOrder).not.toContain('folie-anfuehrung');
+    });
+
+    it(`keeps the Zitat clear of its smaller quote ornament (${locale})`, () => {
+      const state = buildFolie('cd', fullFolie('zitat'), ctx(locale));
       const byId = new Map(state.additionalTexts.map((t) => [t.id, t]));
       const ink = quoteInk(byId.get('folie-anfuehrung')!);
-      expect(overlaps(lineBox(byId.get('folie-headline')!), ink), 'headline').toBe(false);
-      expect(overlaps(lineBox(byId.get('folie-kernsatz')!), ink), 'kernsatz').toBe(false);
+      const flow = deckStilFlow('cd', 'zitat') as FlowSpec;
+      // Der Fluss beginnt frühestens bei `flow.top`: unter der Tinte der Anführung.
+      expect(flow.top).toBeGreaterThanOrEqual(ink.y1);
     });
 
     it(`sets the Stichpunkte at projector size with room above the footer (${locale})`, () => {
@@ -373,7 +368,10 @@ describe('cd kernsatz', () => {
       expect(items).toHaveLength(3);
       for (const it of items) {
         expect(it.fontSize, it.id).toBeGreaterThanOrEqual(48);
-        expect(it.y + cell, it.id).toBeLessThanOrEqual(1028 - 40);
+        // Eine Zeile passt in die Box, ohne zu schrumpfen; sie endet mit Luft über der Fußzeile.
+        const line = it.fontSize * (it.lineHeight ?? 1.2);
+        expect(line, it.id).toBeLessThanOrEqual(cell);
+        expect(it.y + line, it.id).toBeLessThanOrEqual(1028 - 40);
         expect(it.y, it.id).toBeGreaterThanOrEqual(kernsatz.y + kernsatzBox);
       }
     });
@@ -391,10 +389,12 @@ describe('projector sizes', () => {
         slots: { headline: 'H', punkte: ['Eins', 'Zwei', 'Drei', 'Vier'] },
       };
       const short = punkte(buildFolie('cd', four, ctx(locale)));
-      for (const it of short) expect(it.fontSize, it.id).toBeGreaterThanOrEqual(58);
-      expect(short[1]!.y - short[0]!.y).toBeGreaterThanOrEqual(140);
+      for (const it of short) expect(it.fontSize, it.id).toBeGreaterThanOrEqual(68);
+      // Ohne Messer stehen einzeilige Punkte auf dem Raster ohne Überlappung.
+      expect(short[1]!.y - short[0]!.y).toBeGreaterThanOrEqual(short[0]!.fontSize * 1.25);
       const full = punkte(buildFolie('cd', fullFolie('liste'), ctx(locale)));
-      expect(full[1]!.y - full[0]!.y).toBeGreaterThanOrEqual(120);
+      for (const it of full) expect(it.fontSize, it.id).toBeGreaterThanOrEqual(58);
+      expect(full[1]!.y - full[0]!.y).toBeGreaterThanOrEqual(full[0]!.fontSize * 1.25);
     });
   }
 
@@ -463,5 +463,104 @@ describe('Bildfolie', () => {
     const state = buildFolie('cd', { typ: 'bild', slots: {} }, ctx('de-DE'));
     expect(state.currentImageSrc).toMatch(/stock-image/);
     expect(state.additionalTexts.some((t) => t.id === 'folie-bildunterschrift')).toBe(false);
+  });
+});
+
+describe('deck flow', () => {
+  /** Fake: Zeilen = ⌈Zeichen × 0,5 × Größe / Breite⌉. */
+  const measure: MeasureText = (text, font, width) => ({
+    height:
+      Math.max(1, Math.ceil((text.length * 0.5 * font.size) / width)) * font.size * font.lineHeight,
+  });
+  const heightOf = (t: { text: string; fontSize: number; lineHeight?: number; width: number }) =>
+    measure(t.text, { family: 'x', size: t.fontSize, lineHeight: t.lineHeight ?? 1.2 }, t.width)
+      .height;
+
+  for (const stil of STILE) {
+    for (const locale of LOCALES) {
+      for (const typ of FOLIEN_TYP_IDS) {
+        const flow = deckStilFlow(stil, typ);
+        if (!flow) continue;
+        const flows = 'ids' in flow ? [flow] : flow;
+        it(`${stil}: stacks the measured ${typ} texts without overlap, above the footer (${locale})`, () => {
+          const built = buildFolie(stil, fullFolie(typ), ctx(locale));
+          const { state } = fitSlideTexts(built, deckStilBoxes(stil, typ), measure, null, flow);
+          const ids = new Set(
+            flows.flatMap((f) =>
+              f.ids.flatMap((id) =>
+                id === 'folie-punkt-*'
+                  ? state.additionalTexts
+                      .filter((t) => /^folie-punkt-\d+$/.test(t.id))
+                      .map((t) => t.id)
+                  : [id]
+              )
+            )
+          );
+          const els = state.additionalTexts
+            .filter((t) => ids.has(t.id) && t.text.trim() !== '')
+            .sort((a, b) => a.y - b.y);
+          expect(els.length, typ).toBeGreaterThan(0);
+          els.forEach((el, i) => {
+            const bottom = el.y + heightOf(el);
+            expect(bottom, `${el.id} above footer`).toBeLessThanOrEqual(1028);
+            // Spalten stehen nebeneinander: nur Elemente derselben Spalte dürfen sich nicht berühren.
+            const next = els.slice(i + 1).find((o) => flows.length === 1 || o.x === el.x);
+            if (next) expect(bottom, `${el.id} clear of ${next.id}`).toBeLessThanOrEqual(next.y);
+          });
+        });
+      }
+    }
+  }
+
+  it('moves list markers, numbers and rules with their items', () => {
+    const folie: FolieSpec = {
+      typ: 'liste',
+      slots: { headline: 'Eine Überschrift über zwei Zeilen', punkte: ['Eins', 'Zwei', 'Drei'] },
+    };
+    for (const [stil, prefix] of [
+      ['ruhig', 'folie-marke-'],
+      ['band', 'folie-nummer-'],
+      ['band', 'folie-linie-'],
+    ] as const) {
+      const flow = deckStilFlow(stil, 'liste') as FlowSpec;
+      const f = flow.follow![prefix]!;
+      const { state } = fitSlideTexts(
+        buildFolie(stil, folie, ctx('de-DE')),
+        deckStilBoxes(stil, 'liste'),
+        measure,
+        null,
+        flow
+      );
+      for (const n of [1, 2, 3]) {
+        const item = state.additionalTexts.find((t) => t.id === `folie-punkt-${n}`)!;
+        const mate =
+          state.additionalTexts.find((t) => t.id === `${prefix}${n}`) ??
+          state.shapeInstances.find((x) => x.id === `${prefix}${n}`)!;
+        const edge = f.anchor === 'top' ? item.y : item.y + heightOf(item);
+        expect(mate.y, `${stil} ${prefix}${n}`).toBe(Math.round(edge + f.dy));
+      }
+    }
+  });
+
+  it('moves the titel subline below a headline that wraps to two lines (AT live case)', () => {
+    const folie: FolieSpec = {
+      typ: 'titel',
+      slots: {
+        headline: 'Mobilität für ==alle==',
+        unterzeile: 'Ausbau der Öffis und Radwege im Bezirk',
+      },
+    };
+    const built = buildFolie('cd', folie, ctx('de-AT'));
+    const narrow: MeasureText = (text, font) => ({ height: 2 * font.size * font.lineHeight });
+    const { state } = fitSlideTexts(
+      built,
+      deckStilBoxes('cd', 'titel'),
+      narrow,
+      null,
+      deckStilFlow('cd', 'titel')
+    );
+    const head = state.additionalTexts.find((t) => t.id === 'folie-headline')!;
+    const sub = state.additionalTexts.find((t) => t.id === 'folie-text')!;
+    expect(sub.y).toBeGreaterThanOrEqual(head.y + 2 * head.fontSize * (head.lineHeight ?? 1.2));
   });
 });

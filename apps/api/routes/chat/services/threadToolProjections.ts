@@ -154,3 +154,19 @@ function labelOf(value: unknown): string | null {
   const clean = value.replace(/\s+/g, ' ').trim();
   return clean ? clean.slice(0, 60) : null;
 }
+
+/** Ein Rezept, das ein Turn geladen hat (`recipesUsed`, siehe postResponseService). */
+export interface UsedRecipeRef {
+  mention: string;
+  id: string | null;
+}
+
+/** Die Rezepte einer Assistant-Zeile; ein fehlerhafter Eintrag fällt weg. */
+export function toRecipesUsed(row: { recipesUsed?: unknown } | undefined): UsedRecipeRef[] {
+  if (!Array.isArray(row?.recipesUsed)) return [];
+  return row.recipesUsed.flatMap((r: unknown) => {
+    if (!r || typeof r !== 'object') return [];
+    const { mention, id } = r as { mention?: unknown; id?: unknown };
+    return typeof mention === 'string' ? [{ mention, id: typeof id === 'string' ? id : null }] : [];
+  });
+}

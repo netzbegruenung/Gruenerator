@@ -1,25 +1,41 @@
-import { buildGroupPath } from '@gruenerator/shared/groups';
+import {
+  buildGroupPath,
+  groupContentKey,
+  sortGroups,
+  splitArchivedGroups,
+  type GroupSort,
+} from '@gruenerator/shared/groups';
 import { extractSlugSuffix } from '@gruenerator/shared/utils';
-import { Button, SectionHeader, StatusBanner } from '@gruenerator/ui';
-import { useState, useCallback, useRef } from 'react';
-import { HiUser, HiUserGroup } from 'react-icons/hi';
+import {
+  Button,
+  SectionHeader,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  StatusBanner,
+} from '@gruenerator/ui';
+import { useQueryClient } from '@tanstack/react-query';
+import { useState, useCallback, useMemo, useRef } from 'react';
+import { HiUser } from 'react-icons/hi';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../../components/common/PageContainer';
 import { getToolGradient } from '../../../config/toolTheme';
 import { useFirstName } from '../../../hooks/useFirstName';
+import { useDocumentsStore } from '../../../stores/documentsStore';
 import { OFFICE_PILL_ROW, OfficeActionPill } from '../../workplace/components/ToolsSection';
 import { WorkplaceHero } from '../../workplace/components/WorkplaceHero';
 import GroupDetailSection from '../components/GroupDetailSection';
-import GroupsCreateSection from '../components/GroupsCreateSection';
+import GroupsCreateSection, { type CreateGroupExtras } from '../components/GroupsCreateSection';
 import { ProjekteComposer } from '../components/ProjekteComposer';
 import { ProjektTile } from '../components/ProjektTile';
 import PublicGroupsSection from '../components/PublicGroupsSection';
 import { useGroupResolver } from '../hooks/useGroupResolver';
 import { useGroups, useInviteToGroup, type GroupSummary } from '../hooks/useGroups';
-
-type ProjektType = 'personal' | 'standard';
+import { serverMessage } from '../serverMessage';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -36,7 +52,8 @@ const ProjektePage = () => {
   );
   const resolvedGroupId = isUuid ? idOrSlug : (groupResolver.data?.id ?? null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [createType, setCreateType] = useState<ProjektType>('personal');
+  const [createName, setCreateName] = useState('');
+  const queryClient = useQueryClient();
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -53,6 +70,11 @@ const ProjektePage = () => {
     createGroupError,
   } = useGroups({ isActive: true });
   const inviteToGroup = useInviteToGroup();
+  const [sort, setSort] = useState<GroupSort>('activity');
+  const { active: activeGroups, archived: archivedGroups } = useMemo(() => {
+    const split = splitArchivedGroups(userGroups ?? []);
+    return { active: sortGroups(split.active, sort), archived: split.archived };
+  }, [userGroups, sort]);
 
   const showSuccess = useCallback((msg: string) => {
     if (successTimer.current) clearTimeout(successTimer.current);
@@ -66,29 +88,57 @@ const ProjektePage = () => {
     errorTimer.current = setTimeout(() => setErrorMessage(''), 7000);
   }, []);
 
-  const openCreate = useCallback((type: ProjektType) => {
-    setCreateType(type);
+  const openCreate = useCallback((name = '') => {
+    setCreateName(name);
     setCreateDialogOpen(true);
     setSuccessMessage('');
     setErrorMessage('');
   }, []);
 
+  // Nach dem Anlegen, im Hintergrund: dieselbe Tür wie „Datei hinzufügen" im
+  // Projekt (Hochladen und im selben Zug ins Projekt teilen).
+  const uploadFiles = useCallback(
+    async (groupId: string, files: File[]) => {
+      const upload = useDocumentsStore.getState().uploadFileOnly;
+      let added = 0;
+      let lastError: string | null = null;
+      for (const file of files) {
+        try {
+          await upload(file, undefined, undefined, groupId);
+          added += 1;
+        } catch (err) {
+          lastError = serverMessage(err, 'Datei konnte nicht hinzugefügt werden.');
+        }
+      }
+      if (added > 0) {
+        void queryClient.invalidateQueries({ queryKey: groupContentKey(groupId) });
+        showSuccess(`${added} ${added === 1 ? 'Datei' : 'Dateien'} zum Projekt hinzugefügt.`);
+      }
+      if (lastError) showError(lastError);
+    },
+    [queryClient, showSuccess, showError]
+  );
+
   const handleCreateGroup = useCallback(
-    (groupName: string, groupType: ProjektType, inviteEmails: string[] = []) => {
+    (
+      groupName: string,
+      inviteEmails: string[] = [],
+      extras: CreateGroupExtras = { description: '', files: [] }
+    ) => {
       if (isCreatingGroup) return;
       const name = groupName.trim();
-      const noun = groupType === 'standard' ? 'Gruppe' : 'Projekt';
       setSuccessMessage('');
       setErrorMessage('');
       createGroup(name, {
-        groupType,
+        description: extras.description,
         onSuccess: (newGroup: GroupSummary) => {
           setCreateDialogOpen(false);
           // Navigate to the new group immediately; the target is the same
           // ProjektePage (detail view), so the banner still updates once the
           // invites resolve in the background.
-          showSuccess(`${noun} „${name}" erfolgreich erstellt!`);
+          showSuccess(`Projekt „${name}" erfolgreich erstellt!`);
           void navigate(buildGroupPath(newGroup));
+          if (extras.files.length > 0) void uploadFiles(newGroup.id, extras.files);
           if (inviteEmails.length > 0) {
             inviteToGroup.mutate(
               { groupId: newGroup.id, emails: inviteEmails },
@@ -104,11 +154,11 @@ const ProjektePage = () => {
           }
         },
         onError: (error: Error | null) => {
-          showError(error?.message || `${noun} konnte nicht erstellt werden.`);
+          showError(error?.message || 'Projekt konnte nicht erstellt werden.');
         },
       });
     },
-    [isCreatingGroup, createGroup, inviteToGroup, navigate, showSuccess, showError]
+    [isCreatingGroup, createGroup, inviteToGroup, navigate, showSuccess, showError, uploadFiles]
   );
 
   const banners = (successMessage || errorMessage) && (
@@ -126,7 +176,7 @@ const ProjektePage = () => {
       isCreatingGroup={isCreatingGroup}
       isCreateGroupError={isCreateGroupError}
       createGroupError={createGroupError}
-      initialProjektType={createType}
+      initialName={createName}
     />
   );
 
@@ -157,16 +207,16 @@ const ProjektePage = () => {
   }
 
   // Overview — Office/Studio landing recipe: tinted gradient shell, hero greeting,
-  // a create-or-search composer, the two create "tools", then the project grids.
+  // a create-or-search composer, the create "tool", then the project grids.
   return (
     <PageContainer maxWidth="lg" noPadTop bgClassName={getToolGradient('projekte')}>
       {banners}
 
       <WorkplaceHero title={firstName ? `Deine Projekte, ${firstName}` : 'Deine Projekte'}>
         <ProjekteComposer
-          projekte={userGroups}
+          projekte={activeGroups}
           isCreating={isCreatingGroup}
-          onCreate={handleCreateGroup}
+          onCreate={openCreate}
         />
       </WorkplaceHero>
 
@@ -176,18 +226,28 @@ const ProjektePage = () => {
             styleKey="projekte"
             icon={HiUser}
             title="Projekt erstellen"
-            onClick={() => openCreate('personal')}
-          />
-          <OfficeActionPill
-            styleKey="projekte"
-            icon={HiUserGroup}
-            title="Gruppe erstellen"
-            onClick={() => openCreate('standard')}
+            onClick={() => openCreate()}
           />
         </div>
       </section>
 
-      <SectionHeader title="Deine Projekte" />
+      <SectionHeader
+        title="Deine Projekte"
+        actions={
+          activeGroups.length > 1 ? (
+            <Select value={sort} onValueChange={(v) => setSort(v as GroupSort)}>
+              <SelectTrigger size="sm" className="w-auto gap-xs" aria-label="Projekte sortieren">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="end">
+                <SelectItem value="activity">Zuletzt aktiv</SelectItem>
+                <SelectItem value="name">Name</SelectItem>
+                <SelectItem value="newest">Neueste</SelectItem>
+              </SelectContent>
+            </Select>
+          ) : undefined
+        }
+      />
       {/* „Noch keine Projekte" ist die härteste Aussage dieser Fläche und darf
           nur aus einer bestätigt leeren Liste kommen. `userGroups` ist
           `query.data ?? []`, also auch dann leer, wenn noch geladen wird oder
@@ -206,16 +266,28 @@ const ProjektePage = () => {
             Erneut versuchen
           </Button>
         </div>
-      ) : userGroups.length === 0 ? (
+      ) : activeGroups.length === 0 && archivedGroups.length === 0 ? (
         <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
           Noch keine Projekte vorhanden. Erstelle dein erstes Projekt über das Feld oben.
         </p>
       ) : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,200px))] gap-3 sm:gap-4">
-          {(userGroups || []).map((g) => (
+          {activeGroups.map((g) => (
             <ProjektTile key={g.id} projekt={g} />
           ))}
         </div>
+      )}
+      {archivedGroups.length > 0 && (
+        <details className="mt-lg">
+          <summary className="cursor-pointer text-sm font-medium text-grey-600 dark:text-grey-300">
+            Archiviert ({archivedGroups.length})
+          </summary>
+          <div className="mt-md grid grid-cols-[repeat(auto-fill,minmax(150px,200px))] gap-3 sm:gap-4">
+            {archivedGroups.map((g) => (
+              <ProjektTile key={g.id} projekt={g} />
+            ))}
+          </div>
+        </details>
       )}
       <PublicGroupsSection onSuccessMessage={showSuccess} onErrorMessage={showError} />
 

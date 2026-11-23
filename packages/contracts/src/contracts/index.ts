@@ -87,6 +87,7 @@ export { briefingContract } from './briefingContract.js';
 export { userAgentsSharingContract } from './userAgentsSharingContract.js';
 export { canvasContract } from './canvasContract.js';
 export { videoProjectsContract } from './videoProjectsContract.js';
+export { videoRenderContract } from './videoRenderContract.js';
 export { groupsContract } from './groupsContract.js';
 export { contentSyncContract } from './contentSyncContract.js';
 export { monitorContract } from './monitorContract.js';

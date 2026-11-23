@@ -1,7 +1,7 @@
 /**
  * EXPERIMENTAL — management surface for recurring agent tasks: list, pause/resume,
- * run-now, edit (in the agent builder) and delete. Creation happens in the agent
- * builder (`/agents/new?mode=recurring`), not here.
+ * run-now, edit and delete. Creation and editing of agent-less tasks happen in
+ * `RecurringTaskBuilderPage` (`/wiederkehrend/neu`).
  */
 import { type RecurringTask } from '@gruenerator/contracts';
 import { DELIVERY_LABEL, describeRecurrence } from '@gruenerator/shared/grueneratoren';
@@ -72,17 +72,17 @@ function TaskRow({ task, highlighted }: { task: RecurringTask; highlighted: bool
         />
       </div>
       <div className="flex items-center gap-2">
-        {/* Only agents that resolve as editable user agents (created via the
-            builder) get an edit link; chat-created tasks may point at a system
-            agent, which isn't editable here. */}
-        {task.agentIdentifier && (
-          <Link
-            to={`/agents/${task.agentIdentifier}/edit`}
-            className="rounded border border-border px-3 py-1 text-sm"
-          >
-            Bearbeiten
-          </Link>
-        )}
+        {/* Altbestand mit Agent geht in den Agent-Editor, alles andere in den Builder. */}
+        <Link
+          to={
+            task.agentIdentifier
+              ? `/agents/${task.agentIdentifier}/edit`
+              : `/wiederkehrend/${task.id}/bearbeiten`
+          }
+          className="rounded border border-border px-3 py-1 text-sm"
+        >
+          Bearbeiten
+        </Link>
         <button
           onClick={() => update.mutate({ id: task.id, patch: { enabled: !task.enabled } })}
           className="rounded border border-border px-3 py-1 text-sm"
@@ -129,7 +129,7 @@ function TaskRow({ task, highlighted }: { task: RecurringTask; highlighted: bool
 /**
  * The list management surface without a page header — embedded both by the
  * standalone /wiederkehrend route and the Agentura "Wiederkehrende Aufgaben"
- * category. New tasks are created through the agent builder.
+ * category. New tasks are created in the task builder.
  */
 export function RecurringTasksManager() {
   const { data: tasks, isLoading } = useRecurringTasks();
@@ -145,7 +145,10 @@ export function RecurringTasksManager() {
           <p className="text-muted-foreground">Lädt…</p>
         ) : !tasks || tasks.length === 0 ? (
           <p className="text-muted-foreground">
-            Noch keine wiederkehrenden Aufgaben. Lege über „Neuer wiederkehrender Agent“ eine an
+            Noch keine wiederkehrenden Aufgaben.{' '}
+            <Link to="/wiederkehrend/neu" className="underline">
+              Lege eine an
+            </Link>{' '}
             oder frag im Chat: „Erstelle jeden Montag um 9 Uhr eine Zusammenfassung …“
           </p>
         ) : (
@@ -166,7 +169,7 @@ export default function RecurringTasksPage() {
       <div>
         <h1 className="text-2xl font-semibold">Wiederkehrende Aufgaben</h1>
         <p className="text-sm text-muted-foreground">
-          Lass eine*n Agent*in regelmäßig automatisch arbeiten (experimentell).
+          Lass den Grünerator regelmäßig automatisch arbeiten (experimentell).
         </p>
       </div>
       <RecurringTasksManager />

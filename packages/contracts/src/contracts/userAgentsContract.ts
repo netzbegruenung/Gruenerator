@@ -13,6 +13,8 @@ import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
 
 import {
+  agentConversionBodySchema,
+  agentConversionResponseSchema,
   createUserAgentBodySchema,
   updateUserAgentBodySchema,
   draftAgentBodySchema,
@@ -50,9 +52,11 @@ export const userAgentsContract = c.router(
         400: userAgentErrorResponseSchema,
         401: userAgentErrorResponseSchema,
         409: userAgentErrorResponseSchema,
+        /** New agents are closed (21.11.2026); old app binaries get this. */
+        410: userAgentErrorResponseSchema,
         500: userAgentErrorResponseSchema,
       },
-      summary: 'Create a user agent',
+      summary: 'Create a user agent (closed: always 410)',
     },
 
     /** POST /api/user-agents/draft — synthesize an agent spec from a freeform brief. */
@@ -127,6 +131,21 @@ export const userAgentsContract = c.router(
         500: userAgentErrorResponseSchema,
       },
       summary: 'Delete a user agent',
+    },
+
+    /** POST /api/user-agents/:identifier/convert — copy an owned agent into a recipe or a personal project. */
+    convert: {
+      method: 'POST',
+      path: '/api/user-agents/:identifier/convert',
+      pathParams: z.object({ identifier: z.string() }),
+      body: agentConversionBodySchema,
+      responses: {
+        200: agentConversionResponseSchema,
+        401: userAgentErrorResponseSchema,
+        404: userAgentErrorResponseSchema,
+        500: userAgentErrorResponseSchema,
+      },
+      summary: 'Convert a user agent into a recipe or a project',
     },
   },
   { pathPrefix: '' }

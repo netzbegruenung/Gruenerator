@@ -11,9 +11,7 @@ import { useGroups } from '../groups/hooks/useGroups';
 // This file binds the three that need web state — the auth gate and the
 // group list — and stays the import (and `vi.mock`) seat for web callers.
 export {
-  useCreateUserAgent,
   useDeleteUserAgent,
-  useDraftAgent,
   usePublicUserAgents,
   useShareSystemAgentWithGroup,
   useUpdateUserAgent,

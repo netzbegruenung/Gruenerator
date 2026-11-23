@@ -32,6 +32,12 @@ import { listUserAgentsByIds } from '../userAgents/userAgentsRepository.js';
 
 import { assertCanShareToGroup } from './groupMembership.js';
 import { addGroupShare, type GroupShareWriterDeps } from './groupShareWriter.js';
+import {
+  type CollabSearchInput,
+  type DocumentSearchInput,
+  collabSearchStates,
+  documentSearchStates,
+} from './projectSearchState.js';
 
 import type { PostgresService } from '../../database/services/PostgresService.js';
 import type {
@@ -246,7 +252,7 @@ export async function shareContentToGroup(
     };
   }
 
-  return { status: 200, success: true, message: 'Inhalt erfolgreich mit der Gruppe geteilt.' };
+  return { status: 200, success: true, message: 'Inhalt erfolgreich mit dem Projekt geteilt.' };
 }
 
 /**
@@ -428,7 +434,7 @@ export async function hydrateGroupContent(
     fetchPromises.push(
       postgres
         .query(
-          'SELECT id, title, filename, file_size, status, created_at, updated_at, user_id FROM documents WHERE id = ANY($1) AND deleted_at IS NULL',
+          'SELECT id, title, filename, file_size, status, vector_count, created_at, updated_at, user_id FROM documents WHERE id = ANY($1) AND deleted_at IS NULL',
           [ids],
           { table: 'documents' }
         )
@@ -565,9 +571,11 @@ export async function hydrateGroupContent(
       postgres
         .query(
           `SELECT cd.id, cd.title, cd.document_subtype, cd.created_by, cd.created_at, cd.updated_at,
-                  cdoc.thumbnail_url
+                  cdoc.thumbnail_url,
+                  csi.checked_at AS index_checked_at, csi.chunk_count AS index_chunk_count
              FROM collaborative_documents cd
              LEFT JOIN canvas_documents cdoc ON cdoc.document_id = cd.id
+             LEFT JOIN collab_search_index csi ON csi.document_id = cd.id
             WHERE cd.id = ANY($1::uuid[]) AND cd.is_deleted = false`,
           [ids],
           { table: 'collaborative_documents' }
@@ -689,6 +697,22 @@ export async function hydrateGroupContent(
   };
 
   contentResults.forEach(({ type, result, shares }) => {
+    // Suchzustand je Eintrag: braucht den ganzen Bucket (Deckel = neueste N).
+    const sharedAtOf = (id: unknown) => shares.find((s) => s.content_id === id)?.shared_at ?? null;
+    const searchStates =
+      type === 'documents'
+        ? documentSearchStates(
+            (result.data || []).map(
+              (d) => ({ ...d, shared_at: sharedAtOf(d.id) }) as unknown as DocumentSearchInput
+            )
+          )
+        : type === 'collaborative_documents'
+          ? collabSearchStates(
+              (result.data || []).map(
+                (d) => ({ ...d, shared_at: sharedAtOf(d.id) }) as unknown as CollabSearchInput
+              )
+            )
+          : null;
     const items = (result.data || []).map((item) => {
       const shareInfo = shares.find((s) => s.content_id === item.id);
       const parsedPermissions: Record<string, unknown> =
@@ -701,14 +725,17 @@ export async function hydrateGroupContent(
             ? (JSON.parse(item.metadata) as Record<string, unknown>)
             : (item.metadata as Record<string, unknown>)
           : {};
+      // Die Index-Spalten sind nur Eingabe für `search_state`, nicht Teil der Antwort.
+      const { index_checked_at: _checked, index_chunk_count: _chunks, ...rest } = item;
       return {
-        ...item,
+        ...rest,
         contentType: type,
         shared_at: shareInfo?.shared_at,
         group_permissions: parsedPermissions,
         shared_by_name: shareInfo?.display_name || shareInfo?.first_name || 'Unknown User',
         shared_by_id: shareInfo?.shared_by_user_id ?? null,
         share: shareInfo ? toShareMeta(shareInfo, reactions.get(shareInfo.share_id) ?? []) : null,
+        ...(searchStates && { search_state: searchStates.get(item.id as string) ?? null }),
         ...(type === 'database' && {
           template_type: (parsedMetadata.template_type as string) || 'template',
           external_url: item.external_url,

@@ -74,6 +74,7 @@ import { hasWriteAccess } from '../confirmController.js';
 import {
   readArtifactContent,
   subtypeToReadKind,
+  ArtifactNotReadableError,
   type ArtifactReadKind,
 } from '../services/artifactReader.js';
 import { emitToolConfirmAction, newActionId } from '../services/confirmActionService.js';
@@ -435,7 +436,7 @@ export function makeSearchThreadsTool(ctx: PersonalToolCtx): Tool {
 
 NUTZE WENN nach früheren Gesprächen gefragt wird ("worüber haben wir letztens gesprochen", "such in diesem Projekt", "was hatten wir zu X besprochen").
 - Ohne query: listet die zuletzt aktiven Chats (für "worüber haben wir zuletzt gechattet").
-- scope="space": nur die Chats des aktuellen Space durchsuchen (Standard, wenn der Chat in einem Space liegt).
+- scope="space": nur die Chats des aktuellen Projekts durchsuchen (Standard, wenn der Chat in einem Projekt liegt).
 - scope="all": alle eigenen Chats durchsuchen.
 - action="read": den Verlauf EINES Threads lesen (threadId aus einem Suchergebnis) — seine Zusammenfassung oder die letzten 10 Nachrichten, höchstens 4.000 Zeichen.`,
     inputSchema: z.object({
@@ -513,7 +514,7 @@ NUTZE WENN nach früheren Gesprächen gefragt wird ("worüber haben wir letztens
         results,
         durchsucht:
           threadIds != null
-            ? 'nur die Chats dieses Space (scope="all" durchsucht alle eigenen Chats)'
+            ? 'nur die Chats dieses Projekts (scope="all" durchsucht alle eigenen Chats)'
             : 'alle eigenen Chats',
       };
     },
@@ -529,7 +530,7 @@ export function makeDocumentsTool(ctx: PersonalToolCtx): Tool {
   return tool({
     description: `Zugriff auf die EIGENEN Dokumente, Tabellen und Präsentationen (nicht Boards — dafür 'boards_tasks').
 
-NUTZE FÜR: eigene Dokumente auflisten (list), Titel, Art und Link eines Dokuments per id holen (get — den INHALT liest read_artifact), umbenennen (rename), löschen (delete), mit einer Gruppe teilen (share_to_group). Umbenennen wirkt sofort; Löschen und Teilen werden der Person zur Bestätigung angezeigt. Um das GERADE ERSTELLTE Dokument zu teilen, share_to_group nur mit groupName aufrufen (id weglassen).`,
+NUTZE FÜR: eigene Dokumente auflisten (list), Titel, Art und Link eines Dokuments per id holen (get — den INHALT liest read_artifact), umbenennen (rename), löschen (delete), mit einem Projekt teilen (share_to_group). Umbenennen wirkt sofort; Löschen und Teilen werden der Person zur Bestätigung angezeigt. Um das GERADE ERSTELLTE Dokument zu teilen, share_to_group nur mit groupName aufrufen (id weglassen).`,
     inputSchema: z.object({
       action: z.enum(['list', 'get', 'rename', 'delete', 'share_to_group']),
       id: z
@@ -539,8 +540,14 @@ NUTZE FÜR: eigene Dokumente auflisten (list), Titel, Art und Link eines Dokumen
           'Dokument-ID (get/rename/delete/share; bei share weglassen für das zuletzt erstellte Dokument)'
         ),
       title: z.string().optional().describe('Neuer Titel (nur bei action="rename")'),
-      groupName: z.string().optional().describe('Zielgruppe (nur bei action="share_to_group")'),
-      permission: z.enum(['viewer', 'editor']).default('viewer'),
+      groupName: z.string().optional().describe('Zielprojekt (nur bei action="share_to_group")'),
+      // Docs, Tabellen, Boards sind zum gemeinsamen Weiterschreiben da: im
+      // Projekt standardmäßig bearbeitbar, wie die Teilen-Absicht im Chat und
+      // „Neu im Projekt anlegen" (`createInGroup`). Nur lesen auf Wunsch.
+      permission: z
+        .enum(['viewer', 'editor'])
+        .default('editor')
+        .describe('editor = Mitglieder bearbeiten mit (Standard), viewer = nur lesen'),
       confirm: z
         .boolean()
         .default(false)
@@ -670,7 +677,7 @@ NUTZE FÜR: eigene Dokumente auflisten (list), Titel, Art und Link eines Dokumen
       // public non-member groups with an empty role — never fall back to those).
       const groups = await findGroups(userId, groupName.trim(), 5);
       const group = groups.find((g) => g.role);
-      if (!group) return { error: `Keine Gruppe „${groupName}" gefunden, der du angehörst.` };
+      if (!group) return { error: `Kein Projekt „${groupName}" gefunden, der du angehörst.` };
       const action_: PendingAction = {
         actionId: newActionId(),
         threadId,
@@ -689,7 +696,7 @@ NUTZE FÜR: eigene Dokumente auflisten (list), Titel, Art und Link eines Dokumen
       };
       await emitToolConfirmAction(sse, action_, [
         { key: 'Dokument', value: shareTarget.title },
-        { key: 'Gruppe', value: group.name },
+        { key: 'Projekt', value: group.name },
         { key: 'Berechtigung', value: permission === 'editor' ? 'Bearbeiten' : 'Nur lesen' },
       ]);
       const note = `Bestätigung zum Teilen von „${shareTarget.title}" mit „${group.name}" angefordert.`;
@@ -718,6 +725,7 @@ const READ_KIND_NOUN: Record<ArtifactReadKind, string> = {
   presentation: 'Präsentation',
   pdf: 'PDF',
   canvas: 'Canvas',
+  file: 'Datei',
 };
 
 /**
@@ -765,7 +773,7 @@ export function makeReadArtifactTool(ctx: PersonalToolCtx): Tool {
   const { state, sourceRegistry } = ctx;
   const unchosenForeign = unchosenForeignOf(ctx);
   return tool({
-    description: `Öffnet ein eigenes Artefakt und liest seinen INHALT — Folientexte, Tabellenzellen, Dokumenttext, Board-Karten oder den Text eines erzeugten PDFs.
+    description: `Öffnet ein eigenes Artefakt und liest seinen INHALT — Folientexte, Tabellenzellen, Dokumenttext, Board-Karten, den Text eines erzeugten PDFs oder einer hochgeladenen Datei (auch einer, die in ein Projekt der Person geteilt ist: kind="file").
 
 NUTZE FÜR: "was steht in der Präsentation?", "vergleiche das PDF mit den Folien", "prüfe, ob Folie 5 stimmt", "fasse mein Dokument zusammen". Ohne diesen Aufruf kennst du den Inhalt NICHT — rate ihn niemals.
 
@@ -774,7 +782,7 @@ NUTZE FÜR: "was steht in der Präsentation?", "vergleiche das PDF mit den Folie
 Lange Inhalte kommen in Teilen zu ${ARTIFACT_READ_CHARS.toLocaleString('de-DE')} Zeichen. Steht im Ergebnis "weiter", rufe erneut mit "ab" auf, wenn du den Rest brauchst.`,
     inputSchema: z.object({
       kind: z
-        .enum(['doc', 'board', 'sheet', 'presentation', 'pdf'])
+        .enum(['doc', 'board', 'sheet', 'presentation', 'pdf', 'canvas', 'file'])
         .describe('Art des Artefakts. Bei Unsicherheit: die Art aus dem Suchtreffer übernehmen.'),
       id: z
         .string()
@@ -847,6 +855,9 @@ Lange Inhalte kommen in Teilen zu ${ARTIFACT_READ_CHARS.toLocaleString('de-DE')}
       try {
         content = await readArtifactContent({ id: targetId, kind, userId });
       } catch (error) {
+        // Es gibt das Artefakt, sein Text liegt nur (noch) nicht vor — ein
+        // eigener Satz, kein „nicht gefunden oder leer".
+        if (error instanceof ArtifactNotReadableError) return { error: toUserFacingMessage(error) };
         // A doc/board/sheet id lands in `WHERE cd.id = $2::uuid`. When the model
         // invents one, Postgres answers 22P02 and the raw SQL message went back
         // as the tool's result — "invalid input syntax for type uuid" tells the
@@ -864,7 +875,14 @@ Lange Inhalte kommen in Teilen zu ${ARTIFACT_READ_CHARS.toLocaleString('de-DE')}
             error: `„${targetId}" ist keine gültige id. Nimm die vollständige id aus einem Treffer von 'find_content' oder 'documents' (action="list") — oder lass "id" ganz weg, wenn du das ${noun} aus DIESEM Gespräch meinst.`,
           };
         }
-        return { error: toUserFacingMessage(error, `${noun} konnte nicht gelesen werden.`) };
+        // Ein Ausfall ist nie „leer": sonst antwortet das Modell ohne das Artefakt
+        // so, als stünde nichts darin (dieselbe Regel wie `notebook_quellen`).
+        return {
+          error: toUserFacingMessage(
+            error,
+            `${noun} ließ sich gerade nicht lesen — das heißt nicht, dass es leer ist. Sag das der Person, statt den Inhalt zu raten.`
+          ),
+        };
       }
       if (!content?.trim()) {
         return {

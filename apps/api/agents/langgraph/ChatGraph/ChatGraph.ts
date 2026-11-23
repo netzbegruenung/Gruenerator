@@ -99,7 +99,11 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
   // having asked, so they go through the implicit gate. A notebook this instance
   // hides therefore never becomes an ambient source — only an explicit @mention
   // (see `streamContext.ts`) can still reach it.
-  const agentNotebookIds = agentConfig.defaultNotebookIds ?? [];
+  // The notebooks shared into the thread's project are bound the same way as an
+  // agent's: same gate for system slugs, same access check for user notebooks.
+  const agentNotebookIds = [
+    ...new Set([...(agentConfig.defaultNotebookIds ?? []), ...(input.projectNotebookIds ?? [])]),
+  ];
   const defaultNotebookSlugs = [
     ...agentNotebookIds.filter(isNotebookImplicitlySearchable),
     ...(input.defaultNotebookId && isNotebookImplicitlySearchable(input.defaultNotebookId)
@@ -221,6 +225,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     roleBausteinActive: input.roleBausteinActive === true,
     userRoles: input.userRoles ?? [],
     activeRole: input.activeRole ?? null,
+    projectLandesverband: input.projectLandesverband ?? null,
 
     // Active skill (drives platform-specific prompt fragment in respondNode)
     activeSkillMention: input.activeSkillMention || null,
@@ -232,6 +237,9 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     // User profile instructions (from profiles.custom_prompt)
     userInstructions: input.userInstructions || null,
     projectInstructions: input.projectInstructions ?? null,
+    projectDocs: input.projectDocs ?? null,
+    project: input.project ?? null,
+    projectRecipeIds: input.projectRecipeIds ?? [],
 
     // Memory context (will be set by controller before graph execution)
     memoryContext: null,

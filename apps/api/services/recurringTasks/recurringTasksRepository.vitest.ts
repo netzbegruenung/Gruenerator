@@ -111,6 +111,13 @@ describe('Wiederkehrende Aufgabe im Papierkorb', () => {
     expect(statements[0]).toContain('FOR UPDATE SKIP LOCKED');
   });
 
+  it('eine Aufgabe eines archivierten Projekts ruht (#5951)', async () => {
+    await claimDueRecurringTasks();
+    expect(statements[0]).toMatch(
+      /NOT EXISTS \( SELECT 1 FROM groups ag WHERE ag\.id = recurring_tasks\.group_id AND ag\.archived_at IS NOT NULL/
+    );
+  });
+
   it('Liste und Worker-Lookup sehen sie nicht mehr', async () => {
     await listRecurringTasks(USER);
     await getRecurringTaskById(TASK);

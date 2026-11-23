@@ -1,26 +1,17 @@
-import { EMPTY_FORM } from '@gruenerator/shared/grueneratoren';
-import { useSearchParams } from 'react-router-dom';
-
-import AgentEditor from './AgentEditor';
-
-import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
-import { useAuthStore } from '@/stores/authStore';
+import { Navigate, useSearchParams } from 'react-router-dom';
 
 /**
- * Route wrapper for the manual create entry point (`/agents/new/manual`). Opens
- * the single-page {@link AgentEditor} with an empty form. `?mode=recurring`
- * surfaces the Zeitplan tab so the same builder creates a scheduled agent.
+ * Alter Einstieg (`/agents/new/manual`). Neue Agents gibt es nicht mehr; eine wiederkehrende
+ * Aufgabe baut man im eigenen Editor, alles andere geht zum Rezept-Creator.
  */
 function AgentBuilderPage() {
   const [searchParams] = useSearchParams();
-  const variant = searchParams.get('mode') === 'recurring' ? 'recurring' : 'agent';
-  // Das Land des Formulars wird zur Sprache der Aufgabe bzw. Zielgruppe des
-  // Agents — ein fester de-DE-Start ließ AT-Aufgaben deutsch laufen.
-  const locale = useAuthStore((s) => s.locale);
-
-  useDocumentTitle(variant === 'recurring' ? 'Neuer wiederkehrender Agent' : 'Neuer Agent');
-
-  return <AgentEditor mode="create" initialState={{ ...EMPTY_FORM, locale }} variant={variant} />;
+  return (
+    <Navigate
+      to={searchParams.get('mode') === 'recurring' ? '/wiederkehrend/neu' : '/agentura/rezept/neu'}
+      replace
+    />
+  );
 }
 
 export default AgentBuilderPage;

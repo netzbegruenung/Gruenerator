@@ -317,6 +317,7 @@ const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPa
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
 const VideoEditorPage = lazy(() => import('../features/videoeditor/VideoEditorPage'));
 // KI-Schnitt and Parteitage are admin only for now — see adminToolsGate.
+const VideoStartPage = lazy(() => import('../features/video/VideoStartPage'));
 const KiSchnittNewPage = lazy(async () => {
   const { default: Page } = await import('../features/video-ai/KiSchnittNewPage');
   return { default: withAdminToolGate(Page) };
@@ -363,6 +364,9 @@ const TranskriptionRedirect = lazy(() =>
   import('../features/vertonen/legacyRedirects').then((m) => ({ default: m.TranskriptionRedirect }))
 );
 const RecurringTasksPage = lazy(() => import('../features/recurring-tasks/RecurringTasksPage'));
+const RecurringTaskBuilderPage = lazy(
+  () => import('../features/recurring-tasks/RecurringTaskBuilderPage')
+);
 const TrashPage = lazy(() => import('../features/trash/TrashPage'));
 const WorkplacePage = lazy(() => import('../features/workplace/WorkplacePage'));
 const ProjektePage = lazy(() => import('../features/groups/pages/ProjektePage'));
@@ -491,6 +495,8 @@ const standardRoutes: RouteConfig[] = [
     : []),
   // EXPERIMENTAL — recurring agent tasks management.
   { path: '/wiederkehrend', component: RecurringTasksPage },
+  { path: '/wiederkehrend/neu', component: RecurringTaskBuilderPage },
+  { path: '/wiederkehrend/:id/bearbeiten', component: RecurringTaskBuilderPage },
   { path: '/papierkorb', component: TrashPage },
   // /grueneratoren is the overview of what a person works with (own, shared,
   // starred). /marktplatz is the shop for official, Landesverband and public
@@ -618,7 +624,8 @@ const standardRoutes: RouteConfig[] = [
   { path: '/icon-test', component: IconAnimationTestPage, channel: 'internal' },
   { path: '/kugel-test', component: KugelVoiceTestPage, channel: 'internal' },
   { path: '/labor/bundestag', component: BundestagQaPage, channel: 'internal' },
-  { path: '/voice-agent-test', component: VoiceAgentTestPage, channel: 'internal' },
+  // Admin-only on every instance: the gate sits in the page (RequireAdmin).
+  { path: '/voice-agent-test', component: VoiceAgentTestPage },
   {
     path: '/voice-agent-test/mobil',
     component: MobileVoiceAgentPage,
@@ -785,10 +792,11 @@ const standardRoutes: RouteConfig[] = [
   { path: '/e/:token', component: PublicExplainablePage, layoutMode: 'noChrome', public: true },
   { path: '/podcast/:slug', component: PodcastPage },
   // Custom generators are removed — prompts were auto-converted to agents.
-  // Keep old links working: create page → agent creator; generator → its agent.
+  // Keep old links working: create page → recipe creator (new agents are
+  // closed); generator → its agent.
   {
     path: '/gruenerator/erstellen',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/agents/new') })),
+    component: lazy(() => Promise.resolve({ default: createRedirect('/agentura/rezept/neu') })),
   },
   { path: '/gruenerator/:slug', component: LegacyGeneratorSlugRedirect },
   // Redirects for removed pages
@@ -923,6 +931,8 @@ const standardRoutes: RouteConfig[] = [
   { path: '/studio/ki', component: ImageStudioKiRedirect },
   { path: '/studio/ki/:type', component: ImageStudioKiTypeRedirect },
   { path: '/studio/video', component: GrueneratorenBundle.Reel },
+  // One start page for Untertitel, KI-Schnitt and the Video Editor.
+  { accent: 'studio', path: '/video', component: VideoStartPage },
   {
     path: '/studio/videoeditor',
     component: VideoEditorPage,

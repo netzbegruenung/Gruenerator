@@ -23,7 +23,8 @@ interface GroupContentAreaProps {
   items: GroupFeedItem[];
   isLoading: boolean;
   isAdmin: boolean;
-  isPersonal: boolean;
+  /** Austausch (Beiträge, Kommentare) only once somebody else is in the Projekt, or in the system Projekt. */
+  hasAustausch: boolean;
   isSystem: boolean;
   currentUserId: string | null;
   currentUserName: string | null;
@@ -55,7 +56,7 @@ export function GroupContentArea({
   items,
   isLoading,
   isAdmin,
-  isPersonal,
+  hasAustausch,
   isSystem,
   currentUserId,
   currentUserName,
@@ -68,11 +69,11 @@ export function GroupContentArea({
 }: GroupContentAreaProps) {
   const [searchParams] = useSearchParams();
   const linkedShareId = searchParams.get('beitrag');
-  const hasAustausch = !isPersonal;
   // Die System-Gruppe lebt von den Beiträgen der Admins; sonst ist die Übersicht der Einstieg.
-  const [view, setView] = useState<View>(
-    hasAustausch && (linkedShareId || isSystem) ? 'austausch' : 'uebersicht'
-  );
+  // Der Reiter kann erst später erscheinen (Beiträge laden nach): bis jemand wählt, entscheidet der Stand.
+  const [chosenView, setView] = useState<View | null>(null);
+  const view: View =
+    chosenView ?? (hasAustausch && (linkedShareId || isSystem) ? 'austausch' : 'uebersicht');
   const [focusShareId, setFocusShareId] = useState<string | null>(linkedShareId);
   // Wissen-Elemente, die jemand aus der Liste in den Austausch geholt hat.
   const [discussed, setDiscussed] = useState<ReadonlySet<string>>(new Set());
@@ -135,7 +136,7 @@ export function GroupContentArea({
   ) : (
     <p className="m-0 py-xl text-center text-[15px] text-muted-foreground">
       {onOpenShare
-        ? 'Noch nichts im Austausch. Schreib etwas an die Gruppe oder teile einen Inhalt mit einer Notiz.'
+        ? 'Noch nichts im Austausch. Schreib etwas an das Projekt oder teile einen Inhalt mit einer Notiz.'
         : 'Noch keine Beiträge.'}
     </p>
   );
