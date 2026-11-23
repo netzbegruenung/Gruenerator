@@ -76,7 +76,7 @@ describe('NotebooksSidebarSection', () => {
     expect(screen.getByRole('link', { name: 'Alle Notebooks' })).toHaveAttribute('href', '/wissen');
   });
 
-  it('lists own notebooks flat, without a "Meine Notebooks" row', async () => {
+  it('lists only own notebooks, flat, and navigates through the sidebar', async () => {
     mocks.shelves = [
       {
         id: 'meine',
@@ -92,14 +92,29 @@ describe('NotebooksSidebarSection', () => {
         ],
         layout: 'cards',
       },
+      {
+        id: 'at',
+        kind: 'notebook',
+        title: 'Österreich',
+        meta: '',
+        notebook: nb('at', 'Österreich'),
+      },
+      laender,
     ];
-    renderSection();
-    await unfold();
-    expect(screen.queryByRole('button', { name: /Meine Notebooks/ })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Klima' })).toHaveAttribute(
-      'href',
-      '/notebooks/klima-abc123'
-    );
+    const { onNavigate } = renderSection();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Notebooks' }));
+    expect(screen.queryByText('Meine Notebooks')).not.toBeInTheDocument();
+    // System notebooks and groups stay on /wissen.
+    expect(screen.queryByText('Österreich')).not.toBeInTheDocument();
+    expect(screen.queryByText('Landesverbände')).not.toBeInTheDocument();
+    const link = screen.getByRole('link', { name: 'Klima' });
+    expect(link).toHaveAttribute('href', '/notebooks/klima-abc123');
+    await user.click(link);
+    // Through the sidebar's navigation (desktop tabs follow it), with the fresh-conversation state.
+    expect(onNavigate).toHaveBeenCalledWith('/notebooks/klima-abc123', 'Klima', {
+      freshConversation: true,
+    });
   });
 
   it('drops the empty "Meine Notebooks" shelf', async () => {
@@ -124,23 +139,7 @@ describe('NotebooksSidebarSection', () => {
     ];
     renderSection();
     await unfold();
-    expect(screen.getByText('Meine Notebooks werden geladen…')).toBeInTheDocument();
-  });
-
-  it('folds a group open in place and navigates through the sidebar', async () => {
-    mocks.shelves = [laender];
-    const { onNavigate } = renderSection();
-    const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: 'Notebooks' }));
-    expect(screen.queryByRole('link', { name: 'Berlin' })).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Landesverbände' }));
-    const link = screen.getByRole('link', { name: 'Berlin' });
-    expect(link).toHaveAttribute('href', '/notebooks/berlin');
-    await user.click(link);
-    // Through the sidebar's navigation (desktop tabs follow it), with the fresh-conversation state.
-    expect(onNavigate).toHaveBeenCalledWith('/notebooks/berlin', 'Berlin', {
-      freshConversation: true,
-    });
+    expect(screen.getByText('Notebooks werden geladen…')).toBeInTheDocument();
   });
 
   it('has no axe violations when unfolded', async () => {

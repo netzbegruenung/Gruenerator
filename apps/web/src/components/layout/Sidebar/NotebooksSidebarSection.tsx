@@ -3,11 +3,8 @@ import { type MouseEvent, type ReactNode, memo, useCallback, useState } from 're
 import { PiBooks, PiNotebook, PiPlus } from 'react-icons/pi';
 import { Link, useLocation } from 'react-router-dom';
 
-import { OPEN_STATE, shelfEntryLink } from '../../../features/notebook/wissen/shelfLinks';
-import {
-  type Shelf,
-  useNotebookShelves,
-} from '../../../features/notebook/wissen/useNotebookShelves';
+import { type OPEN_STATE, shelfEntryLink } from '../../../features/notebook/wissen/shelfLinks';
+import { useNotebookShelves } from '../../../features/notebook/wissen/useNotebookShelves';
 
 import { cn } from '@/utils/cn';
 
@@ -54,14 +51,12 @@ function RowLink({
   title,
   state = null,
   onOpen,
-  indent = false,
   children,
 }: {
   to: string;
   title: string;
   state?: typeof OPEN_STATE | null;
   onOpen: OpenFn;
-  indent?: boolean;
   children: ReactNode;
 }) {
   const { pathname } = useLocation();
@@ -77,7 +72,7 @@ function RowLink({
       to={to}
       state={state}
       onClick={handleClick}
-      className={cn(rowClass(active), indent && 'pl-7')}
+      className={rowClass(active)}
       aria-current={active ? 'page' : undefined}
     >
       {children}
@@ -85,87 +80,34 @@ function RowLink({
   );
 }
 
-/** A group (Landesverbände, Parlamente …) folds open in place, under its name. */
-function GroupRows({
-  shelf,
-  onOpen,
-}: {
-  shelf: Extract<Shelf, { kind: 'group' }>;
-  onOpen: OpenFn;
-}) {
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className={rowClass(false)}
-      >
-        <PiNotebook aria-hidden="true" className={rowIconClass} />
-        <span className="min-w-0 flex-1 truncate">{shelf.title}</span>
-        <Chevron open={open} />
-      </button>
-      {open &&
-        shelf.entries.map((entry) => {
-          const link = shelfEntryLink(entry);
-          return (
-            <RowLink key={entry.key} {...link} to={link.to} onOpen={onOpen} indent>
-              <span className="truncate">{link.title}</span>
-            </RowLink>
-          );
-        })}
-    </>
-  );
-}
-
 /**
- * The open section's rows. Its own component so the shelf queries (one polls
+ * The open section's rows: the person's own notebooks. Its own component so the shelf queries (one polls
  * while a notebook indexes) run only while the section is unfolded.
  */
 function NotebookRows({ onOpen }: { onOpen: OpenFn }) {
   const { shelves } = useNotebookShelves();
+  // Only the person's own notebooks (own, shared with them, saved). Landesverbände,
+  // Parlamente and the other system notebooks stay on /wissen ("Alle Notebooks").
+  const mine = shelves.find((shelf) => shelf.id === 'meine');
   return (
     <>
       <RowLink to={CREATE_PATH} title="Neues Notebook" onOpen={onOpen}>
         <PiPlus aria-hidden="true" className={rowIconClass} />
         <span>Neues Notebook</span>
       </RowLink>
-      {shelves.map((shelf) => {
-        if (shelf.kind === 'notebook')
+      {mine?.kind === 'group' && mine.entries.length === 0 && mine.meta === null && (
+        <div className="px-3 py-1.5 text-xs text-grey-500">Notebooks werden geladen…</div>
+      )}
+      {mine?.kind === 'group' &&
+        mine.entries.map((entry) => {
+          const link = shelfEntryLink(entry);
           return (
-            <RowLink
-              key={shelf.id}
-              to={shelf.notebook.path}
-              title={shelf.title}
-              state={OPEN_STATE}
-              onOpen={onOpen}
-            >
+            <RowLink key={entry.key} {...link} to={link.to} onOpen={onOpen}>
               <PiNotebook aria-hidden="true" className={rowIconClass} />
-              <span className="truncate">{shelf.title}</span>
+              <span className="truncate">{link.title}</span>
             </RowLink>
           );
-        // No own notebook yet: "Neues Notebook" above covers it.
-        if (shelf.kind === 'create') return null;
-        if (shelf.entries.length === 0)
-          return shelf.meta === null ? (
-            <div key={shelf.id} className="px-3 py-1.5 text-xs text-grey-500">
-              {shelf.title} werden geladen…
-            </div>
-          ) : null;
-        // The person's own notebooks are the list itself, flat, like the chats below.
-        if (shelf.id === 'meine')
-          return shelf.entries.map((entry) => {
-            const link = shelfEntryLink(entry);
-            return (
-              <RowLink key={entry.key} {...link} to={link.to} onOpen={onOpen}>
-                <PiNotebook aria-hidden="true" className={rowIconClass} />
-                <span className="truncate">{link.title}</span>
-              </RowLink>
-            );
-          });
-        return <GroupRows key={shelf.id} shelf={shelf} onOpen={onOpen} />;
-      })}
+        })}
       <RowLink to="/wissen" title="Wissen" onOpen={onOpen}>
         <PiBooks aria-hidden="true" className={rowIconClass} />
         <span>Alle Notebooks</span>
@@ -175,8 +117,7 @@ function NotebookRows({ onOpen }: { onOpen: OpenFn }) {
 }
 
 /**
- * "Notebooks ›" above the chat list: folds open into the same groups as /wissen,
- * own notebooks first.
+ * "Notebooks ›" above the chat list: folds open into the person's own notebooks.
  */
 export const NotebooksSidebarSection = memo(function NotebooksSidebarSection({
   onNavigate,
