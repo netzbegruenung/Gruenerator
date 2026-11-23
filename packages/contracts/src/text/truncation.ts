@@ -10,6 +10,10 @@
  *                                            (pair it with finishReason)
  *   server clean      + client suspicious → the tail was lost after the server
  *                                            handed it over (transport/render)
+ *
+ * Finished endings that are not punctuation are recognised by shape: a closing
+ * block (#3628), a list, a contact line (#5477) and, structurally, a short final
+ * paragraph after a finished one (#5976).
  */
 
 /**
@@ -89,9 +93,43 @@ function endsInContactLine(trimmed: string): boolean {
   return last.length <= CONTACT_LINE_MAX && CONTACT_TAIL_RE.test(last);
 }
 
+const SENTENCE_END_RE = /(?:[.!?…»“"”)\]*_~]|\p{Extended_Pictographic}\uFE0F?)$/u;
+
+/**
+ * A short final paragraph after a finished one is a sign-off (#5976). Recipes
+ * and project instructions prescribe endings of any shape ("Für die Fraktion:
+ * Petra Lindner, Fraktionsvorsitzende", "– dein Grünen-Team", "Pressekontakt:
+ * Jonas Berger"); listing shapes one by one (#3628, #5477) never ends, and
+ * each miss cost a full repair write for an answer that was already complete.
+ *
+ * Structural instead: the text ends in a paragraph of at most
+ * SIGNATURE_MAX_LINES lines of at most SIGNATURE_LINE_MAX characters, and the
+ * paragraph before it (a blank line apart) ends in terminal punctuation or an
+ * emoji. A stream cut mid-sentence stops anywhere, but only rarely in the first
+ * 60 characters right after a blank line; a cut line with no blank line before
+ * it, a long cut paragraph, or a cut after an unfinished paragraph all stay
+ * flagged. Residual risk: a cut inside the first short line of a new paragraph.
+ */
+function endsInSignOffParagraph(trimmed: string): boolean {
+  const paragraphs = trimmed.split(/\n[ \t]*\n/);
+  if (paragraphs.length < 2) return false;
+  const lines = (paragraphs[paragraphs.length - 1] ?? '')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+  if (lines.length === 0 || lines.length > SIGNATURE_MAX_LINES) return false;
+  if (lines.some((l) => l.length > SIGNATURE_LINE_MAX)) return false;
+  return SENTENCE_END_RE.test((paragraphs[paragraphs.length - 2] ?? '').trimEnd());
+}
+
 export function looksCutOff(text: string): boolean {
   const trimmed = text.trimEnd();
   if (trimmed.split(/\s+/).filter(Boolean).length < TRUNCATION_MIN_WORDS) return false;
   if (!/[\p{L}\p{N}]$/u.test(trimmed)) return false;
-  return !endsInClosingBlock(trimmed) && !endsInList(trimmed) && !endsInContactLine(trimmed);
+  return (
+    !endsInClosingBlock(trimmed) &&
+    !endsInList(trimmed) &&
+    !endsInContactLine(trimmed) &&
+    !endsInSignOffParagraph(trimmed)
+  );
 }
