@@ -311,8 +311,8 @@ const ProjektePage = () => {
           </div>
         </details>
       )}
-      <ProjekteRecipesSection />
       <ProjekteNotebooksSection />
+      <ProjekteRecipesSection />
       <PublicGroupsSection onSuccessMessage={showSuccess} onErrorMessage={showError} />
 
       {createDialog}
