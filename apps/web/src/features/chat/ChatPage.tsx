@@ -20,6 +20,7 @@ import {
   getLandesverbandHubBySlug,
   getSystemAgent,
   resolveAgentSlug,
+  isLandesverbandIdentifier,
   resolveSkillMention,
 } from '@gruenerator/shared/agents';
 import { getContractsClient } from '@gruenerator/shared/api';
@@ -279,7 +280,13 @@ function ChatPage() {
   const recipeLink = hub ? { mention: null, recipeId: null } : readRecipeDeepLink(searchParams);
   const rezeptParam = recipeLink.mention;
   const rezeptIdParam = recipeLink.recipeId;
-  const resolvedFromSkill = rezeptParam ? resolveSkillMention(rezeptParam) : null;
+  // Ausnahme: ein Landesverbands-Rezept bleibt auf dem Universal-Agenten — der
+  // Link ist dasselbe wie `@<rezept>` tippen, und Notebook und Filter des
+  // Landesverbands bringt das Rezept serverseitig mit (`ChatGraph.ts`). Seit
+  // 11/2026 stehen die LV-Rezepte vor den LV-Agenten (Hub, Seitenleiste).
+  const skillOwner = rezeptParam ? resolveSkillMention(rezeptParam) : null;
+  const resolvedFromSkill =
+    skillOwner && !isLandesverbandIdentifier(skillOwner) ? skillOwner : null;
   // Path-based /agents/:slug is the canonical form; ?agent= is legacy but
   // still wins when explicitly set so old deep links keep their behavior.
   const agentParam = hub

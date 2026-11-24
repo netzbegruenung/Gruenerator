@@ -101,7 +101,10 @@ async function candidates(
       rank,
       searchText: [a.identifier],
     })),
-    ...lvAgents.map((a, rank) => ({
+    // Lists carry no LV agents since 11/2026: every one of them owns a full
+    // recipe, and the recipes stand in front (`recipeSource`). Resolution keeps
+    // them, so a shared link, a like or a library entry still opens.
+    ...(forList ? [] : lvAgents).map((a, rank) => ({
       item: officialItem(a, 'landesverband'),
       rank,
       searchText: [a.identifier],

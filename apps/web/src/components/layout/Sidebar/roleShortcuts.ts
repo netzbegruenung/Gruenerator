@@ -10,7 +10,7 @@ import {
   type LvHub,
 } from '@gruenerator/shared/agents';
 import { type InstanceId } from '@gruenerator/shared/instances';
-import { marketplaceHref } from '@gruenerator/shared/marketplace';
+import { landesverbandHubHref, marketplaceHref } from '@gruenerator/shared/marketplace';
 import { NOTEBOOK_ICONS } from '@gruenerator/shared/notebook-icons';
 import { isNotebookOfferedIn, type NotebookId } from '@gruenerator/shared/notebooks';
 import { grueneJugendRoleLocale } from '@gruenerator/shared/roles';
@@ -25,8 +25,9 @@ import {
   PiBuildings,
   PiImage,
   PiInstagramLogo,
+  PiStorefront,
 } from '@/config/shellIcons.generated';
-import { landesverbandHubCards } from '@/features/chat/landesverbandHubCards';
+import { landesverbandHubGroups } from '@/features/chat/landesverbandHubCards';
 import { getNotebookById } from '@/features/notebook/config/notebooksConfig';
 
 export interface RoleShortcutLink {
@@ -53,31 +54,61 @@ export interface RoleShortcut {
   links: RoleShortcutLink[];
 }
 
-/** Je Landesverband-Hub: seine Agents und sein Notebook. */
+/**
+ * Je Landesverband-Hub: seine Rezepte, sein Notebook und die Marktplatz-Seite.
+ * Ein Rezept-Eintrag öffnet den Chat mit `@<rezept>` — wie bei der
+ * Bundesgeschäftsstelle; die LV-Agenten stehen seit 11/2026 nicht mehr hier.
+ */
 export function landesverbandShortcut(
   hub: LvHub,
   roles: readonly UserRole[],
-  userLocale: string
+  userLocale: string,
+  instance: InstanceId
 ): RoleShortcut {
   const notebookPath = getNotebookById(hub.notebookId)?.path;
+  const recipes = landesverbandHubGroups(hub, instance).flatMap((group) => group.recipes);
   return {
     key: hub.slug,
     name: hub.name,
     Icon: NOTEBOOK_ICONS[hub.notebookId],
     role: roles.find((r) => landesverbandIdsForRoles([r], userLocale).includes(hub.lvId)) ?? null,
     starters: {
-      heading: 'Neuer Chat mit Agent',
-      links: landesverbandHubCards(hub, userLocale).map(({ agentId, role }) => ({
-        key: agentId,
-        label: role,
-        Icon: getAgentIcon(agentId),
-        path: `/agents/${getAgentSlug(agentId)}`,
-        title: role,
+      heading: 'Neuer Chat mit Rezept',
+      links: recipes.map((recipe) => ({
+        key: recipe.mention,
+        label: recipe.title,
+        // Siehe `bundesgeschaeftsstelleShortcut`: `SkillIcon` ist schmaler getippt.
+        Icon: resolveSkillIcon(recipe.iconKey) as IconType,
+        path: recipe.path,
+        title: recipe.title,
       })),
     },
-    links: notebookPath
-      ? [{ key: 'notebook', label: 'Notebook', Icon: PiBooks, path: notebookPath, title: hub.name }]
-      : [],
+    links: [
+      ...(notebookPath
+        ? [
+            {
+              key: 'notebook',
+              label: 'Notebook',
+              Icon: PiBooks,
+              path: notebookPath,
+              title: hub.name,
+            },
+          ]
+        : []),
+      // Die Marktplatz-Seite führt das Land wie der Marktplatz selbst (siehe
+      // `LandesverbandHub`) — nur, wo sie für diese Person auch aufgeht.
+      ...(hub.audience === userLocale
+        ? [
+            {
+              key: 'rezepte',
+              label: 'Alle Rezepte',
+              Icon: PiStorefront,
+              path: landesverbandHubHref(hub.slug),
+              title: 'Marktplatz',
+            },
+          ]
+        : []),
+    ],
   };
 }
 
@@ -268,7 +299,7 @@ export function buildRoleShortcuts(
   const visible = roles.filter((r) => r.showInSidebar !== false);
   const lvIds = landesverbandIdsForRoles(visible, userLocale);
   const shortcuts = getLandesverbandHubsByIds(lvIds, instance).map((hub) =>
-    landesverbandShortcut(hub, visible, userLocale)
+    landesverbandShortcut(hub, visible, userLocale, instance)
   );
   const extra = [
     bundesgeschaeftsstelleShortcut(visible, instance),
