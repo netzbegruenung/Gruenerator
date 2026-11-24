@@ -76,6 +76,7 @@ import GroupMembersList from './GroupMembersList';
 import GroupVisibilityDialog from './GroupVisibilityDialog';
 import { ProjectAddMenu } from './ProjectAddMenu';
 import { ProjectChatComposer } from './ProjectChatComposer';
+import { ProjectCloudSourcesCard } from './ProjectCloudSourcesCard';
 import { ProjectInstructionsCard } from './ProjectInstructionsCard';
 import { ProjectKnowledgeList } from './ProjectKnowledgeList';
 import { ProjectLandesverbandSelect } from './ProjectLandesverbandSelect';
@@ -877,6 +878,13 @@ const GroupInfoSection = memo(
                 actions={shareActions}
                 onDiscuss={onDiscuss}
               />
+              {!isSystem && (
+                <ProjectCloudSourcesCard
+                  groupId={groupId}
+                  isAdmin={!!data?.isAdmin}
+                  archived={isArchived}
+                />
+              )}
               {onUpdateLink && onDeleteLink && groupLinks.length > 0 && (
                 <div id="abschnitt-links" className="scroll-mt-lg">
                   <GroupLinksSection

@@ -639,3 +639,82 @@ export const groupInstructionsResponseSchema = z.object({
   updatedAt: z.string().nullable(),
 });
 export type GroupInstructionsResponse = z.infer<typeof groupInstructionsResponseSchema>;
+
+// ── Synchronisierte Ablagen als Projektwissen (#5945, experimentell) ───────
+
+/** Woher eine Projektquelle ihre Dateien holt. */
+export const groupCloudProviderSchema = z.enum(['wolke', 'google-drive']);
+export type GroupCloudProvider = z.infer<typeof groupCloudProviderSchema>;
+
+/** Ein Wolke-Ordner oder eine Google-Drive-Auswahl im Projekt. Lesen Mitglieder, ändern Admins. */
+export const groupCloudSourceSchema = z.object({
+  id: z.string(),
+  provider: groupCloudProviderSchema,
+  name: z.string(),
+  includeSubfolders: z.boolean(),
+  /** Dateien aus der Quelle, die gerade im Projektwissen liegen. */
+  fileCount: z.number(),
+  /** Noch nicht eingelesen — der stündliche Abgleich holt sie nach. */
+  pendingCount: z.number(),
+  lastSyncedAt: z.string().nullable(),
+  lastError: z.string().nullable(),
+  attachedById: z.string(),
+  attachedByName: z.string().nullable(),
+});
+export type GroupCloudSource = z.infer<typeof groupCloudSourceSchema>;
+
+export const groupCloudSourcesResponseSchema = z.object({
+  success: z.literal(true),
+  sources: z.array(groupCloudSourceSchema),
+});
+export type GroupCloudSourcesResponse = z.infer<typeof groupCloudSourcesResponseSchema>;
+
+export const attachGroupWolkeFolderBodySchema = z.object({
+  url: z.string().trim().min(1).max(2000),
+  includeSubfolders: z.boolean(),
+  /** Anzeigename im Projekt; leer → Label des Freigabelinks bzw. „Wolke-Ordner". */
+  name: z.string().trim().max(120).optional(),
+});
+export type AttachGroupWolkeFolderBody = z.infer<typeof attachGroupWolkeFolderBodySchema>;
+
+/** Höchstens so viele Dateien je Picker-Auswahl. */
+export const GROUP_DRIVE_PICK_MAX = 50;
+
+/** Im Google-Picker gewählte Dateien (Scope `drive.file`: nur diese sind lesbar). */
+export const attachGroupDriveFilesBodySchema = z.object({
+  files: z
+    .array(
+      z.object({
+        id: z
+          .string()
+          .regex(/^[a-zA-Z0-9_-]+$/)
+          .max(200),
+        name: z.string().max(500),
+        mimeType: z.string().max(200),
+      })
+    )
+    .min(1)
+    .max(GROUP_DRIVE_PICK_MAX),
+});
+export type AttachGroupDriveFilesBody = z.infer<typeof attachGroupDriveFilesBodySchema>;
+
+/** Was ein Abgleich getan hat. */
+export const groupCloudSyncSummarySchema = z.object({
+  /** Neu oder geändert eingelesen. */
+  imported: z.number(),
+  /** Aus der Quelle verschwunden und aus dem Projekt genommen. */
+  removed: z.number(),
+  /** Aufgeschoben (Zeitbudget) — kommt beim nächsten Abgleich. */
+  pending: z.number(),
+  /** Ohne lesbaren Text, zu groß oder über der Grenze. */
+  skipped: z.number(),
+  failed: z.number(),
+});
+export type GroupCloudSyncSummary = z.infer<typeof groupCloudSyncSummarySchema>;
+
+export const groupCloudSourceSyncResponseSchema = z.object({
+  success: z.literal(true),
+  source: groupCloudSourceSchema,
+  summary: groupCloudSyncSummarySchema,
+});
+export type GroupCloudSourceSyncResponse = z.infer<typeof groupCloudSourceSyncResponseSchema>;

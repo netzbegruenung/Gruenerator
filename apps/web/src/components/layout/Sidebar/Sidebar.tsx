@@ -1,5 +1,5 @@
 import { useAgentStore, setThreadListSlot, useUserProfileStore } from '@gruenerator/chat/stores';
-import { getAgentSlug, getSystemAgent } from '@gruenerator/shared/agents';
+import { getAgentSlug, getSlimAgent } from '@gruenerator/shared/agents';
 import { buildGroupPath } from '@gruenerator/shared/groups';
 import { sortByUsage } from '@gruenerator/shared/utils';
 import {
@@ -730,7 +730,7 @@ const SidebarFavourites = memo(function SidebarFavourites({
   const agentItems = useMemo(() => {
     const rows: { identifier: string; title: string; Icon: IconType; path: string }[] = [];
     for (const identifier of favoriteIdentifiers) {
-      const sys = getSystemAgent(identifier);
+      const sys = getSlimAgent(identifier);
       if (sys) {
         rows.push({
           identifier,

@@ -1,5 +1,7 @@
 export type {
   Agent,
+  AgentSlim,
+  SkillSlim,
   AgentAudience,
   AgentCategory,
   AgentDefaultFilter,
@@ -21,10 +23,13 @@ export {
   isAgentVisibleForPlatform,
   matchesRecipeAudience,
   localizeAgent,
+} from './audience.js';
+
+export {
   getSystemAgentsForLocale,
   getCuratableSystemAgents,
   getVisibleSystemAgentsForLocale,
-} from './audience.js';
+} from './audienceCatalog.js';
 
 export {
   SYSTEM_AGENTS,
@@ -34,6 +39,15 @@ export {
   getSystemAgent,
   type SystemAgentId,
 } from './system.js';
+
+export {
+  SLIM_AGENTS,
+  SKILL_SLIMS,
+  VISIBLE_SLIM_AGENTS,
+  getSlimAgent,
+  getVisibleSlimAgentsForLocale,
+  localizeSlimAgent,
+} from './slim.js';
 
 export { isAdminVisibleAgent } from './agentVisibility.js';
 export { isAdminVisibleSkill } from './skillVisibility.js';

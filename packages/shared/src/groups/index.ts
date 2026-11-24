@@ -65,6 +65,17 @@ export {
   useVerifyJoinToken,
 } from './useGroups.js';
 
+export {
+  cloudSourceStatusParts,
+  cloudSyncSummaryText,
+  detachCloudSourceDescription,
+  groupCloudSourcesKey,
+  useAttachGroupDriveFiles,
+  useAttachGroupWolkeFolder,
+  useDetachGroupCloudSource,
+  useGroupCloudSources,
+  useSyncGroupCloudSource,
+} from './cloudSources.js';
 export { type GroupPostUploadFile, type NativeUploadFile } from './postFormData.js';
 export { landesverbandOptions, type LandesverbandOption } from './landesverbandOptions.js';
 
