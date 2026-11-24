@@ -4,6 +4,7 @@ import { getVisibleSystemAgentsForLocale } from './audienceCatalog.js';
 import { SKILLS } from './skills/index.js';
 import { SKILL_SLIMS, SLIM_AGENTS, getSlimAgent, getVisibleSlimAgentsForLocale } from './slim.js';
 import { SYSTEM_AGENTS, getSystemAgent } from './system.js';
+import { type Skill } from './types.js';
 
 // The slim index is generated next to the full catalogue and read at web boot
 // instead of it. These tests hold the two together: a field the slim index
@@ -55,7 +56,9 @@ describe('slim skill index', () => {
   });
 
   it('carries the same boot fields as the full recipe', () => {
-    for (const skill of SKILLS) {
+    // Widened: the generated tuple's entries do not all declare the optional fields.
+    const skills: readonly Skill[] = SKILLS;
+    for (const skill of skills) {
       const slim = SKILL_SLIMS.find((s) => s.mention === skill.mention);
       expect(slim).toMatchObject({
         identifier: skill.identifier,
