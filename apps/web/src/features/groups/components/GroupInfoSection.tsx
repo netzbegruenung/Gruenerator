@@ -75,13 +75,13 @@ import GroupMembersList from './GroupMembersList';
 import GroupVisibilityDialog from './GroupVisibilityDialog';
 import { ProjectAddMenu } from './ProjectAddMenu';
 import { ProjectChatComposer } from './ProjectChatComposer';
+import { ProjectCloudSourcesCard } from './ProjectCloudSourcesCard';
 import { ProjectInstructionsCard } from './ProjectInstructionsCard';
 import { ProjectKnowledgeList } from './ProjectKnowledgeList';
 import { ProjectLandesverbandSelect } from './ProjectLandesverbandSelect';
 import { ProjectMembersCard } from './ProjectMembersCard';
 import { ProjectRecipesCard } from './ProjectRecipesCard';
 import { ProjectTasksCard } from './ProjectTasksCard';
-import { ProjectWolkeFoldersCard } from './ProjectWolkeFoldersCard';
 import { type ShareActions } from './shareActions';
 import { ShareNoteDialog } from './ShareNoteDialog';
 
@@ -865,12 +865,10 @@ const GroupInfoSection = memo(
                 onDiscuss={onDiscuss}
               />
               {!isSystem && (
-                <ProjectWolkeFoldersCard
+                <ProjectCloudSourcesCard
                   groupId={groupId}
                   isAdmin={!!data?.isAdmin}
                   archived={isArchived}
-                  onSuccessMessage={onSuccessMessage}
-                  onErrorMessage={onErrorMessage}
                 />
               )}
               {onUpdateLink && onDeleteLink && groupLinks.length > 0 && (

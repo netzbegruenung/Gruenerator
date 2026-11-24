@@ -65,13 +65,16 @@ export {
 } from './useGroups.js';
 
 export {
-  groupWolkeFoldersKey,
+  cloudSourceStatusParts,
+  cloudSyncSummaryText,
+  detachCloudSourceDescription,
+  groupCloudSourcesKey,
+  useAttachGroupDriveFiles,
   useAttachGroupWolkeFolder,
-  useDetachGroupWolkeFolder,
-  useGroupWolkeFolders,
-  useSyncGroupWolkeFolder,
-  wolkeSyncSummaryText,
-} from './wolkeFolders.js';
+  useDetachGroupCloudSource,
+  useGroupCloudSources,
+  useSyncGroupCloudSource,
+} from './cloudSources.js';
 export { type GroupPostUploadFile, type NativeUploadFile } from './postFormData.js';
 export { landesverbandOptions, type LandesverbandOption } from './landesverbandOptions.js';
 
