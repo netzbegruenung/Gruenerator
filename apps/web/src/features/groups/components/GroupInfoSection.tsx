@@ -296,12 +296,13 @@ const GroupInfoSection = memo(
       },
       [cloneTemplate, navigate]
     );
-    // „Vorhandenes hinzufügen“: am Hinzufügen-Knopf verankert, aus dem Feed-Composer
-    // (der seine Notiz mitbringt) als Dialog.
+    // „Vorhandenes hinzufügen“: am Hinzufügen-Knopf verankert (teilt sofort), aus dem
+    // Feed-Composer als Dialog (wählt nur aus; der Composer teilt beim Posten).
     // Auf dem Handy kommen beide als Sheet von unten.
     const [picker, setPicker] = useState<'menu' | 'composer' | null>(null);
     const isMobile = useIsMobile();
-    const [composerNote, setComposerNote] = useState('');
+    // Wohin die Auswahl aus dem Composer-Dialog zurückgeht.
+    const composerPick = useRef<((items: PickerItem[]) => void) | null>(null);
     const [linkOpen, setLinkOpen] = useState(false);
     // Die gerade hinzugefügte Freigabe, zu der „Notiz schreiben“ eine Notiz setzt.
     const [noteKey, setNoteKey] = useState<string | null>(null);
@@ -388,11 +389,9 @@ const GroupInfoSection = memo(
       (items: PickerItem[], done: boolean) => {
         refetchSharedContent?.();
         if (!done) return;
-        // Wer aus dem Composer kommt, hat die Notiz schon geschrieben.
-        const withNote = picker === 'composer' && composerNote.trim() !== '';
         setPicker(null);
         const [only] = items;
-        if (items.length === 1 && only && !withNote) {
+        if (items.length === 1 && only) {
           // 8 s statt der 4 s von sonner: genug Zeit, die Aktion zu lesen und zu treffen.
           toast('Zum Projekt hinzugefügt', {
             duration: 8000,
@@ -404,7 +403,7 @@ const GroupInfoSection = memo(
           );
         }
       },
-      [refetchSharedContent, picker, composerNote]
+      [refetchSharedContent]
     );
 
     const pickerContent = (
@@ -412,9 +411,16 @@ const GroupInfoSection = memo(
         groupId={groupId}
         sharedKeys={sharedKeys}
         currentUserId={currentUserId ?? null}
-        note={picker === 'composer' ? composerNote : null}
         writeDocuments={isTeam}
         onAdded={handleAdded}
+        onPick={
+          picker === 'composer'
+            ? (items) => {
+                composerPick.current?.(items);
+                setPicker(null);
+              }
+            : undefined
+        }
       />
     );
 
@@ -831,10 +837,10 @@ const GroupInfoSection = memo(
           currentUserId={currentUserId ?? null}
           currentUserName={currentUserName ?? null}
           members={members ?? []}
-          onOpenShare={
+          onPickExisting={
             canShare
-              ? (note) => {
-                  setComposerNote(note ?? '');
+              ? (onPicked) => {
+                  composerPick.current = onPicked;
                   setPicker('composer');
                 }
               : null
