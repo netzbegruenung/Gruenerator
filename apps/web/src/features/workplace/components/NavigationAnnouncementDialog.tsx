@@ -1,5 +1,5 @@
 import { Button } from '@gruenerator/ui';
-import { Search } from 'lucide-react';
+import { BookOpen, Bot, ScrollText, Search } from 'lucide-react';
 import { motion } from 'motion/react';
 import { type ReactNode } from 'react';
 import { HiArrowRight } from 'react-icons/hi2';
@@ -141,6 +141,68 @@ function OnePageVisual() {
   );
 }
 
+/** A project card that takes in the notebooks and recipes. */
+function ProjectVisual() {
+  const rows: { icon: ReactNode; label: string }[] = [
+    { icon: <BookOpen className="size-4" />, label: 'Notebooks' },
+    { icon: <ScrollText className="size-4" />, label: 'Rezepte' },
+  ];
+  return (
+    <motion.div
+      className="flex w-full max-w-64 flex-col gap-2 rounded-2xl bg-white p-3 text-sm text-grey-800 shadow-xl ring-1 ring-black/5"
+      {...enter(0, { y: 10 })}
+    >
+      <span className="flex items-center gap-2 px-1 py-1 font-semibold text-grey-900">
+        <LuFolderCog className="size-5" />
+        Projekt
+      </span>
+      {rows.map((row, i) => (
+        <motion.span
+          key={row.label}
+          className="flex items-center gap-2.5 rounded-lg bg-primary-50 px-2.5 py-2 dark:bg-primary-900/30"
+          {...enter(200 + i * 120, { x: 12 })}
+        >
+          {row.icon}
+          {row.label}
+        </motion.span>
+      ))}
+    </motion.div>
+  );
+}
+
+/** An agent card turning into a recipe or a project. */
+function AgentConvertVisual() {
+  return (
+    <div className="flex w-full max-w-72 items-center justify-center gap-3 text-sm text-grey-800">
+      <motion.span
+        className="flex flex-col items-center gap-1.5 rounded-xl bg-white/60 px-4 py-3 text-grey-500 ring-1 ring-black/5"
+        {...enter(0, { x: -10 })}
+      >
+        <Bot className="size-6" />
+        Agent
+      </motion.span>
+      <motion.span {...enter(200)}>
+        <HiArrowRight className="size-5 text-primary-700" />
+      </motion.span>
+      <div className="flex flex-col gap-2">
+        {[
+          { icon: <ScrollText className="size-4" />, label: 'Rezept' },
+          { icon: <LuFolderCog className="size-4" />, label: 'Projekt' },
+        ].map((row, i) => (
+          <motion.span
+            key={row.label}
+            className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 shadow-sm ring-1 ring-black/5"
+            {...enter(350 + i * 120, { x: 10 })}
+          >
+            {row.icon}
+            {row.label}
+          </motion.span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function TourVisual() {
   return (
     <div className="flex w-full max-w-72 flex-col items-center gap-4">
@@ -166,7 +228,7 @@ interface NavigationAnnouncementDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-/** The walkthrough of the new navigation: the one-page start, the sidebar and the tabs option. */
+/** The walkthrough of the new navigation: the start, the sidebar, projects, agents and the layout choice. */
 export default function NavigationAnnouncementDialog({
   open,
   onOpenChange,
@@ -186,19 +248,21 @@ export default function NavigationAnnouncementDialog({
   const slides: AnnouncementSlide[] = [
     {
       eyebrow: 'Neu im Grünerator',
-      title: 'Alles auf einer Seite',
-      visual: <OnePageVisual />,
+      title: 'Entdecke die neue Navigation',
+      visual: onePage ? <OnePageVisual /> : <TabsVisual />,
       body: (
         <>
           <Lead>
-            Auf der Startseite schreibst du direkt los. Darunter findest du alles, woran du zuletzt
-            gearbeitet hast, und deine Werkzeuge.
+            {onePage
+              ? 'Auf der Startseite schreibst du direkt los. Darunter findest du alles, woran du zuletzt gearbeitet hast, und deine Werkzeuge.'
+              : 'Im Tab „Chat“ schreibst du direkt los, im Tab „Arbeiten“ findest du alles, woran du zuletzt gearbeitet hast, und deine Werkzeuge.'}
           </Lead>
           <Features
             items={[
-              'Oben der Chat: Fragen stellen, Texte schreiben, Sharepics erstellen.',
-              'Darunter „Zuletzt“, „Neu erstellen“, deine Werkzeuge, Briefing und Marktplatz.',
-              'Auf dem Handy wartet der Chat unten am Daumen, sobald du nach unten wischst.',
+              'Der Chat: Fragen stellen, Texte schreiben, Sharepics erstellen.',
+              '„Zuletzt“ zeigt deine letzten Inhalte, „Neu erstellen“ legt Neues an.',
+              'Darunter deine Werkzeuge, das Studio („Gestalte grüne Inhalte“) und das Briefing („Bleib informiert“).',
+              'Neu: Notebooks und Rezepte findest du jetzt in den Projekten.',
             ]}
           />
         </>
@@ -219,7 +283,7 @@ export default function NavigationAnnouncementDialog({
               onePage
                 ? 'Workplace bringt dich von überall zurück zur Startseite.'
                 : 'Chat und Workplace bringen dich von überall zurück zur Startseite.',
-              'Projekte: gemeinsam im Team arbeiten, mit Notebooks und Rezepten.',
+              'Projekte: deine Projekte, Notebooks und Rezepte an einem Ort.',
               'Suche: ganz unten in der Leiste oder mit ⌘K (Strg+K) von überall.',
               'Darunter deine Chats, und ganz unten dein Konto mit den Einstellungen.',
             ]}
@@ -228,15 +292,68 @@ export default function NavigationAnnouncementDialog({
       ),
     },
     {
+      eyebrow: 'Projekte',
+      title: 'Notebooks und Rezepte sind jetzt in Projekten',
+      visual: <ProjectVisual />,
+      body: (
+        <>
+          <Lead>
+            Unter „Projekte“ findest du deine Projekte, Notebooks und Rezepte an einem Ort. Ein
+            Projekt bündelt, was zusammengehört: Anweisungen, Wissen und Rezepte.
+          </Lead>
+          <Features
+            items={[
+              'Ins Projekt geteilte Notebooks durchsucht der Chat im Projekt von selbst, ohne @.',
+              'Rezepte am Projekt nutzt der Chat dort, sobald sie passen.',
+              'Im Team teilst du Chats, Beiträge und Dateien direkt im Projekt.',
+            ]}
+          />
+          <div>
+            <Button
+              variant="outline"
+              className="rounded-full"
+              onClick={() => {
+                onOpenChange(false);
+                void navigate('/projekte');
+              }}
+            >
+              Zu den Projekten
+              <HiArrowRight className="size-4" aria-hidden="true" />
+            </Button>
+          </div>
+        </>
+      ),
+    },
+    {
+      eyebrow: 'Agents',
+      title: 'Aus Agents werden Rezepte und Projekte',
+      visual: <AgentConvertVisual />,
+      body: (
+        <>
+          <Lead>
+            Neue Agents lassen sich nicht mehr anlegen. Was ein Agent konnte, machen jetzt Rezepte
+            (wie ein Text entsteht) und Projekte (mit Notebooks und Anweisungen).
+          </Lead>
+          <Features
+            items={[
+              'Deine bisherigen Agents laufen weiter wie gewohnt.',
+              'Mit „Umwandeln“ machst du aus einem Agent ein Rezept oder ein Projekt. Vorher siehst du, was mitkommt.',
+              'Statt eines neuen Agents legst du ein Rezept an.',
+            ]}
+          />
+        </>
+      ),
+    },
+    {
       eyebrow: 'Deine Wahl',
-      title: 'Lieber mit Tabs?',
+      title: 'Tabs oder alles auf einer Seite – du entscheidest',
       visual: <TabsVisual />,
       body: (
         <>
           <Lead>
-            Mit Tabs bekommen Chat und Arbeiten je eine eigene Ansicht, umgeschaltet oben auf der
-            Seite. Ändern kannst du das jederzeit in den Einstellungen unter Allgemein → Aufbau der
-            Startseite.
+            Alles auf einer Seite: oben der Chat, darunter dein Arbeitsbereich. Mit Tabs bekommen
+            Chat und Arbeiten je eine eigene Ansicht, umgeschaltet oben auf der Seite. Ändern kannst
+            du das jederzeit in den Einstellungen unter Allgemein → Aufbau der Startseite.
           </Lead>
           <div>
             <Button
