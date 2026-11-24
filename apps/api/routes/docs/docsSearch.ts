@@ -65,6 +65,8 @@ export interface OfficeContentSearchOptions {
   /** Subtypes to search. Defaults to all office content (docs/boards/sheets/presentations). */
   subtypes?: string[];
   limit?: number;
+  /** Nur Inhalte, die in dieses Projekt geteilt sind (Projekt-Chat). */
+  groupId?: string | null;
 }
 
 /** A DocSearchHit plus the denormalized content preview (for rerank + size probe). */
@@ -83,7 +85,7 @@ export async function searchOfficeContent(
   query: string,
   options: OfficeContentSearchOptions = {}
 ): Promise<OfficeContentHit[]> {
-  const { subtypes = OFFICE_SUBTYPES, limit = 5 } = options;
+  const { subtypes = OFFICE_SUBTYPES, limit = 5, groupId = null } = options;
   // Jedes Wort muss vorkommen, nicht die ganze Eingabe als Phrase: das Modell
   // sucht mit Stichwortketten („Klärwerk Ost Abwärme"), und die trafen als
   // ein Muster praktisch nie.
@@ -92,14 +94,22 @@ export async function searchOfficeContent(
   const termWhere = patterns
     .map((_, i) => `(cd.title ILIKE $${i + 4} OR cd.content ILIKE $${i + 4})`)
     .join(' AND ');
+  const groupParam = `$${patterns.length + 4}`;
+  const groupWhere = groupId
+    ? `AND cd.id::text IN (
+         SELECT pgcs.content_id FROM group_content_shares pgcs
+         WHERE pgcs.group_id = ${groupParam}::uuid AND pgcs.content_type = 'collaborative_documents'
+       )`
+    : '';
   return (await db.query(
     `SELECT cd.id, cd.title, cd.document_subtype, cd.updated_at, cd.content
      FROM collaborative_documents cd
      WHERE ${docsAccessWhere('$2', '$1')}
        AND ${termWhere}
+       ${groupWhere}
      ORDER BY cd.updated_at DESC
      LIMIT $3`,
-    [userId, subtypes, limit, ...patterns]
+    [userId, subtypes, limit, ...patterns, ...(groupId ? [groupId] : [])]
   )) as OfficeContentHit[];
 }
 

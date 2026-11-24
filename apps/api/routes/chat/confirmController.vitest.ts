@@ -155,3 +155,47 @@ describe('apply_canvas_deck_edit', () => {
     await expect(executeAction(deckAction)).rejects.toThrow('keine Bearbeitungsrechte');
   });
 });
+
+const boards = vi.hoisted(() => ({ addRowsToBoard: vi.fn() }));
+vi.mock('../../services/boards/BoardService.js', () => boards);
+const assignments = vi.hoisted(() => ({ recordAssignment: vi.fn() }));
+vi.mock('../../services/boards/cardAssignmentNotifications.js', () => assignments);
+
+describe('modify_board', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // hasWriteAccess: die Person besitzt das Board.
+    pg.query.mockResolvedValue([{ created_by: 'u1', permissions: null }]);
+  });
+
+  const boardAction = (rows: Array<Record<string, unknown>>): PendingAction => ({
+    ...action,
+    title: 'Karte hinzufügen',
+    type: 'modify_board',
+    payload: { boardId: 'b1', rows, responseText: '' },
+  });
+
+  it('meldet eine im Chat aufgelöste Person nach dem Anlegen wie das Web', async () => {
+    const anna = { id: '11111111-1111-4111-8111-111111111111', name: 'Anna', avatarRobotId: 2 };
+    await executeAction(boardAction([{ id: 'row-1', title: 'Flyer', assignee: anna }]));
+
+    expect(boards.addRowsToBoard).toHaveBeenCalledWith(
+      'b1',
+      [{ id: 'row-1', title: 'Flyer', assignee: anna }],
+      'u1'
+    );
+    expect(assignments.recordAssignment).toHaveBeenCalledWith({
+      boardId: 'b1',
+      cardId: 'row-1',
+      userId: 'u1',
+      names: ['Anna'],
+      addedAssigneeIds: [anna.id],
+      cardTitle: 'Flyer',
+    });
+  });
+
+  it('ein Name als Text (Board-Generierung) löst keine Benachrichtigung aus', async () => {
+    await executeAction(boardAction([{ title: 'Flyer', assignee: 'Mia' }]));
+    expect(assignments.recordAssignment).not.toHaveBeenCalled();
+  });
+});

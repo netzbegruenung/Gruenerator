@@ -80,3 +80,70 @@ export function boardAssigneeUserIds(raw: unknown): string[] {
     return typeof id === 'string' && id ? [id] : [];
   });
 }
+
+/**
+ * Ein Eintrag der Zuständigkeitszelle in der Form, die das Web-Board schreibt
+ * (`CardAssignee` in `apps/web/src/features/boards/types.ts`): Profil-Id, Name,
+ * Avatar; bei Agenten zusätzlich `agentId`.
+ */
+export interface BoardAssignee {
+  id: string;
+  name: string;
+  avatarRobotId: number;
+  agentId?: string;
+}
+
+/**
+ * Alle Einträge der Zuständigkeitszelle, auch die ohne Id. Ein nackter Name
+ * (so schrieb der Chat bis 11/2026) wird zu `{ id: '' }`, damit ein Ändern ihn
+ * nicht still verwirft.
+ */
+export function parseBoardAssignees(raw: unknown): BoardAssignee[] {
+  if (typeof raw !== 'string' || raw.trim() === '') return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return [{ id: '', name: raw.trim(), avatarRobotId: 1 }];
+  }
+  const items = Array.isArray(parsed) ? parsed : [parsed];
+  return items.flatMap((item): BoardAssignee[] => {
+    if (!item || typeof item !== 'object') return [];
+    const a = item as Record<string, unknown>;
+    const name = typeof a['name'] === 'string' ? a['name'] : '';
+    const id = typeof a['id'] === 'string' ? a['id'] : '';
+    if (!name && !id) return [];
+    const avatar = typeof a['avatarRobotId'] === 'number' ? a['avatarRobotId'] : 1;
+    const agentId = typeof a['agentId'] === 'string' && a['agentId'] ? a['agentId'] : null;
+    return [{ id, name, avatarRobotId: avatar, ...(agentId ? { agentId } : {}) }];
+  });
+}
+
+/** Zellenwert wie im Web (`serializeAssignees`): JSON-Array, leer = `''`. */
+export function serializeBoardAssignees(assignees: readonly BoardAssignee[]): string {
+  return assignees.length ? JSON.stringify(assignees) : '';
+}
+
+export type BoardAssigneeChange =
+  | { mode: 'add'; person: BoardAssignee }
+  | { mode: 'replace'; person: BoardAssignee | null }
+  | { mode: 'remove'; person: BoardAssignee };
+
+/**
+ * Die Zuständigen nach einer Änderung. `add` hängt an (eine Karte kann mehrere
+ * Zuständige haben), `replace` ersetzt alle (`null` leert), `remove` nimmt die
+ * Person heraus. Verglichen wird über die Id, bei Alt-Einträgen ohne Id über den Namen.
+ */
+export function applyBoardAssigneeChange(
+  current: readonly BoardAssignee[],
+  change: BoardAssigneeChange
+): BoardAssignee[] {
+  if (change.mode === 'replace') return change.person ? [change.person] : [];
+  const target = change.person;
+  const same = (a: BoardAssignee) =>
+    target.id
+      ? a.id === target.id
+      : !a.id && a.name.trim().toLowerCase() === target.name.trim().toLowerCase();
+  if (change.mode === 'remove') return current.filter((a) => !same(a));
+  return current.some(same) ? [...current] : [...current, target];
+}

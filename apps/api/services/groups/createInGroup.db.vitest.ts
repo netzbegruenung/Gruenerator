@@ -47,7 +47,7 @@ vi.mock('../../database/services/PostgresService/PostgresService.js', async (imp
   getPostgresInstance: () => adapter,
 }));
 
-const { createInGroup } = await import('./createInGroup.js');
+const { createInGroup, shareCreatedIntoTeamChatProject } = await import('./createInGroup.js');
 const { GroupShareForbiddenError } = await import('./groupShareWriter.js');
 
 const owner = randomUUID();
@@ -112,6 +112,79 @@ describe.skipIf(!url)('createInGroup gegen Postgres', () => {
         permissions: { read: true, write: true, collaborative: false },
       },
     ]);
+  });
+
+  describe('shareCreatedIntoTeamChatProject', () => {
+    const thread = async (shareIntoGroup: boolean, groupId = group): Promise<string> => {
+      const t = await pool.query<{ id: string }>(
+        `INSERT INTO chat_threads (user_id, group_id, title) VALUES ($1, $2, 'Chat') RETURNING id`,
+        [owner, groupId]
+      );
+      const id = t.rows[0].id;
+      if (shareIntoGroup) {
+        await pool.query(
+          `INSERT INTO group_content_shares (content_type, content_id, group_id, shared_by_user_id, permissions)
+           VALUES ('chat_threads', $1, $2, $3, '{"read": true, "write": true}')`,
+          [id, groupId, owner]
+        );
+      }
+      return id;
+    };
+    const doc = async (title: string): Promise<string> =>
+      (
+        await pool.query<{ id: string }>(
+          `INSERT INTO collaborative_documents (title, created_by, last_edited_by, document_subtype, is_public)
+           VALUES ($1, $2, $2, 'boards', false) RETURNING id`,
+          [title, owner]
+        )
+      ).rows[0].id;
+    const sharesOf = async (id: string) =>
+      (
+        await pool.query(
+          `SELECT group_id, permissions FROM group_content_shares
+            WHERE content_type = 'collaborative_documents' AND content_id = $1`,
+          [id]
+        )
+      ).rows;
+
+    it('teilt, was im Team-Chat entsteht, mit Schreibrecht ins Projekt', async () => {
+      const id = await doc('Team-Board');
+      const threadId = await thread(true);
+      expect(
+        await shareCreatedIntoTeamChatProject({ threadId, userId: owner, documentId: id })
+      ).toBe(group);
+      expect(await sharesOf(id)).toEqual([
+        { group_id: group, permissions: { read: true, write: true, collaborative: false } },
+      ]);
+    });
+
+    it('lässt privat, was in einem privaten Chat im Projekt entsteht', async () => {
+      const id = await doc('Privat-Board');
+      const threadId = await thread(false);
+      expect(
+        await shareCreatedIntoTeamChatProject({ threadId, userId: owner, documentId: id })
+      ).toBe(null);
+      expect(await sharesOf(id)).toEqual([]);
+    });
+
+    it('ein archiviertes Projekt nimmt nichts Neues an', async () => {
+      const archived = randomUUID();
+      await pool.query(
+        `INSERT INTO groups (id, name, created_by, is_system, archived_at)
+         VALUES ($1, 'Archiv', $2, false, NOW())`,
+        [archived, owner]
+      );
+      await pool.query(
+        `INSERT INTO group_memberships (group_id, user_id, role, is_active) VALUES ($1, $2, 'admin', TRUE)`,
+        [archived, owner]
+      );
+      const id = await doc('Archiv-Board');
+      const threadId = await thread(true, archived);
+      expect(
+        await shareCreatedIntoTeamChatProject({ threadId, userId: owner, documentId: id })
+      ).toBe(null);
+      expect(await sharesOf(id)).toEqual([]);
+    });
   });
 
   it('leaves no document behind in a project the person is not in', async () => {

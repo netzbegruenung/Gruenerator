@@ -39,6 +39,9 @@ const recallPastChats = vi.fn<(...a: unknown[]) => unknown>();
 const listRecentThreads = vi.fn<(...a: unknown[]) => unknown>();
 const getThreadRecallContext = vi.fn<(...a: unknown[]) => unknown>();
 const resolveSpaceThreadIds = vi.fn<(...a: unknown[]) => unknown>();
+const listAssignableMembers = vi.fn<(...a: unknown[]) => unknown>();
+const listActiveProjectMemberIds = vi.fn<(...a: unknown[]) => unknown>();
+const recordAssignment = vi.fn<(...a: unknown[]) => unknown>();
 
 vi.mock('../../docs/docsSearch.js', () => ({
   searchOfficeContent: (...a: unknown[]) => searchOfficeContent(...a),
@@ -49,6 +52,14 @@ vi.mock('../../docs/docsSearch.js', () => ({
   officeSnippet: (_subtype: string | null, content: string | null) => content ?? '',
 }));
 vi.mock('../../../services/boards/BoardService.js', () => ({
+  FIELD_IDS: { STATUS: 'field-status', ASSIGNEE: 'field-assignee' },
+  resolveStatusId: (
+    fields: Array<{ typeOptions?: { options?: Array<{ id: string; name: string }> } }>,
+    status: string
+  ) =>
+    fields
+      .flatMap((f) => f.typeOptions?.options ?? [])
+      .find((o) => o.id === status || o.name.toLowerCase() === status.toLowerCase())?.id ?? null,
   listUserBoards: (...a: unknown[]) => listUserBoards(...a),
   loadBoardState: (...a: unknown[]) => loadBoardState(...a),
   resolveCardDisplay: (...a: unknown[]) => resolveCardDisplay(...a),
@@ -60,6 +71,17 @@ vi.mock('../../../services/boards/boardCardWriteService.js', () => ({
     }
   },
   updateCard: (...a: unknown[]) => updateCard(...a),
+}));
+vi.mock('../../../services/boards/cardAssignees.js', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../../../services/boards/cardAssignees.js')>();
+  return {
+    ...real,
+    listAssignableMembers: (...a: unknown[]) => listAssignableMembers(...a),
+    listActiveProjectMemberIds: (...a: unknown[]) => listActiveProjectMemberIds(...a),
+  };
+});
+vi.mock('../../../services/boards/cardAssignmentNotifications.js', () => ({
+  recordAssignment: (...a: unknown[]) => recordAssignment(...a),
 }));
 vi.mock('../../../services/groups/groupQueries.js', () => ({
   findGroups: (...a: unknown[]) => findGroups(...a),
@@ -189,9 +211,38 @@ describe('find_content', () => {
       query: 'klima',
       limit: 5,
     })) as { results: Array<{ title: string; url: string }>; resultCount: number };
-    expect(searchOfficeContent).toHaveBeenCalledWith('u1', 'klima', { limit: 5 });
+    expect(searchOfficeContent).toHaveBeenCalledWith('u1', 'klima', { limit: 5, groupId: null });
     expect(out.resultCount).toBe(1);
     expect(out.results[0]).toMatchObject({ title: 'Klimaplan', url: '/office/d1' });
+  });
+
+  it('im Projekt-Chat sucht search nur im Projekt und ohne Reels, scope=all überall', async () => {
+    searchOfficeContent.mockResolvedValue([]);
+    const c = ctx('u1');
+    (c.state as unknown as { project: unknown }).project = { id: 'g1', documentIds: [] };
+    const out = (await exec(makeFindContentTool(c), {
+      action: 'search',
+      query: 'klima',
+      limit: 5,
+    })) as { hinweis?: string };
+    expect(searchOfficeContent).toHaveBeenLastCalledWith('u1', 'klima', {
+      limit: 5,
+      groupId: 'g1',
+    });
+    expect(searchReels).not.toHaveBeenCalled();
+    expect(out.hinweis).toMatch(/scope="all"/);
+
+    await exec(makeFindContentTool(c), {
+      action: 'search',
+      query: 'klima',
+      scope: 'all',
+      limit: 5,
+    });
+    expect(searchOfficeContent).toHaveBeenLastCalledWith('u1', 'klima', {
+      limit: 5,
+      groupId: null,
+    });
+    expect(searchReels).toHaveBeenCalled();
   });
 
   it('search rows carry the id and the read_artifact kind, not only a label in the url', async () => {
@@ -509,10 +560,24 @@ describe('boards_tasks', () => {
     id: 'b1',
     title: 'Kampagne',
     boardType: 'kanban',
-    fields: [],
+    fields: [
+      {
+        id: 'field-status',
+        typeOptions: {
+          options: [
+            { id: 's-open', name: 'Offen' },
+            { id: 's-done', name: 'Erledigt', isDone: true },
+          ],
+        },
+      },
+    ],
     rows: [
       {
         id: 'r1',
+        cells: {
+          'field-status': 's-open',
+          'field-assignee': JSON.stringify([{ id: 'u1', name: 'Mia', avatarRobotId: 1 }]),
+        },
         snap: {
           cardTitle: 'Plakate',
           statusLabel: 'Offen',
@@ -522,7 +587,34 @@ describe('boards_tasks', () => {
       },
       {
         id: 'r2',
+        cells: {},
         snap: { cardTitle: 'Idee', statusLabel: 'Ideen', dueDate: null, assigneeNames: [] },
+      },
+      {
+        id: 'r3',
+        cells: {
+          'field-status': 's-done',
+          'field-assignee': JSON.stringify([{ id: 'u1', name: 'Mia', avatarRobotId: 1 }]),
+        },
+        snap: {
+          cardTitle: 'Erledigt schon',
+          statusLabel: 'Erledigt',
+          dueDate: '2026-07-01',
+          assigneeNames: ['Mia'],
+        },
+      },
+      {
+        id: 'r4',
+        cells: {
+          'field-status': 's-open',
+          'field-assignee': JSON.stringify([{ id: 'u2', name: 'Tom', avatarRobotId: 1 }]),
+        },
+        snap: {
+          cardTitle: 'Tom macht',
+          statusLabel: 'Offen',
+          dueDate: null,
+          assigneeNames: ['Tom'],
+        },
       },
     ],
   };
@@ -537,10 +629,10 @@ describe('boards_tasks', () => {
       boardId: 'b1',
       limit: 15,
     })) as { cards: Array<{ title: string }> };
-    expect(out.cards).toHaveLength(2);
+    expect(out.cards).toHaveLength(4);
     expect(out.cards[0].title).toBe('Plakate');
     // resolved from state, never via a per-card getCardSnapshot reload:
-    expect(resolveCardDisplay).toHaveBeenCalledTimes(2);
+    expect(resolveCardDisplay).toHaveBeenCalledTimes(4);
   });
 
   it('get_cards: cardCount ist die Gesamtzahl, nicht die gezeigten 50', async () => {
@@ -571,15 +663,49 @@ describe('boards_tasks', () => {
     expect(out.results[0].geaendert).toBe('29.10.2026');
   });
 
-  it('my_tasks keeps only cards with a due date or assignee', async () => {
+  it('my_tasks zeigt standardmäßig nur offene Karten, die der Person zugewiesen sind', async () => {
     listUserBoards.mockResolvedValue([{ id: 'b1', title: 'Kampagne', content: null }]);
     loadBoardState.mockResolvedValue(board);
-    const out = (await exec(makeBoardsTasksTool(ctx('u1')), { action: 'my_tasks', limit: 15 })) as {
-      taskCount: number;
-      tasks: Array<{ title: string }>;
+    const out = (await exec(makeBoardsTasksTool(ctx('u1')), {
+      action: 'my_tasks',
+      mine: true,
+      includeDone: false,
+      limit: 15,
+    })) as { tasks: Array<{ title: string }> };
+    expect(out.tasks.map((t) => t.title)).toEqual(['Plakate']);
+  });
+
+  it('my_tasks mine=false liest breit (Datum oder Zuständige), includeDone zeigt Erledigtes', async () => {
+    listUserBoards.mockResolvedValue([{ id: 'b1', title: 'Kampagne', content: null }]);
+    loadBoardState.mockResolvedValue(board);
+    const out = (await exec(makeBoardsTasksTool(ctx('u1')), {
+      action: 'my_tasks',
+      mine: false,
+      includeDone: true,
+      limit: 15,
+    })) as { tasks: Array<{ title: string; done: boolean }> };
+    expect(out.tasks.map((t) => [t.title, t.done])).toEqual([
+      ['Plakate', false],
+      ['Erledigt schon', true],
+      ['Tom macht', false],
+    ]);
+  });
+
+  it('im Projekt-Chat suchen list_boards und my_tasks nur im Projekt, scope=all überall', async () => {
+    listUserBoards.mockResolvedValue([]);
+    const c = ctx('u1');
+    (c.state as unknown as { project: unknown }).project = { id: 'g1', documentIds: [] };
+    const listed = (await exec(makeBoardsTasksTool(c), { action: 'list_boards', limit: 15 })) as {
+      note?: string;
     };
-    expect(out.taskCount).toBe(1);
-    expect(out.tasks[0].title).toBe('Plakate');
+    expect(listUserBoards).toHaveBeenLastCalledWith('u1', 15, 'g1');
+    expect(listed.note).toMatch(/scope="all"/);
+    await exec(makeBoardsTasksTool(c), { action: 'my_tasks', mine: true, limit: 15 });
+    expect(listUserBoards).toHaveBeenLastCalledWith('u1', 12, 'g1');
+    await exec(makeBoardsTasksTool(c), { action: 'list_boards', scope: 'all', limit: 15 });
+    expect(listUserBoards).toHaveBeenLastCalledWith('u1', 15, null);
+    await exec(makeBoardsTasksTool(ctx('u1')), { action: 'list_boards', limit: 15 });
+    expect(listUserBoards).toHaveBeenLastCalledWith('u1', 15, null);
   });
 
   it('add_card emits a modify_board confirm (does not write directly)', async () => {
@@ -598,6 +724,33 @@ describe('boards_tasks', () => {
     expect(action.type).toBe('modify_board');
     expect(action.payload.rows).toHaveLength(1);
     expect(updateCard).not.toHaveBeenCalled();
+  });
+
+  it('add_card legt die Spalten-Id in den Vorschlag und lehnt eine unbekannte Spalte ab', async () => {
+    loadBoardState.mockResolvedValue(board);
+    await exec(makeBoardsTasksTool(ctx('u1')), {
+      action: 'add_card',
+      boardId: 'b1',
+      title: 'Flyer',
+      status: 'offen',
+      limit: 15,
+    });
+    const [, action] = emitToolConfirmAction.mock.calls[0] as [
+      unknown,
+      { payload: { rows: Array<{ status?: string }> } },
+    ];
+    expect(action.payload.rows[0].status).toBe('s-open');
+
+    const out = (await exec(makeBoardsTasksTool(ctx('u1')), {
+      action: 'add_card',
+      boardId: 'b1',
+      title: 'Flyer',
+      status: 'Später',
+      limit: 15,
+    })) as { error?: string; spalten?: string[] };
+    expect(out.error).toMatch(/Später/);
+    expect(out.spalten).toEqual(['Offen', 'Erledigt']);
+    expect(emitToolConfirmAction).toHaveBeenCalledTimes(1);
   });
 
   it('move_card is refused without write access', async () => {
@@ -641,6 +794,144 @@ describe('boards_tasks', () => {
       limit: 15,
     })) as { error?: string };
     expect(out.error).toBe('Karte Plakate bestellen nicht auf Board b1 gefunden.');
+  });
+
+  describe('Zuständige auflösen statt Namen speichern', () => {
+    const anna = {
+      user_id: '11111111-1111-4111-8111-111111111111',
+      source: 'group',
+      first_name: 'Anna',
+      display_name: 'Anna Berg',
+      avatar_robot_id: 3,
+    };
+    const anna2 = {
+      user_id: '22222222-2222-4222-8222-222222222222',
+      source: 'group',
+      first_name: 'Anna',
+      display_name: 'Anna Kurz',
+      avatar_robot_id: 1,
+    };
+    const projectCtx = () => {
+      const c = ctx('u1');
+      (c.state as unknown as { project: unknown }).project = { id: 'g1', documentIds: [] };
+      return c;
+    };
+
+    it('assign schreibt die Profil-Id und meldet die Zuweisung wie das Web', async () => {
+      hasWriteAccess.mockResolvedValue(true);
+      listAssignableMembers.mockResolvedValue([anna]);
+      updateCard.mockResolvedValue({
+        ok: true,
+        cardId: 'r1',
+        applied: ['Zuständig'],
+        addedAssigneeIds: [anna.user_id],
+        assigneeNames: ['Anna Berg'],
+        cardTitle: 'Plakate',
+      });
+      const out = (await exec(makeBoardsTasksTool(ctx('u1')), {
+        action: 'assign',
+        boardId: 'b1',
+        cardId: 'r1',
+        assignee: 'anna berg',
+        assigneeMode: 'add',
+        limit: 15,
+      })) as { ok?: boolean };
+      expect(out.ok).toBe(true);
+      expect(updateCard).toHaveBeenCalledWith('b1', 'r1', {
+        assignees: {
+          mode: 'add',
+          person: { id: anna.user_id, name: 'Anna Berg', avatarRobotId: 3 },
+        },
+      });
+      expect(recordAssignment).toHaveBeenCalledWith({
+        boardId: 'b1',
+        cardId: 'r1',
+        userId: 'u1',
+        names: ['Anna Berg'],
+        addedAssigneeIds: [anna.user_id],
+        cardTitle: 'Plakate',
+      });
+    });
+
+    it('zwei Annas: Kandidaten zurück, nichts geschrieben', async () => {
+      hasWriteAccess.mockResolvedValue(true);
+      listAssignableMembers.mockResolvedValue([anna, anna2]);
+      const out = (await exec(makeBoardsTasksTool(ctx('u1')), {
+        action: 'assign',
+        boardId: 'b1',
+        cardId: 'r1',
+        assignee: 'Anna',
+        assigneeMode: 'add',
+        limit: 15,
+      })) as { candidates?: Array<{ id: string }> };
+      expect(out.candidates?.map((c) => c.id)).toEqual([anna.user_id, anna2.user_id]);
+      expect(updateCard).not.toHaveBeenCalled();
+      expect(recordAssignment).not.toHaveBeenCalled();
+    });
+
+    it('im Projekt-Chat entscheidet die Mitgliedschaft zwischen zwei Annas', async () => {
+      hasWriteAccess.mockResolvedValue(true);
+      listAssignableMembers.mockResolvedValue([anna, anna2]);
+      listActiveProjectMemberIds.mockResolvedValue(new Set([anna2.user_id]));
+      updateCard.mockResolvedValue({
+        ok: true,
+        cardId: 'r1',
+        applied: ['Zuständig'],
+        addedAssigneeIds: [anna2.user_id],
+        assigneeNames: ['Anna Kurz'],
+        cardTitle: 'Plakate',
+      });
+      await exec(makeBoardsTasksTool(projectCtx()), {
+        action: 'assign',
+        boardId: 'b1',
+        cardId: 'r1',
+        assignee: 'Anna',
+        assigneeMode: 'add',
+        limit: 15,
+      });
+      expect(listActiveProjectMemberIds).toHaveBeenCalledWith('g1');
+      expect(updateCard).toHaveBeenCalledWith('b1', 'r1', {
+        assignees: { mode: 'add', person: expect.objectContaining({ id: anna2.user_id }) },
+      });
+    });
+
+    it('wer das Board nicht sieht, wird nicht als Text gespeichert', async () => {
+      hasWriteAccess.mockResolvedValue(true);
+      listAssignableMembers.mockResolvedValue([anna]);
+      const out = (await exec(makeBoardsTasksTool(ctx('u1')), {
+        action: 'assign',
+        boardId: 'b1',
+        cardId: 'r1',
+        assignee: 'Bernd',
+        assigneeMode: 'add',
+        limit: 15,
+      })) as { error?: string; zuweisbar?: string[] };
+      expect(out.error).toMatch(/Bernd/);
+      expect(out.zuweisbar).toEqual(['Anna Berg']);
+      expect(updateCard).not.toHaveBeenCalled();
+    });
+
+    it('add_card legt die aufgelöste Person samt Karten-Id in den Vorschlag', async () => {
+      loadBoardState.mockResolvedValue(board);
+      listAssignableMembers.mockResolvedValue([anna]);
+      await exec(makeBoardsTasksTool(ctx('u1')), {
+        action: 'add_card',
+        boardId: 'b1',
+        title: 'Flyer',
+        assignee: 'Anna',
+        limit: 15,
+      });
+      const [, action] = emitToolConfirmAction.mock.calls[0] as [
+        unknown,
+        { payload: { rows: Array<{ id?: string; assignee?: unknown }> } },
+      ];
+      expect(action.payload.rows[0].assignee).toEqual({
+        id: anna.user_id,
+        name: 'Anna Berg',
+        avatarRobotId: 3,
+      });
+      expect(action.payload.rows[0].id).toMatch(/^row-/);
+    });
   });
 });
 
