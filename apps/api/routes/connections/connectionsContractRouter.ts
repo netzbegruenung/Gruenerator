@@ -18,6 +18,7 @@ import { env } from '../../config/env.js';
 import { SlackApiError } from '../../services/api-clients/slackClient.js';
 import {
   ConnectionNotAllowedError,
+  ConnectionNotConfiguredError,
   ConnectionService,
 } from '../../services/connections/ConnectionService.js';
 import {
@@ -134,6 +135,10 @@ export const connectionsContractRouter = s.router(connectionsContract, {
       return { status: 200 as const, body: { success: true as const, connectLink } };
     } catch (err) {
       if (err instanceof ConnectionNotAllowedError) return failure(403, err.message);
+      if (err instanceof ConnectionNotConfiguredError) {
+        log.warn(`[connectLink] ${params.provider}: integration missing in Nango`);
+        return failure(500, err.message);
+      }
       log.error(`[connectLink] ${params.provider} failed`, err);
       return failure(500, 'Verbindung konnte nicht gestartet werden.');
     }

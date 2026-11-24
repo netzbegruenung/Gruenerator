@@ -1,3 +1,5 @@
+import axios from 'axios';
+
 import { env } from '../../config/env.js';
 import {
   ADMIN_ONLY_NANGO_PROVIDERS,
@@ -32,6 +34,26 @@ export class ConnectionNotAllowedError extends Error {
     super(`${NANGO_PROVIDERS[provider].label} ist nur für Admins freigeschaltet.`);
     this.name = 'ConnectionNotAllowedError';
   }
+}
+
+/**
+ * Nango kennt die Integration nicht: sie ist im Code eingetragen, auf dieser
+ * Nango-Instanz aber noch nicht angelegt (Einrichtung siehe #5870).
+ */
+export class ConnectionNotConfiguredError extends Error {
+  constructor(readonly provider: NangoProviderKey) {
+    super(`${NANGO_PROVIDERS[provider].label} ist auf diesem Server noch nicht eingerichtet.`);
+    this.name = 'ConnectionNotConfiguredError';
+  }
+}
+
+// Nango antwortet dann mit 400 `invalid_body` und diesem Text am Pfad
+// `allowed_integrations.<i>`.
+function isMissingIntegration(err: unknown): boolean {
+  if (!axios.isAxiosError(err) || err.response?.status !== 400) return false;
+  const errors = (err.response.data as { error?: { errors?: { message?: unknown }[] } } | null)
+    ?.error?.errors;
+  return Array.isArray(errors) && errors.some((e) => e.message === 'Integration does not exist');
 }
 
 export class ConnectionService {
@@ -167,10 +189,16 @@ export class ConnectionService {
     if ((await this.deniedProviders(userId)).has(providerKey)) {
       throw new ConnectionNotAllowedError(providerKey);
     }
-    const response = await getNango().createConnectSession({
-      end_user: { id: userId },
-      allowed_integrations: [providerKey],
-    });
+    let response: Awaited<ReturnType<ReturnType<typeof getNango>['createConnectSession']>>;
+    try {
+      response = await getNango().createConnectSession({
+        end_user: { id: userId },
+        allowed_integrations: [providerKey],
+      });
+    } catch (err) {
+      if (isMissingIntegration(err)) throw new ConnectionNotConfiguredError(providerKey);
+      throw err;
+    }
     const link = new URL(response.data.connect_link);
     if (env.NANGO_PUBLIC_URL) link.searchParams.set('apiURL', env.NANGO_PUBLIC_URL);
     return link.toString();
