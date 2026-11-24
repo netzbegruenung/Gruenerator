@@ -30,6 +30,7 @@ import { GroupFeedCard } from '../../../../components/projekte/GroupFeedCard';
 import { knowledgeItems } from '../../../../components/projekte/knowledgeMenu';
 import { canWritePost } from '../../../../components/projekte/postRules';
 import { ProjectChatComposer } from '../../../../components/projekte/ProjectChatComposer';
+import { ProjectCloudSourcesCard } from '../../../../components/projekte/ProjectCloudSourcesCard';
 import { ProjectInstructionsCard } from '../../../../components/projekte/ProjectInstructionsCard';
 import { ProjectKnowledgeList } from '../../../../components/projekte/ProjectKnowledgeList';
 import { ProjectLinks } from '../../../../components/projekte/ProjectLinks';
@@ -368,6 +369,13 @@ export default function ProjektDetailScreen() {
               onDiscuss={onDiscuss}
             />
           )}
+          {!isSystem && id ? (
+            <ProjectCloudSourcesCard
+              groupId={id}
+              isAdmin={isAdmin}
+              archived={!!group.archived_at}
+            />
+          ) : null}
           <ProjectLinks links={group.links ?? []} />
           {isTeam ? (
             <ProjectMembersPreview
