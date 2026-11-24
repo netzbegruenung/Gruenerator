@@ -151,6 +151,14 @@ export interface ChatConfig {
   saveSharepic?: (variant: SharepicVariant, threadId: string) => Promise<string | null>;
   /** Runs Python in a browser Pyodide worker (in-chat code execution). */
   runPython?: RunPython;
+  /**
+   * The user's notebooks for the @mention list, from the host's own cache. Web
+   * hands in its `notebookCollections` query so `GET /api/auth/notebook-collections`
+   * runs once; omit it (mobile) and the mention hook fetches the endpoint itself.
+   * Should throw an unauthorized `ApiError` for anonymous users — the hook maps it
+   * to an empty list.
+   */
+  fetchUserNotebooks?: () => Promise<Array<{ id: string; name: string }>>;
   /** Current state of a chat-edited sharepic canvas (GET /api/canvas/:id/state). */
   fetchSharepicState?: (canvasId: string) => Promise<{
     state: Record<string, unknown>;
@@ -357,6 +365,7 @@ interface ChatConfigStore extends ResolvedChatConfig {
   reviewSharepic?: ChatConfig['reviewSharepic'];
   saveSharepic?: ChatConfig['saveSharepic'];
   runPython?: RunPython;
+  fetchUserNotebooks?: ChatConfig['fetchUserNotebooks'];
   fetchSharepicState?: ChatConfig['fetchSharepicState'];
   fetchSharepicVersions?: ChatConfig['fetchSharepicVersions'];
   fetchSharepicVersionState?: ChatConfig['fetchSharepicVersionState'];
@@ -499,6 +508,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       reviewSharepic: config?.reviewSharepic,
       saveSharepic: config?.saveSharepic,
       runPython: config?.runPython,
+      fetchUserNotebooks: config?.fetchUserNotebooks,
       fetchSharepicState: config?.fetchSharepicState,
       fetchSharepicVersions: config?.fetchSharepicVersions,
       fetchSharepicVersionState: config?.fetchSharepicVersionState,
