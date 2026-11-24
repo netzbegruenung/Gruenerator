@@ -2796,10 +2796,18 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
     "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
-    "heading": "Wolke-Ordner verbinden (experimentell)",
-    "anchor": "#wolke-ordner-verbinden-experimentell",
+    "heading": "Wolke & Drive verbinden (experimentell)",
+    "anchor": "#wolke--drive-verbinden-experimentell",
     "category": "Guides",
-    "text": "Als Admin eines Projekts kannst du einen Nextcloud-Ordner verbinden. Klicke dazu in der Karte Wolke-Ordner unter dem Wissen auf „+ Ordner“ und füge den Freigabelink des Ordners ein. Den Link bekommst du in der Wolke über „Teilen“ und „Link kopieren“. Die Dateien des Ordners erscheinen danach im Wissen. Der Grünerator gleicht den Ordner einmal pro Stunde ab. Dabei passiert Folgendes: Neue und geänderte Dateien werden eingelesen. Dateien, die du in der Wolke löschst, verschwinden auch aus dem Projekt. Pro Ordner werden höchstens 200 Dateien übernommen. Bei einem großen Ordner kommen sie über mehrere Abgleiche herein. Gelesen wird mit dem Freigabelink der Person, die den Ordner verbunden hat. Verlässt sie das Projekt, pausiert der Abgleich. Die schon eingelesenen Dateien bleiben im Projekt. Über das Menü an der Ordnerzeile kannst du „Jetzt abgleichen“ oder den Ordner „Trennen“. In der Wolke selbst ändert keiner der beiden Schritte etwas."
+    "text": "Als Admin eines Projekts kannst du Dateien aus einer Ablage mit dem Projekt verbinden. Sie erscheinen im Wissen und bleiben aktuell. Das geht in der Karte Wolke & Drive unter dem Wissen über „+ Quelle“: Wolke-Ordner: Füge den Freigabelink eines Nextcloud-Ordners ein. Den Link bekommst du in der Wolke über „Teilen“ und „Link kopieren“. Neue Dateien im Ordner kommen von selbst dazu, gelöschte verschwinden aus dem Projekt. Pro Ordner werden höchstens 200 Dateien übernommen; bei einem großen Ordner kommen sie über mehrere Abgleiche herein. In der App heißt der Knopf „+ Ordner“. Dateien aus Google Drive: Wähle im Google-Dateiwähler eine oder mehrere Dateien aus. Dafür muss Google Drive in den Einstellungen unter Konnektoren verbunden sein. Der Grünerator darf in Google Drive nur ausgewählte Dateien lesen, keine ganzen Ordner. Neue Dateien musst du deshalb selbst nachwählen. Geänderte Dateien liest er neu ein. Gelöschte Dateien und solche, die du ihm entziehst, verschwinden aus dem Projekt. Dieser Weg geht nur im Browser, nicht in der App. Der Grünerator gleicht jede Quelle einmal pro Stunde ab. Gelesen wird mit dem Zugang der Person, die die Quelle verbunden hat."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
+    "heading": "Wolke & Drive verbinden (experimentell)",
+    "anchor": "#wolke--drive-verbinden-experimentell",
+    "category": "Guides",
+    "text": "Verlässt sie das Projekt, pausiert der Abgleich, und die schon eingelesenen Dateien bleiben. Über das Menü an der Zeile kannst du „Jetzt abgleichen“ oder die Quelle „Trennen“. In der Wolke oder in Google Drive ändert keiner der beiden Schritte etwas."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gruenerator-personalisieren",
