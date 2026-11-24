@@ -1,8 +1,12 @@
-import { useLocalSearchParams } from 'expo-router';
+import { Redirect } from 'expo-router';
 
-import { BildEditorScreen } from '../../components/image-studio/bild-editor/BildEditorScreen';
+import { routeWithParams } from '../../types/routes';
 
-export default function BildEditorRoute() {
-  const { mode } = useLocalSearchParams<{ mode?: string }>();
-  return <BildEditorScreen initialMode={mode === 'sharepic' ? 'sharepic' : 'erstellen'} />;
+/**
+ * The former Bild-Editor. Sharepics and KI-Bilder are made in the chat now, as
+ * on web (`/studio/bild` leads to the chat there). This path stays forever:
+ * shipped binaries and links may still open it.
+ */
+export default function LegacyBildEditorRoute() {
+  return <Redirect href={routeWithParams('/(focused)/chat-conversation', { threadId: 'new' })} />;
 }

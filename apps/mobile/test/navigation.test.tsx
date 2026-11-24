@@ -16,6 +16,7 @@ import { useContext } from 'react';
 import { Text } from 'react-native';
 
 import FocusedLayout from '../app/(focused)/_layout';
+import LegacyBildEditorRoute from '../app/(focused)/bild-editor';
 import LegacyImageStudioRoute from '../app/(focused)/image-studio';
 import LegacyImageStudioGalleryRoute from '../app/(focused)/image-studio/gallery';
 import LegacyImageStudioCreateRoute from '../app/(focused)/image-studio-create/[...rest]';
@@ -69,7 +70,7 @@ const tree = {
   '(focused)/wissen': Stub,
   '(fullscreen)/_layout': () => <Stack />,
   '(fullscreen)/subtitle-editor': Stub,
-  '(focused)/bild-editor': Stub,
+  '(focused)/bild-editor': LegacyBildEditorRoute,
   '(focused)/ki-bildgenerierung': LegacyKiBildgenerierungRoute,
   '(focused)/image-studio/index': LegacyImageStudioRoute,
   '(focused)/image-studio/gallery': LegacyImageStudioGalleryRoute,
@@ -337,13 +338,14 @@ describe('the agent store across a drawer swap', () => {
 
 describe('retired screens keep their URLs (#4025)', () => {
   it.each([
-    ['/ki-bildgenerierung', '/bild-editor'],
-    ['/image-studio', '/bild-editor'],
+    ['/ki-bildgenerierung', '/chat-conversation'],
+    ['/image-studio', '/chat-conversation'],
     ['/image-studio/gallery', '/start'],
-    ['/image-studio-create/ki-input', '/bild-editor'],
-    ['/image-studio-create/result', '/bild-editor'],
-    ['/image-studio-editor', '/bild-editor'],
-    ['/webview-editor', '/bild-editor'],
+    ['/image-studio-create/ki-input', '/chat-conversation'],
+    ['/image-studio-create/result', '/chat-conversation'],
+    ['/image-studio-editor', '/chat-conversation'],
+    ['/webview-editor', '/chat-conversation'],
+    ['/bild-editor', '/chat-conversation'],
     ['/research', '/wissen'],
     ['/all-threads', '/start'],
   ])('%s lands on %s', async (from, to) => {
