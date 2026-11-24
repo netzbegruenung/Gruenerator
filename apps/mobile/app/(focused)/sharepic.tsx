@@ -1,17 +1,20 @@
 import { Redirect, useLocalSearchParams } from 'expo-router';
 
-import { SharepicCreatorScreen } from '../../components/image-studio/sharepic/SharepicCreatorScreen';
 import { routeWithParams } from '../../types/routes';
 
 /**
- * The sharepic chat starts in the Bild-Editor, like web's `/studio/freitext`:
- * opened without a prompt (the Sharepic tile, an old link), it sends the person
- * there in „Sharepic" mode. The path stays — shipped binaries still open it.
+ * The former sharepic chat. Sharepics are made in the chat now, as on web
+ * (`/studio/freitext` leads to the chat there); a prompt that came along waits
+ * in the composer. This path stays forever: shipped binaries still open it.
  */
-export default function SharepicRoute() {
+export default function LegacySharepicRoute() {
   const { initialMessage } = useLocalSearchParams<{ initialMessage?: string }>();
-  if (!initialMessage) {
-    return <Redirect href={routeWithParams('/(focused)/bild-editor', { mode: 'sharepic' })} />;
-  }
-  return <SharepicCreatorScreen initialMessage={initialMessage} />;
+  return (
+    <Redirect
+      href={routeWithParams('/(focused)/chat-conversation', {
+        threadId: 'new',
+        ...(initialMessage ? { initialComposerText: initialMessage } : {}),
+      })}
+    />
+  );
 }

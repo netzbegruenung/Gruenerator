@@ -81,7 +81,7 @@ async function readCollabText(row: DocRow & { created_by: string }): Promise<str
   return ((await readArtifactContent({ id: row.id, kind, userId: row.created_by })) ?? '').trim();
 }
 
-/** Punkte und Indexzeile eines Dokuments entfernen (Papierkorb, Purge, leerer Text). */
+/** Punkte und Indexzeile eines Dokuments entfernen (Papierkorb, Purge). */
 export async function removeCollabIndex(docId: string): Promise<void> {
   // Punkte zuerst: scheitert das, bleibt die Zeile und der Worker versucht es erneut.
   await getQdrantDocumentService().deleteDocumentVectors(docId, null);
@@ -113,10 +113,6 @@ export async function indexCollabDocument(docId: string): Promise<CollabIndexRes
 
   const title = (row.title ?? '').trim() || '(ohne Titel)';
   const text = await readCollabText({ ...row, created_by: row.created_by });
-  if (!text) {
-    await removeCollabIndex(docId);
-    return 'removed';
-  }
 
   const hash = createHash('sha256').update(`${title}\n${text}`).digest('hex');
   const known = (await db.queryOne(
@@ -128,19 +124,28 @@ export async function indexCollabDocument(docId: string): Promise<CollabIndexRes
       docId,
       row.started_at,
     ]);
-    return 'unchanged';
+    return text ? 'unchanged' : 'removed';
   }
 
-  // Erst einbetten, dann ersetzen: ein Ausfall des Anbieters lässt den alten Stand stehen.
-  const { chunks, embeddings } = await chunkAndEmbedText(text, { title });
   const qdrant = getQdrantDocumentService();
-  await qdrant.deleteDocumentVectors(docId, null);
-  await qdrant.storeDocumentVectors(row.created_by, docId, chunks, embeddings, {
-    sourceType: COLLAB_SOURCE_TYPE,
-    title,
-    filename: title,
-    additionalPayload: { collab_subtype: row.subtype, source_url: sourceUrl(row.subtype, docId) },
-  });
+  let chunks: unknown[] = [];
+  if (text) {
+    // Erst einbetten, dann ersetzen: ein Ausfall des Anbieters lässt den alten Stand stehen.
+    const embedded = await chunkAndEmbedText(text, { title });
+    chunks = embedded.chunks;
+    await qdrant.deleteDocumentVectors(docId, null);
+    await qdrant.storeDocumentVectors(row.created_by, docId, embedded.chunks, embedded.embeddings, {
+      sourceType: COLLAB_SOURCE_TYPE,
+      title,
+      filename: title,
+      additionalPayload: { collab_subtype: row.subtype, source_url: sourceUrl(row.subtype, docId) },
+    });
+  } else {
+    // Leer: Punkte weg, die Indexzeile aber bleibt (0 Chunks, `checked_at`). Ohne
+    // Zeile gälte das Dokument in `findDueCollabDocuments` sofort wieder als fällig
+    // und würde bei jedem Tick neu gelesen und gelöscht.
+    await qdrant.deleteDocumentVectors(docId, null);
+  }
   await db.query(
     `INSERT INTO collab_search_index (document_id, content_hash, chunk_count, checked_at, indexed_at)
      VALUES ($1::uuid, $2, $3, $4, now())
@@ -149,6 +154,7 @@ export async function indexCollabDocument(docId: string): Promise<CollabIndexRes
            checked_at = EXCLUDED.checked_at, indexed_at = EXCLUDED.indexed_at`,
     [docId, hash, chunks.length, row.started_at]
   );
+  if (!text) return 'removed';
   log.info(`Indexed ${row.subtype} ${docId} (${chunks.length} chunks)`);
   return 'indexed';
 }

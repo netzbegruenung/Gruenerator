@@ -24,8 +24,7 @@
 import { type RoleBausteinKey, roleBausteinKey } from '../roles/rolesConfig.js';
 
 import { LANDESVERBAENDE, landesverbandAgentIds } from './landesverbaende.js';
-import { SKILLS } from './skills/index.js';
-import { VISIBLE_SYSTEM_AGENTS, getSystemAgent } from './system.js';
+import { SKILL_SLIMS, VISIBLE_SLIM_AGENTS, getSlimAgent } from './slim.js';
 
 /**
  * Die Felder einer Profilrolle, die dieses Modul liest. Weiterhin strukturell
@@ -88,7 +87,7 @@ const LV_ID_BY_TITLE: ReadonlyMap<string, string> = new Map(
 const DISCOVERABLE_LV_IDS: ReadonlySet<string> = new Set(
   LANDESVERBAENDE.filter((lv) => {
     const ids = landesverbandAgentIds(lv);
-    return VISIBLE_SYSTEM_AGENTS.some((agent) => ids.includes(agent.identifier));
+    return VISIBLE_SLIM_AGENTS.some((agent) => ids.includes(agent.identifier));
   }).map((lv) => lv.id)
 );
 
@@ -169,11 +168,11 @@ export function lvSkillMentionsForRoles(
   const lvIds = landesverbandIdsForRoles(roles, userLocale);
   if (lvIds.length === 0) return [];
 
-  return SKILLS.filter(
+  return SKILL_SLIMS.filter(
     (skill) =>
       isLvItemVisibleForRoles(skill.identifier, lvIds) &&
       lvIdForAgentIdentifier(skill.identifier) !== null &&
-      getSystemAgent(skill.identifier)?.hiddenFromInventory !== true
+      getSlimAgent(skill.identifier)?.hiddenFromInventory !== true
   ).map((skill) => skill.mention.toLowerCase());
 }
 
@@ -209,12 +208,12 @@ export function landesverbandOfferForBundesland(bundesland: string): Landesverba
 
   const agentIds: readonly string[] = landesverbandAgentIds(lv);
   const agents = agentIds.filter((id) =>
-    VISIBLE_SYSTEM_AGENTS.some((agent) => agent.identifier === id)
+    VISIBLE_SLIM_AGENTS.some((agent) => agent.identifier === id)
   ).length;
-  const skills = SKILLS.filter(
+  const skills = SKILL_SLIMS.filter(
     (skill) =>
       agentIds.includes(skill.identifier) &&
-      getSystemAgent(skill.identifier)?.hiddenFromInventory !== true
+      getSlimAgent(skill.identifier)?.hiddenFromInventory !== true
   ).length;
 
   return { lvId, title: lv.title, agents, skills, notebookId: lv.notebookId };

@@ -17,7 +17,6 @@ export type AppRoute =
   | '/(fullscreen)/video-editor'
   | '/(focused)/scanner'
   | '/(focused)/vorlagen'
-  | '/(focused)/sharepic'
   | '/(focused)/profilbild'
   | '/(focused)/sticker'
   | '/(focused)/sticker-neu'
@@ -39,7 +38,6 @@ export type AppRoute =
   | '/(focused)/notebook-reader'
   | '/(focused)/agents'
   | '/(focused)/projekte'
-  | '/(focused)/bild-editor'
   // Fullscreen routes
   | '/(fullscreen)/subtitle-editor';
 
@@ -54,14 +52,6 @@ export interface ModalRouteParams {
   '/(focused)/umfragen': {
     /** A single parliament's page (`bayern`, `oesterreich` …). An unknown value leads back to the overview. */
     land?: string;
-  };
-  '/(focused)/bild-editor': {
-    /** Opens in „Sharepic" mode instead of „KI-Bild". */
-    mode?: 'sharepic';
-  };
-  '/(focused)/sharepic': {
-    /** The prompt from the Bild-Editor, sent as the first turn. */
-    initialMessage: string;
   };
   '/(focused)/chat-conversation': {
     threadId: string;

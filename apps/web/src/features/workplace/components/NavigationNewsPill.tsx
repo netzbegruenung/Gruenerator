@@ -26,7 +26,7 @@ export function NavigationNewsPill({ className }: { className?: string }) {
         )}
       >
         <span className="text-primary-700 dark:text-primary-300">Neu:</span>
-        Tabs oder alles auf einer Seite – du entscheidest
+        Entdecke die neue Navigation
       </button>
       {requested && (
         <Suspense fallback={null}>

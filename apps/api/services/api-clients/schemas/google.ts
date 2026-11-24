@@ -10,6 +10,8 @@ export const googleDriveFileSchema = z.object({
   modifiedTime: z.string(),
   parents: z.array(z.string()).nullable().optional(),
   webViewLink: z.string().nullable().optional(),
+  /** Nur von `getFile` angefragt: eine Datei im Papierkorb bleibt per Id lesbar. */
+  trashed: z.boolean().optional(),
 });
 
 export type GoogleDriveFile = z.infer<typeof googleDriveFileSchema>;

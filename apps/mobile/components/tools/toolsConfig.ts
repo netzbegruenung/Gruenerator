@@ -71,20 +71,11 @@ const VORLAGEN: ToolDef = {
 };
 
 /**
- * The Studio tools, mirroring web's /studio landing strip: the create menu on
- * Arbeiten, and the drawer once starred.
+ * The Studio tools, mirroring web's Studio overview: the create menu on
+ * Arbeiten, and the drawer once starred. Sharepics and KI-Bilder are made in
+ * the chat, as on web — the Bild-Editor and its tile are gone.
  */
 export const STUDIO_TOOLS: ToolDef[] = [
-  // One entry for KI-Bild and Sharepic: the Bild-Editor switches between them,
-  // as on web. The id stays (F1, favourites persist it); a starred `sharepic`
-  // is shown as this one, see `ThreadListDrawer`.
-  {
-    id: 'ki-bildgenerierung',
-    title: 'Bild erstellen',
-    description: 'KI-Bild oder Sharepic',
-    icon: toolIconKey('ki-bildgenerierung'),
-    route: '/(focused)/bild-editor',
-  },
   {
     id: 'reel',
     title: 'Reel',
@@ -125,7 +116,6 @@ export const STUDIO_TOOLS: ToolDef[] = [
  * that speak Ionicons (`EmptyState`, the create sheet's rows).
  */
 export const STUDIO_TOOL_GLYPHS: Record<string, IoniconsIconName> = {
-  'ki-bildgenerierung': 'sparkles',
   reel: 'videocam',
   videoeditor: 'film',
   profilbild: 'person-circle',
