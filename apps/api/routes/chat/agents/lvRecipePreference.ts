@@ -18,7 +18,8 @@
  * LV-Agent, dem die Varianten gehören — `presse` ↔ Kategorie `presse` am
  * PR-Agenten, `instagram` ↔ Kategorie `social` am PR-Agenten (LV-Agenten führen
  * als Social-Rezept ausschließlich die Insta-Variante), `buergermail` ↔
- * Kategorie `dokumente` am Bürger*innenanfragen-Agenten. Andere generische
+ * Kategorie `dokumente` am Bürger*innenanfragen-Agenten, `wahlpruefstein` ↔
+ * Kategorie `dokumente` am Wahlprüfstein-Agenten. Andere generische
  * Rezepte (facebook, twitter, reel, …) haben keine LV-Varianten und stehen
  * deshalb nicht in der Tabelle. Bei
  * zweistufigen Verbänden gewinnt die Partei-Ebene — dieselbe Wahl wie
@@ -29,9 +30,9 @@
  *
  * Bewusst NICHT angewandt auf explizit gewählte Mentions (`@presse` im
  * Composer): eine ausdrückliche Wahl wird nicht übersteuert. Die Aufrufer sind
- * die drei automatischen Türen — implizites Rezept (routingStage),
- * `rezept_laden` im Loop (catalogAssembly) und der `defaultRecipeMention`-
- * Rückfall (respondNode/searchNode via `roleAwareDefaultRecipeMention`).
+ * die automatischen Türen — `rezept_laden` im Loop (catalogAssembly) und der
+ * `defaultRecipeMention`-Rückfall (respondNode, searchNode und das Vorab-Laden
+ * im Loop via `roleAwareDefaultRecipeMention`).
  */
 import {
   DISABLED_LV_AGENT_IDS,
@@ -54,7 +55,7 @@ interface LvRecipeFamily {
   /** `skillCategory` der LV-Varianten. */
   category: string;
   /** Registry-Feld des LV-Agenten, dem die Varianten gehören. */
-  owner: 'prAgentId' | 'buergerAgentId';
+  owner: 'prAgentId' | 'buergerAgentId' | 'wahlpruefsteinAgentId';
 }
 
 /** Rezept-Familie je generischer Mention — nur Familien MIT LV-Varianten. */
@@ -62,6 +63,7 @@ const LV_FAMILY_BY_GENERIC_MENTION: Readonly<Record<string, LvRecipeFamily>> = {
   presse: { category: 'presse', owner: 'prAgentId' },
   instagram: { category: 'social', owner: 'prAgentId' },
   buergermail: { category: 'dokumente', owner: 'buergerAgentId' },
+  wahlpruefstein: { category: 'dokumente', owner: 'wahlpruefsteinAgentId' },
 };
 
 /** Der Landesverband, zu dem ein Agent gehört — gleich welcher LV-Familie. */
@@ -178,8 +180,7 @@ export function roleAwareDefaultRecipeMention(
  * bekommen es deshalb deterministisch.
  *
  * „Ein-Rezept" ist wörtlich gemeint, und zwar auf beiden Seiten:
- * - dem Agenten gehört kein anderes Rezept als sein Default (die LV-
- *   Wahlprüfstein-Agenten besitzen gar keins, sie leihen sich `wahlpruefstein`);
+ * - dem Agenten gehört kein anderes Rezept als sein Default;
  * - der Besitzer des Defaults besitzt nur dieses eine Rezept. `presse` gehört
  *   dem PR-Agenten, der auch Insta, Facebook und LinkedIn führt — ein vorab
  *   geladenes Presserezept stünde dort neben einem selbst gewählten
