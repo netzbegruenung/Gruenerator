@@ -31,6 +31,18 @@ vi.mock('./ProjekteNotebooksSection', () => ({
       {collection.name} {extraMeta.join(' ')}
     </a>
   ),
+  SystemNotebookTile: ({ entry, extraMeta }: { entry: { title: string }; extraMeta: string[] }) => (
+    <a href="#system">
+      {entry.title} {extraMeta.join(' ')}
+    </a>
+  ),
+}));
+
+vi.mock('../../notebook/config/notebooksConfig', () => ({
+  SYSTEM_NOTEBOOKS: [
+    { id: 'bayern-notebook', title: 'Bayern', path: '/notebooks/bayern' },
+    { id: 'hessen-notebook', title: 'Hessen', path: '/notebooks/hessen' },
+  ],
 }));
 
 const projekt = (id: string, name: string): GroupSummary => ({
@@ -63,6 +75,20 @@ describe('ProjekteRecentSection', () => {
     expect(names[1]).toMatch(/Haushalt.*Notebook ·/);
     expect(names[2]).toMatch(/Alt/);
     expect(screen.queryByText(/Unbenutzt|Nie geöffnet/)).not.toBeInTheDocument();
+  });
+
+  // Der Chat und die Notebook-Seite verbuchen System-Notebooks per Registry-Id.
+  it('includes used system notebooks next to own ones', () => {
+    usage.notebook = {
+      'bayern-notebook': { useCount: 1, lastUsedAt: '2026-11-23T10:00:00Z' },
+      'nb-1': { useCount: 2, lastUsedAt: '2026-11-21T10:00:00Z' },
+    };
+    renderWithProviders(<ProjekteRecentSection projekte={[]} />);
+    const names = screen.getAllByRole('link').map((l) => l.textContent ?? '');
+    expect(names).toHaveLength(2);
+    expect(names[0]).toMatch(/Bayern.*Notebook ·/);
+    expect(names[1]).toMatch(/Haushalt/);
+    expect(screen.queryByText(/Hessen/)).not.toBeInTheDocument();
   });
 
   it('renders nothing without any usage', () => {

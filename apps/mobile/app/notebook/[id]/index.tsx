@@ -13,6 +13,7 @@ import { NotebookIdContext } from '../../../components/notebook/NotebookIdContex
 import { NotebookOverview } from '../../../components/notebook/NotebookOverview';
 import { NotebookResearchPanel } from '../../../components/notebook/NotebookResearchPanel';
 import { notebookKindOf } from '../../../config/notebooksConfig';
+import { useRecordItemUsage } from '../../../hooks/useItemUsage';
 import { lightTheme, darkTheme, spacing } from '../../../theme';
 import { route } from '../../../types/routes';
 import { goBackOr } from '../../../utils/navigation';
@@ -39,6 +40,9 @@ export default function NotebookDetailScreen() {
   // Derived, not passed: a deep link or a stored thread knows only the id, and
   // a user notebook's UUID must not get the system notebook's overview.
   const notebookKind = notebookKindOf(notebookId);
+  // Öffnen zählt als Nutzung („Zuletzt" auf Projekte) — dieselbe Id, unter der
+  // der Chat das Notebook verbucht (Registry-Id bzw. UUID).
+  useRecordItemUsage('notebook', notebookId || null);
   // Prefer the passed title; fall back to the registry name so the greeting always
   // shows the real notebook (e.g. deep links omit the param).
   const displayTitle =

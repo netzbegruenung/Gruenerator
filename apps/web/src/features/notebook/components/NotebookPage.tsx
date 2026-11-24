@@ -30,6 +30,7 @@ import { useDocumentTitle } from '../../../components/hooks/useDocumentTitle';
 import { useAuthStore } from '../../../stores/authStore';
 import { whenIdle } from '../../../utils/whenIdle';
 import { useModelPreferences } from '../../models/hooks/useModelPreferences';
+import { useRecordItemUsage } from '../../usage/useItemUsage';
 import { buildChatHandoffUrl, createRepeatGuard, readChatHandoff } from '../chatHandoff';
 import { getNotebookConfig } from '../config/notebookPagesConfig';
 import { getNotebookById } from '../config/notebooksConfig';
@@ -581,6 +582,9 @@ export const DynamicNotebookPage = ({ id: idProp }: DynamicNotebookPageProps = {
   const { data, isLoading, isPlaceholderData, refetch } = useNotebookCollection(id);
   const collection = data?.collection ?? null;
   const fetchError = data?.error ?? null;
+  // Öffnen zählt als Nutzung („Zuletzt" auf /projekte), per UUID wie im Chat —
+  // nicht `id`, das ein Slug sein kann.
+  useRecordItemUsage('notebook', collection?.id ?? null);
 
   if (isLoading) return <NotebookPageShell />;
 
