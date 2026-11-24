@@ -10,6 +10,7 @@ import { generateSlugSuffix } from '@gruenerator/shared/utils';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { signalTeamChatTurn } from '../../../services/collab/chatTurnSignal.js';
+import { ownsThreadSql } from '../../../services/groups/projectThreadScope.js';
 
 import { type PersistedStep } from './agenticLoop/types.js';
 import { type ArtifactKindId } from './artifactKindRegistry.js';
@@ -263,7 +264,7 @@ export async function expirePendingApproval(threadId: string, userId: string): P
      WHERE thread_id = $1
        AND role = 'assistant'
        AND tool_results->'pendingApproval'->>'resolved' = 'false'
-       AND thread_id IN (SELECT id FROM chat_threads WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL)`,
+       AND thread_id IN (SELECT id FROM chat_threads ct WHERE ct.id = $1 AND ${ownsThreadSql('ct', '$2')} AND ct.deleted_at IS NULL)`,
     [threadId, userId]
   );
 }
@@ -294,7 +295,7 @@ export async function resolveToolGrant(
      WHERE m.thread_id = $1
        AND m.role = 'assistant'
        AND jsonb_typeof(m.tool_results->'toolGrants') = 'array'
-       AND m.thread_id IN (SELECT id FROM chat_threads WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL)`,
+       AND m.thread_id IN (SELECT id FROM chat_threads ct WHERE ct.id = $1 AND ${ownsThreadSql('ct', '$2')} AND ct.deleted_at IS NULL)`,
     [threadId, userId, serverId, scope]
   );
 }

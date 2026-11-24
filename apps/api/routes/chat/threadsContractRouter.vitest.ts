@@ -337,7 +337,11 @@ describe('delete — the Papierkorb for chat threads', () => {
     await listTrashedThreads(OWNER, { limit: 10, before: null });
 
     expect(effects).toHaveLength(1);
-    expect(effects[0]).toContain('WHERE deleted_at IS NOT NULL AND user_id = $1');
+    expect(effects[0]).toContain(
+      'WHERE deleted_at IS NOT NULL AND (chat_threads.user_id::text = $1::text'
+    );
+    // Wer aus dem Projekt eines Team-Chats ausgetreten ist, sieht ihn nicht mehr.
+    expect(effects[0]).toContain('lgm.is_active = TRUE');
   });
 
   it("refuses someone else's thread without touching it", async () => {
