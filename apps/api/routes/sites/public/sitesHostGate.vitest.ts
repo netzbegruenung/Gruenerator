@@ -9,14 +9,10 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../../config/env.js', () => ({ env: { THUMBNAIL_CACHE_DIR: '/nonexistent' } }));
 
-const {
-  createSitesHostGate,
-  createSitesReadLimiter,
-  createSitesUnavailableGate,
-  isSitesPassthrough,
-} = await import('./sitesHostGate.js');
+const { createSitesHostGate, createSitesUnavailableGate, isSitesPassthrough } =
+  await import('./sitesHostGate.js');
 const { siteOrigin } = await import('../../../config/sitesOrigin.js');
-const { SITE_BARE_CSP } = await import('./siteSecurity.js');
+const { createSitesReadLimiter, SITE_BARE_CSP } = await import('./siteSecurity.js');
 
 const apiRoot = join(dirname(fileURLToPath(import.meta.url)), '../../..');
 
