@@ -223,7 +223,30 @@ export async function runPdfGeneration(opts: {
   });
 }
 
-export async function runDocGeneration(opts: {
+type DocGenerationOpts = Parameters<typeof generateDocArtifact>[0];
+
+/**
+ * Erzeugt Dokument, Tabelle oder Präsentation. Mit `threadId` landet das
+ * Ergebnis im Projekt, wenn der Chat ein Team-Chat eines Projekts ist
+ * (`shareCreatedIntoTeamChatProject`); ohne (MCP, Board-Agenten) bleibt es privat.
+ */
+export async function runDocGeneration(
+  opts: DocGenerationOpts & { threadId?: string | null }
+): Promise<CreatedDocument | null> {
+  const created = await generateDocArtifact(opts);
+  if (created && opts.threadId) {
+    const { shareCreatedIntoTeamChatProject } =
+      await import('../../../services/groups/createInGroup.js');
+    await shareCreatedIntoTeamChatProject({
+      threadId: opts.threadId,
+      userId: opts.userId,
+      documentId: created.documentId,
+    });
+  }
+  return created;
+}
+
+async function generateDocArtifact(opts: {
   kind: 'presentation' | 'sheet' | 'document';
   userContent: string;
   req: Express.Request;
@@ -377,7 +400,26 @@ export interface CreatedBoard {
  * post-processed structure the UI needs). NO SSE/stream ownership. Returns null
  * when the model produced no parseable board structure.
  */
-export async function runBoardGeneration(opts: {
+type BoardGenerationOpts = Parameters<typeof generateBoardArtifact>[0];
+
+/** Erzeugt ein Board; mit `threadId` wie {@link runDocGeneration} im Team-Chat ins Projekt. */
+export async function runBoardGeneration(
+  opts: BoardGenerationOpts & { threadId?: string | null }
+): Promise<CreatedBoard | null> {
+  const created = await generateBoardArtifact(opts);
+  if (created && opts.threadId) {
+    const { shareCreatedIntoTeamChatProject } =
+      await import('../../../services/groups/createInGroup.js');
+    await shareCreatedIntoTeamChatProject({
+      threadId: opts.threadId,
+      userId: opts.userId,
+      documentId: created.boardId,
+    });
+  }
+  return created;
+}
+
+async function generateBoardArtifact(opts: {
   userContent: string;
   req: Express.Request;
   userId: string;
