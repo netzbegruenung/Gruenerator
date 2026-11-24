@@ -506,6 +506,14 @@
       "audience": "de-AT"
     },
     {
+      "command": "@presse-nrw",
+      "title": "PM NRW",
+      "description": "Pressemitteilung im Namen der Grünen NRW. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband NRW geschrieben wird.",
+      "avatar": "📰",
+      "category": "presse",
+      "audience": "de-DE"
+    },
+    {
       "command": "@presse-saarland",
       "title": "PM Saarland",
       "description": "Pressemitteilung im Stil der Grünen Saarland. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Saarland geschrieben wird.",
@@ -527,6 +535,14 @@
       "description": "Pressemitteilung von BÜNDNIS 90/DIE GRÜNEN Sachsen-Anhalt. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Sachsen-Anhalt geschrieben wird.",
       "avatar": "🌾",
       "category": "presse",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@insta-nrw",
+      "title": "Insta NRW",
+      "description": "Instagram-Post im Namen der Grünen NRW. Nutzen statt des allgemeinen Instagram-Rezepts, wenn für den Landesverband NRW geschrieben wird.",
+      "avatar": "📸",
+      "category": "social",
       "audience": "de-DE"
     },
     {
@@ -680,6 +696,102 @@
       "avatar": "🍃",
       "category": "social",
       "audience": "de-AT"
+    },
+    {
+      "command": "@wahlpruefstein-at",
+      "title": "Wahlprüfsteine Österreich",
+      "description": "Beantwortet Fragenkataloge von Verbänden Frage für Frage für die Grünen Österreich. Nutzen statt der allgemeinen Wahlprüfsteine, wenn für die Grünen Österreich geantwortet wird.",
+      "avatar": "📋",
+      "category": "dokumente",
+      "audience": "de-AT"
+    },
+    {
+      "command": "@wahlpruefstein-bayern",
+      "title": "Wahlprüfsteine Bayern",
+      "description": "Beantwortet Fragenkataloge von Verbänden Frage für Frage für die Grünen Bayern. Nutzen statt der allgemeinen Wahlprüfsteine, wenn für den Landesverband Bayern geantwortet wird.",
+      "avatar": "📋",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@wahlpruefstein-berlin",
+      "title": "Wahlprüfsteine Berlin",
+      "description": "Beantwortet Fragenkataloge von Verbänden Frage für Frage für die Grünen Berlin. Nutzen statt der allgemeinen Wahlprüfsteine, wenn für den Landesverband Berlin geantwortet wird.",
+      "avatar": "📋",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@wahlpruefstein-brandenburg",
+      "title": "Wahlprüfsteine Brandenburg",
+      "description": "Beantwortet Fragenkataloge von Verbänden Frage für Frage für die Grünen Brandenburg. Nutzen statt der allgemeinen Wahlprüfsteine, wenn für den Landesverband Brandenburg geantwortet wird.",
+      "avatar": "📋",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@wahlpruefstein-hamburg",
+      "title": "Wahlprüfsteine Hamburg",
+      "description": "Beantwortet Fragenkataloge von Verbänden Frage für Frage für die Grünen Hamburg. Nutzen statt der allgemeinen Wahlprüfsteine, wenn für den Landesverband Hamburg geantwortet wird.",
+      "avatar": "📋",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@wahlpruefstein-hessen",
+      "title": "Wahlprüfsteine Hessen",
+      "description": "Beantwortet Fragenkataloge von Verbänden Frage für Frage für die Grünen Hessen. Nutzen statt der allgemeinen Wahlprüfsteine, wenn für den Landesverband Hessen geantwortet wird.",
+      "avatar": "📋",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@wahlpruefstein-mv",
+      "title": "Wahlprüfsteine Mecklenburg-Vorpommern",
+      "description": "Beantwortet Fragenkataloge von Verbänden Frage für Frage für die Grünen Mecklenburg-Vorpommern. Nutzen statt der allgemeinen Wahlprüfsteine, wenn für den Landesverband Mecklenburg-Vorpommern geantwortet wird.",
+      "avatar": "📋",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@wahlpruefstein-nrw",
+      "title": "Wahlprüfsteine NRW",
+      "description": "Beantwortet Fragenkataloge von Verbänden Frage für Frage für die Grünen NRW. Nutzen statt der allgemeinen Wahlprüfsteine, wenn für den Landesverband NRW geantwortet wird.",
+      "avatar": "📋",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@wahlpruefstein-saarland",
+      "title": "Wahlprüfsteine Saarland",
+      "description": "Beantwortet Fragenkataloge von Verbänden Frage für Frage für die Grünen Saarland. Nutzen statt der allgemeinen Wahlprüfsteine, wenn für den Landesverband Saarland geantwortet wird.",
+      "avatar": "📋",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@wahlpruefstein-sachsen-anhalt",
+      "title": "Wahlprüfsteine Sachsen-Anhalt",
+      "description": "Beantwortet Fragenkataloge von Verbänden Frage für Frage für die Grünen Sachsen-Anhalt. Nutzen statt der allgemeinen Wahlprüfsteine, wenn für den Landesverband Sachsen-Anhalt geantwortet wird.",
+      "avatar": "📋",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@wahlpruefstein-schleswig-holstein",
+      "title": "Wahlprüfsteine Schleswig-Holstein",
+      "description": "Beantwortet Fragenkataloge von Verbänden Frage für Frage für die Grünen Schleswig-Holstein. Nutzen statt der allgemeinen Wahlprüfsteine, wenn für den Landesverband Schleswig-Holstein geantwortet wird.",
+      "avatar": "📋",
+      "category": "dokumente",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@wahlpruefstein-thueringen",
+      "title": "Wahlprüfsteine Thüringen",
+      "description": "Beantwortet Fragenkataloge von Verbänden Frage für Frage für die Grünen Thüringen. Nutzen statt der allgemeinen Wahlprüfsteine, wenn für den Landesverband Thüringen geantwortet wird.",
+      "avatar": "📋",
+      "category": "dokumente",
+      "audience": "de-DE"
     },
     {
       "command": "@beschluss-bayern",
