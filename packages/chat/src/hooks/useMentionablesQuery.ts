@@ -160,7 +160,17 @@ export function useDocsQuery() {
 }
 
 export function useUserNotebooksQuery() {
-  const get = useMentionableFetch();
+  const fetchViaHost = useChatConfigStore((s) => s.fetchUserNotebooks);
+  const plainGet = useMentionableFetch();
+  // With a host-supplied list the endpoint is read through the host's cache; the
+  // sync layer keeps its 401 → empty handling and registry feed unchanged.
+  const get = useMemo<MentionableFetch>(
+    () =>
+      fetchViaHost
+        ? <T>() => fetchViaHost().then((collections) => ({ collections }) as T)
+        : plainGet,
+    [fetchViaHost, plainGet]
+  );
   return useQuery<UserNotebookListItem[]>({
     queryKey: ['mention-user-notebooks'],
     queryFn: () => syncUserNotebooks(get),

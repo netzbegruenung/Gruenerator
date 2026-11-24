@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import { isSkillAbsorbedByMention } from '../chat-intents/index.js';
 import { isAdminVisibleAgent } from './agentVisibility.js';
-import { getVisibleSystemAgentsForLocale, isAgentVisibleForPlatform } from './audience.js';
+import { isAgentVisibleForPlatform } from './audience.js';
+import { getVisibleSystemAgentsForLocale } from './audienceCatalog.js';
 import { isLandesverbandIdentifier } from './landesverbaende.js';
 import { isLvItemVisibleForRoles } from './landesverbandForRoles.js';
 import { selectOfficialCatalog } from './officialCatalog.js';

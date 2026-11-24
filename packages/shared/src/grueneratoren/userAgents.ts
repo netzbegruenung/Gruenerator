@@ -6,7 +6,8 @@ import {
 } from '@gruenerator/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { SYSTEM_AGENTS, agentKey, type Agent } from '../agents/index.js';
+import { agentKey } from '../agents/slug.js';
+import { type Agent } from '../agents/types.js';
 import { ApiError, apiErrorFromResponse, getContractsClient } from '../api/index.js';
 import { GROUPS_QUERY_KEY, type GroupSummary } from '../groups/index.js';
 
@@ -151,6 +152,9 @@ export function useSharedSystemAgents(userGroups: readonly GroupSummary[]) {
     queryKey: ['shared-system-agents', groupIds],
     enabled: groupIds.length > 0,
     queryFn: async (): Promise<SharedAgentEntry[]> => {
+      // The full catalogue loads here, not at boot: this hook only runs once a
+      // project lists shared system agents, and it needs more than the slim index.
+      const { SYSTEM_AGENTS } = await import('../agents/system.js');
       const results = await Promise.all(
         userGroups.map(async (group) => {
           const res = await getContractsClient().groups.listGroupContent({

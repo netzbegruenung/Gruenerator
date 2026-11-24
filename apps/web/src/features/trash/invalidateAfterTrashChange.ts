@@ -19,6 +19,8 @@ const ALWAYS: readonly QueryKey[] = [['recent-activity'], ['content'], ['trash']
  *
  * The chat `@`-mention pickers (packages/chat `useMentionablesQuery`) cache the
  * same lists under their own `mention-*` keys, so they are listed next to the page caches.
+ * `mention-user-notebooks` is the exception in what it fetches: it reads through the
+ * `notebookCollections` entry (one request) and only re-derives the @mention registry.
  */
 const BY_KIND: Record<TrashKind, readonly QueryKey[]> = {
   collaborative_document: [

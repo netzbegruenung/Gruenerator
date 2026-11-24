@@ -334,3 +334,38 @@ export interface Skill {
   // here would publish every prompt — .gitignore cannot help once codegen has
   // read it. Keep the shape metadata-only.
 }
+
+/**
+ * What the app shell reads from an agent while booting (sidebar, role shortcuts,
+ * composer routing). The generated `definitions/slim.generated.ts` carries only
+ * these fields, so the boot path does not pull the full catalogue — with its
+ * opening copy, few-shot examples and tool config — into the entry chunk.
+ * Anything that needs another field reads `SYSTEM_AGENTS` (system.ts).
+ */
+export type AgentSlim = Pick<
+  Agent,
+  | 'identifier'
+  | 'slug'
+  | 'title'
+  | 'iconKey'
+  | 'routeTo'
+  | 'pinnedToSidebar'
+  | 'hiddenFromInventory'
+  | 'webOnly'
+  | 'audience'
+> & {
+  localized?: Partial<Record<'de-DE' | 'de-AT', Pick<AgentLocalization, 'title'>>>;
+};
+
+/** The boot-time view of a system recipe; see {@link AgentSlim}. */
+export type SkillSlim = Pick<
+  Skill,
+  | 'identifier'
+  | 'mention'
+  | 'title'
+  | 'iconKey'
+  | 'skillCategory'
+  | 'audience'
+  | 'modelOnly'
+  | 'instances'
+>;
