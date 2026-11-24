@@ -31,6 +31,8 @@ vi.mock('../../../database/services/NotebookQdrantHelper.js', () => ({
   },
 }));
 vi.mock('../../../utils/reportBackgroundError.js', () => ({ reportBackgroundError }));
+const removeOriginal = vi.fn(async () => undefined);
+vi.mock('../documentOriginals.js', () => ({ removeOriginal }));
 
 const { getTrashedDocument, purgeDocument, restoreDocument, trashDocument, trashDocuments } =
   await import('./metadataOperations.js');
@@ -122,6 +124,18 @@ describe('purgeDocument', () => {
     expect(sql).toContain('deleted_at < $2');
     expect(params).toEqual(['d1', cutoff]);
     expect(effects).toEqual(['DELETE FROM documents', 'vectors d1 u1', 'notebook links d1']);
+  });
+
+  it('removes the kept original with the row', async () => {
+    const pg = fakePostgres({
+      'DELETE FROM documents': [{ id: 'd1', user_id: 'u1', file_path: 'u1/d1.pdf' }],
+    });
+
+    expect(await purgeDocument(pg as never, 'd1', null)).toBe(true);
+    expect(flat((pg.query.mock.calls[0] as unknown as [string])[0])).toContain(
+      'RETURNING id, user_id, file_path'
+    );
+    expect(removeOriginal).toHaveBeenCalledWith('u1/d1.pdf');
   });
 
   it('touches no side store when the document was restored meanwhile (0 rows)', async () => {

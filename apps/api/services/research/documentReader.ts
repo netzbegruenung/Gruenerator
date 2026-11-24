@@ -25,6 +25,8 @@ const FLAT_PARAGRAPH_CHARS = 500;
 /** Longer than this, a paragraph is a page dump (PDF text without paragraph
  *  breaks) and is rebuilt from sentences like a flat text. */
 const MAX_PARAGRAPH_CHARS = 1200;
+/** A page marker heading as ingest writes it (`## Seite N`). */
+const PAGE_HEADING = /^Seite\s+(\d+)$/;
 /** Length of a passage's teaser in the list beside the text. */
 const PASSAGE_TEASER_CHARS = 160;
 
@@ -193,10 +195,15 @@ export function buildReaderDocument(fullText: string, query: string): ReaderDocu
   const blocks: ResearchDocumentBlock[] = [];
   const passages: ResearchDocumentPassage[] = [];
   let heading: string | null = null;
+  let page: number | null = null;
 
   for (const block of toBlocks(fullText)) {
     if (block.kind === 'heading') {
       heading = block.text;
+      // Uploads are stored with `## Seite N` markers (`OcrService/pageMarkers.ts`);
+      // the page lets „Original öffnen" jump to `#page=N`.
+      const marker = PAGE_HEADING.exec(block.text);
+      if (marker) page = Number(marker[1]);
       blocks.push({
         kind: 'heading',
         segments: [{ passage: null, parts: splitTerms(block.text, pattern) }],
@@ -211,7 +218,7 @@ export function buildReaderDocument(fullText: string, query: string): ReaderDocu
       let passage: number | null = null;
       if (run.hit) {
         passage = passages.length;
-        passages.push({ index: passage, heading, text: teaser(run.text) });
+        passages.push({ index: passage, heading, page, text: teaser(run.text) });
       }
       segments.push({ passage, parts: splitTerms(run.text, pattern) });
       run = null;
