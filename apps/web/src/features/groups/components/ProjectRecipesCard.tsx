@@ -1,3 +1,9 @@
+import { type LandesverbandId } from '@gruenerator/contracts';
+import {
+  SKILL_SLIMS,
+  landesverbandRecipeMentions,
+  landesverbandTitle,
+} from '@gruenerator/shared/agents';
 import { type GroupFeedItem } from '@gruenerator/shared/groups';
 import { PiNotebook, PiPlus } from 'react-icons/pi';
 import { Link } from 'react-router-dom';
@@ -13,6 +19,8 @@ interface ProjectRecipesCardProps {
   canAdd: boolean;
   actions: ShareActions | null;
   onDiscuss: ((item: GroupFeedItem) => void) | null;
+  /** Der Landesverband des Projekts: seine Rezepte gelten hier von selbst. */
+  landesverband?: LandesverbandId | null | undefined;
 }
 
 /**
@@ -27,7 +35,18 @@ export function ProjectRecipesCard({
   canAdd,
   actions,
   onDiscuss,
+  landesverband,
 }: ProjectRecipesCardProps) {
+  // Was das Projekt über seinen Landesverband mitbringt (`streamContext.ts`):
+  // nicht geteilt, also auch nicht zu entfernen — nur sichtbar machen.
+  const shared = new Set(items.map((i) => i.slug));
+  const lvRecipes = landesverbandRecipeMentions(landesverband)
+    .filter((mention) => !shared.has(mention))
+    .flatMap((mention) => {
+      const skill = SKILL_SLIMS.find((s) => s.mention === mention);
+      return skill ? [{ mention, title: skill.title }] : [];
+    });
+  const lvTitle = landesverband ? landesverbandTitle(landesverband) : null;
   return (
     <section
       aria-labelledby="projekt-rezepte-titel"
@@ -52,10 +71,12 @@ export function ProjectRecipesCard({
         )}
       </div>
       {items.length === 0 ? (
-        <p className="m-0 text-sm text-muted-foreground">
-          Halte fest, wie Texte in diesem Projekt gelingen. Chats hier nutzen die Rezepte von
-          selbst.
-        </p>
+        lvRecipes.length === 0 && (
+          <p className="m-0 text-sm text-muted-foreground">
+            Halte fest, wie Texte in diesem Projekt gelingen. Chats hier nutzen die Rezepte von
+            selbst.
+          </p>
+        )
       ) : (
         <ul className="m-0 flex list-none flex-col p-0">
           {items.map((item) => (
@@ -69,6 +90,22 @@ export function ProjectRecipesCard({
             />
           ))}
         </ul>
+      )}
+      {lvRecipes.length > 0 && (
+        <p className="m-0 text-sm text-muted-foreground">
+          {`Vom Landesverband ${lvTitle ?? ''}: `}
+          {lvRecipes.map((recipe, i) => (
+            <span key={recipe.mention}>
+              {i > 0 && ', '}
+              <Link
+                to={`/agentura/rezept/${encodeURIComponent(recipe.mention)}`}
+                className="text-primary-600 hover:underline dark:text-primary-400"
+              >
+                {recipe.title}
+              </Link>
+            </span>
+          ))}
+        </p>
       )}
     </section>
   );
