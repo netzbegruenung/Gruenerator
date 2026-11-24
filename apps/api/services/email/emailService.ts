@@ -77,10 +77,7 @@ export function isEmailConfigured(): boolean {
 export async function sendEmail(options: SendEmailOptions): Promise<boolean> {
   const t = getTransporter();
   if (!t) {
-    log.warn('[Email] SMTP not configured, skipping email', {
-      to: options.to,
-      subject: options.subject,
-    });
+    log.warn('[Email] SMTP not configured, skipping email');
     return false;
   }
 
@@ -93,10 +90,12 @@ export async function sendEmail(options: SendEmailOptions): Promise<boolean> {
       text: options.text,
       attachments: options.attachments,
     });
-    log.info('[Email] Sent', { to: options.to, subject: options.subject });
+    log.info('[Email] Sent');
     return true;
   } catch (error) {
-    log.error('[Email] Failed to send', { error });
+    // Die SMTP-Meldung nennt oft die Empfängeradresse; geloggt werden nur die Codes.
+    const { code, responseCode } = (error ?? {}) as { code?: unknown; responseCode?: unknown };
+    log.error('[Email] Failed to send', { code, responseCode });
     return false;
   }
 }

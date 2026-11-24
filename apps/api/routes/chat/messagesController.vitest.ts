@@ -6,10 +6,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const gets: unknown[] = [];
+const deletes: unknown[] = [];
 vi.mock('../../utils/keycloak/index.js', () => ({
   createAuthenticatedRouter: () => ({
     get: (_path: string, ...rest: unknown[]) => gets.push(...rest),
-    delete: () => {},
+    delete: (_path: string, ...rest: unknown[]) => deletes.push(...rest),
   }),
 }));
 vi.mock('../../utils/logger.js', () => ({
@@ -21,7 +22,11 @@ vi.mock('../../database/services/PostgresService.js', () => ({
 }));
 const markGroupAsRead = vi.fn(async () => undefined);
 vi.mock('../../services/notifications/NotificationService.js', () => ({ markGroupAsRead }));
-vi.mock('./services/threadAccessService.js', () => ({ canAccessThread: async () => true }));
+const isThreadOwner = vi.fn(async () => true);
+vi.mock('./services/threadAccessService.js', () => ({
+  canAccessThread: async () => true,
+  isThreadOwner,
+}));
 vi.mock('./services/threadPersistenceService.js', () => ({
   getUser: (req: { user?: unknown }) => req.user,
 }));
@@ -236,5 +241,38 @@ describe('opening a thread', () => {
   it('marks its team-chat notification bundle read', async () => {
     await load({});
     expect(markGroupAsRead).toHaveBeenCalledWith('group-chat:t1', 'u1');
+  });
+});
+
+describe('DELETE /api/chat-service/messages', () => {
+  const clear = deletes.at(-1) as Handler;
+  const THREAD = '550e8400-e29b-41d4-a716-446655440001';
+
+  async function run() {
+    const res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
+    await clear({ query: { threadId: THREAD }, user: { id: 'owner-1' } }, res);
+    return res;
+  }
+
+  beforeEach(() => {
+    query.mockReset().mockResolvedValue([{ user_id: 'owner-1' }]);
+    isThreadOwner.mockReset().mockResolvedValue(true);
+  });
+
+  it('clears the thread for its owner', async () => {
+    const res = await run();
+    expect(res.json).toHaveBeenCalledWith({ success: true });
+    expect(query.mock.calls.some(([sql]) => /DELETE FROM chat_messages/i.test(sql as string))).toBe(
+      true
+    );
+  });
+
+  it('keeps the history of a team chat whose starter left the project', async () => {
+    isThreadOwner.mockResolvedValue(false);
+    const res = await run();
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(query.mock.calls.some(([sql]) => /DELETE FROM chat_messages/i.test(sql as string))).toBe(
+      false
+    );
   });
 });

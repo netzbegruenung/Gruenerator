@@ -50,6 +50,7 @@ export {
   useGroupInstructions,
   useGroupMembers,
   useJoinGroup,
+  useRegenerateJoinToken,
   useLeaveGroup,
   useSetGroupMute,
   useSetGroupInstructions,

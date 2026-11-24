@@ -46,6 +46,10 @@ const { readThreadProjectInstructions } = await import('./groupInstructions.js')
 const { getProjectFileDocumentIds } = await import('./projectFiles.js');
 const { getSpaceRecallScope, getThreadRecallContext, recallPastChats } =
   await import('../../routes/chat/services/pastChatRecallService.js');
+const { getTrashedThread, listTrashedThreads } =
+  await import('../../routes/chat/services/threadTrashService.js');
+const { expirePendingApproval } =
+  await import('../../routes/chat/services/threadPersistenceService.js');
 
 const A = randomUUID();
 const B = randomUUID();
@@ -200,5 +204,45 @@ describe.skipIf(!url)('Projektmaterial nach Mitgliedschaft', () => {
     expect(await readThreadProjectInstructions(T1, B)).toBeNull();
     expect(await getProjectFileDocumentIds(T1, B)).toHaveLength(0);
     expect(await getSpaceRecallScope(T1, B)).toBeNull();
+  });
+
+  it('a starter who left can no longer settle cards in the team chat', async () => {
+    const pending = `{"pendingApproval":{"resolved":"false"}}`;
+    for (const thread of [T1, T2]) {
+      await pool.query(
+        `INSERT INTO chat_messages (thread_id, role, content, tool_results) VALUES ($1,'assistant','?',$2::jsonb)`,
+        [thread, pending]
+      );
+    }
+    await pool.query(
+      `UPDATE group_memberships SET is_active = FALSE WHERE group_id = $1 AND user_id = $2`,
+      [P, A]
+    );
+    await expirePendingApproval(T1, A);
+    await expirePendingApproval(T2, A);
+    const { rows } = await pool.query<{ thread_id: string; resolved: string }>(
+      `SELECT thread_id, tool_results->'pendingApproval'->>'resolved' AS resolved
+         FROM chat_messages WHERE thread_id = ANY($1::uuid[])`,
+      [[T1, T2]]
+    );
+    expect(Object.fromEntries(rows.map((r) => [r.thread_id, r.resolved]))).toEqual({
+      [T1]: 'false',
+      [T2]: 'expired',
+    });
+  });
+
+  it('a trashed team chat stays with the project after its starter left', async () => {
+    await pool.query(`UPDATE chat_threads SET deleted_at = now() WHERE id = ANY($1::uuid[])`, [
+      [T1, T2],
+    ]);
+    await pool.query(
+      `UPDATE group_memberships SET is_active = FALSE WHERE group_id = $1 AND user_id = $2`,
+      [P, A]
+    );
+    expect((await getTrashedThread(T1, A)).status).toBe('forbidden');
+    expect((await getTrashedThread(T2, A)).status).toBe('ok');
+    const listed = (await listTrashedThreads(A, { limit: 50, before: null })).map((t) => t.id);
+    expect(listed).toContain(T2);
+    expect(listed).not.toContain(T1);
   });
 });

@@ -23,7 +23,7 @@ import { createLogger } from '../../utils/logger.js';
 import { ThreadId, UserId } from '../../utils/types/branded.js';
 
 import { withImageProxy } from './services/searchImagePayload.js';
-import { canAccessThread } from './services/threadAccessService.js';
+import { canAccessThread, isThreadOwner } from './services/threadAccessService.js';
 import { type MentionChip, persistedMentionChipsSchema } from './services/threadMentionRefs.js';
 import { getUser } from './services/threadPersistenceService.js';
 
@@ -486,7 +486,7 @@ router.delete('/', async (req, res) => {
     if ((thread as { user_id: string }[]).length === 0) {
       return res.status(404).json({ error: 'Thread not found' });
     }
-    if ((thread as { user_id: string }[])[0].user_id !== user.id) {
+    if (!(await isThreadOwner(ThreadId(threadId), UserId(user.id)))) {
       return res.status(403).json({ error: 'Only thread owner can delete messages' });
     }
 
