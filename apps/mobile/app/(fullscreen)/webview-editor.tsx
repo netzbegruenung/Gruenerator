@@ -1,11 +1,11 @@
 import { Redirect } from 'expo-router';
 
-import { route } from '../../types/routes';
+import { routeWithParams } from '../../types/routes';
 
 /**
- * The old Image Studio web editor. Images are edited in the Bild-Editor now (#4025).
+ * The old Image Studio web editor. Sharepics and KI-Bilder are made in the chat now, as on web.
  * This path stays forever: shipped binaries and links may still open it.
  */
 export default function LegacyWebviewEditorRoute() {
-  return <Redirect href={route('/(focused)/bild-editor')} />;
+  return <Redirect href={routeWithParams('/(focused)/chat-conversation', { threadId: 'new' })} />;
 }
