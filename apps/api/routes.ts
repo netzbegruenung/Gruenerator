@@ -525,9 +525,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   // so per-handler `requireAuthUser()` gates the writes and the public/:token
   // routes still work.
   app.use('/api/auth/notebook', optionalAuth);
-  // `:id` deckt auch `multi/ask`. Öffentliche Notebooks fragen oft anonym —
-  // die lässt requireAiConsent durch, angemeldete Aufrufe nicht.
-  app.use(['/api/auth/notebook/:id/ask', '/api/auth/notebook/public/:token/ask'], requireAiConsent);
+  // Öffentliche Notebooks fragen oft anonym — die lässt requireAiConsent
+  // durch, angemeldete Aufrufe nicht.
+  app.use('/api/auth/notebook/public/:token/ask', requireAiConsent);
   mountNotebookContractRouter(app);
   // External API for partner integrations (MCP / programmatic access).
   // Auth: per-route Bearer API key middleware (requireApiKey). Rate-limited

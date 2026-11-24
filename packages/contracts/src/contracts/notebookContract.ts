@@ -46,43 +46,6 @@ export const notebookContract = c.router(
     },
 
     /**
-     * POST /api/auth/notebook/multi/ask
-     * Ask a question across multiple system collections.
-     * Requires authentication (req.user).
-     */
-    askMulti: {
-      method: 'POST',
-      path: '/api/auth/notebook/multi/ask',
-      body: askQuestionBodySchema,
-      responses: {
-        200: notebookQAResponseSchema,
-        400: notebookErrorResponseSchema,
-        401: notebookErrorResponseSchema,
-        500: notebookErrorResponseSchema,
-      },
-      summary: 'Ask a question across multiple collections',
-    },
-
-    /**
-     * POST /api/auth/notebook/:id/ask
-     * Ask a question of a single collection owned by the user.
-     * Requires authentication.
-     */
-    askSingle: {
-      method: 'POST',
-      path: '/api/auth/notebook/:id/ask',
-      pathParams: z.object({ id: z.string() }),
-      body: askQuestionBodySchema,
-      responses: {
-        200: notebookQAResponseSchema,
-        400: notebookErrorResponseSchema,
-        401: notebookErrorResponseSchema,
-        500: notebookErrorResponseSchema,
-      },
-      summary: 'Ask a question of a single collection',
-    },
-
-    /**
      * POST /api/auth/notebook/:id/research-search
      * Chunk-level manual research search over a single user-owned notebook.
      * Requires authentication + ownership. System collection IDs are rejected

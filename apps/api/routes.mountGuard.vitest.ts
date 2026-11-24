@@ -117,11 +117,6 @@ describe('routes.ts mount order', () => {
         mount: 'mountUserTemplatesContractRouter(app)',
       },
       {
-        path: '/api/auth/notebook/:id/ask',
-        auth: "app.use('/api/auth/notebook', optionalAuth",
-        mount: 'mountNotebookContractRouter(app)',
-      },
-      {
         path: '/api/documents/upload-manual',
         auth: "app.use('/api/documents', requireAuth",
         mount: "app.use('/api/documents', publicReadLimiter, documentsRouter)",
