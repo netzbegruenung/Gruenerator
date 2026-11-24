@@ -53,6 +53,7 @@ function emptyBuckets(over: Partial<GroupContentBuckets> = {}): GroupContentBuck
     canvas_templates: [],
     group_posts: [],
     recipes: [],
+    system_recipes: [],
     ...over,
   };
 }

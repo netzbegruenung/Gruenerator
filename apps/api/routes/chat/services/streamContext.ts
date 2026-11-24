@@ -20,6 +20,7 @@ import {
   isVisualBlockKind,
   type NotebookSourceRef,
 } from '@gruenerator/contracts';
+import { landesverbandRecipeMentions } from '@gruenerator/shared/agents';
 import { type UserRole, stripRoleBlock } from '@gruenerator/shared/roles';
 import {
   hasMentionTokens,
@@ -1263,8 +1264,10 @@ async function buildStreamContextInner({
       })
     : null;
 
-  // Rezepte des Projekts — der Katalog listet sie als eigenen Block.
-  const projectRecipeIds = actualThreadId
+  // Rezepte des Projekts — der Katalog listet sie als eigenen Block. Ein
+  // Projekt mit Landesverband bringt dessen Rezepte von selbst mit, ohne dass
+  // jemand sie einzeln teilt (Mentions, siehe `getProjectRecipeIds`).
+  const sharedProjectRecipeIds = actualThreadId
     ? await withTimeout(
         getProjectRecipeIds(actualThreadId, userId),
         EXTERNAL_CONTEXT_TIMEOUT_MS,
@@ -1274,6 +1277,9 @@ async function buildStreamContextInner({
         return [];
       })
     : [];
+  const projectRecipeIds = [
+    ...new Set([...sharedProjectRecipeIds, ...landesverbandRecipeMentions(projectLandesverband)]),
+  ];
 
   // Leeres Profil (Land noch nicht gewählt) heißt nicht Deutschland: dann
   // entscheidet, was der Client mitschickt (X-User-Locale, Accept-Language).

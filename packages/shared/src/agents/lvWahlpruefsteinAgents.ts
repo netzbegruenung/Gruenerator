@@ -17,6 +17,7 @@ import type { Agent } from './types.js';
 export const LV_WPS_SPECS = LANDESVERBAENDE.map((lv) => ({
   lv: lv.id,
   title: lv.title,
+  recipeSlug: lv.recipeSlug,
   codes: lv.codes,
   notebook: lv.notebookId,
   themes: lv.themes,
@@ -43,7 +44,7 @@ export const LV_WPS_AGENTS: Agent[] = LV_WPS_SPECS.map((spec) => {
     title: `Wahlprüfsteine (${spec.title})`,
     description: `Beantwortet Wahlprüfsteine von Verbänden für die Grünen ${spec.title} — im Format des Katalogs und im Stil des Landesverbands.`,
     systemRole: '',
-    defaultRecipeMention: 'wahlpruefstein',
+    defaultRecipeMention: `wahlpruefstein-${spec.recipeSlug}`,
     avatar: '📋',
     backgroundColor: '#316049',
     tags: ['Wahlprüfsteine', 'Verbände', 'Wahlkampf', 'Grüne', spec.title],

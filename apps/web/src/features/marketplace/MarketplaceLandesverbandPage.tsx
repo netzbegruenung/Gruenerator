@@ -87,18 +87,14 @@ function useHubKind(kind: MarketplaceKind, hub: LvHub) {
 function HubView({ hub }: { hub: LvHub }): JSX.Element {
   const [params, setParams] = useSearchParams();
   const { actions, dialogs } = useMarketplaceActions();
-  const agents = useHubKind('agent', hub);
+  // Seit 11/2026 nur Rezepte: die LV-Agenten listet der Marktplatz nicht mehr
+  // (`agentSource.ts`), jedes ihrer Rezepte steht hier.
   const recipes = useHubKind('recipe', hub);
-
-  // Agents in hub order (Öffentlichkeitsarbeit, Bürger*innen, Wahlprüfsteine, …).
-  const agentItems = sortByHubOrder(hub, agents.items);
-  const recipeItems = recipes.items;
+  const recipeItems = sortByHubOrder(hub, recipes.items);
 
   const opened = parseMarketplaceParams(params).item;
   const listed = opened
-    ? ([...agentItems, ...recipeItems].find(
-        (i) => i.kind === opened.kind && i.ref === opened.ref
-      ) ?? null)
+    ? (recipeItems.find((i) => i.kind === opened.kind && i.ref === opened.ref) ?? null)
     : null;
   const single = useMarketplaceItem(opened, { enabled: listed === null });
   const openedItem = listed ?? single.data ?? null;
@@ -152,13 +148,6 @@ function HubView({ hub }: { hub: LvHub }): JSX.Element {
       <HubHeader hub={hub} notebookPath={notebook?.path ?? null} />
 
       <ItemSection
-        title="Agents"
-        query={agents}
-        items={agentItems}
-        actions={actions}
-        onSelect={select}
-      />
-      <ItemSection
         title="Rezepte"
         query={recipes}
         items={recipeItems}
@@ -206,7 +195,7 @@ function HubHeader({
           {hub.name}
         </h1>
         <p className="m-0 text-base leading-relaxed text-foreground-muted sm:text-lg">
-          {`Agents und Rezepte von ${hub.name} an einem Ort.`}
+          {`Die Rezepte von ${hub.name} an einem Ort.`}
           {notebookPath && (
             <>
               {' '}

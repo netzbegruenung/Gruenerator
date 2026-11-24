@@ -397,6 +397,8 @@ export const groupContentTypeSchema = z.enum([
   'canvas_template',
   'nextcloud_share_link',
   'user_text_forms',
+  /** Ein mitgeliefertes Rezept (auch eines Landesverbands); `contentId` ist die Mention. */
+  'system_recipes',
 ]);
 export type GroupContentType = z.infer<typeof groupContentTypeSchema>;
 
@@ -610,6 +612,8 @@ export const groupContentResponseSchema = z.object({
     group_posts: z.array(groupPostItemSchema).optional(),
     /** Rezepte (`user_text_forms`). Optional: ältere Server liefern den Bucket nicht. */
     recipes: groupContentBucketSchema.optional(),
+    /** Mitgelieferte Rezepte (`system_recipes`). Optional: ältere Server liefern den Bucket nicht. */
+    system_recipes: groupContentBucketSchema.optional(),
   }),
 });
 export type GroupContentResponse = z.infer<typeof groupContentResponseSchema>;

@@ -281,6 +281,7 @@ describe('shareContentToGroup', () => {
   it.each([
     ['system_notebooks', 'kommunalwiki-notebook'],
     ['system_agents', 'gruenerator-antrag'],
+    ['system_recipes', 'wahlpruefstein-berlin'],
   ] as const)('shares a registered %s id without an ownership lookup', async (contentType, id) => {
     const { deps, exec } = fakeDeps();
     const out = await shareContentToGroup({ ...base, contentType, contentId: id }, deps);
@@ -302,6 +303,7 @@ describe('shareContentToGroup', () => {
   it.each([
     ['system_notebooks', 'kommunalwiki'],
     ['system_agents', 'gruenerator-gibt-es-nicht'],
+    ['system_recipes', 'rezept-gibt-es-nicht'],
   ] as const)('refuses a %s id that is in no registry (#3738)', async (contentType, id) => {
     const { deps, exec } = fakeDeps();
     const out = await shareContentToGroup({ ...base, contentType, contentId: id }, deps);
@@ -460,9 +462,39 @@ describe('hydrateGroupContent', () => {
       'recipes',
       'system_agents',
       'system_notebooks',
+      'system_recipes',
       'templates',
       'texts',
       'user_agents',
+    ]);
+  });
+
+  it('resolves a shared system recipe from the registry, a dropped one disappears', async () => {
+    const share = (contentId: string) => ({
+      content_type: 'system_recipes',
+      content_id: contentId,
+      shared_at: '2026-11-24T10:00:00Z',
+      permissions: {},
+      shared_by_user_id: 'u2',
+      first_name: 'Jana',
+      display_name: null,
+      share_id: `share-${contentId}`,
+    });
+    const query = vi.fn(async (sql: string) =>
+      sql.includes('FROM group_content_shares')
+        ? [share('presse-bayern-partei'), share('gibt-es-nicht-mehr')]
+        : []
+    );
+    const { deps } = fakeHydrateDeps();
+    deps.postgres = { query } as unknown as HydrateGroupContentDeps['postgres'];
+    const out = await hydrateGroupContent('g1', 'viewer', deps);
+    expect(out.system_recipes).toEqual([
+      expect.objectContaining({
+        id: 'presse-bayern-partei',
+        mention: 'presse-bayern-partei',
+        contentType: 'system_recipes',
+        system: true,
+      }),
     ]);
   });
 

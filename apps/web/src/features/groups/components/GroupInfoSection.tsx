@@ -867,6 +867,7 @@ const GroupInfoSection = memo(
                 <ProjectRecipesCard
                   groupId={groupId}
                   items={recipeItems}
+                  landesverband={data?.groupInfo?.landesverband}
                   canAdd={canShare}
                   actions={shareActions}
                   onDiscuss={onDiscuss}

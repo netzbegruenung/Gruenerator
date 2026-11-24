@@ -156,9 +156,9 @@ export const DOCS_PAGES: readonly DocPage[] = [
   },
   {
     "url": "/docs/features/landesverbaende",
-    "title": "Landesverband-Agents",
+    "title": "Landesverband-Rezepte",
     "category": "Features",
-    "lead": "Der Grünerator hat für mehrere Landesverbände eigene, regional getunte Agents. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sprecher…"
+    "lead": "Der Grünerator hat für mehrere Landesverbände eigene, regional getunte Rezepte. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Spreche…"
   },
   {
     "url": "/docs/features/marktplatz",
@@ -1423,7 +1423,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Rezepte auswählen",
     "anchor": "#rezepte-auswählen",
     "category": "Chat",
-    "text": "Rezepte sind spezialisierte Schreib-Modi, die auf bestimmte Textarten optimiert sind — sie kennen den richtigen Ton, die Struktur und die Längenvorgaben der jeweiligen Plattform. So wählst du ein Rezept: Tippe @ im Eingabefeld und wähle aus der Liste — Rezepte stehen dort ganz oben, oder öffne das „+\"-Menü im Eingabefeld — dort findest du auch die Rezept-Bibliothek mit allen Rezepten @presse Pressemitteilung @instagram Instagram @facebook Facebook @twitter Twitter / X @linkedin LinkedIn @reel Reel / TikTok @aktion Aktionsideen @wahlpruefstein Wahlprüfsteine @buergermail Bürgerinnen-Mail @antrag Antrag für Stadt- oder Gemeinderat @bundestagsrecherche Bundestag-Recherche @visuelle-bausteine Visuelle Bausteine @presse-berlin-fraktion PM Berlin (Fraktion) @presse-berlin-partei PM Berlin (Partei) @insta-berlin Insta Berlin @presse-mv-fraktion PM MV (Fraktion) @presse-mv-partei PM MV (Partei) @insta-mv Insta MV @presse-thueringen PM Thüringen @insta-thueringen Insta Thüringen @presse-brandenburg PM Brandenburg @insta-brandenburg Insta Brandenburg @presse-bayern-fraktion PM Bayern (Fraktion) @presse-bayern-partei PM Bayern (Partei) @presse-hessen-fraktion PM Hessen (Fraktion)"
+    "text": "Rezepte sind spezialisierte Schreib-Modi, die auf bestimmte Textarten optimiert sind — sie kennen den richtigen Ton, die Struktur und die Längenvorgaben der jeweiligen Plattform. So wählst du ein Rezept: Tippe @ im Eingabefeld und wähle aus der Liste — Rezepte stehen dort ganz oben, oder öffne das „+\"-Menü im Eingabefeld — dort findest du auch die Rezept-Bibliothek mit allen Rezepten @presse Pressemitteilung @instagram Instagram @facebook Facebook @twitter Twitter / X @linkedin LinkedIn @reel Reel / TikTok @aktion Aktionsideen @wahlpruefstein Wahlprüfsteine @buergermail Bürgerinnen-Mail @antrag Antrag für Stadt- oder Gemeinderat @bundestagsrecherche Bundestag-Recherche @visuelle-bausteine Visuelle Bausteine @presse-berlin-partei PM Berlin (Partei) @presse-berlin-fraktion PM Berlin (Fraktion) @insta-berlin Insta Berlin @presse-mv-partei PM MV (Partei) @presse-mv-fraktion PM MV (Fraktion) @insta-mv Insta MV @presse-thueringen PM Thüringen @insta-thueringen Insta Thüringen @presse-brandenburg PM Brandenburg @insta-brandenburg Insta Brandenburg @presse-bayern-partei PM Bayern (Partei) @presse-bayern-fraktion PM Bayern (Fraktion) @presse-hessen-partei PM Hessen (Partei)"
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -1431,7 +1431,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Rezepte auswählen",
     "anchor": "#rezepte-auswählen",
     "category": "Chat",
-    "text": "@presse-hessen-partei PM Hessen (Partei) @presse-at Aussendung (AT) @presse-saarland PM Saarland @presse-sachsen-anhalt-fraktion PM Sachsen-Anhalt (Fraktion) @presse-sachsen-anhalt-partei PM Sachsen-Anhalt (Partei) @insta-saarland Insta Saarland @insta-bayern Insta Bayern @insta-hessen Insta Hessen @insta-sachsen-anhalt Insta Sachsen-Anhalt @insta-at Insta Österreich @buerger-at Bürgerinnen-Mail Österreich @buerger-bayern Bürgerinnen-Mail Bayern @buerger-berlin Bürgerinnen-Mail Berlin @buerger-brandenburg Bürgerinnen-Mail Brandenburg @buerger-hamburg Bürgerinnen-Mail Hamburg @buerger-hessen Bürgerinnen-Mail Hessen @buerger-mv Bürgerinnen-Mail Mecklenburg-Vorpommern @buerger-nrw Bürgerinnen-Mail NRW @buerger-saarland Bürgerinnen-Mail Saarland @buerger-sachsen-anhalt Bürgerinnen-Mail Sachsen-Anhalt @buerger-schleswig-holstein Bürgerinnen-Mail Schleswig-Holstein @buerger-thueringen Bürgerinnen-Mail Thüringen @gj-insta Insta GRÜNE JUGEND @gj-insta-at Insta Grüne Jugend @beschluss-bayern Beschlussantrag Bayern @beschluss-berlin Beschlussantrag Berlin @beschluss-brandenburg Beschlussantrag Brandenburg @beschluss-hessen Beschlussantrag Hessen @beschluss-mv Beschlussantrag"
+    "text": "@presse-hessen-fraktion PM Hessen (Fraktion) @presse-at Aussendung (AT) @presse-nrw PM NRW @presse-saarland PM Saarland @presse-sachsen-anhalt-partei PM Sachsen-Anhalt (Partei) @presse-sachsen-anhalt-fraktion PM Sachsen-Anhalt (Fraktion) @insta-nrw Insta NRW @insta-saarland Insta Saarland @insta-bayern Insta Bayern @insta-hessen Insta Hessen @insta-sachsen-anhalt Insta Sachsen-Anhalt @insta-at Insta Österreich @buerger-at Bürgerinnen-Mail Österreich @buerger-bayern Bürgerinnen-Mail Bayern @buerger-berlin Bürgerinnen-Mail Berlin @buerger-brandenburg Bürgerinnen-Mail Brandenburg @buerger-hamburg Bürgerinnen-Mail Hamburg @buerger-hessen Bürgerinnen-Mail Hessen @buerger-mv Bürgerinnen-Mail Mecklenburg-Vorpommern @buerger-nrw Bürgerinnen-Mail NRW @buerger-saarland Bürgerinnen-Mail Saarland @buerger-sachsen-anhalt Bürgerinnen-Mail Sachsen-Anhalt @buerger-schleswig-holstein Bürgerinnen-Mail Schleswig-Holstein @buerger-thueringen Bürgerinnen-Mail Thüringen @gj-insta Insta GRÜNE JUGEND @gj-insta-at Insta Grüne Jugend @wahlpruefstein-at Wahlprüfsteine Österreich @wahlpruefstein-bayern Wahlprüfsteine Bayern @wahlpruefstein-berlin Wahlprüfsteine Berlin @wahlpruefstein-brandenburg"
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -1439,7 +1439,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Rezepte auswählen",
     "anchor": "#rezepte-auswählen",
     "category": "Chat",
-    "text": "Mecklenburg-Vorpommern @beschluss-nrw Beschlussantrag NRW @beschluss-saarland Beschlussantrag Saarland @beschluss-sachsen-anhalt Beschlussantrag Sachsen-Anhalt @beschluss-thueringen Beschlussantrag Thüringen @wahlprogramm-bayern Wahlprogramm Bayern @wahlprogramm-berlin Wahlprogramm Berlin @wahlprogramm-brandenburg Wahlprogramm Brandenburg @wahlprogramm-sachsen-anhalt Wahlprogramm Sachsen-Anhalt @wahlprogramm-thueringen Wahlprogramm Thüringen @reisekosten-nrw Reisekosten NRW (Beta) @reisekosten-nrw-vorbereiten Reise vorbereiten NRW (Beta) @antragsgruen-seite Antragsgrün-Seite anlegen (Experimentell) @nuudel Terminumfrage mit nuudel (Experimentell) Neben den mitgelieferten Rezepten oben zeigt die @-Liste auch deine eigenen Rezepte, mit deinen Projekten geteilte und öffentliche Rezepte anderer aus dem Marktplatz. Sie stehen in eigenen Abschnitten: „aus deinen Projekten\" und „von anderen\" (in der App: „Rezepte aus deinen Projekten\", „Rezepte von anderen\"). Auf der Detailseite eines Rezepts aus dem Marktplatz öffnet Im Chat verwenden den Chat direkt mit diesem Rezept aktiviert. Du kannst ein Rezept mit Quellen und Werkzeugen kombinieren."
+    "text": "Wahlprüfsteine Brandenburg @wahlpruefstein-hamburg Wahlprüfsteine Hamburg @wahlpruefstein-hessen Wahlprüfsteine Hessen @wahlpruefstein-mv Wahlprüfsteine Mecklenburg-Vorpommern @wahlpruefstein-nrw Wahlprüfsteine NRW @wahlpruefstein-saarland Wahlprüfsteine Saarland @wahlpruefstein-sachsen-anhalt Wahlprüfsteine Sachsen-Anhalt @wahlpruefstein-schleswig-holstein Wahlprüfsteine Schleswig-Holstein @wahlpruefstein-thueringen Wahlprüfsteine Thüringen @beschluss-bayern Beschlussantrag Bayern @beschluss-berlin Beschlussantrag Berlin @beschluss-brandenburg Beschlussantrag Brandenburg @beschluss-hessen Beschlussantrag Hessen @beschluss-mv Beschlussantrag Mecklenburg-Vorpommern @beschluss-nrw Beschlussantrag NRW @beschluss-saarland Beschlussantrag Saarland @beschluss-sachsen-anhalt Beschlussantrag Sachsen-Anhalt @beschluss-thueringen Beschlussantrag Thüringen @wahlprogramm-bayern Wahlprogramm Bayern @wahlprogramm-berlin Wahlprogramm Berlin @wahlprogramm-brandenburg Wahlprogramm Brandenburg @wahlprogramm-sachsen-anhalt Wahlprogramm Sachsen-Anhalt @wahlprogramm-thueringen Wahlprogramm Thüringen @reisekosten-nrw Reisekosten NRW (Beta) @reisekosten-nrw-vorbereiten Reise vorbereiten NRW (Beta)"
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -1447,7 +1447,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Rezepte auswählen",
     "anchor": "#rezepte-auswählen",
     "category": "Chat",
-    "text": "Zum Beispiel: @presse @grundsatz Klimaschutz in Kommunen schreibt eine Pressemitteilung auf Basis des Grundsatzprogramms."
+    "text": "@antragsgruen-seite Antragsgrün-Seite anlegen (Experimentell) @nuudel Terminumfrage mit nuudel (Experimentell) Neben den mitgelieferten Rezepten oben zeigt die @-Liste auch deine eigenen Rezepte, mit deinen Projekten geteilte und öffentliche Rezepte anderer aus dem Marktplatz. Sie stehen in eigenen Abschnitten: „aus deinen Projekten\" und „von anderen\" (in der App: „Rezepte aus deinen Projekten\", „Rezepte von anderen\"). Auf der Detailseite eines Rezepts aus dem Marktplatz öffnet Im Chat verwenden den Chat direkt mit diesem Rezept aktiviert. Du kannst ein Rezept mit Quellen und Werkzeugen kombinieren. Zum Beispiel: @presse @grundsatz Klimaschutz in Kommunen schreibt eine Pressemitteilung auf Basis des Grundsatzprogramms."
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -1779,55 +1779,55 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/features/landesverbaende",
-    "pageTitle": "Landesverband-Agents",
-    "heading": "Landesverband-Agents",
+    "pageTitle": "Landesverband-Rezepte",
+    "heading": "Landesverband-Rezepte",
     "anchor": "",
     "category": "Features",
-    "text": "Der Grünerator hat für mehrere Landesverbände eigene, regional getunte Agents. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sprecher*innen, den lokalen Themen und der typischen Tonalität. Im Hintergrund recherchieren sie automatisch in der Wissensdatenbank des Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme); eine Websuche haben nur die Öffentlichkeitsarbeit- und die Beschluss-Agents. Es gibt bis zu fünf Sorten von Landesverband-Agents: Öffentlichkeitsarbeit — schreibt Pressemitteilungen und Social-Media-Posts im Stil des Landesverbands. Bürger*innenanfragen — formuliert versandfertige, recherchebasierte Antwort-E-Mails auf Anfragen von Bürger*innen. Wahlprüfsteine — beantwortet Fragenkataloge von Verbänden und Initiativen, im Format des Katalogs und im Stil des Landesverbands. Beschlussanträge — schreibt Beschlussanträge in der Beschlusssprache des Landesverbands, im Anschluss an seine bestehenden Beschlüsse. Nur wo die Beschlüsse des Landesverbands in der Wissensdatenbank liegen. Wahlprogramm — schlägt im Wahlprogramm des Landesverbands nach und prüft Aussagen dagegen."
+    "text": "Der Grünerator hat für mehrere Landesverbände eigene, regional getunte Rezepte. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sprecher*innen, den lokalen Themen und der typischen Tonalität. Ein LV-Rezept bringt die Wissensdatenbank seines Landesverbands mit (Pressemitteilungen, Beschlüsse, Wahlprogramme): Der Chat recherchiert dort automatisch, du musst nichts einstellen. Es gibt bis zu fünf Sorten von Landesverband-Rezepten: Öffentlichkeitsarbeit — schreibt Pressemitteilungen und Social-Media-Posts im Stil des Landesverbands. Bürger*innenanfragen — formuliert versandfertige, recherchebasierte Antwort-E-Mails auf Anfragen von Bürger*innen. Wahlprüfsteine — beantwortet Fragenkataloge von Verbänden und Initiativen, im Format des Katalogs und im Stil des Landesverbands. Beschlussanträge — schreibt Beschlussanträge in der Beschlusssprache des Landesverbands, im Anschluss an seine bestehenden Beschlüsse. Nur wo die Beschlüsse des Landesverbands in der Wissensdatenbank liegen. Wahlprogramm — schlägt im Wahlprogramm des Landesverbands nach und prüft Aussagen dagegen. Nur wo das Wahlprogramm in der Wissensdatenbank liegt."
   },
   {
     "url": "/docs/features/landesverbaende",
-    "pageTitle": "Landesverband-Agents",
-    "heading": "Landesverband-Agents",
+    "pageTitle": "Landesverband-Rezepte",
+    "heading": "Landesverband-Rezepte",
     "anchor": "",
     "category": "Features",
-    "text": "Nur wo das Wahlprogramm in der Wissensdatenbank liegt. Die Agents, Rezepte und Notebooks eines Landesverbands sind seinen Leuten zugeteilt: Sie erscheinen, sobald du in deinem Profil die Rolle Mitarbeiter*in Landesgeschäftsstelle (Österreich: Landesorganisation) mit deinem Bundesland hinterlegt hast. Wie das geht, steht unter Für deinen Landesverband einrichten."
+    "text": "Die Rezepte und Notebooks eines Landesverbands sind seinen Leuten zugeteilt: Sie erscheinen, sobald du in deinem Profil die Rolle Mitarbeiter*in Landesgeschäftsstelle (Österreich: Landesorganisation) mit deinem Bundesland hinterlegt hast. Wie das geht, steht unter Für deinen Landesverband einrichten."
   },
   {
     "url": "/docs/features/landesverbaende",
-    "pageTitle": "Landesverband-Agents",
+    "pageTitle": "Landesverband-Rezepte",
     "heading": "Abgedeckte Landesverbände",
     "anchor": "#abgedeckte-landesverbände",
     "category": "Features",
-    "text": "Jede Kachel verlinkt auf die Landesverband-Seite — sie bietet die Agents des Landesverbands zur Auswahl an: Öffentlichkeitsarbeit, Bürger*innenservice, Wahlprüfsteine und, wo vorhanden, Beschlussanträge und Wahlprogramm (alle siehe unten). Darunter stehen die Rezept-Abkürzungen und ein Link zur Wissensdatenbank (Notebook). Die Grünen Österreich sind kein Landesverband, sondern die Bundespartei — sie haben aber dieselben drei Agent-Typen (erreichbar unter /agents/gruene-oesterreich, Wissensdatenbank /notebooks/oesterreich · @at). Diese Agents verwenden österreichisches Vokabular (Nationalrat, Klubobfrau*Klubobmann, Klimaticket) und erscheinen nur für Nutzer*innen mit österreichischer Einstellung."
+    "text": "Jede Kachel verlinkt auf die Landesverband-Seite — sie bietet die Rezepte des Landesverbands zur Auswahl an, geordnet nach Öffentlichkeitsarbeit, Bürger*innenservice, Wahlprüfsteine und, wo vorhanden, Beschlussanträge und Wahlprogramm (alle siehe unten). Ein Klick öffnet den Chat mit dem Rezept — genau so, als hättest du die Abkürzung selbst getippt. Darunter stehen der Link zum Marktplatz und zur Wissensdatenbank (Notebook). Dieselben Rezepte stehen in der Seitenleiste im Eintrag deines Landesverbands. Bis November 2026 gab es dafür eigene Landesverband-Agents. Jeder von ihnen hat jetzt ein vollständiges Rezept; alte Links, Chats und Verknüpfungen auf einen LV-Agenten funktionieren weiter. Die Grünen Österreich sind kein Landesverband, sondern die Bundespartei — sie haben aber dieselben drei Rezept-Sorten (erreichbar unter /agents/gruene-oesterreich, Wissensdatenbank /notebooks/oesterreich · @at). Diese Rezepte verwenden österreichisches Vokabular (Nationalrat, Klubobfrau*Klubobmann, Klimaticket) und erscheinen nur für Nutzer*innen mit österreichischer Einstellung."
   },
   {
     "url": "/docs/features/landesverbaende",
-    "pageTitle": "Landesverband-Agents",
+    "pageTitle": "Landesverband-Rezepte",
     "heading": "Beschlussanträge schreiben und Wahlprogramm nachschlagen",
     "anchor": "#beschlussanträge-schreiben-und-wahlprogramm-nachschlagen",
     "category": "Features",
-    "text": "Der Beschlussanträge-Agent schreibt Anträge so, wie der Landesverband beschließt: mit seiner Einleitungsformel, seinem Aufbau (Antragstext, Begründung), seinen Forderungsformeln und seiner Schreibweise. Vorher sucht er in den Beschlüssen des Landesverbands, was dazu schon beschlossen ist, und knüpft daran an; Zahlen und Rechtsstand holt er aus der Websuche. Was vor der Antragstellung noch zu klären ist, markiert er am Ende unter Offene Punkte. Der Wahlprogramm-Agent sucht ausschließlich im Wahlprogramm und nennt zu jeder Aussage Kapitel und Wortlaut. Gibst du ihm eine Aussage, prüft er, ob das Programm sie deckt."
+    "text": "Das Beschlussanträge-Rezept schreibt Anträge so, wie der Landesverband beschließt: mit seiner Einleitungsformel, seinem Aufbau (Antragstext, Begründung), seinen Forderungsformeln und seiner Schreibweise. Vorher sucht er in den Beschlüssen des Landesverbands, was dazu schon beschlossen ist, und knüpft daran an; Zahlen und Rechtsstand holt er aus der Websuche. Was vor der Antragstellung noch zu klären ist, markiert er am Ende unter Offene Punkte. Das Wahlprogramm-Rezept sucht ausschließlich im Wahlprogramm und nennt zu jeder Aussage Kapitel und Wortlaut. Gibst du ihm eine Aussage, prüft er, ob das Programm sie deckt."
   },
   {
     "url": "/docs/features/landesverbaende",
-    "pageTitle": "Landesverband-Agents",
+    "pageTitle": "Landesverband-Rezepte",
     "heading": "Beschlussanträge schreiben und Wahlprogramm nachschlagen",
     "anchor": "#beschlussanträge-schreiben-und-wahlprogramm-nachschlagen",
     "category": "Features",
-    "text": "Landesverband | Beschlussanträge | Wahlprogramm | ---------------------- | --------------------------- | ------------------------------ | Berlin | @beschluss-berlin | @wahlprogramm-berlin | Mecklenburg-Vorpommern | @beschluss-mv | — | Thüringen | @beschluss-thueringen | @wahlprogramm-thueringen | Brandenburg | @beschluss-brandenburg | @wahlprogramm-brandenburg | Bayern | @beschluss-bayern | @wahlprogramm-bayern | Hessen | @beschluss-hessen | — | Sachsen-Anhalt | @beschluss-sachsen-anhalt | @wahlprogramm-sachsen-anhalt | Saarland | @beschluss-saarland | — | Nordrhein-Westfalen | @beschluss-nrw | — | Tippst du die Abkürzung im normalen Chat, arbeitet der Chat wie der Agent: er schreibt den Antrag bzw. sucht für diese Anfrage nur im Programm des Landesverbands."
+    "text": "Landesverband | Beschlussanträge | Wahlprogramm | ---------------------- | --------------------------- | ------------------------------ | Berlin | @beschluss-berlin | @wahlprogramm-berlin | Mecklenburg-Vorpommern | @beschluss-mv | — | Thüringen | @beschluss-thueringen | @wahlprogramm-thueringen | Brandenburg | @beschluss-brandenburg | @wahlprogramm-brandenburg | Bayern | @beschluss-bayern | @wahlprogramm-bayern | Hessen | @beschluss-hessen | — | Sachsen-Anhalt | @beschluss-sachsen-anhalt | @wahlprogramm-sachsen-anhalt | Saarland | @beschluss-saarland | — | Nordrhein-Westfalen | @beschluss-nrw | — | Mit der Abkürzung schreibt der Chat den Antrag bzw. sucht für diese Anfrage nur im Programm des Landesverbands."
   },
   {
     "url": "/docs/features/landesverbaende",
-    "pageTitle": "Landesverband-Agents",
+    "pageTitle": "Landesverband-Rezepte",
     "heading": "Bürger*innenanfragen beantworten",
     "anchor": "#bürgerinnenanfragen-beantworten",
     "category": "Features",
-    "text": "Die Bürger*innenanfragen-Agents helfen dir, eingehende E-Mails von Bürger*innen zu beantworten. Du fügst die Anfrage ein, der Agent recherchiert die Positionen des Landesverbands (die Treffer erscheinen als Recherche-Karten im Chat) und formuliert eine versandfertige Antwort-E-Mail nach festem Aufbau: Anrede → Dank → inhaltliche Antwort → weiterführende Links. Du erreichst sie über die Landesverband-Seite (z. B. /agents/gruene-berlin) — dort wählst du den Bürger*innenservice statt der Öffentlichkeitsarbeit. Der Agent schreibt immer mit dem Rezept seines Landesverbands: Absender, Selbstbezeichnung, Genderschreibweise und Signatur folgen dem Verband. Im normalen Chat geht es auch ohne Agent: tippe die Rezept-Abkürzung deines Landesverbands und füge die Anfrage dahinter ein."
+    "text": "Die Bürger*innenanfragen-Rezepte helfen dir, eingehende E-Mails von Bürger*innen zu beantworten. Du fügst die Anfrage ein, der Chat recherchiert die Positionen des Landesverbands (die Treffer erscheinen als Recherche-Karten im Chat) und formuliert eine versandfertige Antwort-E-Mail nach festem Aufbau: Anrede → Dank → inhaltliche Antwort → weiterführende Links. Du erreichst sie über die Landesverband-Seite (z. B. /agents/gruene-berlin) unter Bürger*innenservice, über die Seitenleiste oder über die Abkürzung deines Landesverbands, hinter die du die Anfrage einfügst. Absender, Selbstbezeichnung, Genderschreibweise und Signatur folgen dem Verband."
   },
   {
     "url": "/docs/features/landesverbaende",
-    "pageTitle": "Landesverband-Agents",
+    "pageTitle": "Landesverband-Rezepte",
     "heading": "Bürger*innenanfragen beantworten",
     "anchor": "#bürgerinnenanfragen-beantworten",
     "category": "Features",
@@ -1835,23 +1835,31 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/features/landesverbaende",
-    "pageTitle": "Landesverband-Agents",
+    "pageTitle": "Landesverband-Rezepte",
     "heading": "Die Wissensdatenbank dahinter",
     "anchor": "#die-wissensdatenbank-dahinter",
     "category": "Features",
-    "text": "Jeder Landesverband hat ein Notebook — eine durchsuchbare Sammlung seiner offiziellen Inhalte (Pressemitteilungen, Beschlüsse, Wahlprogramme). Die LV-Agents durchsuchen es automatisch und auf den richtigen Landesverband gefiltert, du musst nichts einstellen. Du kannst dasselbe Notebook auch direkt nutzen: Aufrufen & durchstöbern: über seine Adresse, z. B. /notebooks/berlin. Im Chat als Quelle einbinden: tippe die @-Erwähnung, z. B. @berlin, @mv, @thüringen, @brandenburg, @bayern, @sachsen-anhalt, @hessen oder @saar. Der Chat zieht dann seine Antworten aus diesem Notebook. Mehr zu Notebooks allgemein findest du unter Notebooks."
+    "text": "Jeder Landesverband hat ein Notebook — eine durchsuchbare Sammlung seiner offiziellen Inhalte (Pressemitteilungen, Beschlüsse, Wahlprogramme). Die LV-Rezepte durchsuchen es automatisch und auf den richtigen Landesverband gefiltert, du musst nichts einstellen. Du kannst dasselbe Notebook auch direkt nutzen: Aufrufen & durchstöbern: über seine Adresse, z. B. /notebooks/berlin. Im Chat als Quelle einbinden: tippe die @-Erwähnung, z. B. @berlin, @mv, @thüringen, @brandenburg, @bayern, @sachsen-anhalt, @hessen oder @saar. Der Chat zieht dann seine Antworten aus diesem Notebook. Mehr zu Notebooks allgemein findest du unter Notebooks."
   },
   {
     "url": "/docs/features/landesverbaende",
-    "pageTitle": "Landesverband-Agents",
+    "pageTitle": "Landesverband-Rezepte",
+    "heading": "Im Projekt",
+    "anchor": "#im-projekt",
+    "category": "Features",
+    "text": "Arbeitet ihr als Team für einen Landesverband, stell in den Einstellungen des Projekts den Landesverband ein (das dürfen Projekt-Admins). Dann gilt in allen Chats des Projekts: Die Rezepte des Landesverbands stehen als Projekt-Rezepte bereit, die Pressemitteilung kommt im Stil dieses Verbands, und die Wissensdatenbank des Landesverbands wird ohne @ durchsucht — für alle Mitglieder, auch ohne die Rolle der Landesgeschäftsstelle. Einzelne Rezepte — auch allgemeine wie @wahlpruefstein — legst du im Projekt über Hinzufügen → Vorhandenes hinzufügen dazu. Die Rezepte des Landesverbands stehen auf der Projektseite unter Rezepte."
+  },
+  {
+    "url": "/docs/features/landesverbaende",
+    "pageTitle": "Landesverband-Rezepte",
     "heading": "LV-Rezepte im Überblick",
     "anchor": "#lv-rezepte-im-überblick",
     "category": "Features",
-    "text": "Für diese Landesverbände gibt es eigene Rezept-Abkürzungen für Pressemitteilung und Instagram: Landesverband | Pressemitteilung | Instagram | ---------------------- | ------------------------------------------------------------------- | ----------------------- | Berlin | @presse-berlin-partei · @presse-berlin-fraktion | @insta-berlin | Mecklenburg-Vorpommern | @presse-mv-partei · @presse-mv-fraktion | @insta-mv | Thüringen | @presse-thueringen | @insta-thueringen | Brandenburg | @presse-brandenburg | @insta-brandenburg | Bayern | @presse-bayern-partei · @presse-bayern-fraktion | @insta-bayern | Hessen | @presse-hessen-partei · @presse-hessen-fraktion | @insta-hessen | Sachsen-Anhalt | @presse-sachsen-anhalt-partei · @presse-sachsen-anhalt-fraktion | @insta-sachsen-anhalt | Saarland | @presse-saarland | @insta-saarland | Wo zwei Presse-Rezepte stehen, schreibt das eine für den Landesverband und das andere für die Landtagsfraktion. Die Ebene entscheidet, an welchen Beispiel-Pressemitteilungen sich der Text ausrichtet — nimm die, für die du schreibst. Verbände mit nur einer Abkürzung führen im Korpus keine getrennten Ebenen."
+    "text": "Für diese Landesverbände gibt es eigene Rezept-Abkürzungen für Pressemitteilung und Instagram: Landesverband | Pressemitteilung | Instagram | ---------------------- | ------------------------------------------------------------------- | ----------------------- | Berlin | @presse-berlin-partei · @presse-berlin-fraktion | @insta-berlin | Mecklenburg-Vorpommern | @presse-mv-partei · @presse-mv-fraktion | @insta-mv | Thüringen | @presse-thueringen | @insta-thueringen | Brandenburg | @presse-brandenburg | @insta-brandenburg | Bayern | @presse-bayern-partei · @presse-bayern-fraktion | @insta-bayern | Hessen | @presse-hessen-partei · @presse-hessen-fraktion | @insta-hessen | Sachsen-Anhalt | @presse-sachsen-anhalt-partei · @presse-sachsen-anhalt-fraktion | @insta-sachsen-anhalt | Saarland | @presse-saarland | @insta-saarland | Nordrhein-Westfalen | @presse-nrw | @insta-nrw | Wo zwei Presse-Rezepte stehen, schreibt das eine für den Landesverband und das andere für die Landtagsfraktion. Die Ebene entscheidet, an welchen Beispiel-Pressemitteilungen sich der Text ausrichtet — nimm die, für die du schreibst. Verbände mit nur einer Abkürzung führen im Korpus keine getrennten Ebenen."
   },
   {
     "url": "/docs/features/landesverbaende",
-    "pageTitle": "Landesverband-Agents",
+    "pageTitle": "Landesverband-Rezepte",
     "heading": "LV-Rezepte im Überblick",
     "anchor": "#lv-rezepte-im-überblick",
     "category": "Features",
@@ -1859,19 +1867,19 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/features/landesverbaende",
-    "pageTitle": "Landesverband-Agents",
+    "pageTitle": "Landesverband-Rezepte",
     "heading": "Pressemitteilungen & Social Media schreiben",
     "anchor": "#pressemitteilungen--social-media-schreiben",
     "category": "Features",
-    "text": "Du erreichst den Öffentlichkeitsarbeit-Agenten auf zwei Wegen: 1. Über die Landesverband-Seite — öffne die LV-Adresse (z. B. /agents/gruene-berlin) und wähle dort Öffentlichkeitsarbeit; oder wähle den Agenten direkt in der Auswahl im Chat aus. Er bleibt für das ganze Gespräch im LV-Stil. 2. Über eine Rezept-Abkürzung — tippe im Chat @presse-berlin-partei und direkt dahinter dein Thema. Das Rezept schickt deine Anfrage an den passenden LV-Agenten und gibt ihm gleich die richtige Aufgabe mit (Pressemitteilung bzw. Instagram-Post)."
+    "text": "Du erreichst die Rezepte der Öffentlichkeitsarbeit auf zwei Wegen: 1. Über die Landesverband-Seite oder die Seitenleiste — öffne die LV-Adresse (z. B. /agents/gruene-berlin) oder den Eintrag deines Landesverbands in der Seitenleiste und wähle das Rezept, etwa PM Berlin (Partei). 2. Über eine Rezept-Abkürzung — tippe im Chat @presse-berlin-partei und direkt dahinter dein Thema. Das Rezept bringt Stil und Wissensdatenbank des Landesverbands mit."
   },
   {
     "url": "/docs/features/landesverbaende",
-    "pageTitle": "Landesverband-Agents",
+    "pageTitle": "Landesverband-Rezepte",
     "heading": "Wahlprüfsteine beantworten",
     "anchor": "#wahlprüfsteine-beantworten",
     "category": "Features",
-    "text": "Die Wahlprüfstein-Agents beantworten Fragenkataloge von Verbänden und Initiativen (Wahlprüfsteine): Du fügst den Katalog ein, der Agent recherchiert die Positionen des Landesverbands und antwortet im Format des Katalogs und im Stil des Landesverbands. Auch sie erreichst du über die Landesverband-Seite — dort wählst du Wahlprüfsteine."
+    "text": "Die Wahlprüfstein-Rezepte beantworten Fragenkataloge von Verbänden und Initiativen (Wahlprüfsteine): Du fügst den Katalog ein, der Chat recherchiert die Positionen des Landesverbands und antwortet im Format des Katalogs und im Stil des Landesverbands. Jeder Landesverband hat sein eigenes: @wahlpruefstein-berlin, @wahlpruefstein-mv, @wahlpruefstein-thueringen, @wahlpruefstein-brandenburg, @wahlpruefstein-bayern, @wahlpruefstein-hessen, @wahlpruefstein-sachsen-anhalt, @wahlpruefstein-saarland, @wahlpruefstein-nrw und @wahlpruefstein-at. Auf der Landesverband-Seite stehen sie unter Wahlprüfsteine."
   },
   {
     "url": "/docs/features/marktplatz",

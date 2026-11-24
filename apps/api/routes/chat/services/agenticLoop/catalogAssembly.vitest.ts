@@ -1418,6 +1418,32 @@ describe('assembleToolCatalog — Projekt-Rezept des vorigen Turns', () => {
     expect(assembled.recipeRegistry.pinnedTitle).toBeNull();
   });
 
+  it('trägt auch ein Systemrezept des Projekts über die Mention weiter', async () => {
+    const bySystem = vi.fn(async ({ mention }: { mention?: string | null }) =>
+      mention === 'wahlpruefstein-berlin'
+        ? {
+            id: null,
+            mention: 'wahlpruefstein-berlin',
+            title: 'Wahlprüfsteine Berlin',
+            body: 'Frage für Frage.',
+            source: 'system' as const,
+          }
+        : null
+    );
+    const assembled = await assemble(
+      fakeState({
+        projectRecipeIds: ['wahlpruefstein-berlin'],
+        lastUserTextNoMentions: 'Jetzt bitte den nächsten Katalog.',
+      }),
+      deps({ resolveRecipe: bySystem } as unknown as Partial<CatalogDeps>),
+      { lastTurnRecipes: [{ mention: 'wahlpruefstein-berlin', id: null }] }
+    );
+    expect(bySystem).toHaveBeenCalledWith(
+      expect.objectContaining({ mention: 'wahlpruefstein-berlin', recipeId: null })
+    );
+    expect(assembled.recipeRegistry.mentions).toEqual(['wahlpruefstein-berlin']);
+  });
+
   it('lässt ein Rezept liegen, das nicht (mehr) im Projekt ist', async () => {
     const assembled = await assemble(
       fakeState({ projectRecipeIds: [], lastUserTextNoMentions: 'Noch einer bitte.' }),

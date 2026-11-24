@@ -26,6 +26,7 @@ export const LV_PR_SPECS = [
     title: 'Schleswig-Holstein',
     codes: 'SH',
     notebook: 'schleswig-holstein-notebook',
+    recipe: 'presse-schleswig-holstein',
     themes:
       'Energiewende (Windkraft Nord, Wasserstoff), Küstenschutz, Tourismus, Landwirtschaft, dänische Minderheit',
   },
@@ -34,9 +35,9 @@ export const LV_PR_SPECS = [
     title: 'Saarland',
     codes: 'SL',
     notebook: 'saarland-notebook',
-    // Das Saarland hat als einziger Template-LV eigene Rezepte
-    // (`presse-saarland`, `insta-saarland`) — der Default muss sie nennen,
-    // sonst schreibt der eigene LV-Agent nach der generischen Vorlage.
+    // Jeder Template-LV hat eigene Rezepte (`presse-<lv>`, `insta-<lv>`) — der
+    // Default muss sie nennen, sonst schreibt der eigene LV-Agent nach der
+    // generischen Vorlage.
     recipe: 'presse-saarland',
     themes:
       'Strukturwandel und Industrie (Stahl, Automobil), Energiewende, Mobilität und ÖPNV (Saarbahn), Bildung, Gesundheit und Krankenhäuser, Grenzregion zu Frankreich',
@@ -49,6 +50,7 @@ export const LV_PR_SPECS = [
     title: 'Nordrhein-Westfalen',
     codes: ['NRW', 'NRW-F'],
     notebook: 'nordrhein-westfalen-notebook',
+    recipe: 'presse-nrw',
     themes:
       'Strukturwandel im Rheinischen Revier und Kohleausstieg 2030, Industrie und klimaneutrale Wirtschaft, Verkehrswende (Radverkehr, ÖPNV, Sanierung von Brücken und Schiene), Klimaanpassung und Hitzeschutz, Bildung und Kita, Kommunalfinanzen und Altschulden',
   },
@@ -70,8 +72,8 @@ export const LV_PR_SPECS = [
   title: string;
   codes: string | readonly string[];
   notebook: string;
-  /** LV-eigenes Presserezept, falls vorhanden; sonst gilt das generische. */
-  recipe?: string;
+  /** LV-eigenes Presserezept — der Default des Agents. */
+  recipe: string;
   themes: string;
 }>;
 
@@ -95,7 +97,7 @@ export const LV_PR_AGENTS: Agent[] = LV_PR_SPECS.map((spec) => ({
   title: `Öffentlichkeitsarbeit (${spec.title})`,
   description: `Erstellt Pressemitteilungen und Social-Media-Inhalte für die Grünen ${spec.title} — mit regionaler Verankerung und LV-spezifischen Vorlagen.`,
   systemRole: '',
-  defaultRecipeMention: 'recipe' in spec ? spec.recipe : 'presse',
+  defaultRecipeMention: spec.recipe,
   avatar: '📢',
   backgroundColor: '#316049',
   tags: ['Presse', 'Social Media', 'PR', 'Kommunikation', 'Grüne', spec.title],
