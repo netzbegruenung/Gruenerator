@@ -14,6 +14,65 @@ const SentryWinstonTransport = Sentry.createSentryWinstonTransport(TransportStre
   levels: ['warn', 'error'],
 });
 
+const RESPONSE_DATA_MAX = 2000;
+
+interface AxiosLike {
+  isAxiosError: true;
+  config?: { method?: string; url?: string; baseURL?: string };
+  response?: { data?: unknown };
+}
+
+function isAxiosLike(value: unknown): value is AxiosLike {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    (value as { isAxiosError?: unknown }).isAxiosError === true
+  );
+}
+
+/**
+ * Das, was an einem Axios-Fehler zum Verstehen nötig ist. `config`, `request`
+ * und `response` tragen die Request-Header samt `Authorization`, die Query der
+ * URL oft ein Token — beides fällt weg.
+ */
+function axiosSummary(err: AxiosLike): Record<string, unknown> {
+  const url = err.config?.url ? err.config.url.split('?')[0] : null;
+  const data = err.response?.data;
+  const text = data === undefined ? null : typeof data === 'string' ? data : JSON.stringify(data);
+  return {
+    method: err.config?.method?.toUpperCase() ?? null,
+    url,
+    responseData:
+      text && text.length > RESPONSE_DATA_MAX ? `${text.slice(0, RESPONSE_DATA_MAX)}…` : text,
+  };
+}
+
+// Läuft auf Logger-Ebene, also vor Console und GlitchTip. Zwei Formen: winston
+// spreizt ein als Meta übergebenes Error-Objekt (`log.error(msg, err)`) in den
+// Record selbst, `log.error(msg, { error })` legt es eine Ebene tiefer.
+const compactAxiosErrors = winston.format((info) => {
+  if (isAxiosLike(info)) {
+    const summary = axiosSummary(info);
+    delete (info as Record<string, unknown>).config;
+    delete (info as Record<string, unknown>).request;
+    delete (info as Record<string, unknown>).response;
+    Object.assign(info, summary);
+  }
+  for (const [key, value] of Object.entries(info)) {
+    if (isAxiosLike(value) && value instanceof Error) {
+      info[key] = {
+        name: value.name,
+        message: value.message,
+        code: (value as { code?: unknown }).code ?? null,
+        status: (value as { status?: unknown }).status ?? null,
+        ...axiosSummary(value),
+        stack: value.stack,
+      };
+    }
+  }
+  return info;
+});
+
 // Sentry serialises an Error attribute as "{}"; send its stack text instead.
 const errorsToText = winston.format((info) => {
   for (const [key, value] of Object.entries(info)) {
@@ -43,6 +102,9 @@ const logger = winston.createLogger({
     // specifiers appear literally in output. Template literals continue to
     // work either way; splat only activates when extra args are passed.
     winston.format.splat(),
+    // Nach splat(): splat mischt die Meta-Objekte aus info[SPLAT] erneut in den
+    // Record und brächte die Header sonst zurück.
+    compactAxiosErrors(),
     winston.format.printf(({ level, message, timestamp, service, ...rest }) => {
       const svc = service ? `[${service}]` : '';
       // Serialize structured metadata so log.error('msg', { error }) actually
