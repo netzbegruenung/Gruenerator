@@ -20,7 +20,7 @@ beforeAll(async () => {
 beforeEach(() => {
   query.mockReset();
   query.mockResolvedValue([
-    { id: 't1', title: 'Mein Text', content: 'Inhalt', document_type: 'text', word_count: 1 },
+    { id: 't1', title: 'Mein Text', content: 'Inhalt', document_type: 'text' },
   ]);
 });
 
@@ -33,6 +33,7 @@ describe('fetchTextsByIds', () => {
     expect(sql).toContain('user_id = $2');
     expect(params).toEqual([['t1'], 'u1']);
     expect(result.knowledge).toHaveLength(1);
+    expect(result.knowledge[0]).toContain('**Wörter:** 1');
   });
 
   it('does not query without a user', async () => {

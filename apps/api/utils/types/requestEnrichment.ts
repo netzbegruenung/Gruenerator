@@ -155,7 +155,6 @@ export interface SavedText {
   type?: string | undefined;
   document_type?: string | undefined;
   title?: string | undefined;
-  word_count?: number | undefined;
   created_at?: string | undefined;
 }
 
