@@ -168,6 +168,29 @@ export async function executeAction(
 
       const { addRowsToBoard } = await import('../../services/boards/BoardService.js');
       await addRowsToBoard(boardId, rows, action.userId);
+      // Eine im Chat aufgelöste Person (`boards_tasks` add_card) bekommt, was eine
+      // Zuweisung im Web auslöst: Verlaufseintrag und Benachrichtigung.
+      const assigned = rows.flatMap((row) => {
+        const a = row.assignee as { id?: unknown; name?: unknown } | null | undefined;
+        return typeof row.id === 'string' && a && typeof a.id === 'string' && a.id
+          ? [{ cardId: row.id, id: a.id, name: typeof a.name === 'string' ? a.name : '' }]
+          : [];
+      });
+      if (assigned.length) {
+        const { recordAssignment } =
+          await import('../../services/boards/cardAssignmentNotifications.js');
+        for (const a of assigned) {
+          const title = rows.find((r) => r.id === a.cardId)?.title;
+          await recordAssignment({
+            boardId,
+            cardId: a.cardId,
+            userId: action.userId,
+            names: [a.name],
+            addedAssigneeIds: [a.id],
+            cardTitle: typeof title === 'string' ? title : null,
+          });
+        }
+      }
       return {
         message: `Board wurde aktualisiert (${rows.length} Änderung${rows.length !== 1 ? 'en' : ''}).`,
         url: `/boards/${boardId}`,

@@ -29,7 +29,11 @@
  * wrapToolsForLoop — these factories only implement data access + confirm emit.
  */
 import { isKiImage } from '@gruenerator/shared/media-library/contentOrigin';
-import { buildChatThreadSlug } from '@gruenerator/shared/utils';
+import {
+  buildChatThreadSlug,
+  type BoardAssignee,
+  type BoardAssigneeChange,
+} from '@gruenerator/shared/utils';
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
@@ -47,6 +51,12 @@ import {
   resolveCardDisplay,
   type BoardState,
 } from '../../../services/boards/BoardService.js';
+import {
+  listActiveProjectMemberIds,
+  listAssignableMembers,
+  matchAssignee,
+} from '../../../services/boards/cardAssignees.js';
+import { recordAssignment } from '../../../services/boards/cardAssignmentNotifications.js';
 import {
   trashCollaborativeDocument,
   type QueryRunner,
@@ -933,6 +943,53 @@ function collectCards(board: BoardState) {
   });
 }
 
+type AssigneeResolution =
+  | { ok: true; assignee: BoardAssignee }
+  | { ok: false; kind: 'ambiguous' | 'none'; result: Record<string, unknown> };
+
+/**
+ * Aus dem genannten Namen (oder einer Profil-Id) wird eine Person, die das Board
+ * sehen darf. Im Projekt-Chat gehen bei Namensgleichheit die Projektmitglieder
+ * vor; bleiben mehrere, entscheidet die Person — nie ein still gespeicherter Name,
+ * den Tagesbriefing und Benachrichtigung nicht zuordnen können.
+ */
+async function resolveCardAssignee(
+  boardId: string,
+  query: string,
+  projectId: string | null
+): Promise<AssigneeResolution> {
+  const [members, projectMembers] = await Promise.all([
+    listAssignableMembers(boardId),
+    projectId ? listActiveProjectMemberIds(projectId) : Promise.resolve(null),
+  ]);
+  const match = matchAssignee(query, members, projectMembers);
+  if (match.kind === 'one') return { ok: true, assignee: match.assignee };
+  if (match.kind === 'ambiguous') {
+    return {
+      ok: false,
+      kind: 'ambiguous',
+      result: {
+        error: `„${query.trim()}" passt auf mehrere Personen.`,
+        candidates: match.candidates.map((c) => ({ id: c.id, name: c.name })),
+        hinweis:
+          'Frag mit ask_human nach, wer gemeint ist, und ruf die Aktion dann mit der Profil-Id als assignee erneut auf.',
+      },
+    };
+  }
+  const names = members
+    .map((m) => (m.display_name || m.first_name || '').trim())
+    .filter(Boolean)
+    .slice(0, 10);
+  return {
+    ok: false,
+    kind: 'none',
+    result: {
+      error: `„${query.trim()}" kann auf diesem Board nicht zuständig sein: zuständig sein kann nur, wer das Board sieht.`,
+      ...(names.length ? { zuweisbar: names } : {}),
+    },
+  };
+}
+
 export function makeBoardsTasksTool(ctx: PersonalToolCtx): Tool {
   const { state, sse, threadId, sourceRegistry } = ctx;
   return tool({
@@ -958,7 +1015,16 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
         .string()
         .optional()
         .describe('Ziel-Spalte/Status per Name oder ID (add_card/move_card)'),
-      assignee: z.string().optional().describe('Name der zuständigen Person (assign/add_card)'),
+      assignee: z
+        .string()
+        .optional()
+        .describe('Name oder Profil-Id der zuständigen Person (assign/add_card)'),
+      assigneeMode: z
+        .enum(['add', 'replace', 'remove'])
+        .default('add')
+        .describe(
+          'assign: "add" fügt die Person hinzu (Standard), "replace" ersetzt alle Zuständigen (ohne assignee: leeren), "remove" nimmt sie heraus'
+        ),
       dueDate: z
         .string()
         .optional()
@@ -1060,7 +1126,18 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
         if (args.status) row.status = args.status;
         if (args.description) row.description = args.description;
         if (args.dueDate) row.dueDate = args.dueDate;
-        if (args.assignee) row.assignee = args.assignee;
+        if (args.assignee?.trim()) {
+          const resolved = await resolveCardAssignee(
+            boardId,
+            args.assignee,
+            state.project?.id ?? null
+          );
+          if (!resolved.ok) return resolved.result;
+          row.assignee = resolved.assignee;
+          // Die Karten-Id steht schon im Vorschlag, damit die Bestätigung Verlauf
+          // und Benachrichtigung der richtigen Karte zuordnen kann.
+          row.id = `row-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        }
         const pending: PendingAction = {
           actionId: newActionId(),
           threadId,
@@ -1089,6 +1166,30 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
       if (!(await hasWriteAccess(boardId, userId))) {
         return { error: 'Keine Berechtigung, dieses Board zu bearbeiten.' };
       }
+      let assigneeChange: BoardAssigneeChange | null = null;
+      if (action === 'assign') {
+        const who = args.assignee?.trim() ?? '';
+        const mode = args.assigneeMode;
+        if (!who) {
+          if (mode !== 'replace') {
+            return {
+              error:
+                'assign braucht assignee (Name oder Profil-Id); alle Zuständigen entfernt assigneeMode="replace" ohne assignee.',
+            };
+          }
+          assigneeChange = { mode: 'replace', person: null };
+        } else {
+          const resolved = await resolveCardAssignee(boardId, who, state.project?.id ?? null);
+          if (resolved.ok) {
+            assigneeChange = { mode, person: resolved.assignee };
+          } else if (mode === 'remove' && resolved.kind === 'none') {
+            // Ein Alt-Eintrag ohne Id (nackter Name) lässt sich nur über den Namen entfernen.
+            assigneeChange = { mode, person: { id: '', name: who, avatarRobotId: 1 } };
+          } else {
+            return resolved.result;
+          }
+        }
+      }
       try {
         const changes =
           action === 'edit_card'
@@ -1100,9 +1201,21 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
               ? { status: args.status ?? '' }
               : action === 'set_due'
                 ? { dueDate: args.dueDate ?? null }
-                : { assignee: args.assignee ?? '' };
+                : assigneeChange
+                  ? { assignees: assigneeChange }
+                  : {};
         const result = await updateCard(boardId, cardId, changes);
         if (result.applied.length === 0) return { ok: true, note: 'Keine Änderung nötig.' };
+        if (result.applied.includes('Zuständig')) {
+          await recordAssignment({
+            boardId,
+            cardId,
+            userId,
+            names: result.assigneeNames,
+            addedAssigneeIds: result.addedAssigneeIds,
+            cardTitle: result.cardTitle,
+          });
+        }
         const note = `Karte aktualisiert (${result.applied.join(', ')}).`;
         groundNote(sourceRegistry, 'Karte bearbeitet', note);
         return { ok: true, note };

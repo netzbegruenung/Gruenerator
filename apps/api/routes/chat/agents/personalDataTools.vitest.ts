@@ -39,6 +39,9 @@ const recallPastChats = vi.fn<(...a: unknown[]) => unknown>();
 const listRecentThreads = vi.fn<(...a: unknown[]) => unknown>();
 const getThreadRecallContext = vi.fn<(...a: unknown[]) => unknown>();
 const resolveSpaceThreadIds = vi.fn<(...a: unknown[]) => unknown>();
+const listAssignableMembers = vi.fn<(...a: unknown[]) => unknown>();
+const listActiveProjectMemberIds = vi.fn<(...a: unknown[]) => unknown>();
+const recordAssignment = vi.fn<(...a: unknown[]) => unknown>();
 
 vi.mock('../../docs/docsSearch.js', () => ({
   searchOfficeContent: (...a: unknown[]) => searchOfficeContent(...a),
@@ -60,6 +63,17 @@ vi.mock('../../../services/boards/boardCardWriteService.js', () => ({
     }
   },
   updateCard: (...a: unknown[]) => updateCard(...a),
+}));
+vi.mock('../../../services/boards/cardAssignees.js', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../../../services/boards/cardAssignees.js')>();
+  return {
+    ...real,
+    listAssignableMembers: (...a: unknown[]) => listAssignableMembers(...a),
+    listActiveProjectMemberIds: (...a: unknown[]) => listActiveProjectMemberIds(...a),
+  };
+});
+vi.mock('../../../services/boards/cardAssignmentNotifications.js', () => ({
+  recordAssignment: (...a: unknown[]) => recordAssignment(...a),
 }));
 vi.mock('../../../services/groups/groupQueries.js', () => ({
   findGroups: (...a: unknown[]) => findGroups(...a),
@@ -641,6 +655,144 @@ describe('boards_tasks', () => {
       limit: 15,
     })) as { error?: string };
     expect(out.error).toBe('Karte Plakate bestellen nicht auf Board b1 gefunden.');
+  });
+
+  describe('Zuständige auflösen statt Namen speichern', () => {
+    const anna = {
+      user_id: '11111111-1111-4111-8111-111111111111',
+      source: 'group',
+      first_name: 'Anna',
+      display_name: 'Anna Berg',
+      avatar_robot_id: 3,
+    };
+    const anna2 = {
+      user_id: '22222222-2222-4222-8222-222222222222',
+      source: 'group',
+      first_name: 'Anna',
+      display_name: 'Anna Kurz',
+      avatar_robot_id: 1,
+    };
+    const projectCtx = () => {
+      const c = ctx('u1');
+      (c.state as unknown as { project: unknown }).project = { id: 'g1', documentIds: [] };
+      return c;
+    };
+
+    it('assign schreibt die Profil-Id und meldet die Zuweisung wie das Web', async () => {
+      hasWriteAccess.mockResolvedValue(true);
+      listAssignableMembers.mockResolvedValue([anna]);
+      updateCard.mockResolvedValue({
+        ok: true,
+        cardId: 'r1',
+        applied: ['Zuständig'],
+        addedAssigneeIds: [anna.user_id],
+        assigneeNames: ['Anna Berg'],
+        cardTitle: 'Plakate',
+      });
+      const out = (await exec(makeBoardsTasksTool(ctx('u1')), {
+        action: 'assign',
+        boardId: 'b1',
+        cardId: 'r1',
+        assignee: 'anna berg',
+        assigneeMode: 'add',
+        limit: 15,
+      })) as { ok?: boolean };
+      expect(out.ok).toBe(true);
+      expect(updateCard).toHaveBeenCalledWith('b1', 'r1', {
+        assignees: {
+          mode: 'add',
+          person: { id: anna.user_id, name: 'Anna Berg', avatarRobotId: 3 },
+        },
+      });
+      expect(recordAssignment).toHaveBeenCalledWith({
+        boardId: 'b1',
+        cardId: 'r1',
+        userId: 'u1',
+        names: ['Anna Berg'],
+        addedAssigneeIds: [anna.user_id],
+        cardTitle: 'Plakate',
+      });
+    });
+
+    it('zwei Annas: Kandidaten zurück, nichts geschrieben', async () => {
+      hasWriteAccess.mockResolvedValue(true);
+      listAssignableMembers.mockResolvedValue([anna, anna2]);
+      const out = (await exec(makeBoardsTasksTool(ctx('u1')), {
+        action: 'assign',
+        boardId: 'b1',
+        cardId: 'r1',
+        assignee: 'Anna',
+        assigneeMode: 'add',
+        limit: 15,
+      })) as { candidates?: Array<{ id: string }> };
+      expect(out.candidates?.map((c) => c.id)).toEqual([anna.user_id, anna2.user_id]);
+      expect(updateCard).not.toHaveBeenCalled();
+      expect(recordAssignment).not.toHaveBeenCalled();
+    });
+
+    it('im Projekt-Chat entscheidet die Mitgliedschaft zwischen zwei Annas', async () => {
+      hasWriteAccess.mockResolvedValue(true);
+      listAssignableMembers.mockResolvedValue([anna, anna2]);
+      listActiveProjectMemberIds.mockResolvedValue(new Set([anna2.user_id]));
+      updateCard.mockResolvedValue({
+        ok: true,
+        cardId: 'r1',
+        applied: ['Zuständig'],
+        addedAssigneeIds: [anna2.user_id],
+        assigneeNames: ['Anna Kurz'],
+        cardTitle: 'Plakate',
+      });
+      await exec(makeBoardsTasksTool(projectCtx()), {
+        action: 'assign',
+        boardId: 'b1',
+        cardId: 'r1',
+        assignee: 'Anna',
+        assigneeMode: 'add',
+        limit: 15,
+      });
+      expect(listActiveProjectMemberIds).toHaveBeenCalledWith('g1');
+      expect(updateCard).toHaveBeenCalledWith('b1', 'r1', {
+        assignees: { mode: 'add', person: expect.objectContaining({ id: anna2.user_id }) },
+      });
+    });
+
+    it('wer das Board nicht sieht, wird nicht als Text gespeichert', async () => {
+      hasWriteAccess.mockResolvedValue(true);
+      listAssignableMembers.mockResolvedValue([anna]);
+      const out = (await exec(makeBoardsTasksTool(ctx('u1')), {
+        action: 'assign',
+        boardId: 'b1',
+        cardId: 'r1',
+        assignee: 'Bernd',
+        assigneeMode: 'add',
+        limit: 15,
+      })) as { error?: string; zuweisbar?: string[] };
+      expect(out.error).toMatch(/Bernd/);
+      expect(out.zuweisbar).toEqual(['Anna Berg']);
+      expect(updateCard).not.toHaveBeenCalled();
+    });
+
+    it('add_card legt die aufgelöste Person samt Karten-Id in den Vorschlag', async () => {
+      loadBoardState.mockResolvedValue(board);
+      listAssignableMembers.mockResolvedValue([anna]);
+      await exec(makeBoardsTasksTool(ctx('u1')), {
+        action: 'add_card',
+        boardId: 'b1',
+        title: 'Flyer',
+        assignee: 'Anna',
+        limit: 15,
+      });
+      const [, action] = emitToolConfirmAction.mock.calls[0] as [
+        unknown,
+        { payload: { rows: Array<{ id?: string; assignee?: unknown }> } },
+      ];
+      expect(action.payload.rows[0].assignee).toEqual({
+        id: anna.user_id,
+        name: 'Anna Berg',
+        avatarRobotId: 3,
+      });
+      expect(action.payload.rows[0].id).toMatch(/^row-/);
+    });
   });
 });
 

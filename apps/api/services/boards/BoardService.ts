@@ -1,6 +1,7 @@
 import { promisify } from 'util';
 import { gunzip, gzip } from 'zlib';
 
+import { serializeBoardAssignees } from '@gruenerator/shared/utils';
 import * as Y from 'yjs';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
@@ -598,6 +599,23 @@ export async function createBoardDocument(
 }
 
 /**
+ * Zellenwert für `row.assignee`: eine aufgelöste Person (`{ id, name }`, so legt
+ * der Chat seit 11/2026 Karten an) als JSON-Array wie im Web, sonst der Text wie
+ * bisher (Board-Generierung, MCP).
+ */
+function assigneeCell(value: unknown): string {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const a = value as Record<string, unknown>;
+    if (typeof a.id === 'string' && a.id && typeof a.name === 'string') {
+      const avatar = typeof a.avatarRobotId === 'number' ? a.avatarRobotId : 1;
+      return serializeBoardAssignees([{ id: a.id, name: a.name, avatarRobotId: avatar }]);
+    }
+    return '';
+  }
+  return typeof value === 'string' ? value : '';
+}
+
+/**
  * Add rows to an existing board by loading the Yjs document,
  * appending rows to the 'rows' array, and persisting the update.
  */
@@ -636,7 +654,7 @@ export async function addRowsToBoard(
       cells.set(FIELD_IDS.DESCRIPTION, String(row.description || ''));
       cells.set(FIELD_IDS.DUE_DATE, row.dueDate ? String(row.dueDate) : null);
       cells.set(FIELD_IDS.LABELS, []);
-      cells.set(FIELD_IDS.ASSIGNEE, String(row.assignee || ''));
+      cells.set(FIELD_IDS.ASSIGNEE, assigneeCell(row.assignee));
       cells.set(FIELD_IDS.LINKED_DOCS, '[]');
       newRow.set('cells', cells);
 
