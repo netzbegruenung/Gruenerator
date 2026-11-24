@@ -130,3 +130,5 @@ export {
   createInProject,
   type CreateInProjectKind,
 } from './createInProject.js';
+
+export { pickRecentEntries, type RecentEntry } from './recentEntries.js';
