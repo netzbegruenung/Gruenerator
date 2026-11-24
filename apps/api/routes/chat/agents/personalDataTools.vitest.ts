@@ -204,9 +204,38 @@ describe('find_content', () => {
       query: 'klima',
       limit: 5,
     })) as { results: Array<{ title: string; url: string }>; resultCount: number };
-    expect(searchOfficeContent).toHaveBeenCalledWith('u1', 'klima', { limit: 5 });
+    expect(searchOfficeContent).toHaveBeenCalledWith('u1', 'klima', { limit: 5, groupId: null });
     expect(out.resultCount).toBe(1);
     expect(out.results[0]).toMatchObject({ title: 'Klimaplan', url: '/office/d1' });
+  });
+
+  it('im Projekt-Chat sucht search nur im Projekt und ohne Reels, scope=all überall', async () => {
+    searchOfficeContent.mockResolvedValue([]);
+    const c = ctx('u1');
+    (c.state as unknown as { project: unknown }).project = { id: 'g1', documentIds: [] };
+    const out = (await exec(makeFindContentTool(c), {
+      action: 'search',
+      query: 'klima',
+      limit: 5,
+    })) as { hinweis?: string };
+    expect(searchOfficeContent).toHaveBeenLastCalledWith('u1', 'klima', {
+      limit: 5,
+      groupId: 'g1',
+    });
+    expect(searchReels).not.toHaveBeenCalled();
+    expect(out.hinweis).toMatch(/scope="all"/);
+
+    await exec(makeFindContentTool(c), {
+      action: 'search',
+      query: 'klima',
+      scope: 'all',
+      limit: 5,
+    });
+    expect(searchOfficeContent).toHaveBeenLastCalledWith('u1', 'klima', {
+      limit: 5,
+      groupId: null,
+    });
+    expect(searchReels).toHaveBeenCalled();
   });
 
   it('search rows carry the id and the read_artifact kind, not only a label in the url', async () => {

@@ -346,6 +346,12 @@ DATUM: "geaendert" ist das Datum der letzten Änderung. Tragen mehrere Treffer d
       .object({
         action: z.enum(['search', 'recent']),
         query: z.string().optional().describe('Suchbegriff (Pflicht bei action="search")'),
+        scope: z
+          .enum(['project', 'all'])
+          .optional()
+          .describe(
+            'search: "project" = nur Inhalte des Projekts dieses Chats (Standard im Projekt-Chat), "all" = alle eigenen Inhalte samt Reels'
+          ),
         limit: z.number().int().min(1).max(30).default(15),
       })
       .superRefine((input, ctx) => {
@@ -358,17 +364,23 @@ DATUM: "geaendert" ist das Datum der letzten Änderung. Tragen mehrere Treffer d
           });
         }
       }),
-    execute: async ({ action, query, limit }) => {
+    execute: async ({ action, query, scope, limit }) => {
       const userId = requireUserId(state);
       if (!userId) return { error: NO_SESSION };
 
       if (action === 'search') {
         const q = (query ?? '').trim();
         if (!q) return { error: 'Für die Suche wird ein Suchbegriff benötigt.' };
+        // Im Projekt-Chat sucht „finde das Dokument" im Projekt. Reels lassen sich
+        // nicht in ein Projekt teilen; sie kommen nur mit `scope: 'all'`.
+        const groupId = scope === 'all' ? null : (state.project?.id ?? null);
         const [hits, reelHits] = await Promise.all([
-          searchOfficeContent(userId, q, { limit }),
-          searchReels(userId, q, Math.min(limit, 5)),
+          searchOfficeContent(userId, q, { limit, groupId }),
+          groupId ? Promise.resolve([]) : searchReels(userId, q, Math.min(limit, 5)),
         ]);
+        const scopeNote = groupId
+          ? 'Nur Inhalte dieses Projekts durchsucht; scope="all" sucht in allen eigenen Inhalten samt Reels.'
+          : null;
         const results = [
           ...hits.map((h) => ({
             ...makeRow(
@@ -389,7 +401,9 @@ DATUM: "geaendert" ist das Datum der letzten Änderung. Tragen mehrere Treffer d
           return {
             ...leeresErgebnis({
               filter: `Suchbegriff „${q}“ in Docs, Präsentationen, Tabellen, Boards und Reels (hochgeladene Dateien und Notebooks sind ausgenommen — dafür 'documents' bzw. 'notebooks')`,
-              hinweis: 'Versuche ein kürzeres oder anderes Stichwort',
+              hinweis: scopeNote
+                ? `Versuche ein kürzeres oder anderes Stichwort. ${scopeNote}`
+                : 'Versuche ein kürzeres oder anderes Stichwort',
             }),
             results,
           };
@@ -397,6 +411,7 @@ DATUM: "geaendert" ist das Datum der letzten Änderung. Tragen mehrere Treffer d
         return {
           resultCount: results.length,
           results,
+          ...(scopeNote ? { note: scopeNote } : {}),
           ...(hits.length >= limit
             ? {
                 hinweis: `Es gibt eventuell mehr als die ${hits.length} gezeigten Treffer; grenze mit einem genaueren Suchbegriff ein.`,
