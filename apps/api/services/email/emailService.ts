@@ -93,7 +93,9 @@ export async function sendEmail(options: SendEmailOptions): Promise<boolean> {
     log.info('[Email] Sent');
     return true;
   } catch (error) {
-    log.error('[Email] Failed to send', { error });
+    // Die SMTP-Meldung nennt oft die Empfängeradresse; geloggt werden nur die Codes.
+    const { code, responseCode } = (error ?? {}) as { code?: unknown; responseCode?: unknown };
+    log.error('[Email] Failed to send', { code, responseCode });
     return false;
   }
 }
