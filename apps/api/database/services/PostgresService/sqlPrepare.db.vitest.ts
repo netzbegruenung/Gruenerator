@@ -61,18 +61,6 @@ interface KnownFailure {
 
 const KNOWN_FAILURES: KnownFailure[] = [
   {
-    file: 'routes/auth/content/userGallery.ts',
-    marker: 'SELECT categories FROM database',
-    error: 'column "categories" does not exist',
-    why: 'toter Endpunkt, Spalten gibt es nicht (#6011)',
-  },
-  {
-    file: 'routes/auth/content/userGallery.ts',
-    marker: 'SELECT DISTINCT type FROM database',
-    error: 'column "type" does not exist',
-    why: 'toter Endpunkt, Spalten gibt es nicht (#6011)',
-  },
-  {
     file: 'services/usage/adminContentStats.ts',
     marker: 'FROM unnest($4::timestamptz[], $5::uuid[])',
     error: 'could not determine data type of parameter $1',
