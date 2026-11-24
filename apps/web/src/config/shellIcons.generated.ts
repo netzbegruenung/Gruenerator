@@ -212,6 +212,10 @@ export function LuExternalLink(props: IconBaseProps): JSX.Element {
   return GenIcon({"tag":"svg","attr":{"viewBox":"0 0 24 24","fill":"none","stroke":"currentColor","strokeWidth":"2","strokeLinecap":"round","strokeLinejoin":"round"},"child":[{"tag":"path","attr":{"d":"M15 3h6v6"},"child":[]},{"tag":"path","attr":{"d":"M10 14 21 3"},"child":[]},{"tag":"path","attr":{"d":"M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"},"child":[]}]})(props);
 }
 
+export function LuFileText(props: IconBaseProps): JSX.Element {
+  return GenIcon({"tag":"svg","attr":{"viewBox":"0 0 24 24","fill":"none","stroke":"currentColor","strokeWidth":"2","strokeLinecap":"round","strokeLinejoin":"round"},"child":[{"tag":"path","attr":{"d":"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"},"child":[]},{"tag":"path","attr":{"d":"M14 2v4a2 2 0 0 0 2 2h4"},"child":[]},{"tag":"path","attr":{"d":"M10 9H8"},"child":[]},{"tag":"path","attr":{"d":"M16 13H8"},"child":[]},{"tag":"path","attr":{"d":"M16 17H8"},"child":[]}]})(props);
+}
+
 export function LuFolderCog(props: IconBaseProps): JSX.Element {
   return GenIcon({"tag":"svg","attr":{"viewBox":"0 0 24 24","fill":"none","stroke":"currentColor","strokeWidth":"2","strokeLinecap":"round","strokeLinejoin":"round"},"child":[{"tag":"circle","attr":{"cx":"18","cy":"18","r":"3"},"child":[]},{"tag":"path","attr":{"d":"M10.3 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H20a2 2 0 0 1 2 2v3.3"},"child":[]},{"tag":"path","attr":{"d":"m21.7 19.4-.9-.3"},"child":[]},{"tag":"path","attr":{"d":"m15.2 16.9-.9-.3"},"child":[]},{"tag":"path","attr":{"d":"m16.6 21.7.3-.9"},"child":[]},{"tag":"path","attr":{"d":"m19.1 15.2.3-.9"},"child":[]},{"tag":"path","attr":{"d":"m19.6 21.7-.4-1"},"child":[]},{"tag":"path","attr":{"d":"m16.8 15.3-.4-1"},"child":[]},{"tag":"path","attr":{"d":"m14.3 19.6 1-.4"},"child":[]},{"tag":"path","attr":{"d":"m20.7 16.8 1-.4"},"child":[]}]})(props);
 }

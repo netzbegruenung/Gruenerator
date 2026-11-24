@@ -1,3 +1,4 @@
+import '../image-studio/canvasHost';
 import { pinnedFormatId } from '@gruenerator/canvas-editor/formats';
 import { type AssetInstance } from '@gruenerator/canvas-editor/profilbildStickers';
 import { type CanvasDocument } from '@gruenerator/contracts';

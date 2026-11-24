@@ -12,10 +12,10 @@ import { describe, expect, it } from 'vitest';
 import {
   LegacyNotebookIdRedirectComponent,
   RetiredStudioCategoryRedirectComponent,
-  StickerDiscoverRedirectComponent,
   VorlagenMeineRedirectComponent,
   routes,
 } from './routes';
+import { StickerDiscoverRedirectComponent } from './StickerDiscoverRedirect';
 
 function LandingProbe() {
   const location = useLocation();

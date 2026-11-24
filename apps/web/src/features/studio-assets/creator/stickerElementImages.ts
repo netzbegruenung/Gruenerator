@@ -1,3 +1,4 @@
+import '../../image-studio/canvasHost';
 import { generateIconDataUrl } from '@gruenerator/canvas-editor/stickerElements';
 import { useEffect, useState } from 'react';
 

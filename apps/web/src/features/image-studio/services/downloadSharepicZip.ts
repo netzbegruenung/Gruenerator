@@ -1,3 +1,4 @@
+import '../canvasHost';
 import { zipPageImages } from '@gruenerator/canvas-editor/zip';
 import { downloadBlob } from '@gruenerator/shared';
 

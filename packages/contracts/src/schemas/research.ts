@@ -103,6 +103,9 @@ export const researchDocumentPassageSchema = z.object({
   index: z.number(),
   /** The heading above the passage, when the text has headings. */
   heading: z.string().nullable(),
+  /** The document page the passage sits on, from the stored `## Seite N`
+   *  markers; `null` for a text without them. Additive (F0). */
+  page: z.number().nullable().optional(),
   /** Short teaser for the passage list. */
   text: z.string(),
 });
@@ -112,6 +115,9 @@ export const researchDocumentResponseSchema = z.object({
   title: z.string(),
   /** The original on the web; `null` for an uploaded file, which has none. */
   sourceUrl: z.string().nullable(),
+  /** An uploaded file whose original was kept (`GET /api/documents/:id/original`).
+   *  Only set by the user-document reader; additive (F0), older clients ignore it. */
+  hasOriginal: z.boolean().optional(),
   sourceName: z.string().nullable(),
   contentTypeLabel: z.string().nullable(),
   publishedAt: z.string().nullable(),

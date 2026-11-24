@@ -1,3 +1,4 @@
+import './canvasHost';
 import { type ShareAction, type ShareNav } from '@ggraphic/editor/shell';
 import {
   commitOpenTextEdit,
