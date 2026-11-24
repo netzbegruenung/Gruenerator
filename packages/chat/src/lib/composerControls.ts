@@ -1,4 +1,4 @@
-import { getSystemAgent } from '@gruenerator/shared/agents';
+import { getSlimAgent } from '@gruenerator/shared/agents';
 import {
   isModelEnabledByDefault,
   TEXT_MODELS,
@@ -178,7 +178,7 @@ export interface SearchDepthDef {
  * the notebook page, not to this one (see `NOTEBOOK_DEPTHS` below).
  */
 export function showsSearchDepth(agentId: string | null | undefined): boolean {
-  return (agentId ? getSystemAgent(agentId)?.routeTo : null) === 'search';
+  return (agentId ? getSlimAgent(agentId)?.routeTo : null) === 'search';
 }
 
 /** Search depth (Recherchetiefe) options — shared copy for web + mobile. */

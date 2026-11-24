@@ -18,11 +18,8 @@ import { isSkillAbsorbedByMention } from '../chat-intents/index.js';
 import { type InstanceId } from '../instances/index.js';
 
 import { isAdminVisibleAgent } from './agentVisibility.js';
-import {
-  getVisibleSystemAgentsForLocale,
-  isAgentVisibleForPlatform,
-  matchesRecipeAudience,
-} from './audience.js';
+import { isAgentVisibleForPlatform, matchesRecipeAudience } from './audience.js';
+import { getVisibleSystemAgentsForLocale } from './audienceCatalog.js';
 import { isLandesverbandIdentifier } from './landesverbaende.js';
 import { isLvItemVisibleForRoles } from './landesverbandForRoles.js';
 import { isSkillOfferedIn, isUserFacingSkill } from './skillInstances.js';
