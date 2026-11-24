@@ -103,6 +103,9 @@ export const researchDocumentPassageSchema = z.object({
   index: z.number(),
   /** The heading above the passage, when the text has headings. */
   heading: z.string().nullable(),
+  /** The document page the passage sits on, from the stored `## Seite N`
+   *  markers; `null` for a text without them. Additive (F0). */
+  page: z.number().nullable().optional(),
   /** Short teaser for the passage list. */
   text: z.string(),
 });

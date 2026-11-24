@@ -120,3 +120,38 @@ describe('buildReaderDocument', () => {
     expect(passages).toEqual([]);
   });
 });
+
+describe('buildReaderDocument — page of a passage', () => {
+  it('takes the page from the last „## Seite N" marker above the passage', () => {
+    const { passages } = buildReaderDocument(
+      [
+        '## Seite 1',
+        '',
+        'Einleitung ohne Treffer.',
+        '',
+        '## Seite 4',
+        '',
+        '## Forderungen',
+        '',
+        'Hitzeschutz muss Pflicht werden.',
+        '',
+        '## Seite 7',
+        '',
+        'Auch hier: Hitzeschutz.',
+      ].join('\n'),
+      'Hitzeschutz'
+    );
+    expect(passages.map((p) => [p.heading, p.page])).toEqual([
+      ['Forderungen', 4],
+      ['Seite 7', 7],
+    ]);
+  });
+
+  it('has no page for a text without page markers', () => {
+    const { passages } = buildReaderDocument(
+      '## Ausgangslage\n\nHitzeschutz zählt.',
+      'hitzeschutz'
+    );
+    expect(passages[0].page).toBeNull();
+  });
+});

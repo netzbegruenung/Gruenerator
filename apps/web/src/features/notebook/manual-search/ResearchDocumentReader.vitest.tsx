@@ -257,6 +257,42 @@ describe('research document reader — Original öffnen', () => {
     expect(await axe(dialog)).toHaveNoViolations();
   });
 
+  it('opens the original on the page of the marked passage', async () => {
+    server.use(
+      http.get(USER_DOCUMENT, () =>
+        HttpResponse.json({
+          ...doc,
+          sourceUrl: null,
+          sourceName: null,
+          hasOriginal: true,
+          passages: [
+            { ...doc.passages[0], page: 4 },
+            { ...doc.passages[1], page: 7 },
+          ],
+        })
+      )
+    );
+    const { user } = renderList(
+      [hit({ document_id: 'doc-uuid', source_url: null, collection_id: 'nb-uuid' })],
+      'nb-uuid'
+    );
+    await user.click(screen.getByRole('button', { name: 'Hitzeschutz für alle' }));
+    await screen.findByRole('dialog', { name: doc.title });
+
+    const link = () => screen.getAllByRole('link', { name: /Original öffnen/ })[0];
+    expect(link()).toHaveAccessibleName('Original öffnen, Seite 4');
+    expect(link()).toHaveAttribute(
+      'href',
+      '/api/documents/doc-uuid/original?notebookId=nb-uuid#page=4'
+    );
+
+    await user.click(screen.getAllByRole('button', { name: 'Nächste Stelle' })[0]);
+    expect(link()).toHaveAttribute(
+      'href',
+      '/api/documents/doc-uuid/original?notebookId=nb-uuid#page=7'
+    );
+  });
+
   it('shows no link when the upload kept no original', async () => {
     await openUpload({ hasOriginal: false });
     expect(screen.queryByRole('link', { name: 'Original öffnen' })).not.toBeInTheDocument();

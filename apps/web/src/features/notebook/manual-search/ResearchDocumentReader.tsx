@@ -119,15 +119,23 @@ function WebLink({ href, className }: { href: string | null; className?: string 
 }
 
 /** The kept upload, opened by the browser itself (cookie auth); PDFs and images inline. */
-function OriginalLink({ target }: { target: ReaderTarget }) {
+function OriginalLink({ target, page }: { target: ReaderTarget; page: number | null }) {
   if (!('documentId' in target)) return null;
   const query = target.notebookId ? `?notebookId=${encodeURIComponent(target.notebookId)}` : '';
-  const href = `${API_BASE_URL}/documents/${encodeURIComponent(target.documentId)}/original${query}`;
+  // `#page=N` is the PDF open parameter the browser viewers read; other types ignore it.
+  const fragment = page ? `#page=${page}` : '';
+  const href = `${API_BASE_URL}/documents/${encodeURIComponent(target.documentId)}/original${query}${fragment}`;
   return (
     <Button asChild variant="brand-outline" size="brand-sm">
       <a href={href} target="_blank" rel="noopener noreferrer">
         <LuFileText aria-hidden />
         Original öffnen
+        {page ? (
+          <>
+            <span aria-hidden> · S. {page}</span>
+            <span className="sr-only">, Seite {page}</span>
+          </>
+        ) : null}
       </a>
     </Button>
   );
@@ -150,11 +158,14 @@ function ReaderActions({
   doc,
   target,
   chatActions,
+  page,
   className,
 }: {
   doc: ResearchDocumentResponse;
   target: ReaderTarget;
   chatActions: boolean;
+  /** Page of the marked passage, for „Original öffnen". */
+  page: number | null;
   className?: string;
 }) {
   const navigate = useNavigate();
@@ -171,7 +182,7 @@ function ReaderActions({
   return (
     <div className={cn('flex flex-col items-start gap-2', className)}>
       <WebLink href={doc.sourceUrl} />
-      {hasOriginal && <OriginalLink target={target} />}
+      {hasOriginal && <OriginalLink target={target} page={page} />}
       {chatActions && (
         <>
           <Button
@@ -429,6 +440,7 @@ export function ResearchDocumentReader({
                   doc={data}
                   target={target}
                   chatActions={chatActions}
+                  page={data.passages[active]?.page ?? null}
                   className={className}
                 />
               )}
