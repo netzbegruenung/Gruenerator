@@ -99,7 +99,7 @@ Jedes Projekt (eine Art, `group_type` spielt keine Rolle) hat Feed und „Alle�
 
 **Was keinen Postgres-Leser hat, braucht einen eigenen Riegel.** Die Chunks von Chat-Anhängen liegen in der Qdrant-Sammlung `documents` ohne `documents`-Zeile, die eine Suche filtern könnte: beim Trashen eines Threads bekommen sie `deleted_at` in die Nutzlast, beim Wiederherstellen verlieren sie es, und die **ungescopten** Suchen in `DocumentSearchService/searchOperations.ts` verlangen `is_empty: deleted_at`. Gescopte Suchen (`documentIds`) prüfen den Stempel bewusst nicht — ein beim Wiederherstellen fehlgeschlagenes Entstempeln darf die Anhänge nicht im eigenen Thread verstecken. **Likes** (`entity_likes`, polymorph, ohne FK) räumt jeder Purge für seine Art selbst ab; einen Sweep „Like ohne Zeile" gibt es absichtlich nicht, weil Vorlagen-Likes auch auf System-Vorlagen ohne `user_templates`-Zeile zeigen. **Kontolöschung** bleibt hart und läuft am Papierkorb vorbei: `services/user/accountDeletionCleanup.ts` räumt vor dem Profil ab, was keine FK-Kaskade erreicht — jedes Dokument, das niemand anderes besitzt (sonst bliebe es mit `created_by = NULL` herrenlos liegen), alle Notebooks der Person in Qdrant samt Likes (die Postgres-Tabelle `notebook_collections` ist tot, ihre Kaskade räumt nichts) und die Likes der Person.
 
-**Der Purge-Worker läuft im Probelauf**, bis die Code-Konstante `APPLY` in `trashPurgeService.ts` auf `true` steht — absichtlich kein Env-Schalter. Umschalten erst nach einem Deploy mit sauberen Probelauf-Logs je Kind.
+**Der Purge-Worker löscht**: die Code-Konstante `APPLY` in `trashPurgeService.ts` steht auf `true` — absichtlich kein Env-Schalter. Mit `false` läuft er als Probelauf und protokolliert nur.
 
 ### Content Sync & Scraping
 
