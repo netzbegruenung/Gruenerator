@@ -2,18 +2,25 @@ import {
   GROUP_POST_FILE_LIMIT,
   GROUP_POST_FILE_MAX_BYTES,
   GROUP_POST_MAX,
+  GROUP_SHARE_NOTE_MAX,
 } from '@gruenerator/contracts';
 import {
+  addItemsToGroup,
+  addableKey,
   errMessage,
   fileExtensionLabel,
   formatFileSize,
+  groupContentKey,
   personInitials,
   useCreateGroupPost,
 } from '@gruenerator/shared/groups';
 import { Button, cn, Textarea } from '@gruenerator/ui';
+import { useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { type DragEvent, type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { PiPaperclip, PiSparkle, PiX } from 'react-icons/pi';
+
+import { type PickerItem } from '../AddExistingPicker';
 
 import { MentionSuggestions, useMentionDraft } from './GroupMentions';
 
@@ -30,8 +37,13 @@ interface GroupComposerProps {
   /** null: the system group — everyone sees it, the count stays hidden. */
   memberCount: number | null;
   currentUserName: string | null;
-  /** „Aus meinen Inhalten": Teilen-Dialog, der bisherige Text wird zur Notiz. */
-  onOpenShare: (note: string) => void;
+  /**
+   * „Aus meinen Inhalten": öffnet die Auswahl; was gewählt wird, hängt am Entwurf.
+   * Geteilt wird erst beim Posten, mit dem Text als Notiz.
+   */
+  onPickExisting: (onPicked: (items: PickerItem[]) => void) => void;
+  /** Docs, Sheets, Präsentationen und Boards mit Schreibrecht teilen (Team-Projekte). */
+  writeDocuments: boolean;
 }
 
 const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
@@ -44,27 +56,35 @@ function uploadError(error: unknown): string {
 }
 
 /**
- * Schreiben in den Gruppen-Feed: Text und bis zu zehn Dateien, ohne etwas zu
- * teilen. Zugeklappt eine Zeile, aufgeklappt mit Anhängen und Aktionen.
+ * Schreiben in den Gruppen-Feed: Text, bis zu zehn Dateien und eigene Inhalte.
+ * Zugeklappt eine Zeile, aufgeklappt mit Anhängen und Aktionen.
  * Dateien kommen über den Button oder per Drag & Drop auf die Karte.
+ *
+ * Inhalte aus „Aus meinen Inhalten“ werden beim Posten geteilt, der Text als ihre
+ * Notiz — kein zusätzlicher Beitrag mit demselben Text. Hochgeladene Dateien daneben
+ * werden ein Beitrag ohne Text.
  */
 export function GroupComposer({
   groupId,
   groupName,
   memberCount,
   currentUserName,
-  onOpenShare,
+  onPickExisting,
+  writeDocuments,
 }: GroupComposerProps) {
   const [expanded, setExpanded] = useState(false);
   const mention = useMentionDraft(GROUP_POST_MAX);
   const text = mention.text;
   const textarea = useRef<HTMLTextAreaElement>(null);
   const [files, setFiles] = useState<PendingFile[]>([]);
+  const [picked, setPicked] = useState<PickerItem[]>([]);
+  const [sharing, setSharing] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const createPost = useCreateGroupPost(groupId);
+  const queryClient = useQueryClient();
 
   // Objekt-URLs beim Verlassen der Seite freigeben; beim Entfernen einzeln.
   const filesRef = useRef(files);
@@ -112,9 +132,22 @@ export function GroupComposer({
     });
   };
 
+  const addPicked = (items: PickerItem[]) => {
+    setPicked((prev) => {
+      const have = new Set(prev.map(addableKey));
+      return [...prev, ...items.filter((i) => !have.has(addableKey(i)))];
+    });
+    setExpanded(true);
+  };
+
+  const removePicked = (key: string) => {
+    setPicked((prev) => prev.filter((i) => addableKey(i) !== key));
+  };
+
   const reset = () => {
     for (const f of files) if (f.previewUrl) URL.revokeObjectURL(f.previewUrl);
     setFiles([]);
+    setPicked([]);
     mention.reset();
     setLocalError(null);
     setProgress(null);
@@ -122,25 +155,52 @@ export function GroupComposer({
     setExpanded(false);
   };
 
+  // Mit angehängten Inhalten wird der Text ihre Notiz, und die ist kürzer als ein Beitrag.
+  const noteTooLong = picked.length > 0 && text.trim().length > GROUP_SHARE_NOTE_MAX;
+  const busy = sharing || createPost.isPending;
   const canPost =
-    (text.trim().length > 0 || files.length > 0) && !mention.tooLong && !createPost.isPending;
+    (text.trim().length > 0 || files.length > 0 || picked.length > 0) &&
+    !mention.tooLong &&
+    !noteTooLong &&
+    !busy;
 
-  const post = () => {
-    if (!canPost) return;
-    setLocalError(null);
+  const postFiles = (body: string) =>
     createPost.mutate(
-      { body: mention.serialize(), files: files.map((f) => f.file), onProgress: setProgress },
+      { body, files: files.map((f) => f.file), onProgress: setProgress },
       { onSuccess: reset, onSettled: () => setProgress(null) }
     );
+
+  const post = async () => {
+    if (!canPost) return;
+    setLocalError(null);
+    if (picked.length === 0) {
+      postFiles(mention.serialize());
+      return;
+    }
+    setSharing(true);
+    const result = await addItemsToGroup(groupId, picked, text.trim() || null, { writeDocuments });
+    setSharing(false);
+    void queryClient.invalidateQueries({ queryKey: groupContentKey(groupId) });
+    if (result.failed > 0) {
+      // Was geteilt ist, fällt aus dem Entwurf; der Rest bleibt mit dem Grund stehen.
+      const failed = new Set(result.failures.map((f) => f.key));
+      setPicked((prev) => prev.filter((i) => failed.has(addableKey(i))));
+      setLocalError(result.firstError);
+      return;
+    }
+    // Der Text steht schon als Notiz an den Inhalten; die Dateien kommen ohne ihn.
+    if (files.length > 0) postFiles('');
+    else reset();
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (mention.handleKey(e)) return;
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
-      post();
+      void post();
     }
-    if (e.key === 'Escape' && !text && files.length === 0) setExpanded(false);
+    if (e.key === 'Escape' && !text && files.length === 0 && picked.length === 0)
+      setExpanded(false);
   };
 
   const onDrop = (e: DragEvent<HTMLDivElement>) => {
@@ -151,7 +211,13 @@ export function GroupComposer({
 
   const images = files.filter((f) => f.previewUrl);
   const others = files.filter((f) => !f.previewUrl);
-  const error = localError ?? (createPost.isError ? uploadError(createPost.error) : null);
+  const error =
+    localError ??
+    (noteTooLong
+      ? `Mit angehängten Inhalten wird der Text zur Notiz: höchstens ${GROUP_SHARE_NOTE_MAX} Zeichen.`
+      : createPost.isError
+        ? uploadError(createPost.error)
+        : null);
   const avatar = (
     <span
       aria-hidden
@@ -296,6 +362,32 @@ export function GroupComposer({
               ))}
             </ul>
           )}
+          {picked.length > 0 && (
+            <ul
+              aria-label="Angehängte Inhalte"
+              className="m-0 flex list-none flex-wrap gap-xs px-md pb-sm pt-0"
+            >
+              {picked.map((i) => (
+                <li
+                  key={addableKey(i)}
+                  className="flex max-w-full items-center gap-xs rounded-full border border-grey-200 py-1 pl-sm pr-1 text-sm dark:border-grey-700"
+                >
+                  <PiSparkle aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+                  <span className="truncate">{i.title}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-7 rounded-full"
+                    aria-label={`${i.title} entfernen`}
+                    onClick={() => removePicked(addableKey(i))}
+                    disabled={busy}
+                  >
+                    <PiX className="size-3.5" />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
 
           {error && (
             <p role="alert" className="mx-md mb-xs mt-0 text-sm text-red-600 dark:text-red-400">
@@ -317,17 +409,18 @@ export function GroupComposer({
               variant="ghost"
               size="sm"
               className="rounded-full"
-              onClick={() => onOpenShare(text.trim())}
+              onClick={() => onPickExisting(addPicked)}
+              disabled={busy}
             >
               <PiSparkle aria-hidden /> Aus meinen Inhalten
             </Button>
             <div className="ml-auto flex gap-xs">
-              <Button variant="ghost" onClick={reset} disabled={createPost.isPending}>
+              <Button variant="ghost" onClick={reset} disabled={busy}>
                 Abbrechen
               </Button>
-              <Button variant="brand" onClick={post} disabled={!canPost}>
-                {createPost.isPending
-                  ? progress != null && files.length > 0
+              <Button variant="brand" onClick={() => void post()} disabled={!canPost}>
+                {busy
+                  ? createPost.isPending && progress != null && files.length > 0
                     ? `Lädt … ${Math.round(progress * 100)} %`
                     : 'Wird gepostet …'
                   : 'Posten'}

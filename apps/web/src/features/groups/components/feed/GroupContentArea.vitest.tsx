@@ -59,7 +59,7 @@ function render(props: Partial<React.ComponentProps<typeof GroupContentArea>> = 
       currentUserId="me"
       currentUserName="Moritz"
       members={[]}
-      onOpenShare={() => {}}
+      onPickExisting={() => {}}
       actions={null}
       onUseTemplate={() => {}}
       cloningId={null}
@@ -115,7 +115,7 @@ describe('GroupContentArea', () => {
         currentUserId="me"
         currentUserName="Moritz"
         members={[]}
-        onOpenShare={() => {}}
+        onPickExisting={() => {}}
         actions={null}
         onUseTemplate={() => {}}
         cloningId={null}
@@ -149,7 +149,7 @@ describe('GroupContentArea', () => {
   });
 
   it('system project: Austausch without a post button when sharing is not allowed', () => {
-    render({ isSystem: true, onOpenShare: null, isAdmin: false });
+    render({ isSystem: true, onPickExisting: null, isAdmin: false });
     expect(screen.getByRole('heading', { name: 'Austausch' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Neuer Beitrag' })).not.toBeInTheDocument();
   });
