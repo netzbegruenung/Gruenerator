@@ -9,6 +9,7 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { PiMagnifyingGlass, PiPlus, PiX } from 'react-icons/pi';
 import { useSearchParams } from 'react-router-dom';
 
+import { type PickerItem } from '../AddExistingPicker';
 import { type ShareActions } from '../shareActions';
 
 import { GroupComposer } from './GroupComposer';
@@ -28,10 +29,10 @@ interface GroupContentAreaProps {
   currentUserName: string | null;
   members: GroupMember[];
   /**
-   * Teilen-Dialog; `note` kommt aus dem Composer („Aus meinen Inhalten").
-   * null: the viewer may not share here (system group, non-admin).
+   * „Aus meinen Inhalten" im Composer: öffnet die Auswahl, `onPicked` bekommt, was
+   * angehängt werden soll. null: the viewer may not share here (system group, non-admin).
    */
-  onOpenShare: ((note?: string) => void) | null;
+  onPickExisting: ((onPicked: (items: PickerItem[]) => void) => void) | null;
   /** Rolle ändern und entfernen; null: der Viewer verwaltet hier nichts. */
   actions: ShareActions | null;
   onUseTemplate: (id: string) => void;
@@ -62,7 +63,7 @@ export function GroupContentArea({
   currentUserId,
   currentUserName,
   members,
-  onOpenShare,
+  onPickExisting,
   actions,
   onUseTemplate,
   cloningId,
@@ -102,10 +103,10 @@ export function GroupContentArea({
         .map((m) => ({ userId: m.user_id, label: m.display_name || m.first_name || '' }))
         .filter((c) => c.label),
       // In der System-Gruppe erreicht @alle alle Nutzer*innen: nur wer dort schreiben darf.
-      allowAll: !isSystem || !!onOpenShare,
+      allowAll: !isSystem || !!onPickExisting,
       memberCount: isSystem ? null : members.length,
     }),
-    [members, currentUserId, isSystem, onOpenShare]
+    [members, currentUserId, isSystem, onPickExisting]
   );
 
   // Was in den Austausch gehört, entscheidet `austauschItems`; alles andere
@@ -160,7 +161,7 @@ export function GroupContentArea({
     </div>
   ) : (
     <p className="m-0 py-xl text-center text-[15px] text-muted-foreground">
-      {onOpenShare
+      {onPickExisting
         ? 'Noch nichts im Austausch. Schreib etwas an das Projekt oder teile einen Inhalt mit einer Notiz.'
         : 'Noch keine Beiträge.'}
     </p>
@@ -176,7 +177,7 @@ export function GroupContentArea({
         <h2 id="projekt-austausch-titel" className="m-0 min-w-0 flex-1 text-[17px] font-semibold">
           Austausch
         </h2>
-        {onOpenShare && (
+        {onPickExisting && (
           <Button
             variant="ghost"
             size="icon"
@@ -219,13 +220,14 @@ export function GroupContentArea({
           </button>
         </div>
       )}
-      {composerOpen && !hasQuery && onOpenShare && (
+      {composerOpen && !hasQuery && onPickExisting && (
         <GroupComposer
           groupId={groupId}
           groupName={groupName}
           memberCount={isSystem ? null : members.length}
           currentUserName={currentUserName}
-          onOpenShare={onOpenShare}
+          onPickExisting={onPickExisting}
+          writeDocuments={!isSystem}
         />
       )}
       {visible.length === 0 ? (

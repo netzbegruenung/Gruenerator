@@ -198,7 +198,8 @@ async function getPost(
     `SELECT p.id, p.author_id, p.body, s.id AS share_id
        FROM group_posts p
        LEFT JOIN group_content_shares s
-         ON s.content_type = $3 AND s.content_id = p.id AND s.group_id = p.group_id
+         -- content_id ist TEXT, p.id UUID: ohne Cast scheitert der Join an text = uuid.
+         ON s.content_type = $3 AND s.content_id = p.id::text AND s.group_id = p.group_id
       WHERE p.id = $1 AND p.group_id = $2`,
     [postId, groupId, GROUP_POST_CONTENT_TYPE],
     { table: 'group_posts' }
