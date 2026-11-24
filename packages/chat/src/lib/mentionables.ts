@@ -91,9 +91,9 @@ export interface Mentionable {
    */
   instances?: readonly string[];
   /**
-   * Name of the group a recipe was shared from. Set only on recipes that
-   * reached the user through a group share — the UI lists those separately so
-   * shared and own recipes never blur into each other.
+   * Name of the Projekt a recipe or notebook was shared from. Set only on items
+   * that reached the user through a project share — the UI lists those
+   * separately so shared and own items never blur into each other.
    */
   sharedFromGroup?: string;
   /**
@@ -831,12 +831,13 @@ export function setUserNotebookMentionables(notebooks: UserNotebookMentionable[]
     identifier: n.id,
     title: n.title,
     description: n.sharedViaGroups?.length
-      ? `Geteilt in ${n.sharedViaGroups.join(', ')}: ${n.title}`
+      ? `Notebook aus ${n.sharedViaGroups.join(', ')}`
       : `Mein Notebook: ${n.title}`,
     avatar: '📓',
     icon: PiNotePencil,
     backgroundColor: '#316049',
     mention: n.slug,
+    ...(n.sharedViaGroups?.length ? { sharedFromGroup: n.sharedViaGroups.join(', ') } : {}),
   }));
   rebuildMentionableMap();
 }

@@ -150,7 +150,8 @@ describe('syncUserNotebooks shared notebooks', () => {
     );
     expect(list.map((n) => n.id)).toEqual(['own-1', 'sh-1']);
     const hit = getUserNotebookMentionables().find((m) => m.identifier === 'sh-1');
-    expect(hit?.description).toBe('Geteilt in BGS Test: Beschlüsse Testing');
+    expect(hit?.description).toBe('Notebook aus BGS Test');
+    expect(hit?.sharedFromGroup).toBe('BGS Test');
     expect(resolveMentionable('beschluesse-testing')?.identifier).toBe('sh-1');
   });
 

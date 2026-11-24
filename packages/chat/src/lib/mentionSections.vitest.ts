@@ -11,6 +11,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildMentionSections,
   recipeOriginOf,
   splitRecipesByOrigin,
   RECIPE_ORIGIN_SECTION_TITLES,
@@ -18,7 +19,7 @@ import {
   type RecipeOrigin,
 } from './mentionSections';
 
-import type { Mentionable } from './mentionables';
+import { setUserNotebookMentionables, type Mentionable } from './mentionables';
 
 function recipe(title: string, extra: Partial<Mentionable> = {}): Mentionable {
   return {
@@ -99,5 +100,29 @@ describe('origin labels', () => {
       expect(RECIPE_ORIGIN_SUBLABELS[origin]).not.toBe('');
       expect(RECIPE_ORIGIN_SECTION_TITLES[origin]).not.toBe('');
     }
+  });
+});
+
+describe('notebook split', () => {
+  // A notebook someone else shared into a Projekt sat under "meine" — the
+  // same blur the recipe split was built against.
+  it('files a project-shared notebook apart from the own ones', () => {
+    setUserNotebookMentionables([
+      { id: 'own-1', title: 'Haushalt Eigen', slug: 'haushalt-eigen' },
+      {
+        id: 'sh-1',
+        title: 'Haushalt 2027',
+        slug: 'haushalt-2027',
+        sharedViaGroups: ['Grüne Fraktion Musterstadt'],
+      },
+    ]);
+    const section = buildMentionSections('haushalt').find((s) => s.label === 'Notebooks');
+    expect(section?.kind).toBe('grouped');
+    const groups = section?.kind === 'grouped' ? section.groups : [];
+    expect(groups.map((g) => [g.sublabel, g.items.map((m) => m.identifier)])).toEqual([
+      ['meine', ['own-1']],
+      [RECIPE_ORIGIN_SUBLABELS.group, ['sh-1']],
+    ]);
+    setUserNotebookMentionables([]);
   });
 });
