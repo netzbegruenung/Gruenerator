@@ -55,8 +55,17 @@ describe('user notebooks mentionable', () => {
       return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
     };
 
-  it('reads through the host fetcher and issues no request of its own', async () => {
-    const spy = vi.fn(() => Promise.reject(new Error('must not fetch')));
+  it('reads the own list through the host fetcher; only /shared goes out itself', async () => {
+    const spy = vi.fn((url: string) =>
+      url.endsWith('/api/auth/notebook-collections/shared')
+        ? Promise.resolve(
+            new Response(JSON.stringify({ collections: [] }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            })
+          )
+        : Promise.reject(new Error('must not fetch the own list'))
+    );
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     // The host's own cache entry, fetched once and shared with the mention hook.
     const hostFetch = vi.fn(() => Promise.resolve([{ id: 'n1', name: 'Klima' }]));
@@ -75,11 +84,19 @@ describe('user notebooks mentionable', () => {
 
     expect(result.current.data?.map((n) => n.id)).toEqual(['n1']);
     expect(hostFetch).toHaveBeenCalledTimes(1);
-    expect(spy).not.toHaveBeenCalled();
+    expect(spy).toHaveBeenCalledTimes(1);
   });
 
   it('resolves an unauthorized host fetch to an empty list', async () => {
+    // Logged out: the host's own list and the plain /shared request both 401.
     useChatConfigStore.getState().configure({
+      fetch: () =>
+        Promise.resolve(
+          new Response(JSON.stringify({ error: 'Unauthorized' }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        ),
       fetchUserNotebooks: () => Promise.reject(new ApiError(401, 'Unauthorized')),
     });
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -105,7 +122,8 @@ describe('user notebooks mentionable', () => {
       wrapper: makeWrapper(queryClient),
     });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(spy).toHaveBeenCalledTimes(1);
+    // Own list and /shared; the same row from both is listed once.
+    expect(spy).toHaveBeenCalledTimes(2);
     expect(result.current.data?.map((n) => n.id)).toEqual(['n2']);
   });
 });

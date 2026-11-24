@@ -106,9 +106,16 @@ export function buildMentionSections(query: string): MentionSection[] {
     ({ origin, items }) => ({ sublabel: RECIPE_ORIGIN_SUBLABELS[origin], items })
   );
 
+  // Same own/project split as the recipes: a notebook someone shared into a
+  // Projekt is not "meine".
+  const ownNotebooks = userNotebooks.filter((m) => !m.sharedFromGroup);
+  const projectNotebooks = userNotebooks.filter((m) => m.sharedFromGroup);
   const notebookGroups: MentionSubgroup[] = [];
-  if (userNotebooks.length > 0) {
-    notebookGroups.push({ sublabel: 'meine', items: userNotebooks });
+  if (ownNotebooks.length > 0) {
+    notebookGroups.push({ sublabel: 'meine', items: ownNotebooks });
+  }
+  if (projectNotebooks.length > 0) {
+    notebookGroups.push({ sublabel: RECIPE_ORIGIN_SUBLABELS.group, items: projectNotebooks });
   }
   if (notebooks.length > 0) {
     notebookGroups.push({ sublabel: 'system', items: notebooks });

@@ -1,4 +1,9 @@
-import { useFileMentionData, registerDocumentSlug, documentToSlug } from '@gruenerator/chat';
+import {
+  useFileMentionData,
+  registerDocumentSlug,
+  documentToSlug,
+  splitByOrigin,
+} from '@gruenerator/chat';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
@@ -264,8 +269,13 @@ function RootLevel({
   onUpload,
 }: {
   collections: NotebookCollectionItem[];
-  documents: { id: string; title: string; sourceType?: string | null }[];
-  texts: { id: string; title: string }[];
+  documents: {
+    id: string;
+    title: string;
+    sourceType?: string | null;
+    sharedViaGroups?: string[];
+  }[];
+  texts: { id: string; title: string; sharedViaGroups?: string[] }[];
   /** A request failed. Without this an outage renders as "you have no files". */
   failed: boolean;
   theme: Theme;
@@ -273,6 +283,11 @@ function RootLevel({
   onSelectDoc: (doc: { id: string; title: string; sourceType?: string | null }) => void;
   onUpload: () => void;
 }) {
+  // Shared via a Projekt: a section of its own, so the long own list cannot
+  // push these out of the cut.
+  const docsByOrigin = splitByOrigin(documents);
+  const textsByOrigin = splitByOrigin(texts);
+
   const isDark = useColorScheme() === 'dark';
   // Same contrast-aware pair as MessageErrorBanner — error[500] fails AA on
   // either ground.
@@ -359,12 +374,12 @@ function RootLevel({
             </>
           )}
 
-          {documents.length > 0 && (
+          {docsByOrigin.own.length > 0 && (
             <>
               <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>
                 Letzte Dokumente
               </Text>
-              {documents.slice(0, 10).map((doc) => (
+              {docsByOrigin.own.slice(0, 10).map((doc) => (
                 <DocRow
                   key={doc.id}
                   title={doc.title}
@@ -375,15 +390,41 @@ function RootLevel({
             </>
           )}
 
-          {texts.length > 0 && (
+          {textsByOrigin.own.length > 0 && (
             <>
               <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>
                 Gespeicherte Texte
               </Text>
-              {texts.slice(0, 10).map((t) => (
+              {textsByOrigin.own.slice(0, 10).map((t) => (
                 <DocRow
                   key={t.id}
                   title={t.title}
+                  theme={theme}
+                  onPress={() => onSelectDoc({ id: t.id, title: t.title, sourceType: 'text' })}
+                />
+              ))}
+            </>
+          )}
+
+          {docsByOrigin.shared.length + textsByOrigin.shared.length > 0 && (
+            <>
+              <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>
+                Aus deinen Projekten
+              </Text>
+              {docsByOrigin.shared.slice(0, 10).map((doc) => (
+                <DocRow
+                  key={doc.id}
+                  title={doc.title}
+                  subtitle={doc.sharedViaGroups?.join(', ') ?? ''}
+                  theme={theme}
+                  onPress={() => onSelectDoc(doc)}
+                />
+              ))}
+              {textsByOrigin.shared.slice(0, 10).map((t) => (
+                <DocRow
+                  key={t.id}
+                  title={t.title}
+                  subtitle={t.sharedViaGroups?.join(', ') ?? ''}
                   theme={theme}
                   onPress={() => onSelectDoc({ id: t.id, title: t.title, sourceType: 'text' })}
                 />

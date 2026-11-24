@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildNotebookSourceAttachment,
   NOTEBOOK_SOURCE_CONTENT_TYPE,
+  splitByOrigin,
 } from './documentMentionables';
 
 /**
@@ -51,5 +52,19 @@ describe('buildNotebookSourceAttachment', () => {
     expect(buildNotebookSourceAttachment(SYSTEM_REF, 'A').id).toBe(
       'gruenerator-notebook-source-hamburg-system:wolke://share-1/Beschluesse/hitze.pdf'
     );
+  });
+});
+
+describe('splitByOrigin', () => {
+  it('separates items shared via a Projekt from own ones, keeping order', () => {
+    const items = [
+      { id: 'a' },
+      { id: 'b', sharedViaGroups: ['BGS Test'] },
+      { id: 'c', sharedViaGroups: [] },
+      { id: 'd', sharedViaGroups: ['Fraktion'] },
+    ];
+    const { own, shared } = splitByOrigin(items);
+    expect(own.map((i) => i.id)).toEqual(['a', 'c']);
+    expect(shared.map((i) => i.id)).toEqual(['b', 'd']);
   });
 });
