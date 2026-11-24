@@ -115,6 +115,8 @@ class RequestEnricher {
 
       // Strip HTML tags from content
       const plainContent = (text.content || '').replace(/<[^>]*>/g, '').trim();
+      // user_documents hat keine Wortzahl-Spalte; gezählt wird am Text.
+      const wordCount = plainContent ? plainContent.split(/\s+/).length : 0;
 
       // Format created date in German locale
       const createdDate = text.created_at
@@ -123,14 +125,14 @@ class RequestEnricher {
 
       // Add formatted string for AI knowledge array
       formatted.push(
-        `## Text: ${text.title}\n**Typ:** ${typeDisplayName}\n**Wörter:** ${text.word_count || 'Unbekannt'}\n**Erstellt:** ${createdDate}\n\n${plainContent}`
+        `## Text: ${text.title}\n**Typ:** ${typeDisplayName}\n**Wörter:** ${wordCount}\n**Erstellt:** ${createdDate}\n\n${plainContent}`
       );
 
       // Add reference metadata for bibliography display
       references.push({
         title: text.title || 'Unbekannt',
         type: typeDisplayName,
-        wordCount: text.word_count || 0,
+        wordCount,
         createdAt: createdDate,
       });
     });
@@ -950,7 +952,7 @@ class RequestEnricher {
 
       // Fetch texts from user_documents table with additional metadata
       const textData = await postgres.query(
-        'SELECT id, title, content, document_type, word_count, created_at FROM user_documents WHERE id = ANY($1) AND user_id = $2 AND is_active = true AND deleted_at IS NULL',
+        'SELECT id, title, content, document_type, created_at FROM user_documents WHERE id = ANY($1) AND user_id = $2 AND is_active = true AND deleted_at IS NULL',
         [textIds, userId],
         { table: 'user_documents' }
       );
