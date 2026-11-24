@@ -1,3 +1,4 @@
+import '../../image-studio/canvasHost';
 import { profilbildStickersToAssetInstances } from '@gruenerator/canvas-editor/profilbildStickers';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { DEFAULT_CANVAS_SIZE } from '@gruenerator/shared/canvas-editor';

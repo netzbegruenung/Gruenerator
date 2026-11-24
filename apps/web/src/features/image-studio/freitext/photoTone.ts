@@ -1,3 +1,4 @@
+import '../canvasHost';
 import { type PhotoTone } from '@gruenerator/canvas-editor/composer';
 import { getCanvasFormatOrDefault } from '@gruenerator/canvas-editor/formats';
 import {
