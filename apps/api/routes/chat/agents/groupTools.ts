@@ -267,7 +267,7 @@ NUTZE FÜR: eigene Projekte auflisten (list), ein Projekt per Name finden (find 
 
 NICHT für: Inhalte MIT einem Projekt teilen (dafür 'documents' action=share_to_group bzw. 'notebooks' action=share_to_group), den Inhalt eines geteilten Dokuments oder einer Datei lesen (dafür 'read_artifact' mit kind und id aus content bzw. search), ein geteiltes Notebook befragen (dafür 'notebooks' action=search). Mitglieder einladen, entfernen oder Rollen ändern ist im Chat nicht möglich — dafür auf die Projektseite verweisen.
 
-Ein Projekt wird über groupId (aus list/find, Feld ref) oder groupName benannt. Ohne groupId/groupName meinen search und add_text das Projekt dieses Chats. Erstellen, Beitreten, Sichtbarkeit und add_text werden der Person als Karte zur Bestätigung angezeigt — kündige nichts als erledigt an, was nur angefordert ist.`,
+Ein Projekt wird über groupId (aus list/find, Feld ref) oder groupName benannt. Ohne groupId/groupName meinen get, content, search und add_text das Projekt dieses Chats. Erstellen, Beitreten, Sichtbarkeit und add_text werden der Person als Karte zur Bestätigung angezeigt — kündige nichts als erledigt an, was nur angefordert ist.`,
     inputSchema: z.object({
       action: z.enum([
         'list',
@@ -410,8 +410,15 @@ Ein Projekt wird über groupId (aus list/find, Feld ref) oder groupName benannt.
         return addTextCard(userId, group, args.title, args.text);
       }
 
-      // Alle weiteren Aktionen zielen auf EIN Projekt.
-      const resolved = await resolveGroup(userId, args.groupId, args.groupName);
+      // Alle weiteren Aktionen zielen auf EIN Projekt. Lesen (get, content) ohne
+      // Angabe meint das Projekt dieses Chats; Ändern verlangt die ausdrückliche Nennung.
+      const readsChatProject =
+        (action === 'get' || action === 'content') && !args.groupId && !args.groupName;
+      const resolved = await resolveGroup(
+        userId,
+        readsChatProject ? state.project?.id : args.groupId,
+        args.groupName
+      );
       if ('error' in resolved) return resolved;
       const group = resolved.group;
 
