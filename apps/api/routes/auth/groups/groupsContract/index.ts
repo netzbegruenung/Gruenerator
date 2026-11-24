@@ -16,6 +16,7 @@ import { createExpressEndpoints } from '@ts-rest/express';
 
 import { logContractValidationError } from '../../../../utils/contractValidationLogger.js';
 
+import { cloudSourceRoutes } from './cloudSources.js';
 import { contentRoutes } from './content.js';
 import { coreRoutes } from './core.js';
 import { discoveryRoutes } from './discovery.js';
@@ -27,6 +28,7 @@ export const groupsContractRouter = s.router(groupsContract, {
   ...discoveryRoutes,
   ...coreRoutes,
   ...contentRoutes,
+  ...cloudSourceRoutes,
 });
 
 export function mountGroupsContractRouter(app: Application): void {
