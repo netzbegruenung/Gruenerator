@@ -92,6 +92,8 @@ vi.mock('../sites/userSiteTrash.js', () => ({
   USER_SITE_TRASH: { table: 'user_sites', columns: 'id, site_title AS title' },
 }));
 vi.mock('../../utils/reportBackgroundError.js', () => ({ reportBackgroundError }));
+const removeUserOriginals = vi.fn(async () => undefined);
+vi.mock('../document-services/documentOriginals.js', () => ({ removeUserOriginals }));
 vi.mock('../../config/env.js', () => ({ env }));
 vi.mock('../../config/nango.js', () => ({
   getNango: () => ({ listConnections, deleteConnection }),
@@ -246,5 +248,19 @@ describe('cleanUpBeforeProfileDelete', () => {
     await cleanUpBeforeProfileDelete('user-1');
 
     expect(listConnections).not.toHaveBeenCalled();
+  });
+
+  it('removes the kept upload originals of the person', async () => {
+    await cleanUpBeforeProfileDelete('user-1');
+    expect(removeUserOriginals).toHaveBeenCalledWith('user-1');
+  });
+
+  it('reports a failing originals cleanup and still finishes', async () => {
+    removeUserOriginals.mockRejectedValueOnce(new Error('eacces'));
+    await cleanUpBeforeProfileDelete('user-1');
+    expect(reportBackgroundError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ job: 'account-deletion', store: 'document_originals' })
+    );
   });
 });

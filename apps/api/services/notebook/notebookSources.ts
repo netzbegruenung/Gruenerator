@@ -404,6 +404,8 @@ export interface ReaderSource {
   ownerUserId: string;
   title: string;
   sourceUrl: string | null;
+  /** The kept upload (`documentOriginals.ts`); `null` for everything ingested before it or not uploaded. */
+  original: { path: string; filename: string | null; mimetype: string | null } | null;
 }
 
 /**
@@ -420,9 +422,13 @@ export async function resolveReaderSource(
     user_id: string | null;
     title: string | null;
     source_url: string | null;
-  }>('SELECT user_id, title, source_url FROM documents WHERE id = $1 AND deleted_at IS NULL', [
-    input.documentId,
-  ]);
+    file_path: string | null;
+    filename: string | null;
+    metadata: Record<string, unknown> | null;
+  }>(
+    'SELECT user_id, title, source_url, file_path, filename, metadata FROM documents WHERE id = $1 AND deleted_at IS NULL',
+    [input.documentId]
+  );
   if (!row?.user_id) return null;
   if (row.user_id !== input.userId) {
     if (!input.notebookId) return null;
@@ -436,6 +442,13 @@ export async function resolveReaderSource(
     ownerUserId: row.user_id,
     title: row.title || '(ohne Titel)',
     sourceUrl: documentLink(row.source_url),
+    original: row.file_path
+      ? {
+          path: row.file_path,
+          filename: row.filename ?? null,
+          mimetype: typeof row.metadata?.mimetype === 'string' ? row.metadata.mimetype : null,
+        }
+      : null,
   };
 }
 

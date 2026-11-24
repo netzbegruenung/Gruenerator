@@ -10,14 +10,15 @@ import { getDrizzleInstance } from '../../../database/services/DrizzleService.js
 import { notTrashed } from '../../../database/trash.js';
 import { reportBackgroundError } from '../../../utils/reportBackgroundError.js';
 import { type TrashCursor, trashKeysetWhere, trashOrderBy } from '../../trash/trashCursor.js';
+import { removeOriginal } from '../documentOriginals.js';
 
+import type { PostgresService } from '../../../database/services/PostgresService/PostgresService.js';
 import type {
   DocumentMetadata,
   DocumentRecord,
   DocumentUpdateData,
   DeleteResult,
 } from './types.js';
-import type { PostgresService } from '../../../database/services/PostgresService/PostgresService.js';
 
 function drizzleRowToDocumentRecord(row: Document): DocumentRecord {
   return {
@@ -160,6 +161,7 @@ export async function updateDocumentMetadata(
     if (updates.markdownContent !== undefined)
       updateData.markdown_content = updates.markdownContent;
     if (updates.pageCount !== undefined) updateData.page_count = updates.pageCount;
+    if (updates.filePath !== undefined) updateData.file_path = updates.filePath;
     if (updates.processingAttempts !== undefined)
       updateData.processing_attempts = updates.processingAttempts;
 
@@ -457,10 +459,14 @@ export async function purgeDocument(
   documentId: string,
   cutoff: Date | null
 ): Promise<boolean> {
-  const deleted = await postgres.query<{ id: string; user_id: string | null }>(
+  const deleted = await postgres.query<{
+    id: string;
+    user_id: string | null;
+    file_path: string | null;
+  }>(
     `DELETE FROM documents
      WHERE id = $1 AND deleted_at IS NOT NULL AND ($2::timestamptz IS NULL OR deleted_at < $2)
-     RETURNING id, user_id`,
+     RETURNING id, user_id, file_path`,
     [documentId, cutoff]
   );
   if (deleted.length === 0) return false;
@@ -480,6 +486,7 @@ export async function purgeDocument(
       await getQdrantDocumentService().deleteDocumentVectors(documentId, ownerId);
     });
   }
+  await sideStore('original_file', () => removeOriginal(deleted[0].file_path ?? null));
   await sideStore('notebook_collection_documents', async () => {
     const { NotebookQdrantHelper } =
       await import('../../../database/services/NotebookQdrantHelper.js');

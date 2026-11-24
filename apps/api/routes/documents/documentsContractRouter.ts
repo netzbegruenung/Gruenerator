@@ -285,6 +285,7 @@ export const documentsContractRouter = s.router(documentsContract, {
         body: {
           title: source.title,
           sourceUrl: source.sourceUrl,
+          hasOriginal: source.original !== null,
           sourceName: null,
           contentTypeLabel: null,
           publishedAt: null,
