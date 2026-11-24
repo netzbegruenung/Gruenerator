@@ -15,6 +15,7 @@ import { Check } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 
 import { useCombinedContentQuery } from '../../hooks/useFileMentionData';
+import { splitByOrigin } from '../../lib/documentMentionables';
 
 import type { UserDocumentItem, UserTextItem } from '../../lib/documentMentionables';
 
@@ -31,8 +32,13 @@ export function DocumentChatPicker({ visible, onConfirm, onDismiss }: DocumentCh
     isLoading: loadingContent,
     isError: contentFailed,
   } = useCombinedContentQuery(visible);
-  const documents = data?.documents ?? [];
-  const texts = data?.texts ?? [];
+  const docsByOrigin = splitByOrigin(data?.documents ?? []);
+  const textsByOrigin = splitByOrigin(data?.texts ?? []);
+  const documents = docsByOrigin.own;
+  const texts = textsByOrigin.own;
+  // Shared via a Projekt: a group of its own, so the long own list cannot
+  // push these out of the cut.
+  const sharedItems = [...docsByOrigin.shared, ...textsByOrigin.shared];
 
   useEffect(() => {
     if (visible) {
@@ -109,6 +115,32 @@ export function DocumentChatPicker({ visible, onConfirm, onDismiss }: DocumentCh
                   </CommandGroup>
                 )}
 
+                {sharedItems.length > 0 && (
+                  <CommandGroup heading="Aus deinen Projekten">
+                    {sharedItems.slice(0, 15).map((item) => (
+                      <CommandItem
+                        key={item.id}
+                        value={item.title}
+                        onSelect={() => toggleSelection(item.id)}
+                        className="flex items-center gap-2"
+                      >
+                        <div className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border border-border">
+                          {selectedIds.has(item.id) && <Check className="h-3 w-3 text-primary" />}
+                        </div>
+                        <span className="text-base flex-shrink-0">
+                          {'documentType' in item ? '📝' : '📄'}
+                        </span>
+                        <div className="flex min-w-0 flex-col">
+                          <span className="truncate text-sm">{item.title}</span>
+                          <span className="truncate text-xs text-muted-foreground">
+                            {item.sharedViaGroups?.join(', ')}
+                          </span>
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                )}
+
                 {texts.length > 0 && (
                   <CommandGroup heading="Gespeicherte Texte">
                     {texts.slice(0, 15).map((text: UserTextItem) => (
@@ -133,7 +165,7 @@ export function DocumentChatPicker({ visible, onConfirm, onDismiss }: DocumentCh
                   </CommandGroup>
                 )}
 
-                {documents.length === 0 && texts.length === 0 && (
+                {documents.length === 0 && texts.length === 0 && sharedItems.length === 0 && (
                   <div
                     className={
                       contentFailed

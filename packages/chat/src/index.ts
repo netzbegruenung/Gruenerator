@@ -662,6 +662,7 @@ export {
   resolveDocumentSlug,
   clearDocumentSlugs,
   documentToSlug,
+  splitByOrigin,
   type DocumentMention,
   type DocumentSourceType,
   type NotebookCollectionItem,

@@ -7,8 +7,9 @@
  * other people's documents. That makes this the trust boundary: an id that
  * passes here is searched as-is.
  *
- * A document is readable when the user owns it, or when it is linked to a
- * notebook the user may read — checked with the same rule every other
+ * A document is readable when the user owns it, when it is shared into a
+ * Projekt the user actively belongs to (`projectSharedContent.ts`), or when it
+ * is linked to a notebook the user may read — checked with the same rule every other
  * notebook-source read uses (`resolveSourceInNotebook`). The notebook is looked
  * up from the document rather than taken from the request: the @datei picker
  * offers sources of notebooks shared via a Projekt, and shipped mobile builds
@@ -16,6 +17,7 @@
  */
 import { type NotebookQdrantHelper } from '../../../database/services/NotebookQdrantHelper.js';
 import { type PostgresService } from '../../../database/services/PostgresService.js';
+import { projectSharedContentIdsSql } from '../../../services/groups/projectSharedContent.js';
 import { resolveSourceInNotebook } from '../../../services/notebook/notebookSources.js';
 import { createLogger } from '../../../utils/logger.js';
 import { type NotebookAccess } from '../../notebook/notebookAccess.js';
@@ -75,14 +77,19 @@ export async function authorizeDocumentScope(
   if (candidates.length > 0) {
     try {
       const d = deps ?? (await defaultDeps());
-      const rows = await d.db.query<{ id: string; user_id: string | null }>(
-        'SELECT id, user_id FROM documents WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL',
-        [candidates]
+      const rows = await d.db.query<{
+        id: string;
+        user_id: string | null;
+        project_shared?: boolean | null;
+      }>(
+        `SELECT id, user_id, id::text IN ${projectSharedContentIdsSql('documents', '$2')} AS project_shared
+           FROM documents WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL`,
+        [candidates, userId]
       );
       const foreign: string[] = [];
       for (const row of rows) {
         if (!row.user_id) continue;
-        if (row.user_id === userId) allowed.add(row.id);
+        if (row.user_id === userId || row.project_shared) allowed.add(row.id);
         else foreign.push(row.id);
       }
 

@@ -17,7 +17,7 @@ import { useState, useEffect, useCallback } from 'react';
 
 import { useFileMentionData } from '../../hooks/useFileMentionData';
 import { useConnectProvidersQuery, useDocMentionables } from '../../hooks/useMentionablesQuery';
-import { documentToSlug } from '../../lib/documentMentionables';
+import { documentToSlug, splitByOrigin } from '../../lib/documentMentionables';
 
 import { MentionFloatingPanel } from './MentionFloatingPanel';
 
@@ -107,6 +107,9 @@ export function FileMentionPopover({
     contentFailed,
     searchInCollection,
   } = useFileMentionData(visible);
+  const ownDocs = splitByOrigin(documents);
+  const ownTexts = splitByOrigin(texts);
+  const sharedItems = [...ownDocs.shared, ...ownTexts.shared];
 
   const collabDocs = useDocMentionables();
   const { data: connectedDrives } = useConnectProvidersQuery(visible && !!onOpenCloud);
@@ -349,9 +352,9 @@ export function FileMentionPopover({
                     <p className="p-3 text-sm text-destructive">
                       Dokumente konnten nicht geladen werden.
                     </p>
-                  ) : documents.length > 0 ? (
+                  ) : ownDocs.own.length > 0 ? (
                     <CommandGroup heading="Letzte Dokumente">
-                      {documents.slice(0, 10).map((doc) => (
+                      {ownDocs.own.slice(0, 10).map((doc) => (
                         <CommandItem
                           key={doc.id}
                           value={doc.title}
@@ -367,9 +370,9 @@ export function FileMentionPopover({
 
                   {/* Section 3: Saved Texts — same query as section 2, so its
                       failure is already reported there; no second error row. */}
-                  {loadingContent || contentFailed ? null : texts.length > 0 ? (
+                  {loadingContent || contentFailed ? null : ownTexts.own.length > 0 ? (
                     <CommandGroup heading="Gespeicherte Texte">
-                      {texts.slice(0, 10).map((text) => (
+                      {ownTexts.own.slice(0, 10).map((text) => (
                         <CommandItem
                           key={text.id}
                           value={text.title}
@@ -382,6 +385,36 @@ export function FileMentionPopover({
                             <Badge variant="secondary" className="flex-shrink-0 text-xs">
                               {text.documentType}
                             </Badge>
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  ) : null}
+
+                  {/* Section 3b: files and texts others shared into the user's
+                      Projekte — a group of their own, so the long own list
+                      cannot push them out of the cut. */}
+                  {loadingContent || contentFailed ? null : sharedItems.length > 0 ? (
+                    <CommandGroup heading="Aus deinen Projekten">
+                      {sharedItems.slice(0, 10).map((item) => (
+                        <CommandItem
+                          key={item.id}
+                          value={item.title}
+                          onSelect={() =>
+                            'documentType' in item
+                              ? handleUserTextSelect(item.id, item.title)
+                              : handleUserDocumentSelect(item.id, item.title)
+                          }
+                          className="flex items-center gap-2"
+                        >
+                          <span className="text-base flex-shrink-0">
+                            {'documentType' in item ? '📝' : '📄'}
+                          </span>
+                          <div className="flex min-w-0 flex-col">
+                            <span className="truncate text-sm">{item.title}</span>
+                            <span className="truncate text-xs text-muted-foreground">
+                              {item.sharedViaGroups?.join(', ')}
+                            </span>
                           </div>
                         </CommandItem>
                       ))}
