@@ -6,6 +6,7 @@
 /// <reference lib="dom" />
 
 export * from './webviewBridge.js';
+export * from './webviewBridgeParse.js';
 export * from './download.js';
 
 declare global {

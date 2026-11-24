@@ -23,7 +23,7 @@ import apiClient, { setLoggingOutFlag } from '../components/utils/apiClient';
 import { CURRENT_INSTANCE } from '../config/instance';
 import { getCachedAuthEntry } from '../features/auth/instantAuthCache';
 import { INSTANT_AUTH_CACHE, LOGIN_INTENT, LOGOUT_TIMESTAMP } from '../features/auth/storageKeys';
-import { clearCreatorSession } from '../features/image-studio/freitext/creatorSession';
+import { clearCreatorSession } from '../features/image-studio/freitext/creatorSessionStorage';
 import { authClient } from '../lib/authClient';
 import { sessionDebug } from '../lib/sessionDebug';
 import { openDesktopLogin, type AuthSource } from '../utils/desktopAuth';

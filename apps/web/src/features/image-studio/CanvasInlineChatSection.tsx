@@ -3,6 +3,7 @@
 /* eslint-disable react-hooks/refs --
    Latest-ref pattern: the live canvas bridge + text getter are mirrored into
    refs so the memoized adapter's edit handler reads fresh values. */
+import './canvasHost';
 import { ComposerPrimitive, useAui, useAuiState } from '@assistant-ui/react';
 import { useCanvasStore, useCanvasStoreSelector } from '@gruenerator/canvas-editor';
 import { applySharepicPatch, readSharepicSource } from '@gruenerator/canvas-editor/composer';

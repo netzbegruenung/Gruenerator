@@ -58,7 +58,7 @@ import {
   shareThumbnailPreviewUrl,
 } from '../../../utils/platform';
 import { webAppDocsAdapter } from '../../docs/docsAdapter';
-import { useCanvasEditorPrefetch } from '../../image-studio/canvasQuery';
+import { useCanvasEditorPrefetch } from '../../image-studio/canvasEditorPrefetch';
 import { Lightbox } from '../../image-studio/components/Lightbox';
 import { profilbildReopenPath } from '../../studio-tools/profilbildHandoff';
 import { invalidateAfterTrashChange } from '../../trash/invalidateAfterTrashChange';
