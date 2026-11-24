@@ -52,6 +52,7 @@ vi.mock('../../docs/docsSearch.js', () => ({
   officeSnippet: (_subtype: string | null, content: string | null) => content ?? '',
 }));
 vi.mock('../../../services/boards/BoardService.js', () => ({
+  FIELD_IDS: { STATUS: 'field-status', ASSIGNEE: 'field-assignee' },
   listUserBoards: (...a: unknown[]) => listUserBoards(...a),
   loadBoardState: (...a: unknown[]) => loadBoardState(...a),
   resolveCardDisplay: (...a: unknown[]) => resolveCardDisplay(...a),
@@ -523,10 +524,24 @@ describe('boards_tasks', () => {
     id: 'b1',
     title: 'Kampagne',
     boardType: 'kanban',
-    fields: [],
+    fields: [
+      {
+        id: 'field-status',
+        typeOptions: {
+          options: [
+            { id: 's-open', name: 'Offen' },
+            { id: 's-done', name: 'Erledigt', isDone: true },
+          ],
+        },
+      },
+    ],
     rows: [
       {
         id: 'r1',
+        cells: {
+          'field-status': 's-open',
+          'field-assignee': JSON.stringify([{ id: 'u1', name: 'Mia', avatarRobotId: 1 }]),
+        },
         snap: {
           cardTitle: 'Plakate',
           statusLabel: 'Offen',
@@ -536,7 +551,34 @@ describe('boards_tasks', () => {
       },
       {
         id: 'r2',
+        cells: {},
         snap: { cardTitle: 'Idee', statusLabel: 'Ideen', dueDate: null, assigneeNames: [] },
+      },
+      {
+        id: 'r3',
+        cells: {
+          'field-status': 's-done',
+          'field-assignee': JSON.stringify([{ id: 'u1', name: 'Mia', avatarRobotId: 1 }]),
+        },
+        snap: {
+          cardTitle: 'Erledigt schon',
+          statusLabel: 'Erledigt',
+          dueDate: '2026-07-01',
+          assigneeNames: ['Mia'],
+        },
+      },
+      {
+        id: 'r4',
+        cells: {
+          'field-status': 's-open',
+          'field-assignee': JSON.stringify([{ id: 'u2', name: 'Tom', avatarRobotId: 1 }]),
+        },
+        snap: {
+          cardTitle: 'Tom macht',
+          statusLabel: 'Offen',
+          dueDate: null,
+          assigneeNames: ['Tom'],
+        },
       },
     ],
   };
@@ -551,10 +593,10 @@ describe('boards_tasks', () => {
       boardId: 'b1',
       limit: 15,
     })) as { cards: Array<{ title: string }> };
-    expect(out.cards).toHaveLength(2);
+    expect(out.cards).toHaveLength(4);
     expect(out.cards[0].title).toBe('Plakate');
     // resolved from state, never via a per-card getCardSnapshot reload:
-    expect(resolveCardDisplay).toHaveBeenCalledTimes(2);
+    expect(resolveCardDisplay).toHaveBeenCalledTimes(4);
   });
 
   it('get_cards: cardCount ist die Gesamtzahl, nicht die gezeigten 50', async () => {
@@ -585,15 +627,49 @@ describe('boards_tasks', () => {
     expect(out.results[0].geaendert).toBe('29.10.2026');
   });
 
-  it('my_tasks keeps only cards with a due date or assignee', async () => {
+  it('my_tasks zeigt standardmäßig nur offene Karten, die der Person zugewiesen sind', async () => {
     listUserBoards.mockResolvedValue([{ id: 'b1', title: 'Kampagne', content: null }]);
     loadBoardState.mockResolvedValue(board);
-    const out = (await exec(makeBoardsTasksTool(ctx('u1')), { action: 'my_tasks', limit: 15 })) as {
-      taskCount: number;
-      tasks: Array<{ title: string }>;
+    const out = (await exec(makeBoardsTasksTool(ctx('u1')), {
+      action: 'my_tasks',
+      mine: true,
+      includeDone: false,
+      limit: 15,
+    })) as { tasks: Array<{ title: string }> };
+    expect(out.tasks.map((t) => t.title)).toEqual(['Plakate']);
+  });
+
+  it('my_tasks mine=false liest breit (Datum oder Zuständige), includeDone zeigt Erledigtes', async () => {
+    listUserBoards.mockResolvedValue([{ id: 'b1', title: 'Kampagne', content: null }]);
+    loadBoardState.mockResolvedValue(board);
+    const out = (await exec(makeBoardsTasksTool(ctx('u1')), {
+      action: 'my_tasks',
+      mine: false,
+      includeDone: true,
+      limit: 15,
+    })) as { tasks: Array<{ title: string; done: boolean }> };
+    expect(out.tasks.map((t) => [t.title, t.done])).toEqual([
+      ['Plakate', false],
+      ['Erledigt schon', true],
+      ['Tom macht', false],
+    ]);
+  });
+
+  it('im Projekt-Chat suchen list_boards und my_tasks nur im Projekt, scope=all überall', async () => {
+    listUserBoards.mockResolvedValue([]);
+    const c = ctx('u1');
+    (c.state as unknown as { project: unknown }).project = { id: 'g1', documentIds: [] };
+    const listed = (await exec(makeBoardsTasksTool(c), { action: 'list_boards', limit: 15 })) as {
+      note?: string;
     };
-    expect(out.taskCount).toBe(1);
-    expect(out.tasks[0].title).toBe('Plakate');
+    expect(listUserBoards).toHaveBeenLastCalledWith('u1', 15, 'g1');
+    expect(listed.note).toMatch(/scope="all"/);
+    await exec(makeBoardsTasksTool(c), { action: 'my_tasks', mine: true, limit: 15 });
+    expect(listUserBoards).toHaveBeenLastCalledWith('u1', 12, 'g1');
+    await exec(makeBoardsTasksTool(c), { action: 'list_boards', scope: 'all', limit: 15 });
+    expect(listUserBoards).toHaveBeenLastCalledWith('u1', 15, null);
+    await exec(makeBoardsTasksTool(ctx('u1')), { action: 'list_boards', limit: 15 });
+    expect(listUserBoards).toHaveBeenLastCalledWith('u1', 15, null);
   });
 
   it('add_card emits a modify_board confirm (does not write directly)', async () => {

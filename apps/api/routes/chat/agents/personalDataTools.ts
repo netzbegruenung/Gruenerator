@@ -30,7 +30,9 @@
  */
 import { isKiImage } from '@gruenerator/shared/media-library/contentOrigin';
 import {
+  boardAssigneeUserIds,
   buildChatThreadSlug,
+  getBoardDoneStatusId,
   type BoardAssignee,
   type BoardAssigneeChange,
 } from '@gruenerator/shared/utils';
@@ -46,6 +48,7 @@ import {
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { BoardCardError, updateCard } from '../../../services/boards/boardCardWriteService.js';
 import {
+  FIELD_IDS,
   listUserBoards,
   loadBoardState,
   resolveCardDisplay,
@@ -995,7 +998,7 @@ export function makeBoardsTasksTool(ctx: PersonalToolCtx): Tool {
   return tool({
     description: `Zugriff auf die EIGENEN Boards (Kanban) und deren Karten/Aufgaben.
 
-NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards), offene/eigene Aufgaben boardübergreifend (my_tasks), eine Karte hinzufügen (add_card, wird bestätigt), Karte bearbeiten (edit_card: Titel/Beschreibung), in eine andere Spalte schieben/erledigen (move_card), Fälligkeit setzen (set_due), zuweisen (assign). boardId/cardId stammen aus einer vorherigen Liste.`,
+NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards), offene Aufgaben boardübergreifend (my_tasks: standardmäßig die der Person zugewiesenen und nicht erledigten; mine=false zeigt alle mit Datum oder Zuständigen, includeDone=true auch erledigte), eine Karte hinzufügen (add_card, wird bestätigt), Karte bearbeiten (edit_card: Titel/Beschreibung), in eine andere Spalte schieben/erledigen (move_card), Fälligkeit setzen (set_due), zuweisen (assign). boardId/cardId stammen aus einer vorherigen Liste. Im Projekt-Chat zeigen list_boards und my_tasks nur die Boards dieses Projekts; scope="all" sucht in allen.`,
     inputSchema: z.object({
       action: z.enum([
         'list_boards',
@@ -1029,15 +1032,34 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
         .string()
         .optional()
         .describe('Fälligkeitsdatum ISO (YYYY-MM-DD), leer zum Entfernen'),
+      scope: z
+        .enum(['project', 'all'])
+        .optional()
+        .describe(
+          'list_boards/my_tasks: "project" = nur die Boards des Projekts dieses Chats (Standard im Projekt-Chat), "all" = alle Boards der Person'
+        ),
+      mine: z
+        .boolean()
+        .default(true)
+        .describe('my_tasks: nur Karten, die der Person zugewiesen sind (Standard)'),
+      includeDone: z
+        .boolean()
+        .default(false)
+        .describe('my_tasks: auch Karten in der Erledigt-Spalte'),
       limit: z.number().int().min(1).max(30).default(15),
     }),
     execute: async (args) => {
       const userId = requireUserId(state);
       if (!userId) return { error: NO_SESSION };
       const { action, boardId, cardId } = args;
+      // Im Projekt-Chat meint „meine Boards" die des Projekts; `scope: 'all'` öffnet alle.
+      const scopeGroupId = args.scope === 'all' ? null : (state.project?.id ?? null);
+      const scopeNote = scopeGroupId
+        ? 'Nur Boards dieses Projekts; scope="all" zeigt alle Boards der Person.'
+        : null;
 
       if (action === 'list_boards') {
-        const boards = await listUserBoards(userId, args.limit);
+        const boards = await listUserBoards(userId, args.limit, scopeGroupId);
         const results = boards.map((b) => ({
           ...makeRow(b.title, `/boards/${b.id}`, 'Board', officeSnippet('boards', b.content)),
           id: b.id,
@@ -1045,7 +1067,7 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
           ...changedAt(b.updated_at),
         }));
         groundRows(sourceRegistry, results);
-        return { resultCount: results.length, results };
+        return { resultCount: results.length, results, ...(scopeNote ? { note: scopeNote } : {}) };
       }
 
       if (action === 'get_cards') {
@@ -1076,21 +1098,29 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
       }
 
       if (action === 'my_tasks') {
-        // Scan the caller's boards and collect actionable cards — those carrying a
-        // due date or an assignee. Each card includes its `status` so the model
-        // can tell done from open. Capped at MAX_BOARDS (logged in the note).
+        // Standard wie das Tagesbriefing (`openCardsAssignedTo`): der Person
+        // zugewiesen (Profil-Id) und nicht erledigt. `mine: false` liest breiter
+        // — alles mit Datum oder Zuständigen —, für Team-Fragen im Projekt.
+        // Capped at MAX_BOARDS (logged in the note).
         const MAX_BOARDS = 12;
-        const boards = await listUserBoards(userId, MAX_BOARDS);
+        const mine = args.mine !== false;
+        const includeDone = args.includeDone === true;
+        const boards = await listUserBoards(userId, MAX_BOARDS, scopeGroupId);
         const tasks: Array<Record<string, unknown>> = [];
         for (const b of boards) {
           const board = await loadBoardState(b.id, userId);
           if (!board || board.boardType === 'whiteboard') continue;
+          const doneId = getBoardDoneStatusId(board.fields);
           const cards = collectCards(board);
-          for (const c of cards) {
-            if (c.dueDate || c.assignees.length) {
-              tasks.push({ ...c, board: board.title, boardId: b.id });
-            }
-          }
+          cards.forEach((c, i) => {
+            const cells = board.rows[i]?.cells ?? {};
+            const done = doneId !== null && cells[FIELD_IDS.STATUS] === doneId;
+            if (done && !includeDone) return;
+            const relevant = mine
+              ? boardAssigneeUserIds(cells[FIELD_IDS.ASSIGNEE]).includes(userId)
+              : Boolean(c.dueDate || c.assignees.length);
+            if (relevant) tasks.push({ ...c, done, board: board.title, boardId: b.id });
+          });
         }
         ground(
           sourceRegistry,
@@ -1104,14 +1134,25 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
           groundNote(
             sourceRegistry,
             'Aufgaben',
-            'Keine anstehenden Aufgaben mit Fälligkeit oder Zuweisung auf den Boards gefunden.'
+            mine
+              ? 'Keine offenen Aufgaben gefunden, die der Person zugewiesen sind.'
+              : 'Keine anstehenden Aufgaben mit Fälligkeit oder Zuweisung auf den Boards gefunden.'
           );
         }
-        const note =
+        const notes = [
           boards.length >= MAX_BOARDS
-            ? `Hinweis: nur die ${MAX_BOARDS} zuletzt bearbeiteten Boards durchsucht.`
-            : undefined;
-        return { taskCount: tasks.length, tasks, ...(note ? { note } : {}) };
+            ? `Nur die ${MAX_BOARDS} zuletzt bearbeiteten Boards durchsucht.`
+            : null,
+          scopeNote,
+          mine && tasks.length === 0
+            ? 'mine=false zeigt alle Karten mit Datum oder Zuständigen, auch anderer Personen.'
+            : null,
+        ].filter(Boolean);
+        return {
+          taskCount: tasks.length,
+          tasks,
+          ...(notes.length ? { note: notes.join(' ') } : {}),
+        };
       }
 
       if (action === 'add_card') {

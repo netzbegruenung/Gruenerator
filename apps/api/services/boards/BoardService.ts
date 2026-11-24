@@ -195,7 +195,15 @@ export interface BoardListItem {
  * `listBoards` contract handler; `content` carries the denormalized preview for
  * an optional snippet.
  */
-export async function listUserBoards(userId: string, limit: number): Promise<BoardListItem[]> {
+/**
+ * Die Boards, die die Person sehen darf, zuletzt bearbeitete zuerst. Mit
+ * `groupId` nur die, die in dieses Projekt geteilt sind (Projekt-Chat).
+ */
+export async function listUserBoards(
+  userId: string,
+  limit: number,
+  groupId: string | null = null
+): Promise<BoardListItem[]> {
   const db = getPostgresInstance();
   const result = await db.query(
     `SELECT cd.id, cd.title, cd.updated_at, cd.content
@@ -213,9 +221,16 @@ export async function listUserBoards(userId: string, limit: number): Promise<Boa
            WHERE gcs.content_type = 'collaborative_documents'
          )
        )
+       AND (
+         $4::uuid IS NULL
+         OR cd.id::text IN (
+           SELECT pgcs.content_id FROM group_content_shares pgcs
+           WHERE pgcs.group_id = $4::uuid AND pgcs.content_type = 'collaborative_documents'
+         )
+       )
      ORDER BY cd.updated_at DESC
      LIMIT $3`,
-    [BOARDS_SUBTYPE, userId, limit]
+    [BOARDS_SUBTYPE, userId, limit, groupId]
   );
   return result as unknown as BoardListItem[];
 }

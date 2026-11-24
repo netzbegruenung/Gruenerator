@@ -7,8 +7,8 @@
  * der Zuständigkeitszelle — ein nackter Anzeigename ohne Id zählt nicht, weil
  * Namen nicht eindeutig sind.
  *
- * Das Chat-Werkzeug `boards_tasks.my_tasks` liest bewusst breiter (alles mit
- * Datum oder Zuweisung) und bleibt davon unberührt.
+ * Das Chat-Werkzeug `boards_tasks.my_tasks` liest standardmäßig dieselbe Menge
+ * und mit `mine: false` breiter (alles mit Datum oder Zuweisung).
  */
 import { boardAssigneeUserIds, getBoardDoneStatusId } from '@gruenerator/shared/utils';
 
