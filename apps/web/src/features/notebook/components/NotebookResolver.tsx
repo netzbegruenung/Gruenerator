@@ -2,7 +2,9 @@ import { extractSlugSuffix } from '@gruenerator/shared/utils';
 import { useParams } from 'react-router-dom';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
-import { getSystemNotebookConfig } from '../config/notebookPagesConfig';
+import { useRecordItemUsage } from '../../usage/useItemUsage';
+import { getNotebookPath, getSystemNotebookConfig } from '../config/notebookPagesConfig';
+import { getNotebookByPath } from '../config/notebooksConfig';
 
 import { DynamicNotebookPage, NotebookPageContent } from './NotebookPage';
 import { NotebookTabs } from './NotebookTabs';
@@ -17,6 +19,13 @@ function NotebookResolverPage() {
   const slugConfig = idOrSlug ? (getSystemNotebookConfig(idOrSlug) ?? null) : null;
   const isUuid = !!idOrSlug && UUID_RE.test(idOrSlug);
   const hasSlugSuffix = !!idOrSlug && extractSlugSuffix(idOrSlug) !== null;
+  // Öffnen zählt als Nutzung („Zuletzt" auf /projekte) — unter der Registry-Id
+  // (`bayern-notebook`), mit der auch der Chat ein System-Notebook verbucht.
+  // Eigene Notebooks zählt `DynamicNotebookPage`, sobald die UUID feststeht.
+  useRecordItemUsage(
+    'notebook',
+    slugConfig ? (getNotebookByPath(getNotebookPath(slugConfig))?.id ?? null) : null
+  );
 
   if (!idOrSlug) {
     return (

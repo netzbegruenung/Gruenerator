@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { pickRecentEntries } from './recentEntries';
+import { pickRecentEntries } from './recentEntries.js';
 
 const stat = (iso: string) => ({ useCount: 1, lastUsedAt: iso });
 

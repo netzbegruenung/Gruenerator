@@ -1,6 +1,6 @@
-import { type UsageMap } from '@gruenerator/shared/utils';
+import { type UsageMap } from '../utils/usageRanking.js';
 
-/** Eine Reihe, wie auf dem Web — nicht die ganze Liste. */
+/** „Zuletzt" auf `/projekte` (Web und App): eine Reihe, nicht die ganze Liste. */
 export const RECENT_LIMIT = 4;
 
 export type RecentEntry<P, N> =
@@ -15,8 +15,10 @@ const usedAtOf = (usage: UsageMap | null | undefined, id: string): number | null
 };
 
 /**
- * Die zuletzt genutzten Projekte und Notebooks gemischt, nach letztem Öffnen
- * absteigend. Was nie genutzt wurde, fehlt; Rezepte gehören bewusst nicht dazu.
+ * Die zuletzt genutzten Projekte und Notebooks gemischt, nach letzter Nutzung
+ * (Öffnen oder Chat) absteigend. Was nie genutzt wurde, fehlt; Rezepte gehören
+ * bewusst nicht dazu. Notebooks heißen in `user_item_usage` wie im Chat: eigene
+ * und geteilte per UUID, System-Notebooks per Registry-Id (`bayern-notebook`).
  */
 export function pickRecentEntries<P extends { id: string }, N extends { id: string }>(
   projects: readonly P[],

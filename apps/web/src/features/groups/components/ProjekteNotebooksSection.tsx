@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 
 import { getToolTheme } from '../../../config/toolTheme';
 import { useNotebookCollections } from '../../auth/hooks/useProfileData';
+import { type NotebookConfigEntry } from '../../notebook/config/notebooksConfig';
 import { useSharedNotebookCollections } from '../../notebook/hooks/useSharedNotebookCollections';
 import { OwnNotebookActions } from '../../notebook/wissen/OwnNotebookMenu';
 import { collectionSlug } from '../../notebook/wissen/useNotebookShelves';
@@ -69,6 +70,27 @@ export function NotebookTile({
       description={c.description}
       // Bearbeiten, Teilen und Löschen nur am eigenen — dieselben Einträge wie auf /wissen.
       menu={isOwn ? <OwnNotebookActions collection={c} /> : null}
+    />
+  );
+}
+
+/** System-Notebook-Kachel (z. B. in „Zuletzt"): dieselbe Kachel, ohne Menü — es gehört niemandem. */
+export function SystemNotebookTile({
+  entry,
+  extraMeta = [],
+}: {
+  entry: NotebookConfigEntry;
+  extraMeta?: string[];
+}) {
+  const Icon = entry.icon;
+  return (
+    <TileCard
+      href={entry.path}
+      title={entry.title}
+      tone={getToolTheme('projekte') ?? FALLBACK_TONE}
+      badge={<Icon aria-hidden className="size-5" />}
+      meta={extraMeta}
+      description={entry.description}
     />
   );
 }

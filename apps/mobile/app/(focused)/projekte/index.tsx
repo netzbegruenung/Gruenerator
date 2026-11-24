@@ -1,4 +1,4 @@
-import { sortGroups, splitArchivedGroups } from '@gruenerator/shared/groups';
+import { pickRecentEntries, sortGroups, splitArchivedGroups } from '@gruenerator/shared/groups';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
@@ -18,7 +18,7 @@ import { SkeletonBar, SkeletonGroup } from '../../../components/common/Skeleton'
 import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
 import { useProjekteTone } from '../../../components/projekte/projekteTone';
 import { ProjektTile } from '../../../components/projekte/ProjektTile';
-import { pickRecentEntries } from '../../../components/projekte/recentEntries';
+import { MOBILE_SYSTEM_NOTEBOOKS } from '../../../config/notebooksConfig';
 import { useAddedRecipes } from '../../../hooks/agents/useAddedRecipes';
 import { useOwnRecipes } from '../../../hooks/agents/useOwnRecipes';
 import { useUserGroups, type GroupSummary } from '../../../hooks/useGroups';
@@ -79,8 +79,19 @@ export default function ProjekteScreen() {
   }, [own.data, added.skills, added.forms]);
   const recipesLoaded = own.isSuccess && (added.loaded || added.failed);
   const recipesFailed = own.isError;
+  // Eigene und System-Notebooks: der Chat und der Notebook-Bildschirm verbuchen
+  // beide (UUID bzw. Registry-Id), und `/notebook/[id]` öffnet beide.
   const recent = useMemo(
-    () => pickRecentEntries(groups, notebooks, projectUsage, notebookUsage),
+    () =>
+      pickRecentEntries(
+        groups,
+        [
+          ...notebooks.map((c) => ({ id: c.id, name: c.name })),
+          ...MOBILE_SYSTEM_NOTEBOOKS.map((nb) => ({ id: nb.id, name: nb.title })),
+        ],
+        projectUsage,
+        notebookUsage
+      ),
     [groups, notebooks, projectUsage, notebookUsage]
   );
   // Web's grid: two squares across on a phone, three from tablet width.
