@@ -817,6 +817,8 @@ export interface UserNotebookMentionable {
   id: string;
   title: string;
   slug: string;
+  /** Set for a notebook someone else shared into one of the user's Projekte. */
+  sharedViaGroups?: string[];
 }
 
 let dynamicUserNotebookMentionables: Mentionable[] = [];
@@ -828,7 +830,9 @@ export function setUserNotebookMentionables(notebooks: UserNotebookMentionable[]
     trigger: '@' as const,
     identifier: n.id,
     title: n.title,
-    description: `Mein Notebook: ${n.title}`,
+    description: n.sharedViaGroups?.length
+      ? `Geteilt in ${n.sharedViaGroups.join(', ')}: ${n.title}`
+      : `Mein Notebook: ${n.title}`,
     avatar: '📓',
     icon: PiNotePencil,
     backgroundColor: '#316049',

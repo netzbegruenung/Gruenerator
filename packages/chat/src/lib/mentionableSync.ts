@@ -55,6 +55,8 @@ export interface DocListItem {
 export interface UserNotebookListItem {
   id: string;
   name: string;
+  /** Projekte the notebook was shared into — set only on `/shared` rows. */
+  shared_via_groups?: string[] | null;
 }
 
 /**
@@ -315,19 +317,53 @@ export async function syncDocs(get: MentionableFetch): Promise<DocListItem[]> {
   return list;
 }
 
-export async function syncUserNotebooks(get: MentionableFetch): Promise<UserNotebookListItem[]> {
+/**
+ * Own notebooks plus those shared into one of the user's Projekte.
+ *
+ * `/api/auth/notebook-collections` is owned-only on purpose (the personal list
+ * once leaked other users' notebooks), so notebooks shared via a Projekt need
+ * the second endpoint — without it they could be read in the chat but never
+ * picked with `@`. Own wins on a duplicate id.
+ *
+ * `getShared` is separate because web reads the own list through the host's
+ * cache, whose fetcher ignores the path.
+ */
+export async function syncUserNotebooks(
+  get: MentionableFetch,
+  getShared: MentionableFetch = get
+): Promise<UserNotebookListItem[]> {
   // Only a 401 resolves to an empty list — web doesn't gate this query on auth,
   // so anonymous users must stay quiet. A blanket catch here hid a wrong path
   // (`/auth/...` without the `/api` prefix every sibling carries) indefinitely.
-  const res = await get<{ collections?: UserNotebookListItem[] }>(
-    '/api/auth/notebook-collections'
-  ).catch((err: unknown) => {
+  const quietOn401 = (err: unknown): { collections: UserNotebookListItem[] } => {
     if (isUnauthorizedError(err)) return { collections: [] };
     throw err;
-  });
-  const list = Array.isArray(res?.collections) ? res.collections : [];
+  };
+  const [own, shared] = await Promise.all([
+    get<{ collections?: UserNotebookListItem[] }>('/api/auth/notebook-collections').catch(
+      quietOn401
+    ),
+    getShared<{ collections?: UserNotebookListItem[] }>(
+      '/api/auth/notebook-collections/shared'
+    ).catch(quietOn401),
+  ]);
+  const seenIds = new Set<string>();
+  const list: UserNotebookListItem[] = [];
+  for (const n of [
+    ...(Array.isArray(own?.collections) ? own.collections : []),
+    ...(Array.isArray(shared?.collections) ? shared.collections : []),
+  ]) {
+    if (seenIds.has(n.id)) continue;
+    seenIds.add(n.id);
+    list.push(n);
+  }
   setUserNotebookMentionables(
-    list.map((n) => ({ id: n.id, title: n.name, slug: slugifyMention(n.name) }))
+    list.map((n) => ({
+      id: n.id,
+      title: n.name,
+      slug: slugifyMention(n.name),
+      ...(n.shared_via_groups ? { sharedViaGroups: n.shared_via_groups } : {}),
+    }))
   );
   return list;
 }
