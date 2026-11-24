@@ -33,6 +33,7 @@ import { ARTIFACT_READ_CHARS } from '../../agents/personalDataTools.js';
 import {
   buildRecipeCatalog as buildRecipeCatalogReal,
   catalogDescription,
+  isUserRecipeRef,
   recommendedToolsFor,
   resolveRecipe as resolveRecipeReal,
   type RecipeCatalogEntry,
@@ -83,8 +84,8 @@ import {
 } from './types.js';
 import { wrapToolsForLoop, type ToolHooks } from './wrapTools.js';
 
-import type { ToolActivity } from './toolActivity.js';
 import type { ChatGraphState, PriorLookup } from '../../../../agents/langgraph/ChatGraph/types.js';
+import type { ToolActivity } from './toolActivity.js';
 import type { ModelMessage, ToolSet } from 'ai';
 import type { Request } from 'express';
 
@@ -408,14 +409,15 @@ export async function assembleToolCatalog(
   // ein Agent-Default (`preloaded`) — wählt das Modell eine andere Textsorte,
   // weicht es. Ein Agent-Default geht vor.
   if (!agentDefault) {
-    for (const recipeId of carriedProjectRecipes(state, toolHistory?.lastTurnRecipes() ?? [])) {
+    for (const ref of carriedProjectRecipes(state, toolHistory?.lastTurnRecipes() ?? [])) {
+      const byId = isUserRecipeRef(ref);
       const resolved = await deps.resolveRecipe({
-        mention: null,
-        recipeId,
+        mention: byId ? null : ref,
+        recipeId: byId ? ref : null,
         userId: userId ?? null,
         visualBlocks: state.visualBlocks ?? [],
       });
-      if (!resolved || resolved.id !== recipeId) continue;
+      if (!resolved || (byId ? resolved.id !== ref : resolved.mention !== ref)) continue;
       recipeRegistry.register({
         id: resolved.id,
         mention: resolved.mention,
@@ -526,6 +528,7 @@ export async function assembleToolCatalog(
       userId: userId ?? null,
       roles: state.userRoles,
       visualBlocks: state.visualBlocks ?? [],
+      projectRecipeRefs: state.projectRecipeIds ?? [],
     });
     recipeCatalog = recipeCatalog
       .filter((entry) => pinnedKey === null || recipeKey(entry) !== pinnedKey)

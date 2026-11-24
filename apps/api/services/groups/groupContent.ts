@@ -17,7 +17,13 @@
  * — beide Aufrufer tun das davor (der Handler über
  * `getPostgresAndCheckMembership`, das Werkzeug über `getGroupForMember`).
  */
-import { getSystemAgent } from '@gruenerator/shared/agents';
+import {
+  SKILLS,
+  canonicalSkillMention,
+  getSystemAgent,
+  isUserFacingSkill,
+  type Skill,
+} from '@gruenerator/shared/agents';
 import { getNotebookDefinition } from '@gruenerator/shared/notebooks';
 
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
@@ -58,6 +64,17 @@ export const CONTENT_TABLE_NAME_MAP: Record<string, string> = {
   canvas_template: 'collaborative_documents',
 };
 
+/**
+ * Ein mitgeliefertes Rezept zu einer geteilten Mention (alte Mentions über
+ * `canonicalSkillMention`). Nur, was eine Person auch sieht: ein Rezept, das
+ * allein das Modell lädt (`modelOnly`), lässt sich nicht teilen.
+ */
+function findSystemRecipe(mention: string): Skill | null {
+  const wanted = canonicalSkillMention(mention).toLowerCase();
+  const allSkills: readonly Skill[] = SKILLS;
+  return allSkills.find((s) => s.mention.toLowerCase() === wanted && isUserFacingSkill(s)) ?? null;
+}
+
 /** Was in der Benachrichtigung „… hat <Label> geteilt" steht. */
 export const CONTENT_LABELS: Record<string, string> = {
   documents: 'ein Dokument',
@@ -68,6 +85,7 @@ export const CONTENT_LABELS: Record<string, string> = {
   database: 'einen Datenbank-Eintrag',
   system_notebooks: 'ein Notebook',
   system_agents: 'einen Agenten',
+  system_recipes: 'ein Rezept',
   user_agents: 'einen Agenten',
   canvas_template: 'eine Sharepic-Vorlage',
   chat_threads: 'einen Chat',
@@ -167,6 +185,11 @@ export async function shareContentToGroup(
     // Store the canonical id: the feed resolves titles without alias lookup.
     contentId = agent.identifier;
   }
+  if (contentType === 'system_recipes') {
+    const recipe = findSystemRecipe(contentId);
+    if (!recipe) return NOT_FOUND;
+    contentId = recipe.mention;
+  }
 
   if (contentType === 'notebook_collections') {
     const collection = await deps.getNotebookCollection(contentId);
@@ -177,6 +200,7 @@ export async function shareContentToGroup(
   if (
     contentType !== 'system_notebooks' &&
     contentType !== 'system_agents' &&
+    contentType !== 'system_recipes' &&
     contentType !== 'nextcloud_share_link' &&
     contentType !== 'notebook_collections'
   ) {
@@ -355,6 +379,7 @@ export interface GroupContentBuckets {
   canvas_templates: Record<string, unknown>[];
   group_posts: Record<string, unknown>[];
   recipes: Record<string, unknown>[];
+  system_recipes: Record<string, unknown>[];
 }
 
 /** Injizierbar, damit der Test ohne Postgres, Qdrant und Drizzle läuft. */
@@ -417,6 +442,7 @@ export async function hydrateGroupContent(
     canvas_template: [],
     group_post: [],
     user_text_forms: [],
+    system_recipes: [],
   };
   sharedContent.forEach((share) => {
     if (contentByType[share.content_type]) contentByType[share.content_type].push(share);
@@ -502,6 +528,32 @@ export async function hydrateGroupContent(
           data: contentByType.system_agents.map((s) => ({ id: s.content_id, system: true })),
         },
         shares: contentByType.system_agents,
+      })
+    );
+  }
+  if (contentByType.system_recipes.length > 0) {
+    fetchPromises.push(
+      Promise.resolve({
+        type: 'system_recipes',
+        // The registry is the record: a recipe dropped from it since the share
+        // simply disappears from the project, as a deleted row would.
+        result: {
+          data: contentByType.system_recipes.flatMap((s) => {
+            const recipe = findSystemRecipe(s.content_id);
+            return recipe
+              ? [
+                  {
+                    id: recipe.mention,
+                    mention: recipe.mention,
+                    title: recipe.title,
+                    description: recipe.description,
+                    system: true,
+                  },
+                ]
+              : [];
+          }),
+        },
+        shares: contentByType.system_recipes,
       })
     );
   }
@@ -679,6 +731,7 @@ export async function hydrateGroupContent(
     canvas_templates: [],
     group_posts: [],
     recipes: [],
+    system_recipes: [],
   };
 
   const keyMap: Record<string, keyof GroupContentBuckets> = {
@@ -694,6 +747,7 @@ export async function hydrateGroupContent(
     canvas_template: 'canvas_templates',
     group_post: 'group_posts',
     user_text_forms: 'recipes',
+    system_recipes: 'system_recipes',
   };
 
   contentResults.forEach(({ type, result, shares }) => {

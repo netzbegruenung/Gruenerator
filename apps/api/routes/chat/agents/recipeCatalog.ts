@@ -72,6 +72,11 @@ export const LIBRARY_CATALOG_MAX = 30;
 
 const UUID_REF_RE = /^[0-9a-f-]{36}$/i;
 
+/** Ein Rezept-Verweis (Bibliothek, Projekt): uuid = Nutzer-Rezept, sonst Mention eines Systemrezepts. */
+export function isUserRecipeRef(ref: string): boolean {
+  return UUID_REF_RE.test(ref);
+}
+
 /**
  * Fremder Text im Systemprompt: einzeilig (kein Zeilenumbruch, der eine eigene
  * Katalogzeile oder Anweisung vortäuscht), Steuerzeichen raus, auf `maxChars`
@@ -137,6 +142,13 @@ export async function buildRecipeCatalog(params: {
    * Bausteine) steht nur im Katalog, wenn der Turn sie hat — ohne Angabe nicht.
    */
   visualBlocks?: readonly VisualBlockKind[];
+  /**
+   * Die Rezepte des Projekts (uuid oder Mention, siehe `getProjectRecipeIds`).
+   * Ein ins Projekt geteiltes oder vom Projekt-Landesverband mitgebrachtes
+   * LV-Rezept steht im Katalog auch ohne Landesgeschäftsstellen-Rolle — das
+   * Projekt ist die Zuteilung, wie das Speichern in der Bibliothek.
+   */
+  projectRecipeRefs?: readonly string[];
 }): Promise<RecipeCatalogEntry[]> {
   const { userLocale, userId, roles } = params;
   const codeCtx = { kinds: params.visualBlocks ?? [] };
@@ -156,7 +168,9 @@ export async function buildRecipeCatalog(params: {
       log.warn('[recipeCatalog] user library unavailable, without saved recipes:', err);
     }
   }
-  const savedSystem = new Set(libraryRefs.filter((r) => !UUID_REF_RE.test(r)));
+  const savedSystem = new Set(
+    [...libraryRefs, ...(params.projectRecipeRefs ?? [])].filter((r) => !UUID_REF_RE.test(r))
+  );
 
   // `SKILLS` is `as const`, so entries without an `audience` key have no such
   // property at all and the union rejects `.audience`. Widen to the declared
@@ -316,13 +330,21 @@ function renderProjectRecipes(project: readonly RecipeCatalogEntry[], remaining:
   ].join('\n');
 }
 
+/** Gehört der Katalog-Eintrag zum Projekt? Nutzer-Rezept per uuid, Systemrezept per Mention. */
+export function isProjectRecipe(
+  entry: Pick<RecipeCatalogEntry, 'id' | 'mention'>,
+  projectRefs: ReadonlySet<string>
+): boolean {
+  return entry.id !== null ? projectRefs.has(entry.id) : projectRefs.has(entry.mention);
+}
+
 /** The prompt block listing what the model may load. */
 export function renderRecipeCatalog(
   entries: readonly RecipeCatalogEntry[],
   opts: {
     remaining: number;
     pinnedTitle: string | null;
-    /** Ins Projekt des Threads geteilte Rezepte — sie stehen als eigener Block vorn. */
+    /** Die Rezepte des Projekts (uuid oder Mention) — sie stehen als eigener Block vorn. */
     projectRecipeIds?: readonly string[];
   } = {
     remaining: MAX_RECIPES_PER_TURN,
@@ -331,7 +353,7 @@ export function renderRecipeCatalog(
 ): string {
   if (entries.length === 0) return '';
   const projectIds = new Set(opts.projectRecipeIds ?? []);
-  const project = entries.filter((e) => e.id !== null && projectIds.has(e.id));
+  const project = entries.filter((e) => isProjectRecipe(e, projectIds));
   const rest = entries.filter((e) => !project.includes(e));
   const lead = project.length > 0 ? renderProjectRecipes(project, opts.remaining) : '';
   return (

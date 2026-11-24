@@ -1,3 +1,5 @@
+import { useUserLandesverbaende } from '@gruenerator/chat';
+import { SKILLS, landesverbandRecipeMentions } from '@gruenerator/shared/agents';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { type AddableItem, type GroupFeedKind } from '@gruenerator/shared/groups';
 import { useUserAgents } from '@gruenerator/shared/grueneratoren';
@@ -57,6 +59,15 @@ export function useAddableContent(): { sections: AddableSection[]; isPending: bo
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const agents = useUserAgents();
   const recipes = useOwnRecipes();
+  // Die Rezepte der eigenen Landesverbände: ins Projekt gelegt, stehen sie dort
+  // allen Mitgliedern zur Verfügung, auch ohne Landesgeschäftsstellen-Rolle.
+  const { lvIds } = useUserLandesverbaende();
+  const lvRecipes = (lvIds ?? []).flatMap((lvId) =>
+    landesverbandRecipeMentions(lvId).flatMap((mention): AddableItem[] => {
+      const skill = SKILLS.find((s) => s.mention === mention);
+      return skill ? [{ contentType: 'system_recipes', id: mention, title: skill.title }] : [];
+    })
+  );
   const owned = useQuery({
     queryKey: ['add-to-project', userId],
     queryFn: () => fetchOwned(userId ?? ''),
@@ -81,6 +92,7 @@ export function useAddableContent(): { sections: AddableSection[]; isPending: bo
         title: f.title,
       })),
     },
+    { kind: 'recipe', title: 'Rezepte des Landesverbands', items: lvRecipes },
     { kind: 'notebook', title: 'Notebooks', items: owned.data?.notebooks ?? [] },
     { kind: 'doc', title: 'Docs', items: owned.data?.docs ?? [] },
     { kind: 'board', title: 'Boards', items: owned.data?.boards ?? [] },

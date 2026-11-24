@@ -99,6 +99,7 @@ export {
   landesverbandHeadings,
   landesverbandIdsForRoles,
   landesverbandOfferForBundesland,
+  landesverbandRecipeMentions,
   landesverbandShelfLabel,
   landesverbandTitle,
   lvIdForAgentIdentifier,

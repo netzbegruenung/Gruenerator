@@ -224,6 +224,13 @@ export function toGroupFeedItems(
       slug: str(r.mention),
     });
   }
+  for (const r of rows('system_recipes')) {
+    items.push({
+      ...base(r, 'system_recipes', 'recipe', str(r.title) ?? 'Rezept'),
+      excerpt: str(r.description),
+      slug: str(r.mention),
+    });
+  }
   for (const r of rows('system_agents')) {
     const id = String(r.id);
     const sys = SYSTEM_AGENTS.find((a) => a.identifier === id);

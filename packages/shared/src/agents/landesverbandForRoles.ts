@@ -178,6 +178,23 @@ export function lvSkillMentionsForRoles(
 }
 
 /**
+ * Die Rezepte eines Landesverbands, in Registry-Reihenfolge seiner Agenten —
+ * was ein Projekt mit gesetztem Landesverband (`groups.landesverband`) von
+ * selbst als Projekt-Rezepte mitbringt. Ohne Rollen-Bindung: das Projekt ist
+ * die Zuteilung. Ein abgeschalteter Landesverband bringt nichts.
+ */
+export function landesverbandRecipeMentions(lvId: string | null | undefined): readonly string[] {
+  const lv = lvId ? LANDESVERBAENDE.find((entry) => entry.id === lvId) : undefined;
+  if (!lv) return [];
+  const agentIds = landesverbandAgentIds(lv).filter(
+    (id) => getSystemAgent(id)?.hiddenFromInventory !== true
+  );
+  return agentIds.flatMap((id) =>
+    SKILLS.filter((skill) => skill.identifier === id).map((skill) => skill.mention)
+  );
+}
+
+/**
  * Was ein Landesverband tatsächlich mitbringt. Der Rollen-Assistent zeigt das
  * beim Auswählen des Bundeslands an — bisher stand dort nur „● Notebook", was
  * die eigentliche Zuteilung (Agenten und Rezepte) verschwieg und obendrein aus
