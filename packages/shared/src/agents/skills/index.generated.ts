@@ -231,20 +231,6 @@ export const SKILLS = [
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-berlin',
-    title: 'PM Berlin (Fraktion)',
-    description:
-      'Pressemitteilung der Grünen Fraktion Berlin. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Fraktion im Abgeordnetenhaus Berlin geschrieben wird.',
-    iconKey: 'PiBuildings',
-    avatar: '🐻',
-    backgroundColor: '#316049',
-    mention: 'presse-berlin-fraktion',
-    skillCategory: 'presse',
-    audience: 'de-DE',
-    promptTemplate: 'Schreibe eine Pressemitteilung der Grünen Fraktion Berlin zum Thema: ',
-    lvEbene: 'fraktion',
-  },
-  {
-    identifier: 'gruenerator-oeffentlichkeitsarbeit-berlin',
     title: 'PM Berlin (Partei)',
     description:
       'Pressemitteilung der Berliner GRÜNEN. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Berlin geschrieben wird.',
@@ -256,6 +242,20 @@ export const SKILLS = [
     audience: 'de-DE',
     promptTemplate: 'Schreibe eine Pressemitteilung der Berliner GRÜNEN zum Thema: ',
     lvEbene: 'partei',
+  },
+  {
+    identifier: 'gruenerator-oeffentlichkeitsarbeit-berlin',
+    title: 'PM Berlin (Fraktion)',
+    description:
+      'Pressemitteilung der Grünen Fraktion Berlin. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Fraktion im Abgeordnetenhaus Berlin geschrieben wird.',
+    iconKey: 'PiBuildings',
+    avatar: '🐻',
+    backgroundColor: '#316049',
+    mention: 'presse-berlin-fraktion',
+    skillCategory: 'presse',
+    audience: 'de-DE',
+    promptTemplate: 'Schreibe eine Pressemitteilung der Grünen Fraktion Berlin zum Thema: ',
+    lvEbene: 'fraktion',
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-berlin',
@@ -300,6 +300,20 @@ export const SKILLS = [
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern',
+    title: 'PM MV (Partei)',
+    description:
+      'Pressemitteilung der GRÜNEN Mecklenburg-Vorpommern. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Mecklenburg-Vorpommern geschrieben wird.',
+    iconKey: 'PiWaves',
+    avatar: '🌊',
+    backgroundColor: '#316049',
+    mention: 'presse-mv-partei',
+    skillCategory: 'presse',
+    audience: 'de-DE',
+    promptTemplate: 'Schreibe eine Pressemitteilung der GRÜNEN Mecklenburg-Vorpommern zum Thema: ',
+    lvEbene: 'partei',
+  },
+  {
+    identifier: 'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern',
     title: 'PM MV (Fraktion)',
     description:
       'Pressemitteilung der GRÜNEN Landtagsfraktion Mecklenburg-Vorpommern. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Landtagsfraktion Mecklenburg-Vorpommern geschrieben wird.',
@@ -312,20 +326,6 @@ export const SKILLS = [
     promptTemplate:
       'Schreibe eine Pressemitteilung der GRÜNEN Landtagsfraktion Mecklenburg-Vorpommern zum Thema: ',
     lvEbene: 'fraktion',
-  },
-  {
-    identifier: 'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern',
-    title: 'PM MV (Partei)',
-    description:
-      'Pressemitteilung der GRÜNEN Mecklenburg-Vorpommern. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Mecklenburg-Vorpommern geschrieben wird.',
-    iconKey: 'PiWaves',
-    avatar: '🌊',
-    backgroundColor: '#316049',
-    mention: 'presse-mv-partei',
-    skillCategory: 'presse',
-    audience: 'de-DE',
-    promptTemplate: 'Schreibe eine Pressemitteilung der GRÜNEN Mecklenburg-Vorpommern zum Thema: ',
-    lvEbene: 'partei',
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern',
@@ -397,20 +397,6 @@ export const SKILLS = [
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-bayern',
-    title: 'PM Bayern (Fraktion)',
-    description:
-      'Pressemitteilung der Landtags-Grünen Bayern. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Landtagsfraktion Bayern geschrieben wird.',
-    iconKey: 'PiMountains',
-    avatar: '🦁',
-    backgroundColor: '#316049',
-    mention: 'presse-bayern-fraktion',
-    skillCategory: 'presse',
-    audience: 'de-DE',
-    promptTemplate: 'Schreibe eine Pressemitteilung der Landtags-Grünen Bayern zum Thema: ',
-    lvEbene: 'fraktion',
-  },
-  {
-    identifier: 'gruenerator-oeffentlichkeitsarbeit-bayern',
     title: 'PM Bayern (Partei)',
     description:
       'Pressemitteilung der bayerischen GRÜNEN. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Bayern geschrieben wird.',
@@ -424,17 +410,17 @@ export const SKILLS = [
     lvEbene: 'partei',
   },
   {
-    identifier: 'gruenerator-oeffentlichkeitsarbeit-hessen',
-    title: 'PM Hessen (Fraktion)',
+    identifier: 'gruenerator-oeffentlichkeitsarbeit-bayern',
+    title: 'PM Bayern (Fraktion)',
     description:
-      'Pressemitteilung der GRÜNEN Landtagsfraktion Hessen. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Landtagsfraktion Hessen geschrieben wird.',
-    iconKey: 'PiTree',
-    avatar: '🌳',
+      'Pressemitteilung der Landtags-Grünen Bayern. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Landtagsfraktion Bayern geschrieben wird.',
+    iconKey: 'PiMountains',
+    avatar: '🦁',
     backgroundColor: '#316049',
-    mention: 'presse-hessen-fraktion',
+    mention: 'presse-bayern-fraktion',
     skillCategory: 'presse',
     audience: 'de-DE',
-    promptTemplate: 'Schreibe eine Pressemitteilung der GRÜNEN Landtagsfraktion Hessen zum Thema: ',
+    promptTemplate: 'Schreibe eine Pressemitteilung der Landtags-Grünen Bayern zum Thema: ',
     lvEbene: 'fraktion',
   },
   {
@@ -450,6 +436,20 @@ export const SKILLS = [
     audience: 'de-DE',
     promptTemplate: 'Schreibe eine Pressemitteilung der GRÜNEN Hessen zum Thema: ',
     lvEbene: 'partei',
+  },
+  {
+    identifier: 'gruenerator-oeffentlichkeitsarbeit-hessen',
+    title: 'PM Hessen (Fraktion)',
+    description:
+      'Pressemitteilung der GRÜNEN Landtagsfraktion Hessen. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Landtagsfraktion Hessen geschrieben wird.',
+    iconKey: 'PiTree',
+    avatar: '🌳',
+    backgroundColor: '#316049',
+    mention: 'presse-hessen-fraktion',
+    skillCategory: 'presse',
+    audience: 'de-DE',
+    promptTemplate: 'Schreibe eine Pressemitteilung der GRÜNEN Landtagsfraktion Hessen zum Thema: ',
+    lvEbene: 'fraktion',
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-at',
@@ -492,21 +492,6 @@ export const SKILLS = [
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-sachsen-anhalt',
-    title: 'PM Sachsen-Anhalt (Fraktion)',
-    description:
-      'Pressemitteilung der grünen Landtagsfraktion Sachsen-Anhalt. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Landtagsfraktion Sachsen-Anhalt geschrieben wird.',
-    iconKey: 'PiFlowerLight',
-    avatar: '🌾',
-    backgroundColor: '#316049',
-    mention: 'presse-sachsen-anhalt-fraktion',
-    skillCategory: 'presse',
-    audience: 'de-DE',
-    promptTemplate:
-      'Schreibe eine Pressemitteilung der grünen Landtagsfraktion Sachsen-Anhalt zum Thema: ',
-    lvEbene: 'fraktion',
-  },
-  {
-    identifier: 'gruenerator-oeffentlichkeitsarbeit-sachsen-anhalt',
     title: 'PM Sachsen-Anhalt (Partei)',
     description:
       'Pressemitteilung von BÜNDNIS 90/DIE GRÜNEN Sachsen-Anhalt. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Sachsen-Anhalt geschrieben wird.',
@@ -532,6 +517,21 @@ export const SKILLS = [
     skillCategory: 'presse',
     audience: 'de-DE',
     promptTemplate: 'Schreibe eine Pressemitteilung der Grünen Schleswig-Holstein zum Thema: ',
+  },
+  {
+    identifier: 'gruenerator-oeffentlichkeitsarbeit-sachsen-anhalt',
+    title: 'PM Sachsen-Anhalt (Fraktion)',
+    description:
+      'Pressemitteilung der grünen Landtagsfraktion Sachsen-Anhalt. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Landtagsfraktion Sachsen-Anhalt geschrieben wird.',
+    iconKey: 'PiFlowerLight',
+    avatar: '🌾',
+    backgroundColor: '#316049',
+    mention: 'presse-sachsen-anhalt-fraktion',
+    skillCategory: 'presse',
+    audience: 'de-DE',
+    promptTemplate:
+      'Schreibe eine Pressemitteilung der grünen Landtagsfraktion Sachsen-Anhalt zum Thema: ',
+    lvEbene: 'fraktion',
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-nordrhein-westfalen',

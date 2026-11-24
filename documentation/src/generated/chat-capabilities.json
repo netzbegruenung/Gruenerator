@@ -386,17 +386,17 @@
       "category": "sonstiges"
     },
     {
-      "command": "@presse-berlin-fraktion",
-      "title": "PM Berlin (Fraktion)",
-      "description": "Pressemitteilung der Grünen Fraktion Berlin. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Fraktion im Abgeordnetenhaus Berlin geschrieben wird.",
+      "command": "@presse-berlin-partei",
+      "title": "PM Berlin (Partei)",
+      "description": "Pressemitteilung der Berliner GRÜNEN. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Berlin geschrieben wird.",
       "avatar": "🐻",
       "category": "presse",
       "audience": "de-DE"
     },
     {
-      "command": "@presse-berlin-partei",
-      "title": "PM Berlin (Partei)",
-      "description": "Pressemitteilung der Berliner GRÜNEN. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Berlin geschrieben wird.",
+      "command": "@presse-berlin-fraktion",
+      "title": "PM Berlin (Fraktion)",
+      "description": "Pressemitteilung der Grünen Fraktion Berlin. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Fraktion im Abgeordnetenhaus Berlin geschrieben wird.",
       "avatar": "🐻",
       "category": "presse",
       "audience": "de-DE"
@@ -410,17 +410,17 @@
       "audience": "de-DE"
     },
     {
-      "command": "@presse-mv-fraktion",
-      "title": "PM MV (Fraktion)",
-      "description": "Pressemitteilung der GRÜNEN Landtagsfraktion Mecklenburg-Vorpommern. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Landtagsfraktion Mecklenburg-Vorpommern geschrieben wird.",
+      "command": "@presse-mv-partei",
+      "title": "PM MV (Partei)",
+      "description": "Pressemitteilung der GRÜNEN Mecklenburg-Vorpommern. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Mecklenburg-Vorpommern geschrieben wird.",
       "avatar": "🌊",
       "category": "presse",
       "audience": "de-DE"
     },
     {
-      "command": "@presse-mv-partei",
-      "title": "PM MV (Partei)",
-      "description": "Pressemitteilung der GRÜNEN Mecklenburg-Vorpommern. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Mecklenburg-Vorpommern geschrieben wird.",
+      "command": "@presse-mv-fraktion",
+      "title": "PM MV (Fraktion)",
+      "description": "Pressemitteilung der GRÜNEN Landtagsfraktion Mecklenburg-Vorpommern. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Landtagsfraktion Mecklenburg-Vorpommern geschrieben wird.",
       "avatar": "🌊",
       "category": "presse",
       "audience": "de-DE"
@@ -466,14 +466,6 @@
       "audience": "de-DE"
     },
     {
-      "command": "@presse-bayern-fraktion",
-      "title": "PM Bayern (Fraktion)",
-      "description": "Pressemitteilung der Landtags-Grünen Bayern. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Landtagsfraktion Bayern geschrieben wird.",
-      "avatar": "🦁",
-      "category": "presse",
-      "audience": "de-DE"
-    },
-    {
       "command": "@presse-bayern-partei",
       "title": "PM Bayern (Partei)",
       "description": "Pressemitteilung der bayerischen GRÜNEN. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Bayern geschrieben wird.",
@@ -482,10 +474,10 @@
       "audience": "de-DE"
     },
     {
-      "command": "@presse-hessen-fraktion",
-      "title": "PM Hessen (Fraktion)",
-      "description": "Pressemitteilung der GRÜNEN Landtagsfraktion Hessen. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Landtagsfraktion Hessen geschrieben wird.",
-      "avatar": "🌳",
+      "command": "@presse-bayern-fraktion",
+      "title": "PM Bayern (Fraktion)",
+      "description": "Pressemitteilung der Landtags-Grünen Bayern. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Landtagsfraktion Bayern geschrieben wird.",
+      "avatar": "🦁",
       "category": "presse",
       "audience": "de-DE"
     },
@@ -493,6 +485,14 @@
       "command": "@presse-hessen-partei",
       "title": "PM Hessen (Partei)",
       "description": "Pressemitteilung des Landesverbands Hessen. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Hessen geschrieben wird.",
+      "avatar": "🌳",
+      "category": "presse",
+      "audience": "de-DE"
+    },
+    {
+      "command": "@presse-hessen-fraktion",
+      "title": "PM Hessen (Fraktion)",
+      "description": "Pressemitteilung der GRÜNEN Landtagsfraktion Hessen. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Landtagsfraktion Hessen geschrieben wird.",
       "avatar": "🌳",
       "category": "presse",
       "audience": "de-DE"
@@ -522,17 +522,17 @@
       "audience": "de-DE"
     },
     {
-      "command": "@presse-sachsen-anhalt-fraktion",
-      "title": "PM Sachsen-Anhalt (Fraktion)",
-      "description": "Pressemitteilung der grünen Landtagsfraktion Sachsen-Anhalt. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Landtagsfraktion Sachsen-Anhalt geschrieben wird.",
+      "command": "@presse-sachsen-anhalt-partei",
+      "title": "PM Sachsen-Anhalt (Partei)",
+      "description": "Pressemitteilung von BÜNDNIS 90/DIE GRÜNEN Sachsen-Anhalt. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Sachsen-Anhalt geschrieben wird.",
       "avatar": "🌾",
       "category": "presse",
       "audience": "de-DE"
     },
     {
-      "command": "@presse-sachsen-anhalt-partei",
-      "title": "PM Sachsen-Anhalt (Partei)",
-      "description": "Pressemitteilung von BÜNDNIS 90/DIE GRÜNEN Sachsen-Anhalt. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Sachsen-Anhalt geschrieben wird.",
+      "command": "@presse-sachsen-anhalt-fraktion",
+      "title": "PM Sachsen-Anhalt (Fraktion)",
+      "description": "Pressemitteilung der grünen Landtagsfraktion Sachsen-Anhalt. Nutzen statt der allgemeinen Pressemitteilung, wenn für die Landtagsfraktion Sachsen-Anhalt geschrieben wird.",
       "avatar": "🌾",
       "category": "presse",
       "audience": "de-DE"

@@ -6,7 +6,10 @@
  * (validated by `skillFrontmatterSchema` from @gruenerator/contracts) and
  * nothing else. A markdown body is rejected — see `detectPromptBodies`.
  *
- * Ordering: numeric `order` ascending, ties break alphabetically by `mention`.
+ * Ordering: numeric `order` ascending; on a tie the party level of a
+ * Landesverband (`lvEbene: partei`) comes before its Fraktion, then alphabetically
+ * by `mention`. Partei first because it is the default (`lvRecipePreference`), and
+ * hub and sidebar list the recipes in this order.
  *
  * Run via `pnpm --filter @gruenerator/shared build:skills`. Pre-bound to
  * `prebuild` / `predev` so consumers don't need to remember it.
@@ -115,6 +118,8 @@ function sortSkills(skills: readonly ParsedSkill[]): ParsedSkill[] {
     const ao = a.frontmatter.order ?? Number.POSITIVE_INFINITY;
     const bo = b.frontmatter.order ?? Number.POSITIVE_INFINITY;
     if (ao !== bo) return ao - bo;
+    const fraktion = (s: ParsedSkill) => (s.frontmatter.lvEbene === 'fraktion' ? 1 : 0);
+    if (fraktion(a) !== fraktion(b)) return fraktion(a) - fraktion(b);
     return a.frontmatter.mention.localeCompare(b.frontmatter.mention);
   });
 }
