@@ -7,7 +7,7 @@
  * statisticsController have been removed).
  *
  * ## Mixed authentication
- * Routes have mixed auth: `askMulti`/`askSingle` require auth (both read
+ * Routes have mixed auth: `researchSearch` requires auth (reads
  * `req.user`); `getFilters`, recent/stats and the public token routes do
  * not. Applying `requireAuth` at the prefix would break the public routes,
  * so auth is checked per-handler here via the `requireAuthUser` helper,
@@ -22,7 +22,6 @@ import {
   getSystemCollectionConfig,
   getCollectionFilterableFields,
   offersChoice,
-  getDefaultMultiCollectionIds,
 } from '../../config/systemCollectionsConfig.js';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getQdrantDocumentService } from '../../services/document-services/index.js';
@@ -37,7 +36,6 @@ import {
 } from '../../services/notebook/notebookRecentService.js';
 import { getNotebookStats } from '../../services/notebook/notebookStatsService.js';
 import { rankManualSearchResults } from '../../services/search/manualSearchRanking.js';
-import { recordItemUsageSafe } from '../../services/usage/ItemUsageService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -47,8 +45,8 @@ import { highlightSnippet, truncateSnippet } from '../research/researchControlle
 
 import { requireNotebookRead } from './notebookAccess.js';
 
-import type { PublicAccessRecord } from './types.js';
 import type { UserProfile } from '../../services/user/types.js';
+import type { PublicAccessRecord } from './types.js';
 import type { Application, Request } from 'express';
 
 const log = createLogger('notebookContractRouter');
@@ -76,7 +74,7 @@ const USER_NOTEBOOK_MIN_SCORE = 0.3;
 
 /**
  * Extract the authenticated user id or return a 401 contract response.
- * Used by `askMulti` / `askSingle` where req.user is required.
+ * Used by handlers where req.user is required.
  *
  * Returns either `{ ok: true, userId }` or `{ ok: false, response }`.
  * Callers should early-return the response on failure.
@@ -180,92 +178,6 @@ export const notebookContractRouter = s.router(notebookContract, {
       return {
         status: 500 as const,
         body: { error: 'Failed to get collection filters' },
-      };
-    }
-  },
-
-  askMulti: async (args) => {
-    try {
-      const auth = requireAuthUser(args.req);
-      if (!auth.ok) return auth.response;
-
-      const question = args.body.question;
-      const collectionIds = args.body.collectionIds ?? undefined;
-      const filters = args.body.filters ?? undefined;
-      const fastMode = args.body.fastMode ?? false;
-
-      if (!question.trim()) {
-        return { status: 400 as const, body: { error: 'Question is required' } };
-      }
-
-      const result = await notebookQAService.askMultiCollection({
-        question,
-        collectionIds: collectionIds || getDefaultMultiCollectionIds(),
-        requestFilters: filters,
-        fastMode,
-      });
-
-      // Track usage only for explicitly-selected collections (fire-and-forget);
-      // recording the default set would pollute every user's ordering.
-      if (collectionIds) {
-        for (const id of collectionIds) {
-          recordItemUsageSafe(auth.userId, 'notebook', id as string);
-        }
-      }
-
-      return { status: 200 as const, body: result };
-    } catch (error) {
-      log.error('[notebookContract.askMulti] Error:', error);
-      const err = error as Error;
-      return {
-        status: 500 as const,
-        body: { error: toUserFacingMessage(err) || 'Internal server error' },
-      };
-    }
-  },
-
-  askSingle: async (args) => {
-    try {
-      const auth = requireAuthUser(args.req);
-      if (!auth.ok) return auth.response;
-      const userId = auth.userId;
-
-      const collectionId = fromParam<NotebookId>(args.params.id);
-      const question = args.body.question;
-      const filters = args.body.filters ?? undefined;
-      const fastMode = args.body.fastMode ?? false;
-
-      if (!question.trim()) {
-        return { status: 400 as const, body: { error: 'Question is required' } };
-      }
-
-      const result = await notebookQAService.askSingleCollection({
-        collectionId,
-        question,
-        userId,
-        requestFilters: filters,
-        getCollectionFn: async (id: string) => {
-          const systemConfig = getSystemCollectionConfig(id);
-          if (systemConfig) return null;
-          return await notebookHelper.getNotebookCollection(id);
-        },
-        getDocumentIdsFn: async (id: string) => {
-          const docs = await notebookHelper.getCollectionDocuments(id);
-          return docs.map((d) => d.document_id);
-        },
-        fastMode,
-      });
-
-      // Track usage for "favourites first" ordering (fire-and-forget).
-      recordItemUsageSafe(userId, 'notebook', collectionId as string);
-
-      return { status: 200 as const, body: result };
-    } catch (error) {
-      log.error('[notebookContract.askSingle] Error:', error);
-      const err = error as Error;
-      return {
-        status: 500 as const,
-        body: { error: toUserFacingMessage(err) || 'Internal server error' },
       };
     }
   },

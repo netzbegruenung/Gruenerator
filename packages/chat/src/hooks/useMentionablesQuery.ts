@@ -173,7 +173,7 @@ export function useUserNotebooksQuery() {
   );
   return useQuery<UserNotebookListItem[]>({
     queryKey: ['mention-user-notebooks'],
-    queryFn: () => syncUserNotebooks(get),
+    queryFn: () => syncUserNotebooks(get, plainGet),
     staleTime: STALE_TIME,
     retry: 1,
   });

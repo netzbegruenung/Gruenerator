@@ -18,6 +18,8 @@ export interface UserDocumentItem {
   sourceType?: string;
   createdAt: string;
   contentPreview?: string;
+  /** Set when someone else shared the file into these Projekte. */
+  sharedViaGroups?: string[];
 }
 
 export interface UserTextItem {
@@ -26,6 +28,22 @@ export interface UserTextItem {
   documentType: string;
   wordCount: number;
   createdAt: string;
+  /** Set when someone else shared the text into these Projekte. */
+  sharedViaGroups?: string[];
+}
+
+/**
+ * Splits picker items into the user's own and those shared via a Projekt.
+ * The pickers list each origin in its own group: the own list is long (and
+ * cut to the newest few), so shared items sorted into it would be unreachable.
+ */
+export function splitByOrigin<T extends { sharedViaGroups?: string[] }>(
+  items: readonly T[]
+): { own: T[]; shared: T[] } {
+  const own: T[] = [];
+  const shared: T[] = [];
+  for (const item of items) (item.sharedViaGroups?.length ? shared : own).push(item);
+  return { own, shared };
 }
 
 export interface NotebookCollectionItem {

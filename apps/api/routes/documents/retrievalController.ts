@@ -30,6 +30,7 @@ import {
 } from '../../services/document-services/documentOriginals.js';
 import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
+import { listProjectSharedContent } from '../../services/groups/projectSharedContent.js';
 import { resolveReaderSource } from '../../services/notebook/notebookSources.js';
 import { notAvailableForRemote } from '../../services/notebook/remoteSources/errors.js';
 import { createLogger } from '../../utils/logger.js';
@@ -163,6 +164,30 @@ router.get('/combined-content', async (req: DocumentRequest, res: Response): Pro
     });
   }
 });
+
+/**
+ * GET /combined-content/shared - Files and saved texts others shared into the
+ * user's Projekte, each with `shared_via_groups`. Separate from
+ * `/combined-content` so the Wissen lists reading that endpoint keep showing
+ * only the user's own content.
+ */
+router.get(
+  '/combined-content/shared',
+  async (req: DocumentRequest, res: Response): Promise<void> => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+      const data = await listProjectSharedContent(userId, getPostgresInstance());
+      res.json({ success: true, data });
+    } catch (error) {
+      log.error('[GET /combined-content/shared] Error:', error);
+      res.status(500).json({ success: false, message: 'Failed to fetch shared content' });
+    }
+  }
+);
 
 /**
  * GET /by-source/:sourceType - Get documents by source type

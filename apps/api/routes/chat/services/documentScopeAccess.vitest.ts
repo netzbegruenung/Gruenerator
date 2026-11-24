@@ -13,6 +13,7 @@ const OWN_TRASHED = 'a0000000-0000-4000-8000-000000000003';
 const FOREIGN = 'b0000000-0000-4000-8000-000000000001';
 const FOREIGN_SHARED = 'b0000000-0000-4000-8000-000000000002';
 const FOREIGN_IN_CLOSED = 'b0000000-0000-4000-8000-000000000003';
+const FOREIGN_PROJECT = 'b0000000-0000-4000-8000-000000000005';
 const MISSING = 'c0000000-0000-4000-8000-000000000001';
 
 const SHARED_NB = 'd0000000-0000-4000-8000-000000000001';
@@ -30,7 +31,11 @@ const DOCS: Record<string, Doc> = {
   [FOREIGN]: { user_id: OTHER, deleted: false },
   [FOREIGN_SHARED]: { user_id: OTHER, deleted: false },
   [FOREIGN_IN_CLOSED]: { user_id: OTHER, deleted: false },
+  [FOREIGN_PROJECT]: { user_id: OTHER, deleted: false },
 };
+
+/** Documents shared into a Projekt ME actively belongs to (the SQL decides). */
+const PROJECT_SHARED = new Set([FOREIGN_PROJECT]);
 
 const LINKS: Record<string, string[]> = {
   [SHARED_NB]: [FOREIGN_SHARED],
@@ -45,7 +50,12 @@ function makeDeps(overrides: Partial<DocumentScopeAccessDeps['helper']> = {}) {
     const wanted = sql.includes('ANY(') ? (params[0] as string[]) : [params[0] as string];
     return wanted
       .filter((id) => DOCS[id] && !DOCS[id].deleted)
-      .map((id) => ({ id, user_id: DOCS[id].user_id, title: 'Titel' }));
+      .map((id) => ({
+        id,
+        user_id: DOCS[id].user_id,
+        title: 'Titel',
+        project_shared: params[1] === ME && PROJECT_SHARED.has(id),
+      }));
   });
   const access = vi.fn(async (notebookId: string) => (notebookId === SHARED_NB ? READ : NO_READ));
   const helper: DocumentScopeAccessDeps['helper'] = {
@@ -143,5 +153,18 @@ describe('authorizeDocumentScope', () => {
       delete DOCS[shared2];
       LINKS[SHARED_NB] = [FOREIGN_SHARED];
     }
+  });
+
+  it("keeps a foreign document shared into one of the user's Projekte (#6015)", async () => {
+    const { deps, query, helper } = makeDeps();
+    const result = await authorizeDocumentScope(ME, [FOREIGN_PROJECT, FOREIGN], deps);
+    expect(result).toEqual({ documentIds: [FOREIGN_PROJECT], documentNotebookIds: {} });
+    // The membership rule runs in SQL, against the requesting user.
+    const [sql, params] = query.mock.calls[0] as [string, unknown[]];
+    expect(sql).toContain('gm.is_active = TRUE');
+    expect(sql).toContain("gcs.content_type = 'documents'");
+    expect(params[1]).toBe(ME);
+    // No notebook lookup for a document the project share already grants.
+    expect(helper.getCollectionIdsForDocuments).toHaveBeenCalledWith([FOREIGN]);
   });
 });

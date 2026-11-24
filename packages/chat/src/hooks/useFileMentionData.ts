@@ -93,6 +93,35 @@ export function useNotebookCollectionsQuery(enabled: boolean) {
   });
 }
 
+const sharedContentResponseSchema = z.object({
+  data: z.object({
+    documents: z.array(
+      z.object({
+        id: z.string(),
+        title: z.string().nullable(),
+        filename: z.string().nullable(),
+        source_type: z.string().nullable(),
+        created_at: z.string(),
+        shared_via_groups: z.array(z.string()),
+      })
+    ),
+    texts: z.array(
+      z.object({
+        id: z.string(),
+        title: z.string().nullable(),
+        document_type: z.string().nullable(),
+        created_at: z.string(),
+        shared_via_groups: z.array(z.string()),
+      })
+    ),
+  }),
+});
+
+const EMPTY_SHARED: z.infer<typeof sharedContentResponseSchema>['data'] = {
+  documents: [],
+  texts: [],
+};
+
 interface CombinedContent {
   documents: UserDocumentItem[];
   texts: UserTextItem[];
@@ -109,7 +138,18 @@ export function useCombinedContentQuery(enabled: boolean) {
       // `/api/documents`, NOT `/api/auth/documents`: the authRouter has no
       // `documents` branch, so the old path never resolved — and returning an
       // empty result on `!ok` made that 404 look like an empty account.
-      const response = await configFetch('/api/documents/combined-content');
+      // Files and texts shared via a Projekt come from `/shared`, best-effort
+      // like the shared notebooks above: an older backend lacks it, and a
+      // missing shared list must never hide the user's own content.
+      const [response, shared] = await Promise.all([
+        configFetch('/api/documents/combined-content'),
+        configFetch('/api/documents/combined-content/shared')
+          .then(async (res) =>
+            res.ok ? sharedContentResponseSchema.parse(await res.json()).data : EMPTY_SHARED
+          )
+          // swallow-ok: Zusatzliste; ältere Backends kennen /shared nicht, die eigene Liste bleibt laut
+          .catch(() => EMPTY_SHARED),
+      ]);
       if (!response.ok) throw new ApiError(response.status, `HTTP ${response.status}`);
 
       interface RawDocItem {
@@ -157,7 +197,36 @@ export function useCombinedContentQuery(enabled: boolean) {
         createdAt: t.created_at ?? t.createdAt ?? '',
       }));
 
-      return { documents, texts };
+      const ownDocIds = new Set(documents.map((d) => d.id));
+      const ownTextIds = new Set(texts.map((t) => t.id));
+      return {
+        documents: [
+          ...documents,
+          ...shared.documents
+            .filter((d) => !ownDocIds.has(d.id))
+            .map<UserDocumentItem>((d) => ({
+              id: d.id,
+              title: d.title || d.filename || 'Dokument',
+              ...(d.filename ? { filename: d.filename } : {}),
+              ...(d.source_type ? { sourceType: d.source_type } : {}),
+              createdAt: d.created_at,
+              sharedViaGroups: d.shared_via_groups,
+            })),
+        ],
+        texts: [
+          ...texts,
+          ...shared.texts
+            .filter((t) => !ownTextIds.has(t.id))
+            .map<UserTextItem>((t) => ({
+              id: t.id,
+              title: t.title || 'Unbenannter Text',
+              documentType: t.document_type ?? 'text',
+              wordCount: 0,
+              createdAt: t.created_at,
+              sharedViaGroups: t.shared_via_groups,
+            })),
+        ],
+      };
     },
   });
 }
