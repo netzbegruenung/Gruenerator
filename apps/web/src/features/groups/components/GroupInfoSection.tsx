@@ -5,6 +5,7 @@ import {
   canManageShare,
   hasAustauschContent,
   sharedContentKeys,
+  useRegenerateJoinToken,
   useSetGroupArchived,
   useUpdateGroupInfo,
 } from '@gruenerator/shared/groups';
@@ -207,6 +208,19 @@ const GroupInfoSection = memo(
     // Invite-by-email dialog (team Gruppen only).
     const inviteToGroup = useInviteToGroup();
     const [showInviteDialog, setShowInviteDialog] = useState(false);
+    const regenerateJoinToken = useRegenerateJoinToken(groupId);
+    // Erster Klick fragt nach, zweiter erneuert: der alte Link wird ungültig.
+    const [confirmRenewLink, setConfirmRenewLink] = useState(false);
+    const renewJoinLink = useCallback(() => {
+      regenerateJoinToken.mutate(undefined, {
+        onSuccess: () => {
+          setConfirmRenewLink(false);
+          onSuccessMessage?.('Neuer Einladungslink erstellt');
+        },
+        onError: (err) =>
+          onErrorMessage?.(err.message || 'Einladungslink konnte nicht erneuert werden.'),
+      });
+    }, [regenerateJoinToken, onSuccessMessage, onErrorMessage]);
     const [inviteEmails, setInviteEmails] = useState<string[]>([]);
     const [inviteDraft, setInviteDraft] = useState('');
     const [inviteError, setInviteError] = useState('');
@@ -988,10 +1002,37 @@ const GroupInfoSection = memo(
                 )}
               </div>
               {data?.joinToken && (
-                <Button variant="outline" onClick={copyJoinLink} className="self-start">
-                  <HiOutlineLink aria-hidden />
-                  {joinLinkCopied ? 'Kopiert!' : 'Einladungslink kopieren'}
-                </Button>
+                <div className="flex flex-col items-start gap-xs">
+                  <div className="flex flex-wrap gap-xs">
+                    <Button variant="outline" onClick={copyJoinLink}>
+                      <HiOutlineLink aria-hidden />
+                      {joinLinkCopied ? 'Kopiert!' : 'Einladungslink kopieren'}
+                    </Button>
+                    {confirmRenewLink ? (
+                      <>
+                        <Button
+                          variant="outline"
+                          onClick={renewJoinLink}
+                          disabled={regenerateJoinToken.isPending}
+                        >
+                          {regenerateJoinToken.isPending ? 'Wird erneuert...' : 'Erneuern'}
+                        </Button>
+                        <Button variant="ghost" onClick={() => setConfirmRenewLink(false)}>
+                          Abbrechen
+                        </Button>
+                      </>
+                    ) : (
+                      <Button variant="ghost" onClick={() => setConfirmRenewLink(true)}>
+                        Link erneuern
+                      </Button>
+                    )}
+                  </div>
+                  {confirmRenewLink && (
+                    <span role="status" className="text-xs text-grey-500">
+                      Der bisherige Link wird ungültig, auch in schon verschickten Einladungen.
+                    </span>
+                  )}
+                </div>
               )}
               <DialogFooter className="gap-xs">
                 <Button variant="outline" onClick={() => setShowInviteDialog(false)}>

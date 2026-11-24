@@ -549,23 +549,6 @@ class ProfileService {
     try {
       console.log(`[ProfileService] Starting profile deletion for user ${userId}`);
 
-      // Look up basic info before deletion for logging purposes
-      const db = getDrizzleInstance();
-      const userInfoRows = await db
-        .select({ email: profiles.email, username: profiles.username })
-        .from(profiles)
-        .where(eq(profiles.id, userId))
-        .limit(1);
-
-      const userInfo = userInfoRows[0];
-      if (userInfo) {
-        console.log(
-          `[ProfileService] Deleting user profile: ${userInfo.email ?? 'N/A'} (${userInfo.username ?? 'N/A'})`
-        );
-      } else {
-        console.warn(`[ProfileService] User ${userId} not found in profiles table`);
-      }
-
       // Use the legacy PostgresService delete for DeleteResult compatibility
       const postgres = getPostgresInstance();
       await postgres.ensureInitialized();

@@ -27,6 +27,7 @@ import {
   useGroupDetails,
   useGroupMembers,
   useLeaveGroup,
+  useRegenerateJoinToken,
   useSetGroupMute,
   useRemoveGroupMember,
   useSetGroupArchived,
@@ -73,6 +74,7 @@ export default function ProjektInfoScreen() {
   const removeMutation = useRemoveGroupMember(id ?? '');
   const archiveMutation = useSetGroupArchived(id ?? '');
   const leaveMutation = useLeaveGroup();
+  const renewLinkMutation = useRegenerateJoinToken(id ?? '');
   const muted = muteMutation.isPending
     ? (muteMutation.variables ?? false)
     : !!membership?.notifications_muted;
@@ -87,6 +89,23 @@ export default function ProjektInfoScreen() {
   const shareInvite = () => {
     if (group) shareProjectInvite(group, fail);
   };
+
+  const confirmRenewLink = () =>
+    Alert.alert(
+      'Einladungslink erneuern',
+      'Der bisherige Link wird ungültig, auch in schon verschickten Einladungen.',
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        {
+          text: 'Erneuern',
+          onPress: () =>
+            renewLinkMutation.mutate(undefined, {
+              onSuccess: done,
+              onError: fail,
+            }),
+        },
+      ]
+    );
 
   const confirmLeave = () => {
     if (!id) return;
@@ -225,12 +244,19 @@ export default function ProjektInfoScreen() {
                   }
                 />
                 {canShareLink ? (
-                  <ListRow
-                    icon="share-outline"
-                    title="Einladungslink teilen"
-                    last={group.is_system === true}
-                    onPress={shareInvite}
-                  />
+                  <>
+                    <ListRow
+                      icon="share-outline"
+                      title="Einladungslink teilen"
+                      onPress={shareInvite}
+                    />
+                    <ListRow
+                      icon="refresh-outline"
+                      title="Einladungslink erneuern"
+                      last={group.is_system === true}
+                      onPress={confirmRenewLink}
+                    />
+                  </>
                 ) : null}
                 {group.is_system ? null : (
                   <ListRow

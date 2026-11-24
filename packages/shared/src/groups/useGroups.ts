@@ -211,6 +211,22 @@ export const useSetGroupArchived = (groupId: string) => {
   });
 };
 
+/** Replace the invite link; the old one stops working, also in sent e-mails. */
+export const useRegenerateJoinToken = (groupId: string) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<string> => {
+      const res = await getContractsClient().groups.regenerateJoinToken({ params: { groupId } });
+      if (res.status !== 200) throw apiErrorFromResponse(res);
+      return res.body.join_token;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: GROUPS_QUERY_KEY });
+      void qc.invalidateQueries({ queryKey: groupDetailsKey(groupId) });
+    },
+  });
+};
+
 export const useVerifyJoinToken = (joinToken: string | null | undefined) =>
   useQuery({
     queryKey: ['groupVerifyToken', joinToken],

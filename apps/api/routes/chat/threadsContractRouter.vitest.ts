@@ -191,7 +191,7 @@ describe('delete — the Papierkorb for chat threads', () => {
       if (s.startsWith('SELECT 1 FROM chat_messages')) {
         return Promise.resolve(opts.hasMessages ? [{ '?column?': 1 }] : []);
       }
-      if (s.startsWith('SELECT id, title, thread_type, deleted_at, user_id')) {
+      if (s.startsWith('SELECT id, title, thread_type, deleted_at,')) {
         return Promise.resolve(opts.trashed ? [opts.trashed] : []);
       }
       if (s.startsWith('DELETE FROM chat_threads')) return Promise.resolve(opts.deleted ?? []);
@@ -337,7 +337,11 @@ describe('delete — the Papierkorb for chat threads', () => {
     await listTrashedThreads(OWNER, { limit: 10, before: null });
 
     expect(effects).toHaveLength(1);
-    expect(effects[0]).toContain('WHERE deleted_at IS NOT NULL AND user_id = $1');
+    expect(effects[0]).toContain(
+      'WHERE deleted_at IS NOT NULL AND (chat_threads.user_id::text = $1::text'
+    );
+    // Wer aus dem Projekt eines Team-Chats ausgetreten ist, sieht ihn nicht mehr.
+    expect(effects[0]).toContain('lgm.is_active = TRUE');
   });
 
   it("refuses someone else's thread without touching it", async () => {
@@ -365,7 +369,7 @@ describe('delete — the Papierkorb for chat threads', () => {
         title: 'Klimaplan',
         thread_type: 'chat',
         deleted_at: deletedAt,
-        user_id: OWNER,
+        owns: true,
       },
     });
 
@@ -389,7 +393,7 @@ describe('delete — the Papierkorb for chat threads', () => {
         title: null,
         thread_type: 'chat',
         deleted_at: new Date(),
-        user_id: 'someone-else',
+        owns: false,
       },
     });
 

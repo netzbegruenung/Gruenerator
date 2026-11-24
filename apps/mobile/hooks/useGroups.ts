@@ -14,6 +14,7 @@ export {
   useGroupMembers,
   useJoinGroup,
   useLeaveGroup,
+  useRegenerateJoinToken,
   useUpdateGroupInfo,
   useUpdateGroupLink,
   useUpdateGroupName,

@@ -305,7 +305,7 @@ class SubtitlerShareService {
       `;
       await this.postgres!.query(updateQuery, [share.id]);
 
-      log.info(`[SubtitlerShareService] Recorded download for ${shareToken} by ${email}`);
+      log.info('[SubtitlerShareService] Recorded download');
 
       return true;
     } catch (error: unknown) {

@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   createGroupForUser,
   joinGroupByToken,
+  regenerateJoinToken,
   removeGroupMember,
   setGroupArchived,
   updateGroupInfo,
@@ -186,6 +187,16 @@ describe('removeGroupMember', () => {
     expect(dismissGroup).toHaveBeenCalledWith('group:g1', 'm1');
   });
 
+  it('renews the invite link, so the removed person cannot rejoin with the old one', async () => {
+    queryOne.mockResolvedValue({ join_token: 'c'.repeat(32) });
+    await removeGroupMember('g1', 'admin2', 'm1');
+    expect(queryOne).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE groups SET join_token'),
+      ['g1', expect.stringMatching(/^[0-9a-f]{32}$/)],
+      { table: 'groups' }
+    );
+  });
+
   it('requires admin rights (the membership gate throws for non-admins)', async () => {
     checkMembership.mockRejectedValue(new Error('Keine Berechtigung für diese Aktion.'));
     const out = await removeGroupMember('g1', 'm1', 'm2');
@@ -283,5 +294,24 @@ describe('updateGroupInfo colour', () => {
     expect(exec.mock.calls[0][0]).not.toContain('color');
     checkMembership.mockResolvedValue({ postgres, isAdmin: false });
     expect(await updateGroupInfo('g1', 'u1', { color: 'gruen' })).toMatchObject({ status: 403 });
+  });
+});
+
+describe('regenerateJoinToken', () => {
+  it('writes a fresh 32-hex token outside the system project and returns it', async () => {
+    queryOne.mockImplementation(async (_sql: string, params: unknown[]) => ({
+      join_token: params[1],
+    }));
+    const token = await regenerateJoinToken('g1');
+    expect(token).toMatch(/^[0-9a-f]{32}$/);
+    const [sql] = queryOne.mock.calls[0] as [string];
+    expect(sql).toMatch(/deleted_at IS NULL/);
+    expect(sql).toMatch(/is_system/);
+    expect(await regenerateJoinToken('g1')).not.toBe(token);
+  });
+
+  it('returns null when no living project matched', async () => {
+    queryOne.mockResolvedValue(null);
+    expect(await regenerateJoinToken('gone')).toBeNull();
   });
 });

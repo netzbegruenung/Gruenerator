@@ -293,6 +293,12 @@ export const inviteToGroupResponseSchema = z.object({
 });
 export type InviteToGroupResponse = z.infer<typeof inviteToGroupResponseSchema>;
 
+export const regenerateJoinTokenResponseSchema = z.object({
+  success: z.literal(true),
+  join_token: z.string(),
+});
+export type RegenerateJoinTokenResponse = z.infer<typeof regenerateJoinTokenResponseSchema>;
+
 export const memberRoleBodySchema = z.object({
   role: groupRoleSchema,
 });

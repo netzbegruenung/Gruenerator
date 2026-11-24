@@ -18,12 +18,15 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { type GroupRow } from '../../database/schema/groups.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { createLogger } from '../../utils/logger.js';
 import { closeGroupCollabRooms } from '../collab/collabRooms.js';
 import { notifyGroupMembers } from '../notifications/index.js';
 import { dismissGroup } from '../notifications/NotificationService.js';
 
 import { getPostgresAndCheckMembership } from './groupMembership.js';
 import { SYSTEM_GROUP_FORBIDDEN } from './systemGroup.js';
+
+const log = createLogger('groupMutations');
 
 /** The columns the create insert returns; `created_at` is a raw pg value. */
 export type CreatedGroupRow = Pick<
@@ -77,6 +80,24 @@ export async function createGroupForUser(
 
     return group;
   });
+}
+
+/**
+ * Neuer Einladungslink für ein Projekt: der alte wird damit wertlos, auch in
+ * schon verschickten Einladungs-Mails. Das System-Projekt hat keinen Link.
+ * `null`, wenn kein lebendes Projekt getroffen wurde.
+ */
+export async function regenerateJoinToken(groupId: string): Promise<string | null> {
+  const postgres = getPostgresInstance();
+  await postgres.ensureInitialized();
+  const row = (await postgres.queryOne(
+    `UPDATE groups SET join_token = $2
+      WHERE id = $1 AND deleted_at IS NULL AND COALESCE(is_system, FALSE) = FALSE
+      RETURNING join_token`,
+    [groupId, crypto.randomBytes(16).toString('hex')],
+    { table: 'groups' }
+  )) as { join_token: string } | null;
+  return row?.join_token ?? null;
 }
 
 /** Resolve a group by its invite token (the `join_token` column). */
@@ -330,6 +351,12 @@ export async function removeGroupMember(
   void closeGroupCollabRooms(groupId, memberId);
   // Die Person soll keine Benachrichtigungen eines Projekts behalten, das sie nicht mehr sieht.
   void dismissGroup(`group:${groupId}`, memberId).catch(() => {});
+  // Wer entfernt wurde, darf nicht mit dem alten Link zurückkommen.
+  try {
+    await regenerateJoinToken(groupId);
+  } catch (err) {
+    log.error('[removeGroupMember] Einladungslink nicht erneuert', { groupId, err });
+  }
 
   return {
     status: 200,

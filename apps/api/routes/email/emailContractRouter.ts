@@ -63,7 +63,7 @@ export const emailContractRouter = s.router(emailContract, {
         actionUrl: null,
       });
 
-      log.info('[Email] Test email attempted', { userId: user.id, recipientEmail, sent });
+      log.info('[Email] Test email attempted', { userId: user.id, sent });
 
       if (!sent) {
         return {

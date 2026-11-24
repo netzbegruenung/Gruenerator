@@ -19,6 +19,7 @@ import {
   upsertThreadRecallPoint,
 } from '../../../services/chat/threadRecallEmbeddingService.js';
 import { type QueryRunner } from '../../../services/docs/CollaborativeDocumentService.js';
+import { ownsThreadSql } from '../../../services/groups/projectThreadScope.js';
 import {
   type TrashCursor,
   trashKeysetWhere,
@@ -151,14 +152,17 @@ export async function getTrashedThread(
   userId: string
 ): Promise<TrashedThreadLookup> {
   if (!UUID_RE.test(threadId)) return { status: 'not_found' };
-  const rows = await getPostgresInstance().query<TrashedThreadRow & { user_id: string }>(
-    `SELECT id, title, thread_type, deleted_at, user_id FROM chat_threads
-     WHERE id = $1 AND deleted_at IS NOT NULL`,
-    [threadId]
+  // Besitz nach `ownsThreadSql`: wer aus dem Projekt eines Team-Chats
+  // ausgetreten ist, darf ihn weder wiederherstellen noch endgültig löschen.
+  const rows = await getPostgresInstance().query<TrashedThreadRow & { owns: boolean }>(
+    `SELECT id, title, thread_type, deleted_at, ${ownsThreadSql('chat_threads', '$2')} AS owns
+       FROM chat_threads
+      WHERE id = $1 AND deleted_at IS NOT NULL`,
+    [threadId, userId]
   );
   if (rows.length === 0) return { status: 'not_found' };
-  const { user_id, ...row } = rows[0];
-  if (user_id !== userId) return { status: 'forbidden' };
+  const { owns, ...row } = rows[0];
+  if (!owns) return { status: 'forbidden' };
   return { status: 'ok', row };
 }
 
@@ -198,7 +202,7 @@ export async function listTrashedThreads(
   params.push(opts.limit);
   return getPostgresInstance().query<TrashedThreadRow>(
     `SELECT id, title, thread_type, deleted_at FROM chat_threads
-     WHERE deleted_at IS NOT NULL AND user_id = $1 AND ${keyset}
+     WHERE deleted_at IS NOT NULL AND ${ownsThreadSql('chat_threads', '$1')} AND ${keyset}
      ORDER BY ${trashOrderBy('deleted_at', 'id')}
      LIMIT $${params.length}`,
     params

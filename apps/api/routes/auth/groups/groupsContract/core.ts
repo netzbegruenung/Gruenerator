@@ -20,6 +20,7 @@ import {
 import {
   createGroupForUser,
   joinGroupByToken,
+  regenerateJoinToken,
   removeGroupMember,
   setGroupArchived,
   updateGroupInfo,
@@ -118,7 +119,11 @@ export const coreRoutes = {
           description: group.description ?? null,
           created_at: toIsoOrNull(group.created_at),
           created_by: group.created_by ?? null,
-          join_token: isSystem ? null : (group.join_token ?? null),
+          // Der Link ist ein Beitritts-Geheimnis: nur Admins bekommen ihn.
+          join_token:
+            !isSystem && (group.created_by === userId || role === 'admin')
+              ? (group.join_token ?? null)
+              : null,
           settings: group.settings ?? null,
           avatar_url: group.avatar_url ?? null,
           links: group.links ?? null,
@@ -322,7 +327,7 @@ export const coreRoutes = {
             description: row.description ?? null,
             created_at: toIsoOrNull(row.created_at),
             created_by: row.created_by ?? null,
-            join_token: isSystem ? null : (row.join_token ?? null),
+            join_token: !isSystem && isAdmin ? (row.join_token ?? null) : null,
             settings: row.settings ?? null,
             avatar_url: row.avatar_url ?? null,
             links: row.links ?? [],
@@ -533,6 +538,45 @@ export const coreRoutes = {
       return {
         status: 500 as const,
         body: { success: false as const, message: 'Fehler beim Beitritt zum Projekt.' },
+      };
+    }
+  }),
+
+  regenerateJoinToken: s.route(groupsContract.regenerateJoinToken, async (args) => {
+    const { groupId } = args.params;
+    try {
+      const userId = getUserId(args.req);
+      let isSystem: boolean;
+      try {
+        ({ isSystem } = await getPostgresAndCheckMembership(groupId, userId, true));
+      } catch {
+        return {
+          status: 403 as const,
+          body: {
+            success: false as const,
+            message: 'Nur Admins können den Einladungslink erneuern.',
+          },
+        };
+      }
+      if (isSystem) {
+        return {
+          status: 400 as const,
+          body: { success: false as const, message: SYSTEM_GROUP_FORBIDDEN },
+        };
+      }
+      const token = await regenerateJoinToken(groupId);
+      if (!token) {
+        return {
+          status: 404 as const,
+          body: { success: false as const, message: 'Projekt nicht gefunden.' },
+        };
+      }
+      return { status: 200 as const, body: { success: true as const, join_token: token } };
+    } catch (error) {
+      log.error('[groupsContract.regenerateJoinToken] Error:', error);
+      return {
+        status: 500 as const,
+        body: { success: false as const, message: 'Fehler beim Erneuern des Einladungslinks.' },
       };
     }
   }),

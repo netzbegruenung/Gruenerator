@@ -533,14 +533,14 @@ export const auth = betterAuth({
     user: {
       create: {
         after: async (user) => {
-          log.info(`[Auth] user-created id=${user.id} email=${user.email}`);
+          log.info(`[Auth] user-created id=${user.id}`);
           const { addUserToSystemGroup } = await import('../services/groups/systemGroup.js');
           await addUserToSystemGroup(user.id);
         },
       },
       update: {
         after: async (user) => {
-          log.info(`[Auth] user-updated id=${user.id} email=${user.email}`);
+          log.info(`[Auth] user-updated id=${user.id}`);
         },
       },
     },
