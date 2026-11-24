@@ -116,6 +116,33 @@ describe('indexCollabDocument', () => {
     mocks.html.mockResolvedValue({ html: '<p></p>' });
     expect(await indexCollabDocument('doc-1')).toBe('removed');
     expect(mocks.embed).not.toHaveBeenCalled();
+    expect(mocks.deleteVectors).toHaveBeenCalledWith('doc-1', null);
+    // The index row stays (0 chunks, checked_at): without it the document is due
+    // again on the next tick and gets re-read and re-deleted every minute.
+    expect(
+      mocks.query.mock.calls.some(([sql]) => /DELETE FROM collab_search_index/.test(sql))
+    ).toBe(false);
+    const upsert = mocks.query.mock.calls.find(([sql]) =>
+      /INSERT INTO collab_search_index/.test(sql)
+    );
+    expect(upsert?.[1]).toEqual(['doc-1', expect.any(String), 0, STARTED]);
+  });
+
+  it('leaves a document that is still empty alone on the next pass', async () => {
+    mocks.queryOne.mockResolvedValueOnce(DOC).mockResolvedValueOnce(null);
+    mocks.html.mockResolvedValue({ html: '<p></p>' });
+    await indexCollabDocument('doc-1');
+    const hash = mocks.query.mock.calls.find(([sql]) =>
+      /INSERT INTO collab_search_index/.test(sql)
+    )![1][1];
+
+    Object.values(mocks).forEach((m) => m.mockClear());
+    mocks.query.mockResolvedValue([]);
+    mocks.queryOne.mockResolvedValueOnce(DOC).mockResolvedValueOnce({ content_hash: hash });
+
+    expect(await indexCollabDocument('doc-1')).toBe('removed');
+    expect(mocks.deleteVectors).not.toHaveBeenCalled();
+    expect(mocks.query.mock.calls[0][0]).toMatch(/UPDATE collab_search_index SET checked_at/);
   });
 });
 
