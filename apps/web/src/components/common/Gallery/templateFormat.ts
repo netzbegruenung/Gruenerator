@@ -8,6 +8,7 @@
  * authoring tool the card UI shows below each thumbnail.
  */
 
+import '../../../features/image-studio/canvasHost';
 import { getCanvasFormat } from '@gruenerator/canvas-editor/formats';
 
 export interface TemplateFormat {

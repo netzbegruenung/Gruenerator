@@ -5,7 +5,6 @@ import { useNavigate } from 'react-router-dom';
 
 import { useBoardsTyped } from '../../hooks/useBoardsTyped';
 import { useAuthStore } from '../../stores/authStore';
-import { seedCanvasQuery } from '../image-studio/canvasQuery';
 
 import { createSlideDeck } from './createSlideDeck';
 
@@ -46,7 +45,12 @@ export function useOfficeCreate() {
 
   const createBlankPresentation = useCallback(async () => {
     try {
-      const deck = await createSlideDeck(locale);
+      // canvasQuery brings the canvas host data; loaded on the click so the
+      // start page and /office do not ship it (#5891).
+      const [deck, { seedCanvasQuery }] = await Promise.all([
+        createSlideDeck(locale),
+        import('../image-studio/canvasQuery'),
+      ]);
       seedCanvasQuery(queryClient, deck);
       void navigate(`/studio/canvas/${deck.id}`);
     } catch (err) {

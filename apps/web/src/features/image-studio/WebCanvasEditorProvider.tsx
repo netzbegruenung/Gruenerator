@@ -1,3 +1,4 @@
+import './canvasHost';
 import { CanvasEditorProvider } from '@gruenerator/canvas-editor';
 import { sharepicBlockSpec, sharepicSeiteSpec } from '@gruenerator/contracts';
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';

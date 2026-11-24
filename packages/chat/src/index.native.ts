@@ -87,10 +87,9 @@ export {
   setThreadGroupId,
   subscribeThreadTags,
   resolveThreadBySlugSuffix,
-  requestThreadListReload,
-  subscribeThreadListReload,
   type ExternalThreadEntry,
 } from './runtime/GrueneratorThreadListAdapter';
+export { requestThreadListReload, subscribeThreadListReload } from './runtime/threadListReload';
 export { mayReplaceTurn } from './hooks/mayReplaceTurn';
 export { requestDailyBriefingNow, useDailyBriefing } from './hooks/useDailyBriefing';
 
