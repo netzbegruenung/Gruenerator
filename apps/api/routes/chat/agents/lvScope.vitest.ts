@@ -13,7 +13,12 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { lvEbeneForMentions, narrowLvScopeToEbene } from './lvScope.js';
+import {
+  lvEbeneForMentions,
+  lvScopeForRecipeMentions,
+  narrowLvScopeToEbene,
+  resolveExamplesLvScope,
+} from './lvScope.js';
 
 describe('narrowLvScopeToEbene', () => {
   it('trennt die beiden Ebenen eines zweistufigen Landesverbands', () => {
@@ -58,5 +63,28 @@ describe('lvEbeneForMentions', () => {
 
   it('löst eine zurückgezogene Kennung auf, statt sie zu übergehen', () => {
     expect(lvEbeneForMentions(['presse-hessen'])).toBe('partei');
+  });
+});
+
+describe('lvScopeForRecipeMentions', () => {
+  it('liefert den Landesverband des ersten LV-Rezepts', () => {
+    expect(lvScopeForRecipeMentions([null, 'presse', 'presse-hessen-partei'])).toEqual([
+      'HE',
+      'HE-F',
+    ]);
+    expect(lvScopeForRecipeMentions(['wahlpruefstein-nrw'])).toEqual(['NRW', 'NRW-F']);
+  });
+
+  it('nichts für allgemeine Rezepte und für Österreich', () => {
+    expect(lvScopeForRecipeMentions(['presse', 'wahlpruefstein'])).toBeUndefined();
+    expect(lvScopeForRecipeMentions(['wahlpruefstein-at'])).toBeUndefined();
+  });
+});
+
+describe('resolveExamplesLvScope — Notebook-Rückfall', () => {
+  it('leitet den LV aus einer gebundenen LV-Sammlung ab', () => {
+    expect(resolveExamplesLvScope({}, { defaultNotebookCollectionIds: ['brandenburg'] })).toEqual([
+      'BB',
+    ]);
   });
 });

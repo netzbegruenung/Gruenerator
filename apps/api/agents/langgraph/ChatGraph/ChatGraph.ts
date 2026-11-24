@@ -17,7 +17,11 @@
  * directly instead of the annotation-derived type.
  */
 
-import { resolveSkillMention } from '@gruenerator/shared/agents';
+import {
+  LANDESVERBAENDE,
+  lvIdForAgentIdentifier,
+  resolveSkillMention,
+} from '@gruenerator/shared/agents';
 
 import {
   isNotebookImplicitlySearchable,
@@ -60,6 +64,12 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
   // pinned to the matching Landesverband. The skill body carries the voice;
   // model, provider and systemRole of the active agent stay untouched, and an
   // explicitly selected non-default agent always wins.
+  //
+  // A Landesverband recipe also brings its LV's notebook: since 11/2026 the
+  // LV recipes stand in front of the LV agents (hub, sidebar, `/chat?rezept=`),
+  // and without the notebook `@presse-bayern-partei` on the universal agent
+  // searched `deutschland` while the Bayern agent searched Bayern.
+  const scopeNotebookIds: string[] = [];
   if (input.activeSkillMention && agentId === getDefaultAgentId()) {
     const skillAgentId = resolveSkillMention(input.activeSkillMention);
     if (skillAgentId && skillAgentId !== agentConfig.identifier) {
@@ -76,8 +86,21 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
           `[ChatGraph] Skill ${input.activeSkillMention} adopted scoping from agent ${skillAgentId}`
         );
       }
+      if (skillAgent && lvIdForAgentIdentifier(skillAgentId)) {
+        scopeNotebookIds.push(...(skillAgent.defaultNotebookIds ?? []));
+      }
     }
   }
+
+  // The Landesverband the project is set up for (`groups.landesverband`) binds
+  // its notebook like an LV agent does — a project "für den LV Bayern" searches
+  // Bayern without an @. The example scope follows from the notebook
+  // (`resolveExamplesLvScope`'s collection fallback), the recipe variant from
+  // `preferredLvRecipeMention`.
+  const projectLv = input.projectLandesverband
+    ? LANDESVERBAENDE.find((lv) => lv.id === input.projectLandesverband)
+    : undefined;
+  if (projectLv) scopeNotebookIds.push(projectLv.notebookId);
 
   // [agent-trace] Prove what the backend actually resolved for this turn — the
   // running shared package can be stale (dist vs source), so log the resolved
@@ -102,7 +125,11 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
   // The notebooks shared into the thread's project are bound the same way as an
   // agent's: same gate for system slugs, same access check for user notebooks.
   const agentNotebookIds = [
-    ...new Set([...(agentConfig.defaultNotebookIds ?? []), ...(input.projectNotebookIds ?? [])]),
+    ...new Set([
+      ...(agentConfig.defaultNotebookIds ?? []),
+      ...scopeNotebookIds,
+      ...(input.projectNotebookIds ?? []),
+    ]),
   ];
   const defaultNotebookSlugs = [
     ...agentNotebookIds.filter(isNotebookImplicitlySearchable),
