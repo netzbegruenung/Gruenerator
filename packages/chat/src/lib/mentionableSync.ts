@@ -343,9 +343,13 @@ export async function syncUserNotebooks(
     get<{ collections?: UserNotebookListItem[] }>('/api/auth/notebook-collections').catch(
       quietOn401
     ),
+    // Best-effort, unlike the own list: a failing shared list must cost only
+    // the shared entries, never the user's own notebooks — and shipped mobile
+    // builds may talk to a backend that predates the endpoint.
     getShared<{ collections?: UserNotebookListItem[] }>(
       '/api/auth/notebook-collections/shared'
-    ).catch(quietOn401),
+      // swallow-ok: Zusatzliste; ein Ausfall von /shared darf die eigenen Notebooks nicht mitreißen
+    ).catch(() => ({ collections: [] as UserNotebookListItem[] })),
   ]);
   const seenIds = new Set<string>();
   const list: UserNotebookListItem[] = [];

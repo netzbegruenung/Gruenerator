@@ -164,6 +164,15 @@ describe('syncUserNotebooks shared notebooks', () => {
     );
     expect(list).toEqual([{ id: 'nb-1', name: 'Klima' }]);
   });
+
+  it('keeps the own notebooks when the shared list fails', async () => {
+    const get: MentionableFetch = <T>(path: string): Promise<T> =>
+      path === '/api/auth/notebook-collections/shared'
+        ? Promise.reject(Object.assign(new Error('Server error'), { status: 500 }))
+        : Promise.resolve({ collections: [{ id: 'own-1', name: 'Klima' }] } as unknown as T);
+    await expect(syncUserNotebooks(get)).resolves.toEqual([{ id: 'own-1', name: 'Klima' }]);
+    expect(getUserNotebookMentionables().map((m) => m.identifier)).toEqual(['own-1']);
+  });
 });
 
 describe('syncUserNotebooks failure handling', () => {
