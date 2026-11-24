@@ -53,6 +53,13 @@ vi.mock('../../docs/docsSearch.js', () => ({
 }));
 vi.mock('../../../services/boards/BoardService.js', () => ({
   FIELD_IDS: { STATUS: 'field-status', ASSIGNEE: 'field-assignee' },
+  resolveStatusId: (
+    fields: Array<{ typeOptions?: { options?: Array<{ id: string; name: string }> } }>,
+    status: string
+  ) =>
+    fields
+      .flatMap((f) => f.typeOptions?.options ?? [])
+      .find((o) => o.id === status || o.name.toLowerCase() === status.toLowerCase())?.id ?? null,
   listUserBoards: (...a: unknown[]) => listUserBoards(...a),
   loadBoardState: (...a: unknown[]) => loadBoardState(...a),
   resolveCardDisplay: (...a: unknown[]) => resolveCardDisplay(...a),
@@ -717,6 +724,33 @@ describe('boards_tasks', () => {
     expect(action.type).toBe('modify_board');
     expect(action.payload.rows).toHaveLength(1);
     expect(updateCard).not.toHaveBeenCalled();
+  });
+
+  it('add_card legt die Spalten-Id in den Vorschlag und lehnt eine unbekannte Spalte ab', async () => {
+    loadBoardState.mockResolvedValue(board);
+    await exec(makeBoardsTasksTool(ctx('u1')), {
+      action: 'add_card',
+      boardId: 'b1',
+      title: 'Flyer',
+      status: 'offen',
+      limit: 15,
+    });
+    const [, action] = emitToolConfirmAction.mock.calls[0] as [
+      unknown,
+      { payload: { rows: Array<{ status?: string }> } },
+    ];
+    expect(action.payload.rows[0].status).toBe('s-open');
+
+    const out = (await exec(makeBoardsTasksTool(ctx('u1')), {
+      action: 'add_card',
+      boardId: 'b1',
+      title: 'Flyer',
+      status: 'Später',
+      limit: 15,
+    })) as { error?: string; spalten?: string[] };
+    expect(out.error).toMatch(/Später/);
+    expect(out.spalten).toEqual(['Offen', 'Erledigt']);
+    expect(emitToolConfirmAction).toHaveBeenCalledTimes(1);
   });
 
   it('move_card is refused without write access', async () => {

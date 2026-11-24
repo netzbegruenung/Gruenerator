@@ -30,7 +30,7 @@ import * as Y from 'yjs';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { createLogger } from '../../utils/logger.js';
 
-import { FIELD_IDS, loadBoardYjsDoc, type FieldDef } from './BoardService.js';
+import { FIELD_IDS, loadBoardYjsDoc, resolveStatusId, type FieldDef } from './BoardService.js';
 
 const gzipAsync = promisify(gzip);
 const log = createLogger('boardCardWriteService');
@@ -72,18 +72,6 @@ async function wasRecentlyEditedLive(boardId: string): Promise<boolean> {
     [boardId]
   );
   return rows.length > 0;
-}
-
-/** Resolve a status name (or raw id) to the option id defined on the board's status field. */
-function resolveStatusId(fields: FieldDef[], status: string): string | null {
-  const statusField = fields.find((f) => f.id === FIELD_IDS.STATUS);
-  const options = Array.isArray(statusField?.typeOptions?.options)
-    ? (statusField.typeOptions.options as Array<{ id: string; name: string }>)
-    : [];
-  const byId = options.find((o) => o.id === status);
-  if (byId) return byId.id;
-  const byName = options.find((o) => o.name.toLowerCase() === status.trim().toLowerCase());
-  return byName?.id ?? null;
 }
 
 /** A refusal the chat model can act on (wrong card id, unknown column) — its

@@ -31,6 +31,7 @@
 import { isKiImage } from '@gruenerator/shared/media-library/contentOrigin';
 import {
   boardAssigneeUserIds,
+  boardStatusOptions,
   buildChatThreadSlug,
   getBoardDoneStatusId,
   type BoardAssignee,
@@ -49,6 +50,7 @@ import { getPostgresInstance } from '../../../database/services/PostgresService.
 import { BoardCardError, updateCard } from '../../../services/boards/boardCardWriteService.js';
 import {
   FIELD_IDS,
+  resolveStatusId,
   listUserBoards,
   loadBoardState,
   resolveCardDisplay,
@@ -1179,7 +1181,17 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
         const board = await loadBoardState(boardId, userId);
         if (!board) return { error: 'Board nicht gefunden oder kein Zugriff.' };
         const row: Record<string, unknown> = { title: args.title.trim() };
-        if (args.status) row.status = args.status;
+        if (args.status) {
+          const statusId = resolveStatusId(board.fields, args.status);
+          if (!statusId) {
+            const columns = boardStatusOptions(board.fields).map((o) => o.name);
+            return {
+              error: `Spalte „${args.status}" gibt es auf „${board.title}" nicht.`,
+              ...(columns.length ? { spalten: columns } : {}),
+            };
+          }
+          row.status = statusId;
+        }
         if (args.description) row.description = args.description;
         if (args.dueDate) row.dueDate = args.dueDate;
         if (args.assignee?.trim()) {

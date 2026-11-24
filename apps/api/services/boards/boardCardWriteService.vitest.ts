@@ -17,6 +17,7 @@ vi.mock('./BoardService.js', () => ({
     DUE_DATE: 'field-due',
   },
   loadBoardYjsDoc: () => Promise.resolve(doc),
+  resolveStatusId: () => null,
 }));
 
 const { updateCard } = await import('./boardCardWriteService.js');

@@ -614,6 +614,21 @@ export async function createBoardDocument(
 }
 
 /**
+ * Die Spalten-Id zu einem Status, genannt per Id oder Name. Das Web sortiert
+ * Karten über die Id ein (`applyGroups`); ein roher Name landet in „Ohne Status".
+ */
+export function resolveStatusId(fields: FieldDef[], status: string): string | null {
+  const statusField = fields.find((f) => f.id === FIELD_IDS.STATUS);
+  const options = Array.isArray(statusField?.typeOptions?.options)
+    ? (statusField.typeOptions.options as Array<{ id: string; name: string }>)
+    : [];
+  const byId = options.find((o) => o.id === status);
+  if (byId) return byId.id;
+  const byName = options.find((o) => o.name.toLowerCase() === status.trim().toLowerCase());
+  return byName?.id ?? null;
+}
+
+/**
  * Zellenwert für `row.assignee`: eine aufgelöste Person (`{ id, name }`, so legt
  * der Chat seit 11/2026 Karten an) als JSON-Array wie im Web, sonst der Text wie
  * bisher (Board-Generierung, MCP).
@@ -651,6 +666,7 @@ export async function addRowsToBoard(
   }
 
   const yRows = doc.getArray('rows');
+  const fields = doc.getArray('fields').toJSON() as FieldDef[];
   const now = new Date().toISOString();
 
   doc.transact(() => {
@@ -665,7 +681,9 @@ export async function addRowsToBoard(
 
       const cells = new Y.Map();
       cells.set(FIELD_IDS.TITLE, String(row.title || ''));
-      cells.set(FIELD_IDS.STATUS, String(row.status || ''));
+      // Ein Spaltenname (Chat, MCP) wird zur Id; Unbekanntes bleibt wie bisher stehen.
+      const status = String(row.status || '');
+      cells.set(FIELD_IDS.STATUS, status ? (resolveStatusId(fields, status) ?? status) : '');
       cells.set(FIELD_IDS.DESCRIPTION, String(row.description || ''));
       cells.set(FIELD_IDS.DUE_DATE, row.dueDate ? String(row.dueDate) : null);
       cells.set(FIELD_IDS.LABELS, []);
