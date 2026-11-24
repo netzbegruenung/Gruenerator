@@ -10,13 +10,12 @@ import {
   hostCapabilitiesScript,
   hostSupports,
   isSafeDownloadFilename,
-  parseHostMessage,
-  parseWebViewMessage,
   RENDER_CAPABILITY_CREATOR,
   sanitizeDownloadFilename,
   WEBVIEW_DOWNLOAD_MAX_BASE64_LENGTH,
   type WebViewOutboundMessage,
 } from './webviewBridge.js';
+import { parseHostMessage, parseWebViewMessage } from './webviewBridgeParse.js';
 
 /** A well-formed DOWNLOAD_FILE, so each case below varies exactly one thing. */
 const download = (over: Partial<Record<string, unknown>> = {}): Record<string, unknown> => ({

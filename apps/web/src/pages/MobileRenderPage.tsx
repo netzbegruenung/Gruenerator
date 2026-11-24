@@ -1,3 +1,4 @@
+import '../features/image-studio/canvasHost';
 import { ensureFontsReady } from '@gruenerator/canvas-editor';
 import { type SharepicTweak } from '@gruenerator/canvas-editor/composer';
 import { type CanvasTemplateType } from '@gruenerator/contracts';

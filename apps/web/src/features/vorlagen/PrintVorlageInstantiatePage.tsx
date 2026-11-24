@@ -1,3 +1,4 @@
+import '../image-studio/canvasHost';
 import { CanvasEditorSkeleton } from '@gruenerator/canvas-editor/skeleton';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type JSX } from 'react';

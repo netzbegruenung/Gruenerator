@@ -1,3 +1,4 @@
+import '../features/image-studio/canvasHost';
 import { MasterCanvasEditor } from '@gruenerator/canvas-editor';
 import { useState, useEffect, useCallback } from 'react';
 

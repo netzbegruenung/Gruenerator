@@ -1,3 +1,4 @@
+import './canvasHost';
 import {
   EDITOR_KEY_SHIELD_ATTRIBUTE,
   type CanvasEditorExportApi,

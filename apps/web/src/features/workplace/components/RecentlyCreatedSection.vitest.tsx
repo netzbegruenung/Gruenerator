@@ -22,7 +22,9 @@ vi.mock('../../../hooks/useBoardsTyped', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   useBoardsTyped: () => ({ deleteBoard: vi.fn() }),
 }));
-vi.mock('../../image-studio/canvasQuery', () => ({ useCanvasEditorPrefetch: () => vi.fn() }));
+vi.mock('../../image-studio/canvasEditorPrefetch', () => ({
+  useCanvasEditorPrefetch: () => vi.fn(),
+}));
 vi.mock('../../../components/common/SharedMediaImage', () => ({ SharedMediaImage: () => null }));
 
 const image = (id: string, title: string, editor?: 'profilbild'): RecentItem => ({

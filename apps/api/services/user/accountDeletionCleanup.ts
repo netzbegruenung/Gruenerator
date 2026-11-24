@@ -17,6 +17,7 @@ import { createLogger } from '../../utils/logger.js';
 import { reportBackgroundError } from '../../utils/reportBackgroundError.js';
 import { ConnectionService } from '../connections/ConnectionService.js';
 import { purgeSoleOwnedCollaborativeDocuments } from '../docs/CollaborativeDocumentService.js';
+import { removeUserOriginals } from '../document-services/documentOriginals.js';
 import {
   deleteCommentsForEntity,
   deleteCommentsOnItemsOfDeletedUser,
@@ -85,6 +86,13 @@ export async function cleanUpBeforeProfileDelete(userId: string): Promise<void> 
     }
   } catch (error) {
     reportBackgroundError(error, { job: 'account-deletion', store: 'notebook_collections' });
+  }
+
+  // The `documents` FK cascade removes the rows, never their kept files.
+  try {
+    await removeUserOriginals(userId);
+  } catch (error) {
+    reportBackgroundError(error, { job: 'account-deletion', store: 'document_originals' });
   }
 
   const agents = await purgeAllOwnedRows(USER_AGENT_TRASH, userId, purgeUserAgent);

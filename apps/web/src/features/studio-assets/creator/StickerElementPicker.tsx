@@ -1,3 +1,4 @@
+import '../../image-studio/canvasHost';
 import {
   DEFAULT_ICON_SET,
   EMOJI_ASSETS,

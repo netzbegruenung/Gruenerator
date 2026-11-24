@@ -6,6 +6,7 @@
 import fs from 'fs';
 
 import { hasAiConsent } from '../../../middleware/requireAiConsent.js';
+import { keepOriginal, removeOriginal } from '../documentOriginals.js';
 
 import { chunkAndEmbedText } from './chunkingPipeline.js';
 import { ingestRetryDelayMs } from './ingestRetry.js';
@@ -311,25 +312,51 @@ export async function processUploadedDocument(
       }
     );
 
-    await postgresDocumentService.updateDocumentMetadata(documentId, userId, {
-      status: 'completed',
-      vectorCount: chunks.length,
-      // Keep the extracted text: the source file is deleted right below and the
-      // chunks in Qdrant are overlapping fragments, so without this the only way
-      // back to the full text is re-fetching (and for uploads, not at all).
-      markdownContent: capStoredText(extractedText),
-      ...(extraction.pageCount !== null ? { pageCount: extraction.pageCount } : {}),
-      additionalMetadata: {
-        // Nur die eigenen Felder — der Rest wird in der Datenbank
-        // zusammengeführt, damit Tags oder Metadaten, die während des Laufs
-        // jemand anderes schrieb, nicht vom Schnappschuss überschrieben werden.
-        filePath: undefined,
-        ...REINDEX_DONE,
-        ...RETRY_DONE,
-        content_preview: generateContentPreview(extractedText),
-        ...(extraction.extractionMethod ? { extractionMethod: extraction.extractionMethod } : {}),
-      },
-    });
+    // A manual upload keeps its file for „Original öffnen" (documentOriginals.ts);
+    // Wolke and other sources keep theirs elsewhere and only drop the temp file.
+    const keptOriginal =
+      filePath && !reindex && document.source_type === 'manual'
+        ? await keepOriginal(filePath, {
+            userId,
+            documentId,
+            filename: document.filename ?? null,
+          }).catch((err: unknown) => {
+            // Losing the original must not lose the document: it stays readable
+            // as text, just without „Original öffnen".
+            console.warn(
+              `[DocumentProcessingService] keeping original failed for ${documentId}:`,
+              (err as Error).message
+            );
+            return null;
+          })
+        : null;
+
+    try {
+      await postgresDocumentService.updateDocumentMetadata(documentId, userId, {
+        status: 'completed',
+        vectorCount: chunks.length,
+        ...(keptOriginal ? { filePath: keptOriginal } : {}),
+        // Keep the extracted text: the chunks in Qdrant are overlapping
+        // fragments, so without this the only way back to the full text is
+        // re-fetching the original.
+        markdownContent: capStoredText(extractedText),
+        ...(extraction.pageCount !== null ? { pageCount: extraction.pageCount } : {}),
+        additionalMetadata: {
+          // Nur die eigenen Felder — der Rest wird in der Datenbank
+          // zusammengeführt, damit Tags oder Metadaten, die während des Laufs
+          // jemand anderes schrieb, nicht vom Schnappschuss überschrieben werden.
+          filePath: undefined,
+          ...REINDEX_DONE,
+          ...RETRY_DONE,
+          content_preview: generateContentPreview(extractedText),
+          ...(extraction.extractionMethod ? { extractionMethod: extraction.extractionMethod } : {}),
+        },
+      });
+    } catch (error) {
+      // The pending file is still there for the retry; drop the unreferenced copy.
+      if (keptOriginal) await removeOriginal(keptOriginal).catch(() => undefined);
+      throw error;
+    }
 
     // Clean up temp file (a reindex fetched its original into memory)
     if (filePath && !reindex) {
