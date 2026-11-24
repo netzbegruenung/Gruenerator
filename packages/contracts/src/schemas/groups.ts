@@ -630,15 +630,19 @@ export const groupInstructionsResponseSchema = z.object({
 });
 export type GroupInstructionsResponse = z.infer<typeof groupInstructionsResponseSchema>;
 
-// ── Wolke-Ordner als Projektwissen (#5945, experimentell) ─────────────────────
+// ── Synchronisierte Ablagen als Projektwissen (#5945, experimentell) ───────
 
-/** Ein an ein Projekt gehängter Wolke-Ordner. Lesen dürfen Mitglieder, ändern Projekt-Admins. */
-export const groupWolkeFolderSchema = z.object({
+/** Woher eine Projektquelle ihre Dateien holt. */
+export const groupCloudProviderSchema = z.enum(['wolke', 'google-drive']);
+export type GroupCloudProvider = z.infer<typeof groupCloudProviderSchema>;
+
+/** Ein Wolke-Ordner oder eine Google-Drive-Auswahl im Projekt. Lesen Mitglieder, ändern Admins. */
+export const groupCloudSourceSchema = z.object({
   id: z.string(),
-  folderName: z.string(),
-  folderPath: z.string(),
+  provider: groupCloudProviderSchema,
+  name: z.string(),
   includeSubfolders: z.boolean(),
-  /** Dateien aus dem Ordner, die gerade im Projektwissen liegen. */
+  /** Dateien aus der Quelle, die gerade im Projektwissen liegen. */
   fileCount: z.number(),
   /** Noch nicht eingelesen — der stündliche Abgleich holt sie nach. */
   pendingCount: z.number(),
@@ -647,13 +651,13 @@ export const groupWolkeFolderSchema = z.object({
   attachedById: z.string(),
   attachedByName: z.string().nullable(),
 });
-export type GroupWolkeFolder = z.infer<typeof groupWolkeFolderSchema>;
+export type GroupCloudSource = z.infer<typeof groupCloudSourceSchema>;
 
-export const groupWolkeFoldersResponseSchema = z.object({
+export const groupCloudSourcesResponseSchema = z.object({
   success: z.literal(true),
-  folders: z.array(groupWolkeFolderSchema),
+  sources: z.array(groupCloudSourceSchema),
 });
-export type GroupWolkeFoldersResponse = z.infer<typeof groupWolkeFoldersResponseSchema>;
+export type GroupCloudSourcesResponse = z.infer<typeof groupCloudSourcesResponseSchema>;
 
 export const attachGroupWolkeFolderBodySchema = z.object({
   url: z.string().trim().min(1).max(2000),
@@ -663,23 +667,44 @@ export const attachGroupWolkeFolderBodySchema = z.object({
 });
 export type AttachGroupWolkeFolderBody = z.infer<typeof attachGroupWolkeFolderBodySchema>;
 
+/** Höchstens so viele Dateien je Picker-Auswahl. */
+export const GROUP_DRIVE_PICK_MAX = 50;
+
+/** Im Google-Picker gewählte Dateien (Scope `drive.file`: nur diese sind lesbar). */
+export const attachGroupDriveFilesBodySchema = z.object({
+  files: z
+    .array(
+      z.object({
+        id: z
+          .string()
+          .regex(/^[a-zA-Z0-9_-]+$/)
+          .max(200),
+        name: z.string().max(500),
+        mimeType: z.string().max(200),
+      })
+    )
+    .min(1)
+    .max(GROUP_DRIVE_PICK_MAX),
+});
+export type AttachGroupDriveFilesBody = z.infer<typeof attachGroupDriveFilesBodySchema>;
+
 /** Was ein Abgleich getan hat. */
-export const groupWolkeSyncSummarySchema = z.object({
+export const groupCloudSyncSummarySchema = z.object({
   /** Neu oder geändert eingelesen. */
   imported: z.number(),
-  /** Aus dem Ordner verschwunden und aus dem Projekt genommen. */
+  /** Aus der Quelle verschwunden und aus dem Projekt genommen. */
   removed: z.number(),
   /** Aufgeschoben (Zeitbudget) — kommt beim nächsten Abgleich. */
   pending: z.number(),
-  /** Ohne lesbaren Text, zu groß oder über der Ordnergrenze. */
+  /** Ohne lesbaren Text, zu groß oder über der Grenze. */
   skipped: z.number(),
   failed: z.number(),
 });
-export type GroupWolkeSyncSummary = z.infer<typeof groupWolkeSyncSummarySchema>;
+export type GroupCloudSyncSummary = z.infer<typeof groupCloudSyncSummarySchema>;
 
-export const groupWolkeFolderSyncResponseSchema = z.object({
+export const groupCloudSourceSyncResponseSchema = z.object({
   success: z.literal(true),
-  folder: groupWolkeFolderSchema,
-  summary: groupWolkeSyncSummarySchema,
+  source: groupCloudSourceSchema,
+  summary: groupCloudSyncSummarySchema,
 });
-export type GroupWolkeFolderSyncResponse = z.infer<typeof groupWolkeFolderSyncResponseSchema>;
+export type GroupCloudSourceSyncResponse = z.infer<typeof groupCloudSourceSyncResponseSchema>;

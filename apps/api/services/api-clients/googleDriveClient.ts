@@ -107,7 +107,7 @@ export async function getFile(token: string, fileId: string): Promise<GoogleDriv
   const response = await axios.get(`${GOOGLE_DRIVE_API}/files/${fileId}`, {
     headers: authHeaders(token),
     params: {
-      fields: 'id,name,mimeType,size,modifiedTime,parents,webViewLink',
+      fields: 'id,name,mimeType,size,modifiedTime,parents,webViewLink,trashed',
     },
   });
   return googleDriveFileSchema.parse(response.data);

@@ -1,5 +1,6 @@
 import {
   type GroupAudience,
+  type GroupCloudProvider,
   type GroupColor,
   type GroupLink,
   type GroupRole,
@@ -140,23 +141,43 @@ export const group_instructions = pgTable('group_instructions', {
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
-// Laufzeit-DDL in schema.sql / zz_20261123c_group_wolke_folders.sql. Unique (group_id, share_link_id, folder_path).
-export const group_wolke_folders = pgTable('group_wolke_folders', {
+// Laufzeit-DDL in schema.sql / zz_20261124_group_cloud_sources.sql.
+// Unique (group_id, user_id, provider, share_link_id, folder_path).
+export const group_cloud_sources = pgTable('group_cloud_sources', {
   id: uuid('id').primaryKey().defaultRandom(),
   group_id: uuid('group_id').notNull(),
   user_id: uuid('user_id').notNull(),
-  share_link_id: text('share_link_id').notNull(),
-  folder_path: text('folder_path').notNull().default('/'),
-  folder_name: text('folder_name').notNull(),
+  provider: text('provider').$type<GroupCloudProvider>().notNull(),
+  share_link_id: text('share_link_id').notNull().default(''),
+  folder_path: text('folder_path').notNull().default(''),
+  name: text('name').notNull(),
   include_subfolders: boolean('include_subfolders').notNull().default(true),
-  /** WebDAV-href → `documents.id` der zuletzt gesehenen Dateien. */
-  synced_files: jsonb('synced_files').$type<Record<string, string>>().notNull().default({}),
+  /** Nur Google Drive: die im Picker gewählten Dateien. */
+  picked_files: jsonb('picked_files').$type<PickedCloudFile[]>().notNull().default([]),
+  /** Datei-Schlüssel (WebDAV-href bzw. Drive-Id) → Dokument und gesehene Version. */
+  synced_files: jsonb('synced_files')
+    .$type<Record<string, SyncedCloudFile>>()
+    .notNull()
+    .default({}),
   file_count: integer('file_count').notNull().default(0),
   pending_count: integer('pending_count').notNull().default(0),
   last_synced_at: timestamp('last_synced_at', { withTimezone: true }),
   last_error: text('last_error'),
   created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+export interface PickedCloudFile {
+  id: string;
+  name: string;
+  mimeType: string;
+}
+
+export interface SyncedCloudFile {
+  /** `documents.id` */
+  id: string;
+  /** Version beim letzten Einlesen (Drive: `modifiedTime`); Wolke prüft per ETag selbst. */
+  v?: string | null;
+}
 
 export type GroupRow = InferSelectModel<typeof groups>;
 export type GroupMembershipRow = InferSelectModel<typeof group_memberships>;
@@ -166,4 +187,4 @@ export type GroupShareCommentRow = InferSelectModel<typeof group_share_comments>
 export type GroupPostRow = InferSelectModel<typeof group_posts>;
 export type GroupPostFileRow = InferSelectModel<typeof group_post_files>;
 export type GroupInstructionsRow = InferSelectModel<typeof group_instructions>;
-export type GroupWolkeFolderRow = InferSelectModel<typeof group_wolke_folders>;
+export type GroupCloudSourceRow = InferSelectModel<typeof group_cloud_sources>;
