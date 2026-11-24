@@ -205,8 +205,6 @@ export async function exportWithSegments(
           ...(hasAudio ? ['-c:a', 'aac', '-b:a', qualitySettings.audioBitrate] : ['-an']),
           '-movflags',
           '+faststart',
-          '-avoid_negative_ts',
-          'make_zero',
         ];
 
         if (videoCodec === 'libx264') {
@@ -435,8 +433,6 @@ export async function exportWithSegmentsAndSubtitles(
           ...(hasAudio ? ['-c:a', 'aac', '-b:a', qualitySettings.audioBitrate] : ['-an']),
           '-movflags',
           '+faststart',
-          '-avoid_negative_ts',
-          'make_zero',
         ];
 
         if (videoCodec === 'libx264') {
