@@ -10,10 +10,44 @@
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { contentSyncSettingsSchema } from '@gruenerator/contracts';
+
 import { env } from './config/env.js';
 import { sendContentSyncEmail } from './services/email/emailService.js';
 import { mergeExtractionStats } from './services/scrapers/extractionRecorder.js';
 import { type SyncSummary } from './types/syncTypes.js';
+
+/**
+ * The admin-panel mail switch. This script runs in CI without database access,
+ * so it asks the API. Anything but a clear "on" keeps the mail off: mails are
+ * opt-in, and the run history in the admin panel is the report of record.
+ */
+async function emailEnabledOnServer(): Promise<boolean> {
+  const apiUrl = env.CONTENT_SYNC_API_URL;
+  const token = env.ADMIN_TOKEN;
+  if (!apiUrl || !token) {
+    console.log('Aggregate digest: CONTENT_SYNC_API_URL/ADMIN_TOKEN missing — mail switch unknown');
+    return false;
+  }
+  try {
+    const res = await fetch(`${apiUrl}/api/internal/content-sync/settings`, {
+      headers: { 'x-admin-token': token },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) {
+      console.log(`Aggregate digest: settings answered HTTP ${res.status} — mail stays off`);
+      return false;
+    }
+    const body = contentSyncSettingsSchema.parse(await res.json());
+    return body.emailEnabled;
+  } catch (err) {
+    console.log(
+      'Aggregate digest: settings unreachable — mail stays off:',
+      err instanceof Error ? err.message : err
+    );
+    return false;
+  }
+}
 
 function parseArgs(): { dir: string; noEmail: boolean } {
   const args = process.argv.slice(2);
@@ -79,6 +113,8 @@ async function main() {
   const emailTo = env.CONTENT_SYNC_EMAIL;
   if (noEmail) {
     console.log('Aggregate digest: --no-email set — skipping admin email');
+  } else if (emailTo && !(await emailEnabledOnServer())) {
+    console.log('Aggregate digest: mails are off in the admin panel — skipping admin email');
   } else if (emailTo) {
     // Skip the digest when nothing of interest happened: no new/updated docs,
     // no hard errors, no job failures. Transient fetchErrors don't count —

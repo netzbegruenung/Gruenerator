@@ -6,9 +6,26 @@
  * is the *type* source. Column shapes reuse the Zod-inferred types from
  * `@gruenerator/contracts` so the contract stays the single source of truth.
  */
-import { type SyncArticleEventType, type SyncArticleSourceGroup } from '@gruenerator/contracts';
+import {
+  type ContentSyncRunStatus,
+  type ContentSyncSource,
+  type SyncArticleEventType,
+  type SyncArticleSourceGroup,
+} from '@gruenerator/contracts';
 import { type InferSelectModel } from 'drizzle-orm';
-import { date, index, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  date,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  smallint,
+  text,
+  timestamp,
+  unique,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 /** One row per article per day, upserted on (source_url, event_date). */
 export const contentSyncArticles = pgTable(
@@ -65,3 +82,43 @@ export const scraperRejectedUrls = pgTable(
   (t) => [index('idx_scraper_rejected_source').on(t.source_id)]
 );
 export type ScraperRejectedUrlRow = InferSelectModel<typeof scraperRejectedUrls>;
+
+/**
+ * Run history for the admin panel's content-sync tab: one row per source or
+ * Landesverband run. Runtime DDL: migrations/zz_20261124b_content_sync_runs.sql.
+ */
+export const contentSyncRuns = pgTable(
+  'content_sync_runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    source_id: text('source_id').$type<ContentSyncSource>().notNull(),
+    landesverband: text('landesverband'),
+    name: text('name').notNull(),
+    status: text('status').$type<ContentSyncRunStatus>().notNull(),
+    recent: boolean('recent').notNull().default(false),
+    dry_run: boolean('dry_run').notNull().default(false),
+    stored: integer('stored').notNull().default(0),
+    updated: integer('updated').notNull().default(0),
+    skipped: integer('skipped').notNull().default(0),
+    errors: integer('errors').notNull().default(0),
+    dead_links: integer('dead_links').notNull().default(0),
+    failure_message: text('failure_message'),
+    error_samples: jsonb('error_samples').$type<string[]>().notNull().default([]),
+    dead_link_samples: jsonb('dead_link_samples').$type<string[]>().notNull().default([]),
+    run_url: text('run_url'),
+    started_at: timestamp('started_at', { withTimezone: true, mode: 'string' }).notNull(),
+    duration_ms: integer('duration_ms').notNull(),
+  },
+  (t) => [index('idx_content_sync_runs_started_at').on(t.started_at)]
+);
+export type ContentSyncRunRow = InferSelectModel<typeof contentSyncRuns>;
+
+/** Single row (id = 1): the admin-panel switch for content-sync report mails. */
+export const contentSyncSettings = pgTable('content_sync_settings', {
+  id: smallint('id').primaryKey().default(1),
+  email_enabled: boolean('email_enabled').notNull().default(false),
+  updated_at: timestamp('updated_at', { withTimezone: true, mode: 'string' })
+    .notNull()
+    .defaultNow(),
+  updated_by: uuid('updated_by'),
+});

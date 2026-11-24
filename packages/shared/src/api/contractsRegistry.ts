@@ -6,6 +6,7 @@
 // pulled all contracts back into the entry closure (#5891). A missing entry
 // fails tsc: contractsClient.ts types CONTRACTS as a Pick over NAMESPACES.
 import {
+  adminContentSyncContract,
   adminReportsContract,
   adminStatsContract,
   adminVorlagenContract,
@@ -110,6 +111,7 @@ import type * as ContractsModule from '@gruenerator/contracts';
 
 // Explicit type: the inferred object type is too large for declaration emit.
 export type ContractRegistryName =
+  | 'adminContentSyncContract'
   | 'adminReportsContract'
   | 'adminStatsContract'
   | 'adminVorlagenContract'
@@ -210,6 +212,7 @@ export type ContractRegistryName =
   | 'wolkePendingContract';
 
 export const CONTRACTS: Pick<typeof ContractsModule, ContractRegistryName> = {
+  adminContentSyncContract,
   adminReportsContract,
   adminStatsContract,
   adminVorlagenContract,
