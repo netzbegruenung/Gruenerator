@@ -29,6 +29,10 @@ interface ProjectCloudSourcesCardProps {
   archived: boolean;
 }
 
+/** Erst beim Aufruf aus dem Store holen — auf oberster Ebene wäre es für den React Compiler ein Hook als Wert. */
+const notice = (kind: 'error' | 'warning', message: string) =>
+  useNoticeStore.getState().show(kind, message);
+
 const ICON: Record<GroupCloudSource['provider'], 'cloud-outline' | 'logo-google'> = {
   wolke: 'cloud-outline',
   'google-drive': 'logo-google',
@@ -62,8 +66,6 @@ export function ProjectCloudSourcesCard({
 
   const canEdit = isAdmin && !archived;
   if (sources.length === 0 && !canEdit) return null;
-
-  const notice = useNoticeStore.getState().show;
 
   // Erfolg spürt man (Haptik), die Zeile zeigt das Ergebnis; nur Fehler und Lücken melden sich.
   const runSync = (source: GroupCloudSource) =>
