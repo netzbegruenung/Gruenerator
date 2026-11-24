@@ -7,13 +7,12 @@ import {
   type Response,
   Router,
 } from 'express';
-import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 
 import { shouldCompress } from '../../../middleware/compressionFilter.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { sendSiteNotFound } from './sitePages.js';
-import { SITE_BARE_CSP, siteHelmet } from './siteSecurity.js';
+import { createSitesReadLimiter, siteHelmet } from './siteSecurity.js';
 
 const log = createLogger('sitesHostGate');
 
@@ -28,27 +27,6 @@ const UNLIMITED_PATHS = new Set(['/robots.txt', '/favicon.ico']);
 
 export function isSitesPagePath(path: string): boolean {
   return PAGE_PATH.test(path) && !UNLIMITED_PATHS.has(path);
-}
-
-export function createSitesReadLimiter(max: number): RequestHandler {
-  if (process.env.DISABLE_RATE_LIMITS === 'true') return (_req, _res, next) => next();
-  return rateLimit({
-    windowMs: 60 * 60 * 1000,
-    max,
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: (req) => (req.ip ? ipKeyGenerator(req.ip) : 'anonymous'),
-    handler: (_req, res) => {
-      res
-        .status(429)
-        .set({
-          'Cache-Control': 'no-store',
-          'Content-Security-Policy': SITE_BARE_CSP,
-          'Content-Type': 'text/plain; charset=utf-8',
-        })
-        .send('Zu viele Anfragen. Bitte versuche es in einigen Minuten noch einmal.');
-    },
-  });
 }
 
 export const sitesReadLimiter: RequestHandler = createSitesReadLimiter(2000);

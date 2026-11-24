@@ -10,8 +10,9 @@ import { brandFontPath } from '../../services/fonts/brandFonts.js';
  * on shared links use them too.
  */
 function sendBrandFont(req: Request, res: Response): void {
-  const parsed = brandFontFileSchema.safeParse(req.params.file);
-  const file = parsed.success ? brandFontPath(parsed.data) : null;
+  // Look the name up in the closed list so the path is built from a constant, not from the request.
+  const name = brandFontFileSchema.options.find((option) => option === req.params.file);
+  const file = name ? brandFontPath(name) : null;
   if (!file || !existsSync(file)) {
     res.status(404).end();
     return;
