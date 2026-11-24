@@ -5,6 +5,7 @@ import {
   landesverbandHeadings,
   landesverbandIdsForRoles,
   landesverbandOfferForBundesland,
+  landesverbandRecipeMentions,
   landesverbandShelfLabel,
   lvSkillMentionsForRoles,
 } from './landesverbandForRoles.js';
@@ -215,5 +216,29 @@ describe('landesverbandShelfLabel', () => {
     expect(landesverbandShelfLabel([])).toBe('Dein Landesverband');
     expect(landesverbandShelfLabel(['gibtesnicht'])).toBe('Dein Landesverband');
     expect(landesverbandHeadings(null).agents).toBe('Landesverbände');
+  });
+});
+
+describe('landesverbandRecipeMentions', () => {
+  it('bringt alle Rezepte der LV-Agenten mit, auch die Wahlprüfsteine', () => {
+    const berlin = landesverbandRecipeMentions('berlin');
+    expect(berlin).toEqual(
+      expect.arrayContaining([
+        'presse-berlin-partei',
+        'presse-berlin-fraktion',
+        'insta-berlin',
+        'buerger-berlin',
+        'wahlpruefstein-berlin',
+        'beschluss-berlin',
+        'wahlprogramm-berlin',
+      ])
+    );
+    expect(berlin.every((m) => !m.startsWith('presse-hessen'))).toBe(true);
+  });
+
+  it('nichts für einen abgeschalteten oder unbekannten Landesverband', () => {
+    expect(landesverbandRecipeMentions('schleswig-holstein')).toEqual([]);
+    expect(landesverbandRecipeMentions('atlantis')).toEqual([]);
+    expect(landesverbandRecipeMentions(null)).toEqual([]);
   });
 });

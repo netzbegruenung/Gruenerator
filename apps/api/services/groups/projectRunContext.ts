@@ -90,7 +90,7 @@ export async function loadProjectRunContext(
     ) as Promise<Array<{ content_type: ProjectNotebookShare['contentType']; content_id: string }>>,
     db.query(
       `SELECT content_id FROM group_content_shares
-        WHERE group_id = $1::uuid AND content_type = 'user_text_forms'
+        WHERE group_id = $1::uuid AND content_type IN ('user_text_forms', 'system_recipes')
         ORDER BY shared_at DESC LIMIT $2`,
       [groupId, PROJECT_RECIPES_LISTED]
     ) as Promise<Array<{ content_id: string }>>,

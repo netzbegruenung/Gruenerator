@@ -60,6 +60,9 @@ const FRONTMATTER = /^---\r?\n[\s\S]*?\r?\n---\r?\n/;
  */
 const BASE_REF = /\{\{base:([a-z0-9-]+)\}\}\n?/g;
 
+/** `{{recipe:<mention>}}` — see {@link resolveRecipeRefs}. */
+const RECIPE_REF = /\{\{recipe:([a-z0-9-]+)\}\}\n?/g;
+
 type Kind = 'skills' | 'agents' | 'rollen' | 'skills/_base';
 
 const caches = new Map<Kind, Map<string, string>>();
@@ -131,6 +134,10 @@ function get(kind: Kind, id: string): string | null {
 export function getInternalSkillPrompt(mention: string): string | null {
   const body = get('skills', mention);
   if (!body) return null;
+  return resolveBaseRefs(mention, resolveRecipeRefs(mention, body)).trim();
+}
+
+function resolveBaseRefs(mention: string, body: string): string {
   return body.replace(BASE_REF, (_match, id: string) => {
     const base = get('skills/_base', id);
     if (base) return `${base}\n`;
@@ -138,6 +145,31 @@ export function getInternalSkillPrompt(mention: string): string | null {
     // about a block it cannot see. The recipe still works, minus the shared
     // craft rules — same degradation as a missing directory.
     log.error(`Recipe ${mention} references missing base block "${id}"`);
+    return '';
+  });
+}
+
+/**
+ * Bindet ein ganzes anderes Rezept ein (`{{recipe:<mention>}}`), samt dessen
+ * `{{base:…}}`-Blöcken. Eine Landesverbands-Variante ohne eigenen Korpus
+ * (`wahlpruefstein-berlin`, `presse-nrw`) ist so ihr LV-Kopf plus das
+ * allgemeine Rezept, ohne dessen Text zu kopieren. Nur eine Ebene tief: ein
+ * eingebundenes Rezept, das selbst ein Rezept einbindet, verliert diesen
+ * Marker (geloggt) — so kann keine Schleife entstehen.
+ */
+function resolveRecipeRefs(mention: string, body: string): string {
+  return body.replace(RECIPE_REF, (_match, id: string) => {
+    const included = id === mention ? null : get('skills', id);
+    if (included) {
+      return `${resolveBaseRefs(
+        id,
+        included.replace(RECIPE_REF, (_m, nested: string) => {
+          log.error(`Recipe ${id} (included by ${mention}) nests recipe "${nested}" — dropped`);
+          return '';
+        })
+      )}\n`;
+    }
+    log.error(`Recipe ${mention} references missing recipe "${id}"`);
     return '';
   });
 }

@@ -273,6 +273,29 @@ describe('toGroupFeedItems — recipes', () => {
     ]);
     expect(groupFeedByKind(items).map((s) => s.plural)).toEqual(['Rezepte']);
   });
+
+  it('lists a shared system recipe as a recipe, keyed by its mention', () => {
+    const items = toGroupFeedItems({
+      system_recipes: [
+        {
+          id: 'wahlpruefstein-berlin',
+          mention: 'wahlpruefstein-berlin',
+          title: 'Wahlprüfsteine Berlin',
+          description: 'Fragenkataloge für die Grünen Berlin',
+          system: true,
+          shared_at: '2026-11-24T10:00:00Z',
+        },
+      ],
+    });
+    expect(items).toEqual([
+      expect.objectContaining({
+        key: 'system_recipes:wahlpruefstein-berlin',
+        contentType: 'system_recipes',
+        kind: 'recipe',
+        slug: 'wahlpruefstein-berlin',
+      }),
+    ]);
+  });
 });
 
 describe('austauschItems', () => {

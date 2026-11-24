@@ -25,9 +25,11 @@ describe('LV-Agenten — defaultRecipeMention', () => {
     }
   );
 
-  it('jeder Ein-Rezept-LV-Agent lädt sein eigenes Rezept', () => {
+  it('jeder LV-Agent hat ein volles Rezept: sein Default gehört ihm selbst', () => {
+    // Seit 11/2026 sind die LV-Rezepte vorn (Hub, Seitenleiste): ein Agent,
+    // dessen Default ein fremdes Rezept ist, hätte dort keine Karte.
     const allSkills: readonly { mention: string; identifier: string }[] = SKILLS;
-    for (const agent of [...LV_BUERGER_AGENTS, ...LV_SOURCE_AGENTS]) {
+    for (const agent of agents) {
       const skill = allSkills.find((s) => s.mention === agent.defaultRecipeMention);
       expect(skill?.identifier, agent.identifier).toBe(agent.identifier);
     }

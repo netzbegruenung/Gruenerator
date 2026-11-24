@@ -1,6 +1,6 @@
 /**
  * `/marktplatz/landesverband/<slug>`: die Seite eines Landesverbands — Cover,
- * Notebook, Agents in Hub-Reihenfolge, Rezepte und die Anleitung. Aufgelöst
+ * Notebook und seine Rezepte in Hub-Reihenfolge (seit 11/2026 ohne Agents). Aufgelöst
  * wird über dasselbe Gate wie `/agents/<slug>`, ein abgeschalteter
  * Landesverband ist deshalb hier genauso „nicht verfügbar".
  */
@@ -23,28 +23,18 @@ import { axe, renderWithProviders, screen, waitFor, within } from '@/test-utils'
 const API = 'http://localhost/api/marketplace';
 
 const berlin = getLandesverbandHubBySlug('gruene-berlin', 'production')!;
-const [prAgent, buergerAgent] = berlin.agentIds;
+const systemRecipe = (mention: string, title: string): MarketplaceItem => {
+  const it = item('recipe', title, { ref: mention, origin: 'landesverband' });
+  return it.kind === 'recipe' ? { ...it, recipe: { ...it.recipe, mention, system: true } } : it;
+};
 
-const agent = (ref: string, title: string) =>
-  item('agent', title, { ref, origin: 'landesverband', audience: 'de-DE' });
-
-// Deliberately out of hub order: the page sorts them.
-const BERLIN_AGENTS: MarketplaceItem[] = [
-  agent(buergerAgent, 'Bürger*innenanfragen Berlin'),
-  agent(prAgent, 'Öffentlichkeitsarbeit Berlin'),
-];
-const recipe = item('recipe', 'Bürger-Mail Berlin', {
-  ref: 'buerger-berlin',
-  origin: 'landesverband',
-});
+// Deliberately out of hub order: the page sorts them by their owning agent.
 const BERLIN_RECIPES: MarketplaceItem[] = [
-  recipe.kind === 'recipe'
-    ? { ...recipe, recipe: { ...recipe.recipe, mention: 'buerger-berlin', system: true } }
-    : recipe,
+  systemRecipe('buerger-berlin', 'Bürger-Mail Berlin'),
+  systemRecipe('presse-berlin-partei', 'PM Berlin (Partei)'),
 ];
 
 let queries: URLSearchParams[] = [];
-let agents: MarketplaceItem[] = [];
 let recipes: MarketplaceItem[] = [];
 
 function Where() {
@@ -74,20 +64,12 @@ beforeAll(() => {
 beforeEach(() => {
   useAuthStore.setState({ isAuthenticated: true, user: { id: 'u1' } as never, locale: 'de-DE' });
   queries = [];
-  agents = BERLIN_AGENTS;
   recipes = BERLIN_RECIPES;
   server.use(
     http.get(API, ({ request }) => {
       const params = new URL(request.url).searchParams;
       queries.push(params);
-      const kind = params.get('kinds');
-      const sections: MarketplaceSection[] = [
-        {
-          kind: kind === 'recipe' ? 'recipe' : 'agent',
-          items: kind === 'recipe' ? recipes : agents,
-          hasMore: false,
-        },
-      ];
+      const sections: MarketplaceSection[] = [{ kind: 'recipe', items: recipes, hasMore: false }];
       return HttpResponse.json(sectionsResponse(sections));
     }),
     http.get('http://localhost/api/comments/:type/:id', () =>
@@ -97,7 +79,7 @@ beforeEach(() => {
 });
 
 describe('MarketplaceLandesverbandPage', () => {
-  it('shows the photo, the way into the notebook, agents in hub order and recipes', async () => {
+  it('shows the photo, the way into the notebook and the recipes in hub order', async () => {
     const { container } = renderPage('gruene-berlin');
 
     expect(screen.getByRole('heading', { level: 1, name: 'Grüne Berlin' })).toBeInTheDocument();
@@ -113,22 +95,19 @@ describe('MarketplaceLandesverbandPage', () => {
     );
     expect(screen.queryByRole('region', { name: 'Notebook' })).toBeNull();
 
-    const agentSection = await screen.findByRole('region', { name: 'Agents' });
-    await within(agentSection).findByRole('heading', { name: 'Öffentlichkeitsarbeit Berlin' });
+    const recipeSection = await screen.findByRole('region', { name: 'Rezepte' });
+    await within(recipeSection).findByRole('heading', { name: 'PM Berlin (Partei)' });
     expect(
-      within(agentSection)
+      within(recipeSection)
         .getAllByRole('heading', { level: 3 })
         .map((h) => h.textContent)
-    ).toEqual(['Öffentlichkeitsarbeit Berlin', 'Bürger*innenanfragen Berlin']);
-    const recipeSection = await screen.findByRole('region', { name: 'Rezepte' });
-    expect(
-      await within(recipeSection).findByRole('heading', { name: 'Bürger-Mail Berlin' })
-    ).toBeVisible();
+    ).toEqual(['PM Berlin (Partei)', 'Bürger-Mail Berlin']);
+    expect(screen.queryByRole('region', { name: 'Agents' })).toBeNull();
 
-    // Both aisles ask for exactly this Landesverband.
-    expect(queries.map((q) => `${q.get('kinds')}|${q.get('origin')}|${q.get('lv')}`)).toEqual(
-      expect.arrayContaining(['agent|landesverband|berlin', 'recipe|landesverband|berlin'])
-    );
+    // Only recipes are asked for, for exactly this Landesverband.
+    expect(queries.map((q) => `${q.get('kinds')}|${q.get('origin')}|${q.get('lv')}`)).toEqual([
+      'recipe|landesverband|berlin',
+    ]);
 
     expect(await axe(container)).toHaveNoViolations();
   });
@@ -137,28 +116,27 @@ describe('MarketplaceLandesverbandPage', () => {
     recipes = [];
     renderPage('gruene-berlin');
 
-    await screen.findByRole('heading', { name: 'Öffentlichkeitsarbeit Berlin' });
+    await waitFor(() => expect(queries.length).toBeGreaterThan(0));
     await waitFor(() => expect(screen.queryByRole('region', { name: 'Rezepte' })).toBeNull());
-    expect(screen.getByRole('region', { name: 'Agents' })).toBeInTheDocument();
   });
 
-  it('opens an agent in place and comes back to the Landesverband', async () => {
+  it('opens a recipe in place and comes back to the Landesverband', async () => {
     const { user } = renderPage('gruene-berlin');
 
-    const agentSection = await screen.findByRole('region', { name: 'Agents' });
+    const recipeSection = await screen.findByRole('region', { name: 'Rezepte' });
     await user.click(
-      await within(agentSection).findByRole('button', { name: /Öffentlichkeitsarbeit Berlin/ })
+      await within(recipeSection).findByRole('button', { name: /PM Berlin \(Partei\)/ })
     );
 
     expect(
-      await screen.findByRole('heading', { level: 2, name: 'Öffentlichkeitsarbeit Berlin' })
+      await screen.findByRole('heading', { level: 2, name: 'PM Berlin (Partei)' })
     ).toBeInTheDocument();
     expect(screen.getByRole('status', { name: 'Adresse' })).toHaveTextContent(
-      `?item=agent%3A${prAgent}`
+      '?item=recipe%3Apresse-berlin-partei'
     );
 
     await user.click(screen.getByRole('button', { name: 'Grüne Berlin' }));
-    expect(await screen.findByRole('region', { name: 'Agents' })).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Rezepte' })).toBeInTheDocument();
     expect(screen.getByRole('status', { name: 'Adresse' })).toHaveTextContent('');
   });
 
@@ -181,13 +159,12 @@ describe('MarketplaceLandesverbandPage', () => {
     renderPage('gruene-hamburg');
 
     expect(screen.getByText('Dieser Landesverband ist nicht verfügbar')).toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: 'Agents' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Rezepte' })).toBeNull();
     expect(queries).toEqual([]);
   });
 
   it('keeps each country to its own: AT sees Österreich, not Berlin', async () => {
     useAuthStore.setState({ locale: 'de-AT' });
-    agents = [];
     recipes = [];
     const first = renderPage('gruene-berlin');
     expect(screen.getByText('Dieser Landesverband ist nicht verfügbar')).toBeInTheDocument();

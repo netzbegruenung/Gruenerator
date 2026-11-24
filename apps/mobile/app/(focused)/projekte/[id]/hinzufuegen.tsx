@@ -137,7 +137,7 @@ export default function ProjektHinzufuegenScreen() {
             </Text>
           ) : (
             visible.map((section) => (
-              <View key={section.kind} style={styles.section}>
+              <View key={section.title} style={styles.section}>
                 <Text
                   style={[styles.sectionTitle, { color: theme.textSecondary }]}
                   accessibilityRole="header"

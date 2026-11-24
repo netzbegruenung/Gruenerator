@@ -3,6 +3,7 @@ import {
   PiAnchor,
   PiBuildings,
   PiCastleTurret,
+  PiFactory,
   PiFlowerLight,
   PiLeaf,
   PiMountains,
@@ -72,6 +73,7 @@ const TILES: LvTile[] = [
   },
   { id: 'hessen', Icon: PiLeaf, mention: '@hessen', recipeSlug: 'hessen' },
   { id: 'saarland', Icon: PiPlant, mention: '@saar', recipeSlug: 'saarland' },
+  { id: 'nordrhein-westfalen', Icon: PiFactory, mention: '@nrw', recipeSlug: 'nrw' },
 ];
 
 /**

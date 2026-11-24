@@ -486,6 +486,17 @@ describe('renderRecipeCatalog', () => {
       expect(block).toContain('„Skills“');
     });
 
+    it('führt ein Systemrezept des Projekts über seine Mention', () => {
+      const block = renderRecipeCatalog(entries, {
+        remaining: 3,
+        pinnedTitle: null,
+        projectRecipeIds: ['presse'],
+      });
+      const rest = block.indexOf('WEITERE REZEPTE');
+      expect(block.slice(0, rest)).toContain('- presse:');
+      expect(block.slice(rest)).not.toContain('- presse:');
+    });
+
     it('bleibt beim alten Katalog, wenn keine Projekt-Zeile sichtbar ist', () => {
       const plain = renderRecipeCatalog(entries);
       expect(

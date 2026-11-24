@@ -23,12 +23,18 @@ import { projectThreadScopeSql } from './projectThreadScope.js';
  */
 export const PROJECT_RECIPES_LISTED = 12;
 
+/**
+ * Die Rezepte des Projekts als Verweise: eine uuid ist ein Nutzer-Rezept
+ * (`user_text_forms`), alles andere die Mention eines mitgelieferten Rezepts
+ * (`system_recipes`, auch eines Landesverbands) — dieselbe Unterscheidung wie
+ * in der Bibliothek (`recipeCatalog.ts`).
+ */
 export async function getProjectRecipeIds(threadId: string, userId: string): Promise<string[]> {
   const rows = (await getPostgresInstance().query(
     `SELECT gcs.content_id
        FROM ${projectThreadScopeSql('$1', '$2')}
        JOIN group_content_shares gcs ON gcs.group_id = g.id
-        AND gcs.content_type = 'user_text_forms'
+        AND gcs.content_type IN ('user_text_forms', 'system_recipes')
       WHERE t.deleted_at IS NULL
       ORDER BY gcs.shared_at DESC
       LIMIT $3`,

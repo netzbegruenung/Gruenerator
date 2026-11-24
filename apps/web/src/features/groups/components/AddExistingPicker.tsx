@@ -1,4 +1,7 @@
+import { useUserLandesverbaende } from '@gruenerator/chat';
+import { useUserProfileStore } from '@gruenerator/chat/stores';
 import { type GroupContentType } from '@gruenerator/contracts';
+import { selectOfficialCatalog } from '@gruenerator/shared/agents';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { type AddableItem, addItemsToGroup, addableKey } from '@gruenerator/shared/groups';
 import {
@@ -23,6 +26,7 @@ import { profileApiService } from '../../auth/services/profileApiService';
 import { subtypeToKind } from '../../docs/docTypeMeta';
 import { SYSTEM_NOTEBOOKS } from '../../notebook/config/notebooksConfig';
 
+import { CURRENT_INSTANCE } from '@/config/instance';
 import { cn } from '@/utils/cn';
 
 type Kind = 'doc' | 'sheet' | 'pres' | 'board' | 'agent' | 'recipe' | 'notebook' | 'file';
@@ -133,6 +137,8 @@ export function AddExistingPicker({
   const withModifier = useRef(false);
 
   const own = (owner: unknown) => !currentUserId || owner === currentUserId;
+  const locale = useUserProfileStore((s) => s.locale);
+  const { lvIds } = useUserLandesverbaende();
 
   const queries = useQueries({
     queries: [
@@ -156,6 +162,22 @@ export function AddExistingPicker({
             .filter((f) => f.kind === 'custom' && f.sharedFromGroup === null)
             .map((f) => item('user_text_forms', 'recipe', f.id, f.title, changedAtOf(f)));
         },
+      },
+      {
+        // Mitgelieferte Rezepte, auch die des eigenen Landesverbands — was die
+        // Person im Marktplatz sieht. Ein LV-Rezept im Projekt steht dort allen
+        // Mitgliedern zur Verfügung, auch ohne Landesgeschäftsstellen-Rolle.
+        // Ohne geladene Rollen keine LV-Rezepte, statt kurz die aller Verbände.
+        queryKey: ['add-to-group', 'system-recipes', locale, lvIds ?? []],
+        queryFn: (): PickerItem[] =>
+          selectOfficialCatalog({
+            locale,
+            instanceId: CURRENT_INSTANCE,
+            platform: 'web',
+            hiddenAgentIds: [],
+            hiddenSkillMentions: [],
+            lvIds: lvIds ?? [],
+          }).skills.map((s) => item('system_recipes', 'recipe', s.mention, s.title, null)),
       },
       {
         queryKey: ['add-to-group', 'collabDocs'],

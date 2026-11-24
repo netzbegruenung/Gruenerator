@@ -95,7 +95,10 @@ export function carriedProjectRecipes(
   const project = new Set(state.projectRecipeIds ?? []);
   if (project.size === 0) return [];
   if (!isRecipeWriteTurn(state)) return [];
-  return [...new Set(lastTurn.flatMap((r) => (r.id && project.has(r.id) ? [r.id] : [])))];
+  // Verweise wie `projectRecipeIds`: uuid für ein Nutzer-Rezept, Mention für
+  // ein mitgeliefertes (geteilt oder vom Projekt-Landesverband).
+  const ref = (r: { mention: string; id: string | null }) => r.id ?? r.mention;
+  return [...new Set(lastTurn.map(ref).filter((r) => project.has(r)))];
 }
 
 /**

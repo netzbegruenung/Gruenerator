@@ -30,6 +30,7 @@
  * Loop-level concerns (guards, SSE cards, timeouts, truncation, step recording)
  * are layered on separately by `wrapToolsForLoop`.
  */
+import { LANDESVERBAENDE, resolveSkillMention } from '@gruenerator/shared/agents';
 import { isIntentAllowedForLocale } from '@gruenerator/shared/chat-intents';
 import { tool, type Tool, type ToolSet } from 'ai';
 import { z } from 'zod';
@@ -191,8 +192,21 @@ const CATALOG_TOOLS = new Set([
   'gruenerator_wahlpruefstein_examples',
 ]);
 
-/** The recipe whose turns get `gruenerator_wahlpruefstein_examples`. */
-const WAHLPRUEFSTEIN_RECIPE = 'wahlpruefstein';
+/**
+ * The recipes whose turns get `gruenerator_wahlpruefstein_examples`: the
+ * generic `wahlpruefstein` and every Landesverband variant
+ * (`wahlpruefstein-<lv>`) — found by owner, not by name, so a new LV needs no
+ * entry here.
+ */
+const WAHLPRUEFSTEIN_OWNERS: ReadonlySet<string> = new Set([
+  'gruenerator-wahlpruefsteine',
+  ...LANDESVERBAENDE.map((lv) => lv.wahlpruefsteinAgentId),
+]);
+
+function isWahlpruefsteinRecipe(mention: string | null | undefined): boolean {
+  const owner = mention ? resolveSkillMention(mention) : null;
+  return owner !== null && WAHLPRUEFSTEIN_OWNERS.has(owner);
+}
 
 /** Tools whose results feed the citation registry and get the lean `sources` shape. */
 const SOURCE_HARVEST_TOOLS = new Set(['gruenerator_search', 'web_search']);
@@ -490,8 +504,8 @@ export function buildChatToolCatalog(params: {
   // gewählt oder als Default des Agenten. Sonst zahlte ihre Beschreibung auf
   // jeden werkzeugtragenden Aufruf ein (toolScopeBudget.vitest.ts).
   const wahlpruefsteinTurn =
-    loop?.state.activeSkillMention === WAHLPRUEFSTEIN_RECIPE ||
-    agentConfig.defaultRecipeMention === WAHLPRUEFSTEIN_RECIPE;
+    isWahlpruefsteinRecipe(loop?.state.activeSkillMention) ||
+    isWahlpruefsteinRecipe(agentConfig.defaultRecipeMention);
   if (!wahlpruefsteinTurn) delete base.gruenerator_wahlpruefstein_examples;
 
   const tools: ToolSet = {};
