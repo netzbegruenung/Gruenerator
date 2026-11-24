@@ -21,10 +21,10 @@ import {
 } from './artifactGeneration.js';
 import { buildPdfEditBrief, isPdfEditAsk, loadLastPdfSpec } from './pdfEditContext.js';
 
-import type { CreatedBoard } from './artifactGeneration.js';
-import type { ArtifactSpec } from './createTurn.js';
 import type { CreatedDocument } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { CreatePdfResult } from '../../../services/pdf/PdfGenerationService.js';
+import type { CreatedBoard } from './artifactGeneration.js';
+import type { ArtifactSpec } from './createTurn.js';
 
 export const SHEET_SPEC: ArtifactSpec<CreatedDocument> = {
   intent: 'create_sheet',
@@ -160,6 +160,7 @@ export const BOARD_SPEC: ArtifactSpec<CreatedBoard> = {
       userContent: ctx.userContent,
       req: ctx.req,
       userId: ctx.userId,
+      threadId: ctx.threadId ?? null,
       onCommit,
     }),
   successText: (board) =>
@@ -206,6 +207,7 @@ export function makeDocumentSpec(opts: {
         userContent: ctx.userContent,
         subtypeOverride: opts.subtypeOverride ?? null,
         image: ctx.image ?? null,
+        threadId: ctx.threadId ?? null,
         ...(opts.conversationContext != null && {
           conversationContext: opts.conversationContext,
         }),

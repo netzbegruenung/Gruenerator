@@ -171,6 +171,21 @@ describe('groups: Auflösung über groupId / groupName', () => {
     expect(await run({ action: 'get' })).toMatchObject({ error: expect.stringMatching(/groupId/) });
   });
 
+  it('get und content ohne Angabe meinen im Projekt-Chat das Projekt dieses Chats', async () => {
+    const { run, deps } = makeCtx({ project: { id: 'g-chat', documentIds: [] } });
+    await run({ action: 'get' });
+    expect(deps.getGroupForMember).toHaveBeenLastCalledWith('g-chat', 'user-1');
+    await run({ action: 'content' });
+    expect(deps.getGroupForMember).toHaveBeenLastCalledWith('g-chat', 'user-1');
+  });
+
+  it('ein Projekt-Chat macht update nicht zum Ändern des Chat-Projekts ohne Nennung', async () => {
+    const { run, deps } = makeCtx({ project: { id: 'g-chat', documentIds: [] } });
+    const out = await run({ action: 'update', name: 'Neu' });
+    expect(out.error).toMatch(/groupId/);
+    expect(deps.updateGroupInfo).not.toHaveBeenCalled();
+  });
+
   it('groupId of a group the person is not in → not found, no detail leak', async () => {
     const { run, deps } = makeCtx({ group: null });
     const out = await run({ action: 'get', groupId: 'g-foreign' });

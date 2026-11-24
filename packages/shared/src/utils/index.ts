@@ -147,8 +147,11 @@ export { CONTENT_REPORT_REASON_LABELS, CONTENT_REPORT_REASONS } from './contentR
 // Board-Karten: Erledigt-Spalte und Zuständigkeit (Web-Board und Tagesbriefing)
 export {
   BOARD_STATUS_FIELD_ID,
+  applyBoardAssigneeChange,
   boardAssigneeUserIds,
   boardStatusOptions,
   getBoardDoneStatusId,
+  parseBoardAssignees,
+  serializeBoardAssignees,
 } from './boardCards.js';
-export type { BoardStatusOption } from './boardCards.js';
+export type { BoardAssignee, BoardAssigneeChange, BoardStatusOption } from './boardCards.js';
