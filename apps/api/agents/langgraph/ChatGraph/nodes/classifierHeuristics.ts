@@ -1168,8 +1168,11 @@ const DOC_ARTIFACT_NOUN_PATTERN = /\b(dokument|protokoll|notiz|checkliste)\b/i;
 const SHARE_DOC_TRIGGER_PATTERN =
   /\b(teil[e]?\s+(das\s+)?(mit|an)\s+|share\s+mit|freigeben\s+für|send[e]?\s+an\s+(gruppe|ag\s|kv\s|ov\s))/i;
 
+// „Überblick erstellen" stand hier auch, hinter `\b` — vor einem Umlaut greift
+// `\b` in JS nie, die Alternative hat also nie gematcht (#3879). Bewusst
+// gestrichen statt repariert: sie wäre eine neue Wortweiche ohne Material.
 const SUMMARY_KEYWORDS_PATTERN =
-  /\b(fass[e]?\s+(?:\S[^.!?\n]{0,60}?\s+)?zusammen\b|zusammenfass|zusammenfassung|kurzfassung|überblick\s+erstell)/i;
+  /\b(fass[e]?\s+(?:\S[^.!?\n]{0,60}?\s+)?zusammen\b|zusammenfass|zusammenfassung|kurzfassung)/i;
 
 /**
  * „Fasse das zusammen" — dieselbe Vokabel, die den `summary`-Auflöser auslöst.

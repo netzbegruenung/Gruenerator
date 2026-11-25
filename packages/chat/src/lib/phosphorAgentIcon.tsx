@@ -17,13 +17,23 @@ import { type IconBaseProps } from 'react-icons';
  * Boundary cast: the dynamic import resolves to the module namespace; we treat
  * it as a name→component map (icons aren't indexable by arbitrary string).
  */
-let piModulePromise: Promise<Record<string, ComponentType<IconBaseProps>>> | null = null;
+type PhosphorSet = Record<string, ComponentType<IconBaseProps>>;
 
-export function loadPhosphorModule(): Promise<Record<string, ComponentType<IconBaseProps>>> {
+let piModulePromise: Promise<PhosphorSet> | null = null;
+
+function importPhosphorSet(): Promise<PhosphorSet> {
   // @ts-expect-error -- `?all` is a bundler-only module id; typed by the cast.
-  piModulePromise ??= import('react-icons/pi?all') as unknown as Promise<
-    Record<string, ComponentType<IconBaseProps>>
-  >;
+  return import('react-icons/pi?all') as unknown as Promise<PhosphorSet>;
+}
+
+export function loadPhosphorModule(): Promise<PhosphorSet> {
+  piModulePromise ??= importPhosphorSet().catch((error: unknown) => {
+    // A cached rejection left every icon blank until reload, without a trace
+    // (#5925). Forget it so the next icon retries, and say why it failed.
+    piModulePromise = null;
+    console.warn('[phosphorAgentIcon] loading the Phosphor icon set failed', error);
+    throw error;
+  });
   return piModulePromise;
 }
 
