@@ -26,15 +26,22 @@ describe('VariantPicker', () => {
     expect(decodeSiteDraft(ydoc).variant).toBe('leuchtend');
   });
 
-  it('paints the swatches from the sites-design palette of the locale', () => {
+  it('paints the page in miniature from the sites-design palette of the locale', () => {
     const de = renderWithDraft(<VariantPicker />);
-    const colour = (el: HTMLElement) =>
-      el.querySelector<HTMLElement>('[aria-hidden="true"] span')?.style.backgroundColor;
-    expect(colour(screen.getByRole('radio', { name: 'Dunkel' }))).toBe('rgb(0, 85, 56)');
+    // Bands top to bottom: white header, then the hero, which carries the variant.
+    const bands = (name: string) =>
+      [
+        ...screen
+          .getByRole('radio', { name })
+          .querySelectorAll<HTMLElement>('[aria-hidden="true"] span'),
+      ].map((band) => band.style.backgroundColor);
+    expect(bands('Dunkel').slice(0, 2)).toEqual(['rgb(255, 255, 255)', 'rgb(0, 85, 56)']);
+    expect(bands('Leuchtend')[1]).toBe('rgb(0, 204, 79)');
+    expect(bands('Hell')[1]).toBe('rgb(245, 241, 233)');
     de.unmount();
     auth.locale = 'de-AT';
     renderWithDraft(<VariantPicker />);
-    expect(colour(screen.getByRole('radio', { name: 'Dunkel' }))).toBe('rgb(37, 118, 57)');
+    expect(bands('Dunkel')[1]).toBe('rgb(37, 118, 57)');
     auth.locale = 'de-DE';
   });
 });

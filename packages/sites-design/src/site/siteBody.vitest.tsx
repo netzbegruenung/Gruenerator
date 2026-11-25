@@ -44,13 +44,13 @@ describe('SiteBody', () => {
     expect(bare).toContain('data-field="profile_image" data-empty=""');
   });
 
-  it('paints the header white unless the site asks for the variant colour', () => {
+  it('paints the header white in every variant, even when an old row asks for colour', () => {
     const header = (markup: string) => /<header data-ground="([a-z]+)"/.exec(markup)?.[1];
-    const dark = { ...fullSnapshot(), variant: 'dunkel' as const };
-    expect(header(html(dark))).toBe('paper');
-    expect(header(html({ ...dark, sections: { ...dark.sections, header: 'farbig' } }))).toBe(
-      'deep'
-    );
+    for (const variant of ['dunkel', 'hell', 'leuchtend'] as const) {
+      const s = { ...fullSnapshot(), variant };
+      expect(header(html(s))).toBe('paper');
+      expect(header(html({ ...s, sections: { ...s.sections, header: 'farbig' } }))).toBe('paper');
+    }
   });
 
   it('hands every text field to the edit slots and keeps empty ones visible while editing', () => {
@@ -226,9 +226,9 @@ describe('block list', () => {
 
   it('paints the standard page with the grounds of each variant and locale', () => {
     const expected = {
-      dunkel: ['surface', 'paper', 'photo', 'surface', 'paper', 'surface', 'photo'],
+      dunkel: ['deep', 'paper', 'photo', 'surface', 'paper', 'surface', 'photo'],
       hell: ['surface', 'paper', 'photo', 'paper', 'surface', 'paper', 'photo'],
-      leuchtend: ['surface', 'paper', 'photo', 'deep', 'paper', 'surface', 'photo'],
+      leuchtend: ['vivid', 'paper', 'photo', 'deep', 'paper', 'surface', 'photo'],
     } as const;
     for (const variant of ['dunkel', 'hell', 'leuchtend'] as const) {
       expect(grounds(html(fullSnapshot({ variant })))).toEqual(expected[variant]);

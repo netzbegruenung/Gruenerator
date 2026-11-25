@@ -144,14 +144,14 @@ describe('copy, meta, grounds', () => {
       `Datenschutzerklärung – ${fullSnapshot().site_title}`
     ));
   it('maps the variant to grounds', () => {
-    expect(sectionGround('dunkel', 'hero', 'de-DE')).toBe('surface');
+    expect(sectionGround('dunkel', 'hero', 'de-DE')).toBe('deep');
     expect(sectionGround('hell', 'hero', 'de-DE')).toBe('surface');
+    expect(sectionGround('leuchtend', 'hero', 'de-DE')).toBe('vivid');
     expect(sectionGround('leuchtend', 'themes', 'de-DE')).toBe('deep');
     expect(sectionGround('hell', 'footer', 'de-DE')).toBe('deep');
   });
   it('tints only the austrian light about section, every other combination is unchanged', () => {
     const parts = [
-      'header',
       'hero',
       'about',
       'heroImage',
@@ -162,8 +162,7 @@ describe('copy, meta, grounds', () => {
       'footer',
     ] as const;
     const expected = {
-      header: ['deep', 'surface', 'vivid'],
-      hero: ['surface', 'surface', 'surface'],
+      hero: ['deep', 'surface', 'vivid'],
       about: ['paper', 'paper', 'paper'],
       heroImage: ['photo', 'photo', 'photo'],
       themes: ['surface', 'paper', 'deep'],

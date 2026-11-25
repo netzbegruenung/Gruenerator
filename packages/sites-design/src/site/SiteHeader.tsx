@@ -6,7 +6,7 @@ import {
 } from '@gruenerator/contracts';
 
 import { siteCopy } from '../model/copy.js';
-import { sectionGround } from '../model/grounds.js';
+import { HEADER_GROUND } from '../model/grounds.js';
 import { SECTION_ANCHORS } from '../model/visibility.js';
 
 import { CONTAINER } from './layout.js';
@@ -38,30 +38,23 @@ export function SiteHeader({
   const targets = NAV_TARGETS.filter(([type]) => visible.some((block) => block.type === type));
   const name = snapshot.site_title.trim();
 
-  // White by default, as on gruene.de; the variant's colour when the site asks for it.
-  const ground =
-    snapshot.sections.header === 'farbig'
-      ? sectionGround(snapshot.variant, 'header', snapshot.locale)
-      : 'paper';
-  // As on gruene.de, the sunflower sits in a square flush with the top edge. On the deep header
-  // the square turns white so it stays visible. The Austrian party does not use the sunflower.
+  // As on gruene.de, the header is white in every variant (a stored `sections.header` is no longer
+  // read) and the sunflower sits in a deep green square flush with the top edge. The Austrian party
+  // does not use the sunflower.
   const sunflower = snapshot.locale === 'de-DE';
-  const blockGround = ground === 'deep' ? 'paper' : 'deep';
 
   return (
-    <header data-ground={ground}>
+    <header data-ground={HEADER_GROUND}>
       <div
         className={`${CONTAINER} site:flex site:flex-wrap site:items-center site:justify-between site:gap-x-8 site:gap-y-3 ${sunflower ? '' : 'site:py-4'}`}
       >
         <div className="site:flex site:min-w-0 site:items-center site:gap-4 site:md:gap-6">
           {sunflower && (
             <span
-              data-ground={blockGround}
+              data-ground="deep"
               className="site:flex site:size-16 site:shrink-0 site:items-center site:justify-center site:md:size-23"
             >
-              <Sunflower
-                className={`site:size-11 site:md:size-15 ${blockGround === 'deep' ? 'site:text-[#fff17a]' : 'site:text-heading'}`}
-              />
+              <Sunflower className="site:size-11 site:md:size-15 site:text-[#fff17a]" />
             </span>
           )}
           <div className={`site:min-w-0 ${sunflower ? 'site:py-2' : ''}`}>
