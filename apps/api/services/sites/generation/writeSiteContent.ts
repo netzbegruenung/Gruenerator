@@ -15,6 +15,8 @@ export interface WriteSiteContentInput {
   email: string;
   locale: Locale;
   signal: AbortSignal;
+  /** The arguments written so far, raw; see `AiObjectCall.onPartial`. */
+  onPartial?: (partial: Record<string, unknown>) => void;
 }
 
 export async function writeSiteContent(
@@ -31,6 +33,7 @@ export async function writeSiteContent(
     temperature: 0.7,
     label: 'site-content',
     signal: input.signal,
+    ...(input.onPartial && { onPartial: input.onPartial }),
   });
   if (!result.ok) return result;
   return {
