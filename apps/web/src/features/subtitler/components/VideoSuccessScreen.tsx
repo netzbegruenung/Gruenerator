@@ -9,8 +9,8 @@ import {
   FaTimes,
   FaDownload,
   FaFileAlt,
-  FaFilm,
 } from 'react-icons/fa';
+import { PiFilmSlate } from 'react-icons/pi';
 
 import CopyButton from '../../../components/common/CopyButton';
 import JobErrorNotice from '../../../components/common/JobErrorNotice';
@@ -285,7 +285,7 @@ const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({
                       onClick={onOpenInEditor}
                       title="Im Video Editor öffnen"
                     >
-                      <FaFilm />
+                      <PiFilmSlate />
                     </Button>
                   )}
                   {(exportStore.projectId || projectId) && (
