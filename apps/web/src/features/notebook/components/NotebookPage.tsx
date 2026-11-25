@@ -101,9 +101,6 @@ interface NotebookPageContentProps {
    * (ownership-checked, no facet filter UI). Scopes the start page's live search.
    */
   manualSearchNotebookId?: string;
-  /** Replace the plain question composer with the omni composer (ask/route/
-   *  open/research in one input). Used by the /notebooks index surface. */
-  omniComposer?: boolean;
   /** Disable the startpage's own page background when embedded in a surface
    *  that paints its own (workplace "Wissen" tab tint). Defaults to true. */
   pageGradient?: boolean;
@@ -133,7 +130,6 @@ export const NotebookPageContent = ({
   showManualSearch = true,
   hideGlobalChat = false,
   manualSearchNotebookId,
-  omniComposer = false,
   pageGradient = true,
   tabBar,
 }: NotebookPageContentProps): React.ReactElement => {
@@ -441,7 +437,6 @@ export const NotebookPageContent = ({
                   hideGlobalChat={hideGlobalChat}
                   manualSearchNotebookId={manualSearchNotebookId}
                   notebookMention={notebookMention}
-                  omniComposer={omniComposer}
                   pageGradient={pageGradient}
                   footer={startpageFooter}
                   onOpenChat={openChatTab}

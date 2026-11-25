@@ -35,8 +35,8 @@ describe('buildNotebookThreadPath', () => {
     );
   });
 
-  // #4030: the aggregate's first collection is also the Grüne notebook's only one.
-  it('sends an aggregate thread to /wissen, not to its first collection', () => {
+  // The aggregate's page (/wissen) is gone; its threads open on their first collection.
+  it('opens an aggregate thread on the page of its first collection', () => {
     const de = [
       'grundsatz-system',
       'bundestagsfraktion-system',
@@ -44,9 +44,9 @@ describe('buildNotebookThreadPath', () => {
       'kommunalwiki-system',
       'gruenblog-system',
     ];
-    expect(buildNotebookThreadPath(de, 't1')).toBe('/wissen?thread=t1');
+    expect(buildNotebookThreadPath(de, 't1')).toBe('/notebooks/grundsatz?thread=t1');
     expect(buildNotebookThreadPath(['oesterreich-gruene-system', 'gruene-at-system'], 't1')).toBe(
-      '/wissen?thread=t1'
+      '/notebooks/oesterreich-gruene?thread=t1'
     );
   });
 

@@ -1,5 +1,6 @@
 /**
- * Notebook-Quelle: die öffentlichen Notebooks aus der einen Auswahl
+ * Notebook-Quelle: die System-Notebooks aus der Registry (Offiziell bzw.
+ * Landesverband) und die öffentlichen Notebooks aus der einen Auswahl
  * (`listPublicNotebooksForViewer`), mit Anzeigenamen statt E-Mail-Teil, und
  * „Merken" als Lesezeichen.
  */
@@ -99,7 +100,7 @@ describe('notebookSource', () => {
     await notebookSource.list(ctx('de-AT'), query());
     expect(m.listPublicNotebooksForViewer).toHaveBeenCalledWith('de-AT');
 
-    const page = await notebookSource.list(ctx(), query());
+    const page = await notebookSource.list(ctx(), query({ origin: 'oeffentlich' }));
     expect(page.items.map((i) => i.ref)).toEqual(['n1', 'n2', 'own']);
     expect(page.items[0]).toMatchObject({
       kind: 'notebook',
@@ -113,7 +114,8 @@ describe('notebookSource', () => {
   });
 
   it('names authors by display name only, never by their email address', async () => {
-    const [first, second] = (await notebookSource.list(ctx(), query())).items;
+    const [first, second] = (await notebookSource.list(ctx(), query({ origin: 'oeffentlich' })))
+      .items;
     expect(first?.authorName).toBe('Kim Beispiel');
     expect(second?.authorName).toBeNull();
   });
@@ -126,7 +128,9 @@ describe('notebookSource', () => {
 
   it('searches title and description, and „saved" keeps only bookmarked ones', async () => {
     expect(
-      (await notebookSource.list(ctx(), query({ q: 'studien' }))).items.map((i) => i.ref)
+      (await notebookSource.list(ctx(), query({ q: 'studien', origin: 'oeffentlich' }))).items.map(
+        (i) => i.ref
+      )
     ).toEqual(['n1', 'own']);
 
     m.favorites = new Set(['n2']);
@@ -154,6 +158,56 @@ describe('notebookSource', () => {
       userId: 'viewer',
       entityType: 'notebook',
       entityId: 'n1',
+    });
+  });
+
+  // Seit /wissen weg ist, findet man System-Notebooks nur noch hier.
+  describe('system notebooks', () => {
+    it('lists the registry first: Bund and topics as official, Landesverbände as LV', async () => {
+      const items = (await notebookSource.list(ctx(), query())).items;
+      const fraktion = items.find((i) => i.ref === 'bundestagsfraktion-notebook');
+      expect(fraktion).toMatchObject({
+        origin: 'offiziell',
+        title: 'Bundestagsfraktion',
+        reportKind: null,
+        authorName: null,
+        isOwn: false,
+        notebook: { slug: 'bundestagsfraktion-notebook' },
+      });
+      expect(items.find((i) => i.ref === 'bayern-notebook')?.origin).toBe('landesverband');
+      expect(items[0]?.origin).toBe('offiziell');
+      expect(items.at(-1)?.origin).toBe('oeffentlich');
+    });
+
+    it('leaves out the multi-source notebook, whose only page was /wissen', async () => {
+      const items = (await notebookSource.list(ctx(), query())).items;
+      expect(items.some((i) => i.ref === 'gruenerator-notebook')).toBe(false);
+      expect(await notebookSource.isVisible(ctx(), 'gruenerator-notebook')).toBe(false);
+    });
+
+    it('shows each country only its own system notebooks', async () => {
+      const de = (await notebookSource.list(ctx('de-DE'), query())).items.map((i) => i.ref);
+      const at = (await notebookSource.list(ctx('de-AT'), query())).items.map((i) => i.ref);
+      expect(de).toContain('bundestagsfraktion-notebook');
+      expect(de).not.toContain('oesterreich-notebook');
+      expect(at).toContain('oesterreich-notebook');
+      expect(at).not.toContain('bundestagsfraktion-notebook');
+    });
+
+    // Production hides the Bundesverband notebook (bgst only); a link still opens it.
+    it('lists only what the instance offers, but resolves what it merely hides', async () => {
+      const items = (await notebookSource.list(ctx(), query())).items;
+      expect(items.some((i) => i.ref === 'gruene-notebook')).toBe(false);
+      expect(await notebookSource.isVisible(ctx(), 'gruene-notebook')).toBe(true);
+    });
+
+    it('opens, likes and bookmarks a system notebook by its registry id', async () => {
+      expect(await notebookSource.isVisible(ctx(), 'bayern-notebook')).toBe(true);
+      expect((await notebookSource.get(ctx(), 'bayern-notebook'))?.title).toBeTruthy();
+      m.favorites = new Set(['bayern-notebook']);
+      expect(
+        (await notebookSource.list(ctx(), query({ scope: 'saved' }))).items.map((i) => i.ref)
+      ).toEqual(['bayern-notebook']);
     });
   });
 });
