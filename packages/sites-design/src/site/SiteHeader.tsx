@@ -72,10 +72,12 @@ export function SiteHeader({
           </a>
         ) : (
           targets.length > 0 && (
-            <nav aria-label={copy.sectionNav}>
+            // On a phone the header shows only the name: a lone contact button beside it either
+            // wraps into a second row or crowds the name, and the contact block is a scroll away.
+            <nav aria-label={copy.sectionNav} className="site:hidden site:md:block">
               <ul className="site:flex site:flex-wrap site:items-center site:gap-x-1 site:gap-y-1">
                 {targets.map(([id, label]) => (
-                  <li key={id} className={id === 'contact' ? '' : 'site:hidden site:md:block'}>
+                  <li key={id}>
                     <a
                       href={`#${SECTION_ANCHORS[id]}`}
                       className={id === 'contact' ? `${NAV_CTA} site:ml-2` : NAV_LINK}
