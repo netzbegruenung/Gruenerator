@@ -40,6 +40,14 @@ describe('publishedSite', () => {
     expect(params).toEqual(['anna', true, 'ok', 1]);
   });
 
+  it('hides a project site while its project is in the trash', () => {
+    const { sql } = publishedSiteQuery(db, 'anna').toSQL();
+    expect(sql).toContain('"user_sites"."group_id" IS NULL OR EXISTS');
+    expect(sql).toMatch(
+      /FROM groups g WHERE g\.id = "user_sites"\."group_id" AND g\.deleted_at IS NULL/
+    );
+  });
+
   it('a stored snapshot that no longer parses is not served', () =>
     expect(parsePublishedSnapshot({ published_snapshot: { version: 1 } })).toBeNull());
 

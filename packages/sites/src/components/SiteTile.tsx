@@ -93,11 +93,14 @@ export function SiteTile({
   href,
   publicOrigin,
   locale,
+  projectName = null,
 }: {
   site: SiteSummary;
   href: string;
   publicOrigin: string | null;
   locale: SupportedLocale;
+  /** Owning project of a project site, shown inside the card. */
+  projectName?: string | null;
 }) {
   const navigate = useNavigate();
   const toast = useToast();
@@ -156,6 +159,11 @@ export function SiteTile({
           </span>
           {edited}
         </span>
+        {projectName && (
+          <span className="mt-1 block truncate text-[12px] text-[#3C6479] dark:text-[#8FB6CB]">
+            Projekt: {projectName}
+          </span>
+        )}
       </span>
     </InteractiveCard>
   );

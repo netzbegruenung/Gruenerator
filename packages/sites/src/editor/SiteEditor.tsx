@@ -1,10 +1,15 @@
+import { useCollaborators, PresenceAvatars } from '@gruenerator/collab';
 import {
   buildSitePreviewSnapshot,
   siteDraftToSnapshotSource,
+  type SiteRole,
   type SupportedLocale,
 } from '@gruenerator/contracts';
 import { cn } from '@gruenerator/shared/utils';
+import { Button } from '@gruenerator/ui';
+import { type HocuspocusProvider } from '@hocuspocus/provider';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { FiUserPlus } from 'react-icons/fi';
 
 import { LoadErrorState } from '../components/common/LoadErrorState';
 import { SiteDraftProvider, useDraft } from '../draft/SiteDraftContext';
@@ -27,6 +32,7 @@ import { CANVAS_DEVICE_WIDTH, EditorHeader, type CanvasDevice } from './EditorHe
 import { EditorSkeleton } from './EditorSkeleton';
 import { PreviewDialog } from './PreviewDialog';
 import { usePublishControls } from './publish/usePublishControls';
+import { SiteShareDialog } from './share/SiteShareDialog';
 import { SiteSidebarPanel, SiteSidebarTabs } from './sidebar/SiteSidebar';
 import { useUndoShortcuts } from './useUndoShortcuts';
 
@@ -86,9 +92,16 @@ interface PreviewPaneProps {
   view: PreviewView;
   onViewChange: (view: PreviewView) => void;
   device: CanvasDevice;
+  editable?: boolean;
 }
 
-export function PreviewPane({ site, view, onViewChange, device }: PreviewPaneProps) {
+export function PreviewPane({
+  site,
+  view,
+  onViewChange,
+  device,
+  editable = true,
+}: PreviewPaneProps) {
   const published = site.published_snapshot;
   const showLive = view === 'live' && published !== null;
   const width = CANVAS_DEVICE_WIDTH[device];
@@ -122,7 +135,7 @@ export function PreviewPane({ site, view, onViewChange, device }: PreviewPanePro
             className="block h-full w-full border-0"
           />
         ) : (
-          <DraftPreview site={site} editable />
+          <DraftPreview site={site} editable={editable} />
         )}
       </div>
     </div>
@@ -143,6 +156,13 @@ const EDITOR_CHROME_VARS = {
   '--image-studio-tab-bar-width': '76px',
 } as CSSProperties;
 
+export const PUBLISH_ADMINS_ONLY = 'Veröffentlichen können nur Admins.';
+
+function HeaderPresence({ provider }: { provider: HocuspocusProvider }) {
+  const collaborators = useCollaborators(provider);
+  return <PresenceAvatars collaborators={collaborators} />;
+}
+
 type EditorTopBarProps = Omit<Parameters<typeof EditorHeader>[0], 'menu' | 'publish'> &
   Parameters<typeof usePublishControls>[0];
 
@@ -152,13 +172,38 @@ function EditorTopBar({ site, provider, onShowLive, ...header }: EditorTopBarPro
   return <EditorHeader {...header} menu={menu} publish={button} />;
 }
 
-export function SiteEditor({ site, onBack }: { site: SiteData; onBack?: () => void }) {
+/** Editors and viewers: the site name without its menu (publish, unpublish, delete are admin). */
+function MemberTopBar(header: Omit<Parameters<typeof EditorHeader>[0], 'menu' | 'publish'>) {
+  const title = useDraft((d) => d.site_title.trim()) || 'Website';
+  return (
+    <EditorHeader
+      {...header}
+      menu={<span className="truncate px-sm text-sm font-semibold text-foreground">{title}</span>}
+      publish={null}
+    />
+  );
+}
+
+export function SiteEditor({
+  site,
+  role,
+  group,
+  onBack,
+}: {
+  site: SiteData;
+  role: SiteRole;
+  group: { id: string; name: string } | null;
+  onBack?: () => void;
+}) {
   const session = useSiteDraftSession(site.id);
+  const [shareOpen, setShareOpen] = useState(false);
+  const shareButtonRef = useRef<HTMLButtonElement>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [view, setView] = useState<PreviewView>('draft');
   const [device, setDevice] = useState<CanvasDevice>('desktop');
   const previewButtonRef = useRef<HTMLButtonElement>(null);
   useLeaveWarning(session.state === 'ready' && session.save !== 'saved');
+
   // The editor store is module state: leave no selection or open panel behind for the next visit.
   useEffect(
     () => () => useEditorStore.setState({ selection: null, elementPanel: null, sidebarTab: null }),
@@ -182,7 +227,15 @@ export function SiteEditor({ site, onBack }: { site: SiteData; onBack?: () => vo
           message="Dein Entwurf überschreitet die erlaubte Größe. Entferne Bilder oder Texte und lade die Seite neu."
         />
       );
-    case 'ready':
+    case 'ready': {
+      const header = {
+        save: session.save,
+        device,
+        onDeviceChange: setDevice,
+        onPreview: () => setPreviewOpen(true),
+        onBack,
+        previewButtonRef,
+      };
       return (
         <SiteDraftProvider ydoc={session.ydoc}>
           {/* The sidebar chrome lays out against this root (`data-editor-chrome-root`): on desktop
@@ -193,24 +246,74 @@ export function SiteEditor({ site, onBack }: { site: SiteData; onBack?: () => vo
             style={EDITOR_CHROME_VARS}
             className="relative flex h-dvh min-h-0 flex-col bg-grey-100 dark:bg-grey-800"
           >
-            <EditorTopBar
-              site={site}
-              provider={session.provider}
-              save={session.save}
-              device={device}
-              onDeviceChange={setDevice}
-              onShowLive={() => setView('live')}
-              onPreview={() => setPreviewOpen(true)}
-              onBack={onBack}
-              previewButtonRef={previewButtonRef}
-            />
-            <div className="absolute bottom-0 left-0 top-[var(--editor-topbar-height)] z-[120] max-canvas-mobile:contents">
-              <SiteSidebarTabs />
+            {role === 'admin' ? (
+              <EditorTopBar
+                site={site}
+                provider={session.provider}
+                onShowLive={() => setView('live')}
+                {...header}
+              >
+                <HeaderPresence provider={session.provider} />
+                <Button
+                  ref={shareButtonRef}
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShareOpen(true)}
+                  title="Teilen"
+                >
+                  <FiUserPlus aria-hidden="true" />
+                  <span className="hidden md:inline">Teilen</span>
+                </Button>
+              </EditorTopBar>
+            ) : (
+              <MemberTopBar {...header}>
+                <HeaderPresence provider={session.provider} />
+              </MemberTopBar>
+            )}
+            {role !== 'admin' && (
+              // Same left inset as the preview below: the sidebar rail overlays this column.
+              <div
+                className={
+                  role === 'viewer'
+                    ? 'border-b border-grey-200 bg-background-pure dark:border-grey-700'
+                    : 'border-b border-grey-200 bg-background-pure dark:border-grey-700 canvas-mobile:pl-[calc(var(--image-studio-tab-bar-width)+var(--canvas-panel-width,0px))]'
+                }
+              >
+                <p className="m-0 px-md py-xs text-sm text-grey-600 dark:text-grey-400">
+                  {PUBLISH_ADMINS_ONLY}
+                </p>
+              </div>
+            )}
+            {role !== 'viewer' && (
+              <div className="absolute bottom-0 left-0 top-[var(--editor-topbar-height)] z-[120] max-canvas-mobile:contents">
+                <SiteSidebarTabs role={role} />
+              </div>
+            )}
+            <div
+              className={
+                role === 'viewer'
+                  ? 'min-h-0 flex-1'
+                  : 'min-h-0 flex-1 canvas-mobile:pl-[calc(var(--image-studio-tab-bar-width)+var(--canvas-panel-width,0px))]'
+              }
+            >
+              <PreviewPane
+                site={site}
+                view={view}
+                onViewChange={setView}
+                device={device}
+                editable={role !== 'viewer'}
+              />
             </div>
-            <div className="min-h-0 flex-1 canvas-mobile:pl-[calc(var(--image-studio-tab-bar-width)+var(--canvas-panel-width,0px))]">
-              <PreviewPane site={site} view={view} onViewChange={setView} device={device} />
-            </div>
-            <SiteSidebarPanel />
+            {role !== 'viewer' && <SiteSidebarPanel />}
+            {role === 'admin' && (
+              <SiteShareDialog
+                site={site}
+                isProjectSite={group !== null}
+                open={shareOpen}
+                onOpenChange={setShareOpen}
+                returnFocusRef={shareButtonRef}
+              />
+            )}
             <PreviewDialog
               open={previewOpen}
               onOpenChange={setPreviewOpen}
@@ -221,5 +324,6 @@ export function SiteEditor({ site, onBack }: { site: SiteData; onBack?: () => vo
           </div>
         </SiteDraftProvider>
       );
+    }
   }
 }

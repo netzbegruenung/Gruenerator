@@ -13,6 +13,7 @@ const m = vi.hoisted(() => ({
   generate: vi.fn(),
   cancel: vi.fn(),
   toastError: vi.fn(),
+  projects: [] as Array<{ id: string; name: string; isAdmin: boolean }>,
   isCreating: false,
   gen: {
     steps: [] as string[],
@@ -32,6 +33,7 @@ vi.mock('../SitesContext', () => ({
   }),
 }));
 vi.mock('../hooks/useSite', () => ({
+  useSiteList: () => ({ sites: [], limit: 25 }),
   useCreateSite: () => ({
     publicOrigin: 'https://grsites.de',
     createSite: m.createSite,
@@ -40,6 +42,9 @@ vi.mock('../hooks/useSite', () => ({
 }));
 vi.mock('@gruenerator/shared/api', () => ({
   getContractsClient: () => ({ sites: { getSiteByHandle: m.getSiteByHandle } }),
+}));
+vi.mock('../hooks/useSiteSharing', () => ({
+  useSiteProjects: () => ({ data: m.projects }),
 }));
 vi.mock('../hooks/useSiteGeneration', () => ({
   useSiteGeneration: () => ({ generate: m.generate, cancel: m.cancel, ...m.gen }),
@@ -59,8 +64,15 @@ vi.mock('../components/CreateSiteScreen', () => ({
     description: string;
     onDescriptionChange: (v: string) => void;
     onGenerate: () => void;
+    projects?: Array<{ id: string; name: string }>;
+    onProjectChange?: (id: string) => void;
   }) => (
     <div>
+      {p.projects?.map((project) => (
+        <button key={project.id} onClick={() => p.onProjectChange?.(project.id)}>
+          {project.name}
+        </button>
+      ))}
       <textarea
         aria-label="Beschreibung"
         value={p.description}
@@ -111,6 +123,7 @@ describe('CreateFlow', () => {
     m.getSiteByHandle.mockReset().mockResolvedValue({ status: 404, body: { error: 'x' } });
     m.generate.mockReset();
     m.toastError.mockReset();
+    m.projects = [];
     m.gen.steps = [];
     m.gen.current = null;
     m.gen.isGenerating = false;
@@ -131,6 +144,24 @@ describe('CreateFlow', () => {
       })
     );
     expect(await screen.findByTestId('pfad')).toHaveTextContent('/sites/anna');
+  });
+
+  it('offers only projects the person administers and creates the site in the chosen one', async () => {
+    m.projects = [
+      { id: 'g1', name: 'Kreisverband', isAdmin: true },
+      { id: 'g2', name: 'Fraktion', isAdmin: false },
+    ];
+    m.generate.mockResolvedValue(generated);
+    const user = userEvent.setup();
+    render(<CreateFlow />);
+    expect(screen.queryByRole('button', { name: 'Fraktion' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Kreisverband' }));
+    await user.click(screen.getByLabelText('Beschreibung'));
+    await user.paste('x'.repeat(80));
+    await user.click(screen.getByRole('button', { name: 'Generieren' }));
+    await waitFor(() =>
+      expect(m.createSite).toHaveBeenCalledWith(expect.objectContaining({ group_id: 'g1' }))
+    );
   });
 
   it("suggests an address past the account's own ones", async () => {

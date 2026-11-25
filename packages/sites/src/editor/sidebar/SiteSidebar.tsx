@@ -1,6 +1,7 @@
 import '@ggraphic/editor-chrome/styles.css';
 
 import { SidebarPanel, SidebarTabBar } from '@ggraphic/editor-chrome';
+import { type SiteRole } from '@gruenerator/contracts';
 import { useEffect, type ReactNode } from 'react';
 
 import { LegalPanel } from '../../components/editor/legal/LegalPanel';
@@ -16,15 +17,18 @@ import { PagePanel } from './PagePanel';
 import { revealBlock } from './revealBlock';
 import { SIDEBAR_TABS, type SidebarTabId } from './tabs';
 
+/** Address and Impressum are admin-only (the server refuses them otherwise). */
+const ADMIN_ONLY_TABS: readonly SidebarTabId[] = ['einstellungen', 'impressum'];
 const TABS = [...SIDEBAR_TABS];
+const EDITOR_TABS = TABS.filter((t) => !ADMIN_ONLY_TABS.includes(t.id));
 
 /** The rail's tab bar: a vertical rail on desktop, the bottom bar on a phone. */
-export function SiteSidebarTabs() {
+export function SiteSidebarTabs({ role = 'admin' }: { role?: SiteRole }) {
   const tab = useEditorStore((s) => s.sidebarTab);
   const openTab = useEditorStore((s) => s.openSidebarTab);
   return (
     <SidebarTabBar<SidebarTabId>
-      tabs={TABS}
+      tabs={role === 'admin' ? TABS : EDITOR_TABS}
       activeTab={tab}
       onTabClick={(id) => openTab(tab === id ? null : id)}
       ariaLabel="Bereiche der Website"

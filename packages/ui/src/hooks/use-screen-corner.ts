@@ -212,7 +212,25 @@ export function useMeasuredCornerReservation(
     const corners = key.split('|') as ScreenCorner[];
     // Eine Anmeldung je Ecke statt einer gemeinsamen: ob das Element eine Ecke
     // belegt, entscheidet sich für jede einzeln (siehe `touchesCorner`).
-    const registrations = corners.map((corner) => ({ corner, entry: register([corner], NOTHING) }));
+    const registrations = corners.map((corner) => ({
+      corner,
+      entry: register([corner], NOTHING),
+      last: NOTHING,
+    }));
+    // Beim Scrollen misst jede Bewegung neu; ohne diesen Vergleich rendert
+    // jeder Leser bei jedem Scroll-Ereignis, obwohl sich nichts geändert hat.
+    const write = (registration: (typeof registrations)[number], next: Entry): void => {
+      const { last } = registration;
+      if (
+        last.vertical === next.vertical &&
+        last.horizontal === next.horizontal &&
+        last.blocked === next.blocked
+      ) {
+        return;
+      }
+      registration.last = next;
+      registration.entry.update(next);
+    };
 
     // Gemessen wird der Abstand von der Kante bis zur inneren Elementgrenze —
     // dadurch braucht die Anmeldung den eigenen Offset des Elements nicht zu
@@ -223,9 +241,10 @@ export function useMeasuredCornerReservation(
       // Abkürzung läse sich das als "belegt die ganze Kante".
       const hidden = rect.width === 0 && rect.height === 0;
 
-      for (const { corner, entry } of registrations) {
+      for (const registration of registrations) {
+        const { corner } = registration;
         if (hidden || !touchesCorner(rect, corner)) {
-          entry.update(NOTHING);
+          write(registration, NOTHING);
           continue;
         }
         const [vertical, horizontal] = corner.split('-') as ['top' | 'bottom', 'left' | 'right'];
@@ -238,7 +257,8 @@ export function useMeasuredCornerReservation(
               ? rect.right
               : window.innerWidth - rect.left;
         const length = `${Math.max(0, Math.round(extent))}px`;
-        entry.update(
+        write(
+          registration,
           axis === 'vertical'
             ? { vertical: length, horizontal: null, blocked }
             : { vertical: null, horizontal: length, blocked }
@@ -249,6 +269,11 @@ export function useMeasuredCornerReservation(
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(element);
+    // Eine `sticky bottom-0`-Leiste behält ihre Größe, wandert aber mit: beim
+    // Scrollen und wenn der Inhalt darüber wächst (Daten nachgeladen). Ohne
+    // diese beiden Auslöser bliebe die beim Mount gemessene Lage stehen.
+    if (element.parentElement) observer.observe(element.parentElement);
+    document.addEventListener('scroll', measure, { capture: true, passive: true });
     window.addEventListener('resize', measure);
     // Die eingeblendete Bildschirmtastatur schiebt ein im Fluss liegendes
     // Element nach oben, ohne seine Box zu ändern — der ResizeObserver schweigt
@@ -256,6 +281,7 @@ export function useMeasuredCornerReservation(
     window.visualViewport?.addEventListener('resize', measure);
     return () => {
       observer.disconnect();
+      document.removeEventListener('scroll', measure, { capture: true });
       window.removeEventListener('resize', measure);
       window.visualViewport?.removeEventListener('resize', measure);
       for (const { entry } of registrations) entry.release();

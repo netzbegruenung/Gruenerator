@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 
 import { createLogger } from './logger.js';
+import { SITE_ROLE_SQL } from './siteRoleSql.js';
 import { SITE_ROOM_PREFIX, siteIdFromRoom } from './siteRooms.js';
 
 import type {
@@ -187,24 +188,15 @@ export class AuthService {
     return this.checkDocumentPermissions(documentName, userId);
   }
 
-  /** Owner only in this phase; shared editing (Phase 7) extends this one query. */
+  /** Role from the shared `SITE_ROLE_SQL`: admin/editor write, viewer reads only. */
   private async checkSiteAccess(room: string, userId: string): Promise<AuthenticationResult> {
     const siteId = siteIdFromRoom(room);
     if (!siteId) return { authenticated: false, reason: 'Site not found' };
 
-    const rows = await this.db(
-      `SELECT s.user_id, s.moderation FROM user_sites s
-       JOIN profiles p ON p.id = s.user_id
-       WHERE s.id = $1 AND s.deleted_at IS NULL AND (p.sites_unlocked = true OR p.is_admin = true) LIMIT 1`,
-      [siteId]
-    );
-    const site = rows[0] as { user_id: string; moderation: string | null } | undefined;
-    if (!site) {
-      log.warn(`[Auth-Site] Site ${siteId} not found, trashed or not unlocked`);
-      return { authenticated: false, reason: 'Site not found' };
-    }
-    if (site.user_id !== userId) {
-      log.warn(`[Auth-Site] FAILED: User ${userId} is not the owner of site ${siteId}`);
+    const rows = await this.db(SITE_ROLE_SQL, [siteId, userId]);
+    const role = (rows[0] as { role: string } | undefined)?.role;
+    if (!role) {
+      log.warn(`[Auth-Site] FAILED: User ${userId} has no role on site ${siteId} (or it is gone)`);
       return { authenticated: false, reason: 'Access denied' };
     }
 
@@ -214,9 +206,9 @@ export class AuthService {
       log.warn(`[Auth-Site] Display name lookup failed for ${userId}: ${err}`);
       return [];
     });
-    const readOnly = site.moderation === 'removed';
+    const readOnly = role === 'viewer';
     log.debug(
-      `[Auth-Site] Owner ${userId} authenticated for site ${siteId} (${readOnly ? 'read-only' : 'read-write'})`
+      `[Auth-Site] ${role} ${userId} authenticated for site ${siteId} (${readOnly ? 'read-only' : 'read-write'})`
     );
     return {
       authenticated: true,

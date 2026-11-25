@@ -30,11 +30,14 @@ const deleteFavoritesOfDeletedUser = vi.fn(async (userId: string) => {
   effects.push(`favorites of ${userId}`);
 });
 const trashAllOwnedRowsOfDeletedUser = vi.fn(async (t: { table: string }) =>
-  t.table === 'user_agents' ? ['a-1', 'a-2'] : t.table === 'user_sites' ? ['s-1'] : ['r-1']
+  t.table === 'user_agents' ? ['a-1', 'a-2'] : ['r-1']
 );
-const purgeUserSite = vi.fn(async (id: string, cutoff: Date | null) => {
-  effects.push(`purge site ${id} ${String(cutoff)}`);
-  return true;
+const reassignSitesBeforeAccountDeletion = vi.fn(async (_userId: string, _tx: unknown) => {
+  effects.push('reassign sites');
+  return ['s-1'];
+});
+const closeSiteRooms = vi.fn(async (ids: string[]) => {
+  effects.push(`close rooms ${ids.join(',')}`);
 });
 const purgeUserAgent = vi.fn(async (id: string, cutoff: Date | null) => {
   effects.push(`purge agent ${id} ${String(cutoff)}`);
@@ -57,7 +60,10 @@ const deleteConnection = vi.fn(async (provider: string, id: string) => {
 });
 
 vi.mock('../../database/services/PostgresService.js', () => ({
-  getPostgresInstance: () => ({ query: vi.fn() }),
+  getPostgresInstance: () => ({
+    query: vi.fn(),
+    transaction: async (cb: (tx: unknown) => Promise<unknown>) => cb({ tx: true }),
+  }),
 }));
 vi.mock('../../database/services/NotebookQdrantHelper.js', () => ({
   NotebookQdrantHelper: class {
@@ -88,8 +94,8 @@ vi.mock('./textFormRepository.js', () => ({
   TEXT_FORM_TRASH: { table: 'user_text_forms', columns: 'id, title, mention' },
 }));
 vi.mock('../sites/userSiteTrash.js', () => ({
-  purgeUserSite,
-  USER_SITE_TRASH: { table: 'user_sites', columns: 'id, site_title AS title' },
+  reassignSitesBeforeAccountDeletion,
+  closeSiteRooms,
 }));
 vi.mock('../../utils/reportBackgroundError.js', () => ({ reportBackgroundError }));
 const removeUserOriginals = vi.fn(async () => undefined);
@@ -123,7 +129,8 @@ describe('cleanUpBeforeProfileDelete', () => {
       'purge agent a-1 null',
       'purge agent a-2 null',
       'purge recipe r-1 null',
-      'purge site s-1 null',
+      'reassign sites',
+      'close rooms s-1',
       'likes of user-1',
       'comments on items of user-1',
       'favorites of user-1',
@@ -146,14 +153,17 @@ describe('cleanUpBeforeProfileDelete', () => {
     );
   });
 
-  it('purges every Website of the user with its Yjs draft, trashed ones included', async () => {
+  it('hands sites over inside a transaction and closes the rooms of purged ones', async () => {
     await cleanUpBeforeProfileDelete('user-1');
 
-    expect(trashAllOwnedRowsOfDeletedUser).toHaveBeenCalledWith(
-      expect.objectContaining({ table: 'user_sites' }),
-      'user-1'
-    );
-    expect(purgeUserSite).toHaveBeenCalledWith('s-1', null);
+    expect(reassignSitesBeforeAccountDeletion).toHaveBeenCalledWith('user-1', { tx: true });
+    expect(closeSiteRooms).toHaveBeenCalledWith(['s-1']);
+  });
+
+  it('lets a failed site handover stop the account deletion', async () => {
+    reassignSitesBeforeAccountDeletion.mockRejectedValueOnce(new Error('pg down'));
+
+    await expect(cleanUpBeforeProfileDelete('user-1')).rejects.toThrow('pg down');
   });
 
   it('purges the other agents and the recipes when one agent purge fails, and reports it', async () => {

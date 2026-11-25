@@ -103,6 +103,34 @@ describe('shared content leaves the project or gets narrower', () => {
   });
 });
 
+describe('shared Websites (user_sites)', () => {
+  const SITE = 'site-1';
+  it('permissions of a Website share cannot be changed here, nothing is written', async () => {
+    const res = await (contentRoutes.updateContentPermissions as unknown as Handler)({
+      req: req(SHARER),
+      params: { groupId: GROUP_ID, contentId: SITE },
+      body: { contentType: 'user_sites', permissions: { write: true } },
+    });
+    expect(res.status).toBe(400);
+    expect(db.query).not.toHaveBeenCalled();
+    expect(db.exec).not.toHaveBeenCalled();
+    expect(closeShareRoom).not.toHaveBeenCalled();
+  });
+
+  it.each(['unshareContent', 'removeGroupContent'])(
+    '%s takes the share away and closes the site room',
+    async (name) => {
+      const res = await (contentRoutes[name as keyof typeof contentRoutes] as unknown as Handler)({
+        req: req(SHARER),
+        params: { groupId: GROUP_ID, contentId: SITE },
+        body: { contentType: 'user_sites', contentId: SITE },
+      });
+      expect(res.status).toBe(200);
+      expect(closeShareRoom).toHaveBeenCalledWith('user_sites', SITE);
+    }
+  );
+});
+
 describe('removeGroupContent — who may take something out of the project', () => {
   const remove = contentRoutes.removeGroupContent as unknown as Handler;
   const args = (userId: string) => ({

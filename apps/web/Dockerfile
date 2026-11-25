@@ -138,6 +138,24 @@ RUN sed -i '/^pid /a load_module /usr/lib/nginx/modules/ngx_http_brotli_filter_m
 # Remove default nginx config
 RUN rm -rf /usr/share/nginx/html/* /etc/nginx/conf.d/default.conf
 
+# Security headers, shared by the server block and every location that sets its
+# own add_header. nginx REPLACES (does not merge) inherited add_header
+# directives as soon as a location declares one, so each such location must
+# include this file again. Frame headers are driven by $xfo / $frame_ancestors,
+# defined in default.conf (empty $xfo value = header omitted).
+COPY <<'EOF' /etc/nginx/snippets/security-headers.conf
+add_header X-Content-Type-Options "nosniff" always;
+add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+add_header Permissions-Policy "camera=(self), microphone=(self), geolocation=()" always;
+EOF
+
+# Framing headers, split out because the Pyodide worker location sets its own
+# Content-Security-Policy and must not get a second one.
+COPY <<'EOF' /etc/nginx/snippets/frame-headers.conf
+add_header X-Frame-Options $xfo always;
+add_header Content-Security-Policy "frame-ancestors $frame_ancestors" always;
+EOF
+
 # Copy custom nginx config for SPA
 COPY <<'EOF' /etc/nginx/conf.d/default.conf
 # Stock mime.types has no .mjs entry, so /pyodide/pyodide.asm.mjs went out as
@@ -150,11 +168,32 @@ types {
     application/javascript mjs;
 }
 
+# Framing policy. Default: same-origin only (the app embeds /videoeditor/app/
+# and its own previews, nothing else). Public read-only share pages stay
+# embeddable cross-origin because third parties may iframe them. $request_uri
+# is used, not $uri: try_files rewrites $uri to /index.html before headers are
+# added. An empty X-Frame-Options value makes nginx omit the header (there is
+# no way to allow arbitrary origins with it).
+map $request_uri $xfo {
+    default "SAMEORIGIN";
+    ~^/(e|share|podcast|boards/public)/ "";
+}
+map $request_uri $frame_ancestors {
+    default "'self'";
+    ~^/(e|share|podcast|boards/public)/ "*";
+}
+
 server {
     listen 80;
     server_name _;
     root /usr/share/nginx/html;
     index index.html;
+
+    # Do not leak the nginx version.
+    server_tokens off;
+
+    include /etc/nginx/snippets/security-headers.conf;
+    include /etc/nginx/snippets/frame-headers.conf;
 
     # Brotli compression. Negotiated via Accept-Encoding: br; browsers that
     # only send gzip still hit the gzip path below. The Vite build writes
@@ -198,6 +237,7 @@ server {
     location ~ ^/assets/pythonInterpreter\.worker-[A-Za-z0-9_-]+\.js$ {
         expires 1y;
         add_header Cache-Control "public, immutable";
+        include /etc/nginx/snippets/security-headers.conf;
         add_header Content-Security-Policy "default-src 'none'; script-src $host:*/pyodide/ 'wasm-unsafe-eval'; connect-src $host:*/pyodide/" always;
     }
 
@@ -206,6 +246,8 @@ server {
     location /assets/ {
         expires 1y;
         add_header Cache-Control "public, immutable";
+        include /etc/nginx/snippets/security-headers.conf;
+        include /etc/nginx/snippets/frame-headers.conf;
     }
 
     # Robot avatars — stable filenames (1.webp..13.webp) served from /public,
@@ -215,6 +257,8 @@ server {
     location /images/profileimages/ {
         expires 1y;
         add_header Cache-Control "public, immutable";
+        include /etc/nginx/snippets/security-headers.conf;
+        include /etc/nginx/snippets/frame-headers.conf;
     }
 
     # Canvas-editor illustration assets (SVGs + PNG thumbnails) served from
@@ -225,6 +269,8 @@ server {
     location /illustrations/ {
         expires 1y;
         add_header Cache-Control "public, immutable";
+        include /etc/nginx/snippets/security-headers.conf;
+        include /etc/nginx/snippets/frame-headers.conf;
     }
 
     # Vendored Noto emoji (packages/canvas-editor/scripts/vendorNotoEmoji.ts):
@@ -235,12 +281,16 @@ server {
     location /emoji/ {
         expires 1y;
         add_header Cache-Control "public, immutable";
+        include /etc/nginx/snippets/security-headers.conf;
+        include /etc/nginx/snippets/frame-headers.conf;
     }
 
     # Everything else (index.html, config.js, manifest.json, SW)
     # no-cache = store but revalidate via ETag → efficient 304 responses
     location / {
         add_header Cache-Control "no-cache";
+        include /etc/nginx/snippets/security-headers.conf;
+        include /etc/nginx/snippets/frame-headers.conf;
         try_files $uri /index.html;
 
         # index.html is the link-preview fallback for every route without its
@@ -264,6 +314,8 @@ server {
         access_log off;
         return 200 "healthy\n";
         add_header Content-Type text/plain;
+        include /etc/nginx/snippets/security-headers.conf;
+        include /etc/nginx/snippets/frame-headers.conf;
     }
 }
 EOF

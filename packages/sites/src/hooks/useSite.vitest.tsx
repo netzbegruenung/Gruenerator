@@ -26,7 +26,12 @@ function setup() {
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={client}>
       <CurrentSiteProvider
-        value={{ site: site('anna') as never, public_origin: 'https://grsites.de' }}
+        value={{
+          site: site('anna') as never,
+          role: 'admin',
+          group: null,
+          public_origin: 'https://grsites.de',
+        }}
       >
         {children}
       </CurrentSiteProvider>
