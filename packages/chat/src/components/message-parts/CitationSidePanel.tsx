@@ -11,9 +11,20 @@ import {
 } from '@gruenerator/ui';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, ExternalLink, FileText, X } from 'lucide-react';
-import { memo, useEffect, useId, useMemo, useRef, type RefObject } from 'react';
+import {
+  memo,
+  Suspense,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentType,
+  type RefObject,
+} from 'react';
 
-import { useCitationPanel } from '../../context/CitationPanelContext';
+import { useCitationPanel, type CitationPanelSource } from '../../context/CitationPanelContext';
 import { findCitedRange } from '../../lib/citedTextRange';
 import { cn } from '../../lib/utils';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
@@ -52,6 +63,79 @@ interface DocumentChunks {
  *  same-origin proxy. Same default as the notebook reader's „Original öffnen". */
 const API_BASE_URL =
   (import.meta.env as unknown as Record<string, string | undefined>).VITE_API_BASE_URL ?? '/api';
+
+/** One citation of the open document, as the original viewer needs it. */
+export interface CitationPdfMark {
+  citationId: number;
+  /** Page the ingest recorded for the chunk; missing for many scraped PDFs. */
+  page: number | null;
+  /** Texts to look for, most precise first: the quoted words, then the chunk. */
+  texts: string[];
+}
+
+export interface CitationOriginalViewerProps {
+  /** The stored original, without a `#page` fragment. */
+  url: string;
+  title: string;
+  /** Every citation of the answer that points into this document. */
+  marks: CitationPdfMark[];
+  /** Index into `marks` of the citation the panel shows. */
+  activeIndex: number;
+  onSelect: (markIndex: number) => void;
+  /** Back to the extracted text, where the passage is always marked. */
+  onShowText: () => void;
+}
+
+/**
+ * A viewer for stored originals, supplied by the app: PDF.js lives in the web
+ * app only, so this package (which mobile also imports) never pulls it in.
+ */
+export interface CitationOriginalViewer {
+  component: ComponentType<CitationOriginalViewerProps>;
+  /** Starts loading the viewer's code, e.g. on hover over „PDF". */
+  preload?: () => void;
+}
+
+type PanelView = 'text' | 'pdf';
+const VIEW_STORAGE_KEY = 'gruenerator.citationPanel.view';
+
+function readStoredView(): PanelView {
+  try {
+    return localStorage.getItem(VIEW_STORAGE_KEY) === 'pdf' ? 'pdf' : 'text';
+  } catch {
+    return 'text';
+  }
+}
+
+function storeView(view: PanelView) {
+  try {
+    localStorage.setItem(VIEW_STORAGE_KEY, view);
+  } catch {
+    // Private windows: the choice simply is not remembered.
+  }
+}
+
+function isPdfOriginal(mimetype: string | null, title: string): boolean {
+  return mimetype === 'application/pdf' || (!mimetype && /\.pdf$/i.test(title));
+}
+
+/** The answer's citations into the same document, with what the viewer needs to find them. */
+function marksForDocument(
+  sources: CitationPanelSource[],
+  source: CitationPanelSource,
+  chunks: ChunkData[]
+): { marks: CitationPdfMark[]; sourceIndices: number[] } {
+  const marks: CitationPdfMark[] = [];
+  const sourceIndices: number[] = [];
+  sources.forEach((s, i) => {
+    if (s.documentId !== source.documentId || s.collectionId !== source.collectionId) return;
+    const chunk = chunks.find((c) => c.index === s.chunkIndex);
+    const texts = [s.citedText, chunk?.text].filter((t): t is string => Boolean(t?.trim()));
+    marks.push({ citationId: s.citationId, page: chunk?.pageNumber ?? null, texts });
+    sourceIndices.push(i);
+  });
+  return { marks, sourceIndices };
+}
 
 /** Header, body and footer share one gutter, so the left edge of every line —
  *  label, quote, page note — stacks. 28px: wide enough that the quote card's
@@ -155,7 +239,13 @@ function DocumentBoundary({ label }: { label: string }) {
   );
 }
 
-function CitationPanelBody({ titleId }: { titleId: string }) {
+function CitationPanelBody({
+  titleId,
+  originalViewer,
+}: {
+  titleId: string;
+  originalViewer?: CitationOriginalViewer;
+}) {
   const { source, sources, activeIndex, goTo, close } = useCitationPanel();
   const citedRef = useRef<HTMLDivElement | null>(null);
 
@@ -201,6 +291,15 @@ function CitationPanelBody({ titleId }: { titleId: string }) {
 
   const chunks = useMemo(() => chunksQuery.data?.chunks ?? [], [chunksQuery.data]);
   const original = chunksQuery.data?.original ?? null;
+  const [view, setView] = useState<PanelView>(readStoredView);
+  const chooseView = useCallback((next: PanelView) => {
+    setView(next);
+    storeView(next);
+  }, []);
+  const documentMarks = useMemo(
+    () => (source ? marksForDocument(sources, source, chunks) : null),
+    [sources, source, chunks]
+  );
   const citedPosition = source ? chunks.findIndex((c) => c.index === source.chunkIndex) : -1;
   const cited = citedPosition === -1 ? null : chunks[citedPosition];
 
@@ -226,6 +325,11 @@ function CitationPanelBody({ titleId }: { titleId: string }) {
     : null;
 
   const page = cited?.pageNumber ?? null;
+  const Viewer =
+    originalViewer && original && isPdfOriginal(original.mimetype, source.documentTitle)
+      ? originalViewer.component
+      : null;
+  const showPdf = Viewer !== null && view === 'pdf';
   // With a stored original the button names the file type and carries the
   // page; without one, both stay as plain text so neither gets lost.
   const kind = original ? null : documentKind(source.contentType, source.sourceUrl);
@@ -290,7 +394,33 @@ function CitationPanelBody({ titleId }: { titleId: string }) {
               </span>
             )}
             {pageLabel && <span>{pageLabel}</span>}
-            {original && (
+            {Viewer && (
+              <div
+                role="group"
+                aria-label="Ansicht"
+                className="inline-flex gap-0.5 rounded-lg border border-border bg-background p-0.5"
+              >
+                {(['text', 'pdf'] as const).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    aria-pressed={view === v}
+                    onClick={() => chooseView(v)}
+                    onPointerEnter={v === 'pdf' ? originalViewer?.preload : undefined}
+                    onFocus={v === 'pdf' ? originalViewer?.preload : undefined}
+                    className={cn(
+                      'min-h-7 rounded-md px-3 text-[0.82rem] font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none pointer-coarse:min-h-10',
+                      view === v
+                        ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/50 dark:text-primary-200'
+                        : 'text-foreground-muted hover:text-foreground'
+                    )}
+                  >
+                    {v === 'text' ? 'Text' : 'PDF'}
+                  </button>
+                ))}
+              </div>
+            )}
+            {original && !Viewer && (
               <a
                 href={originalHref(source.documentId, source.collectionId, page)}
                 target="_blank"
@@ -313,9 +443,28 @@ function CitationPanelBody({ titleId }: { titleId: string }) {
         )}
       </header>
 
+      {showPdf && documentMarks && (
+        <Suspense
+          fallback={
+            <div className="flex-1 p-4" aria-busy="true">
+              <Skeleton className="mx-auto aspect-[1/1.414] w-full max-w-[32rem]" />
+            </div>
+          }
+        >
+          <Viewer
+            url={originalHref(source.documentId, source.collectionId, null)}
+            title={source.documentTitle}
+            marks={documentMarks.marks}
+            activeIndex={Math.max(0, documentMarks.sourceIndices.indexOf(activeIndex))}
+            onSelect={(i) => goTo(documentMarks.sourceIndices[i] ?? activeIndex)}
+            onShowText={() => chooseView('text')}
+          />
+        </Suspense>
+      )}
+
       {/* pb-10: the last line of a document should be scrollable clear of the
           footer, not welded to it. */}
-      <div className={cn('min-h-0 flex-1 overflow-y-auto pb-10 pt-6', GUTTER)}>
+      <div hidden={showPdf} className={cn('min-h-0 flex-1 overflow-y-auto pb-10 pt-6', GUTTER)}>
         {chunksQuery.isLoading && (
           <div className="flex flex-col gap-3">
             {SKELETON_LINES.map((line) => (
@@ -425,8 +574,11 @@ function CitationPanelBody({ titleId }: { titleId: string }) {
  */
 export const CitationSidePanel = memo(function CitationSidePanel({
   containerRef,
+  originalViewer,
 }: {
   containerRef: RefObject<HTMLElement | null>;
+  /** Renders stored PDF originals in the panel; without it they open in a new tab. */
+  originalViewer?: CitationOriginalViewer;
 }) {
   const { isOpen, close } = useCitationPanel();
   const narrow = useIsNarrowerThan(containerRef, SIDE_BY_SIDE_MIN_WIDTH);
@@ -457,7 +609,7 @@ export const CitationSidePanel = memo(function CitationSidePanel({
           <SheetDescription className="sr-only">
             Der zitierte Abschnitt im Originaltext, mit dem Text davor und danach.
           </SheetDescription>
-          <CitationPanelBody titleId={titleId} />
+          <CitationPanelBody titleId={titleId} originalViewer={originalViewer} />
         </SheetContent>
       </Sheet>
     );
@@ -470,7 +622,7 @@ export const CitationSidePanel = memo(function CitationSidePanel({
          eats the measure, above 680 the line gets too long to track. */
       className="flex w-[clamp(27.5rem,42%,42.5rem)] shrink-0 flex-col border-l border-border bg-background-alt motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-right-3 motion-safe:duration-300"
     >
-      <CitationPanelBody titleId={titleId} />
+      <CitationPanelBody titleId={titleId} originalViewer={originalViewer} />
     </aside>
   );
 });
