@@ -1,9 +1,15 @@
+import {
+  collectionCardsFor,
+  marketplaceHref,
+  useMarketplaceFrontpage,
+} from '@gruenerator/shared/marketplace';
 import { SectionHeader, cn } from '@gruenerator/ui';
 import { type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { toolLink, type ToolId } from '../../../config/toolRegistry';
 import { filterWorkplaceTools } from '../../../config/workplaceToolsConfig';
+import { CollectionCards } from '../../marketplace/MarketplaceCollections';
 import { useMonitorLocaleParam } from '../../monitor/hooks/useMonitorLocaleParam';
 import { HeadlineSlider } from '../../notebook/wissen/HeadlineSlider';
 import { PollCard } from '../../notebook/wissen/PollCard';
@@ -29,8 +35,8 @@ const WIDGET_GRID = 'grid grid-cols-2 gap-3 lg:gap-4 xl:grid-cols-5';
 const WIDE_SLOT =
   'col-span-2 flex min-w-0 flex-col xl:col-span-3 xl:min-h-[20rem] xl:[&>section]:flex-1';
 
-/** The green dashboard palette (see dashboardTokens.css) for embedded widgets. */
-const BRIEFING_SURFACE = 'dashboard-surface dashboard-neutral dashboard-green';
+/** The neutral dashboard palette (see dashboardTokens.css) for embedded widgets. */
+const NEUTRAL_SURFACE = 'dashboard-surface dashboard-neutral';
 
 export function ArbeitenSection({
   title,
@@ -65,7 +71,7 @@ export function BriefingSection() {
         </Link>
       }
     >
-      <div className={cn(BRIEFING_SURFACE, WIDGET_GRID)}>
+      <div className={cn(NEUTRAL_SURFACE, WIDGET_GRID)}>
         <div className={WIDE_SLOT}>
           <HeadlineSlider
             title="Nachrichten"
@@ -82,6 +88,43 @@ export function BriefingSection() {
           <PollCard locale={locale} to={withLocale('/umfragen')} />
         </div>
       </div>
+    </ArbeitenSection>
+  );
+}
+
+export function MarketplaceSection() {
+  const page = useMarketplaceFrontpage();
+  const navigate = useNavigate();
+
+  // Without cards `CollectionCards` renders nothing; don't leave the heading standing alone.
+  if (!page.isPending && collectionCardsFor(page.data?.collections ?? []).length === 0) {
+    return null;
+  }
+
+  return (
+    <ArbeitenSection
+      title="Marktplatz"
+      action={
+        <Link to={marketplaceHref()} className={SECTION_LINK}>
+          Zum Marktplatz
+        </Link>
+      }
+    >
+      {page.isPending ? (
+        <div className={cn(NEUTRAL_SURFACE, 'grid grid-cols-1 gap-md md:grid-cols-3')}>
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="aspect-[4/3] rounded-2xl bg-(--dash-skeleton)" />
+          ))}
+        </div>
+      ) : (
+        <CollectionCards
+          title={null}
+          scroll
+          slim
+          collections={page.data?.collections ?? []}
+          onOpen={(collection) => navigate(marketplaceHref({ collection }))}
+        />
+      )}
     </ArbeitenSection>
   );
 }
