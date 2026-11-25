@@ -1,10 +1,10 @@
 import { extractSlugSuffix } from '@gruenerator/shared/utils';
-import { useParams } from 'react-router-dom';
+import { Navigate, useLocation, useParams } from 'react-router-dom';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import { useRecordItemUsage } from '../../usage/useItemUsage';
 import { getNotebookPath, getSystemNotebookConfig } from '../config/notebookPagesConfig';
-import { getNotebookByPath } from '../config/notebooksConfig';
+import { getNotebookById, getNotebookByPath } from '../config/notebooksConfig';
 
 import { DynamicNotebookPage, NotebookPageContent } from './NotebookPage';
 import { NotebookTabs } from './NotebookTabs';
@@ -13,6 +13,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 function NotebookResolverPage() {
   const { idOrSlug } = useParams<{ idOrSlug: string }>();
+  const location = useLocation();
 
   // System-notebook lookup runs synchronously off a hardcoded config — covers
   // `/notebooks/bayern`, `/notebooks/grundsatz`, etc. with zero latency.
@@ -32,6 +33,19 @@ function NotebookResolverPage() {
       <div className="flex flex-1 items-center justify-center p-md text-foreground-muted">
         <p>Kein Notebook ausgewählt.</p>
       </div>
+    );
+  }
+
+  // Projekt-Feed, „Zuletzt" und Chat führen ein System-Notebook unter seiner
+  // Registry-Id (`hessen-notebook`) — weiter auf die kanonische Seite, mit
+  // `?thread=` und Hash.
+  const registryPath = slugConfig ? null : (getNotebookById(idOrSlug)?.path ?? null);
+  if (registryPath) {
+    return (
+      <Navigate
+        to={{ pathname: registryPath, search: location.search, hash: location.hash }}
+        replace
+      />
     );
   }
 

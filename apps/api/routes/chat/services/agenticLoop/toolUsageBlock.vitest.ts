@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
 
+import {
+  INLINE_SOURCE_URL_RULE,
+  SOURCE_LINK_RULE,
+} from '../../../../agents/langgraph/ChatGraph/nodes/sourceLinkRule.js';
+
 import { materialDominatesTurn } from './materialDominance.js';
 import { buildToolUsageBlock } from './toolUsageBlock.js';
 
@@ -274,5 +279,25 @@ describe('buildToolUsageBlock — Notebook des Threads', () => {
     expect(
       buildToolUsageBlock(6, false, ['gruenerator_search', 'web_search'], false, berlin)
     ).not.toContain('notebookId:');
+  });
+});
+
+// #5615: Antwort-Mails der Bürger*innen-Agents werden aus der App kopiert, ein
+// `(quelle:N)` ist dort ein toter Link.
+describe('buildToolUsageBlock — Quellenlinks', () => {
+  const tools = ['gruenerator_search'];
+
+  it('nimmt sonst die quelle:N-Regel', () => {
+    const block = buildToolUsageBlock(6, false, tools);
+    expect(block).toContain(SOURCE_LINK_RULE);
+    expect(block).not.toContain(INLINE_SOURCE_URL_RULE);
+  });
+
+  it('nimmt bei inlineSourceLinks die URL-Regel — auch ohne Recherche', () => {
+    for (const banned of [false, true]) {
+      const block = buildToolUsageBlock(6, banned, tools, false, null, true);
+      expect(block).toContain(INLINE_SOURCE_URL_RULE);
+      expect(block).not.toContain(SOURCE_LINK_RULE);
+    }
   });
 });
