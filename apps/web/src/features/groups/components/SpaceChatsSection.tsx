@@ -52,18 +52,25 @@ export function SpaceChatsSection({
   // Bisherige Chats sind eingeklappt: oben steht der neue Chat, nicht die Liste.
   const [open, setOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
-  const {
-    data: threads = [],
-    isLoading,
-    refetch,
-  } = useQuery({
+  const { data, isPending, refetch } = useQuery({
     queryKey: ['space-chats', groupId],
     queryFn: async () => {
       const res = await getContractsClient().threads.list({ query: {} });
-      if (res.status !== 200) return [];
+      // Werfen statt `[]`: eine leere Liste würde sonst als Erfolg gecacht.
+      if (res.status !== 200) throw new Error(`threads.list ${res.status}`);
       return projectChatThreads(res.body, groupId);
     },
+    // Neue Chats entstehen in /chat, während diese Liste abgebaut ist — das
+    // Event unten hört dann niemand. Beim Zurückkommen deshalb immer neu laden
+    // (der Cache steht sofort da), statt bis zu 5 min (staleTime) Altes zu zeigen.
+    refetchOnMount: 'always',
+    // Der Fehler steht unten in der Liste, kein Toast dazu.
+    meta: { silent: true },
   });
+  const threads = data ?? [];
+  // Ohne Daten (erster Abruf läuft oder schlug fehl) gibt es keine Zahl und kein
+  // „Noch keine Chats"; ein fehlgeschlagener Hintergrund-Abruf lässt den Cache stehen.
+  const loaded = data !== undefined;
 
   // Refresh when a chat is filed into / removed from a Space (event from the
   // chat-side MoveToSpaceDialog, which has no access to this query client).
@@ -90,11 +97,24 @@ export function SpaceChatsSection({
             className={`size-4 transition-transform ${open ? 'rotate-90' : ''}`}
           />
           Bisherige Chats
-          <span className="font-normal">{threads.length}</span>
+          {loaded ? <span className="font-normal">{threads.length}</span> : null}
         </button>
         {aside}
       </div>
-      {!open ? null : threads.length === 0 ? (
+      {!open ? null : isPending ? (
+        <p className="m-0 px-sm text-[15px] text-muted-foreground">Chats werden geladen …</p>
+      ) : !loaded ? (
+        <p className="m-0 flex flex-wrap items-center gap-sm px-sm text-[15px] text-muted-foreground">
+          Die Chats konnten nicht geladen werden.
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            className="cursor-pointer rounded-md border-none bg-transparent p-0 font-[inherit] text-[15px] text-foreground underline"
+          >
+            Erneut versuchen
+          </button>
+        </p>
+      ) : threads.length === 0 ? (
         <p className="m-0 px-sm text-[15px] text-muted-foreground">
           Noch keine Chats. Starte oben den ersten.
         </p>
