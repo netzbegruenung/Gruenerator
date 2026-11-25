@@ -32,6 +32,7 @@ const TRASH_KIND = {
   media: 'shared_media',
   canvas: 'collaborative_document',
   video: 'subtitler_project',
+  videoProject: 'collaborative_document',
 } as const satisfies Record<MediathekItem['kind'], TrashKind>;
 
 /** The card and dialog components speak `MediaItem`; the wire is a little wider. */
@@ -105,6 +106,9 @@ export function useMediathek(filters: { typ: MediathekFilter; search: string; so
           if (!(await mediaApi.deleteMedia(entry.id)).success) return false;
         } else if (entry.kind === 'canvas') {
           const res = await getContractsClient().canvas.remove({ params: { id: entry.id } });
+          if (res.status !== 200) return false;
+        } else if (entry.kind === 'videoProject') {
+          const res = await getContractsClient().videoProjects.delete({ params: { id: entry.id } });
           if (res.status !== 200) return false;
         } else {
           await apiClient.delete(entry.deleteEndpoint.replace(/^\/api/, ''));

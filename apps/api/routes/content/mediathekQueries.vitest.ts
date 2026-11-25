@@ -42,6 +42,7 @@ function respond(page: Array<{ kind: string; id: string }>, rows: Record<string,
     }
     if (sql.includes('FROM shared_media')) return Promise.resolve(rows.media ?? []);
     if (sql.includes('FROM subtitler_projects')) return Promise.resolve(rows.video ?? []);
+    if (sql.includes('INNER JOIN video_projects')) return Promise.resolve(rows.videoProject ?? []);
     if (sql.includes('FROM collaborative_documents')) return Promise.resolve(rows.canvas ?? []);
     return Promise.resolve([]);
   });
@@ -149,7 +150,58 @@ describe('listMediathek', () => {
     await listMediathek('u1', { search: 'Klima' });
 
     const [sql, params] = query.mock.calls[0]!;
-    expect(sql).toMatch(/filtered AS \([\s\S]*title ILIKE \$3[\s\S]*COUNT\(\*\) FROM filtered/);
-    expect(params[2]).toBe('%Klima%');
+    expect(sql).toMatch(/filtered AS \([\s\S]*title ILIKE \$4[\s\S]*COUNT\(\*\) FROM filtered/);
+    expect(params[3]).toBe('%Klima%');
+  });
+
+  it('leaves uploaded videos out — the Video-Editor project stands for them', async () => {
+    respond([], {});
+
+    await listMediathek('u1', {});
+
+    expect(pageSql()).toContain(
+      `NOT (media_type = 'video' AND (content_origin = 'upload' OR upload_source = 'upload'))`
+    );
+  });
+
+  it('lists edited Video-Editor projects as videos', async () => {
+    respond([], {});
+
+    await listMediathek('u1', { typ: 'video' });
+
+    const sql = pageSql();
+    expect(sql).toContain(`SELECT 'videoProject'`);
+    expect(sql).toContain('yjs_document_updates');
+    expect(query.mock.calls[0]![1]).toContain('video');
+  });
+
+  it.each([
+    ['a video clip with a poster', 'video', true, '/api/share/tok/thumbnail'],
+    ['a video clip without a poster yet', 'video', false, null],
+    ['an image', 'image', false, '/api/share/tok/preview?w=400'],
+    ['no Mediathek media', null, null, null],
+  ] as const)('shows %s as the project tile', async (_label, mediaType, hasThumb, url) => {
+    respond([{ kind: 'videoProject', id: 'v1' }], {
+      videoProject: [
+        {
+          id: 'v1',
+          title: 'Wahlkampf-Reel',
+          updated_at: new Date('2026-11-20T10:00:00Z'),
+          slug_suffix: 'abc123',
+          poster_token: mediaType ? 'tok' : null,
+          poster_media_type: mediaType,
+          poster_has_thumbnail: hasThumb,
+        },
+      ],
+    });
+
+    const result = await listMediathek('u1', {});
+
+    expect(result.items[0]).toMatchObject({
+      kind: 'videoProject',
+      id: 'v1',
+      href: expect.stringMatching(/^\/studio\/videoeditor\/.*abc123$/),
+      thumbnailUrl: url,
+    });
   });
 });
