@@ -1,18 +1,28 @@
-import { EditPage, SiteMediaPicker, SitesOverviewPage } from '@gruenerator/sites';
-import { Navigate, useParams } from 'react-router-dom';
+import { CreateSitePage, EditPage, SiteMediaPicker, SitesOverviewPage } from '@gruenerator/sites';
+import { Navigate, useLocation, useParams } from 'react-router-dom';
+
+import { useHostAwareBack } from '../../hooks/useHostAwareBack';
 
 import { SitesProviderWeb } from './SitesProviderWeb';
 
 /**
- * `/sites` is the overview and creates sites, `/sites/<handle>` edits one. `/sites/neu` was the
- * separate create page; old links land on the overview.
+ * `/sites` is the overview, `/sites/erstellen` creates a site, `/sites/<handle>` edits one.
+ * `/sites/neu` was the create path until 11/2026; old links land on the create page.
  */
 export function SitesEditPage() {
+  const back = useHostAwareBack('/');
   const { handle } = useParams<{ handle: string }>();
-  if (handle === 'neu') return <Navigate to="/sites" replace />;
+  const state: unknown = useLocation().state;
+  if (handle === 'neu') return <Navigate to="/sites/erstellen" replace state={state} />;
   return (
     <SitesProviderWeb>
-      {!handle ? <SitesOverviewPage /> : <EditPage handle={handle} />}
+      {!handle ? (
+        <SitesOverviewPage />
+      ) : handle === 'erstellen' ? (
+        <CreateSitePage onBack={back} />
+      ) : (
+        <EditPage handle={handle} />
+      )}
       <SiteMediaPicker />
     </SitesProviderWeb>
   );
