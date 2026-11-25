@@ -2,6 +2,10 @@ import { act, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { axe } from 'vitest-axe';
 
+vi.mock('../../SitesContext', () => ({
+  useAuth: () => ({ user: { id: 'u1', locale: 'de-DE' } }),
+}));
+
 // The tab contents have their own tests; here they only need to be recognisable.
 vi.mock('../../components/editor/legal/LegalPanel', () => ({
   LegalPanel: () => <p>Impressum-Formular</p>,
