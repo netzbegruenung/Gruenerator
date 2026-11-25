@@ -70,7 +70,7 @@ async function pickDriveFiles() {
 }
 
 /**
- * „Wolke & Drive" (experimentell, #5945): Quellen, deren Dateien als
+ * „Cloud" (früher „Wolke & Drive", experimentell, #5945): Quellen, deren Dateien als
  * Projektwissen eingelesen und stündlich abgeglichen werden — ein
  * Nextcloud-Ordner oder im Google Picker gewählte Drive-Dateien. Die Dateien
  * selbst stehen im „Wissen"; hier steht, welche Quellen dahinter hängen.
@@ -170,7 +170,7 @@ export function ProjectCloudSourcesCard({
             id="projekt-ablagen-titel"
             className="m-0 shrink-0 whitespace-nowrap text-[15px] font-semibold"
           >
-            Wolke & Drive
+            Cloud
           </h2>
           <Badge variant="outline">Experimentell</Badge>
           <span className="flex-1" />

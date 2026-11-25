@@ -35,6 +35,8 @@ interface ProjectAddMenuProps {
   onFileAdded: (count: number) => void;
   onTextAdded: () => void;
   onError: (message: string) => void;
+  /** Runder Icon-Knopf statt „Hinzufügen“ — für Kartenköpfe wie „Wissen“. */
+  compact?: boolean;
 }
 
 const NEW_ICON: Record<NewInProjectKind, IconType> = {
@@ -56,6 +58,7 @@ export function ProjectAddMenu({
   onFileAdded,
   onTextAdded,
   onError,
+  compact = false,
 }: ProjectAddMenuProps) {
   const fileRef = useRef<ProjectFileUploadHandle>(null);
   const [textOpen, setTextOpen] = useState(false);
@@ -79,21 +82,33 @@ export function ProjectAddMenu({
   // „Fokus außerhalb“, und das Suchfeld bekam keinen Fokus. Deshalb öffnet er erst, wenn
   // das Menü ganz zu ist (`onCloseAutoFocus`), und der Fokus geht nicht an den Knopf zurück.
   const pickAfterClose = useRef(false);
+  const busyLabel = uploading ? 'Wird hochgeladen …' : creating ? 'Wird angelegt …' : null;
 
   return (
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button
-            variant="brand"
-            disabled={uploading || creating}
-            className="max-sm:size-9 max-sm:rounded-full max-sm:p-0"
-          >
-            <PiPlus aria-hidden />
-            <span className="max-sm:sr-only">
-              {uploading ? 'Wird hochgeladen …' : creating ? 'Wird angelegt …' : 'Hinzufügen'}
-            </span>
-          </Button>
+          {compact ? (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="rounded-full"
+              disabled={uploading || creating}
+              aria-label={busyLabel ?? 'Zum Projekt hinzufügen'}
+              title={busyLabel ?? 'Hinzufügen'}
+            >
+              <PiPlus aria-hidden />
+            </Button>
+          ) : (
+            <Button
+              variant="brand"
+              disabled={uploading || creating}
+              className="max-sm:size-9 max-sm:rounded-full max-sm:p-0"
+            >
+              <PiPlus aria-hidden />
+              <span className="max-sm:sr-only">{busyLabel ?? 'Hinzufügen'}</span>
+            </Button>
+          )}
         </DropdownMenuTrigger>
         <DropdownMenuContent
           align="end"

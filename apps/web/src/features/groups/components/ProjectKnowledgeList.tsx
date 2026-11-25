@@ -36,6 +36,8 @@ interface ProjectKnowledgeListProps {
   actions: ShareActions | null;
   /** null: no Austausch here (nobody else in the project). */
   onDiscuss: ((item: GroupFeedItem) => void) | null;
+  /** Hinzufügen-Knopf neben der Lupe; fehlt, wenn der Viewer hier nichts hinzufügt. */
+  addMenu?: ReactNode;
 }
 
 const rowCls =
@@ -53,6 +55,7 @@ export function ProjectKnowledgeList({
   onUseTemplate,
   actions,
   onDiscuss,
+  addMenu,
 }: ProjectKnowledgeListProps) {
   const [query, setQuery] = useState('');
   // Suche über die Lupe im Kopf, nicht als stehendes Feld.
@@ -73,22 +76,25 @@ export function ProjectKnowledgeList({
         <h2 id="projekt-wissen-titel" className="m-0 text-[17px] font-semibold">
           Wissen
         </h2>
-        {items.length > 0 && (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="-mr-1 rounded-full"
-            aria-label={searchOpen ? 'Suche im Wissen schließen' : 'Im Wissen suchen'}
-            aria-expanded={searchOpen}
-            title={searchOpen ? 'Suche schließen' : 'Im Wissen suchen'}
-            onClick={() => {
-              if (searchOpen) setQuery('');
-              setSearchOpen((v) => !v);
-            }}
-          >
-            {searchOpen ? <PiX aria-hidden /> : <PiMagnifyingGlass aria-hidden />}
-          </Button>
-        )}
+        <div className="-mr-1 flex items-center gap-1">
+          {addMenu}
+          {items.length > 0 && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="rounded-full"
+              aria-label={searchOpen ? 'Suche im Wissen schließen' : 'Im Wissen suchen'}
+              aria-expanded={searchOpen}
+              title={searchOpen ? 'Suche schließen' : 'Im Wissen suchen'}
+              onClick={() => {
+                if (searchOpen) setQuery('');
+                setSearchOpen((v) => !v);
+              }}
+            >
+              {searchOpen ? <PiX aria-hidden /> : <PiMagnifyingGlass aria-hidden />}
+            </Button>
+          )}
+        </div>
       </div>
 
       {total > 0 && (

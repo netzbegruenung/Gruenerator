@@ -80,9 +80,9 @@ import { ProjectCloudSourcesCard } from './ProjectCloudSourcesCard';
 import { ProjectInstructionsCard } from './ProjectInstructionsCard';
 import { ProjectKnowledgeList } from './ProjectKnowledgeList';
 import { ProjectLandesverbandSelect } from './ProjectLandesverbandSelect';
-import { ProjectRecipesExclusiveSwitch } from './ProjectRecipesExclusiveSwitch';
 import { ProjectMembersCard } from './ProjectMembersCard';
 import { ProjectRecipesCard } from './ProjectRecipesCard';
+import { ProjectRecipesExclusiveSwitch } from './ProjectRecipesExclusiveSwitch';
 import { ProjectTasksCard } from './ProjectTasksCard';
 import { type ShareActions } from './shareActions';
 import { ShareNoteDialog } from './ShareNoteDialog';
@@ -301,9 +301,10 @@ const GroupInfoSection = memo(
       [cloneTemplate, navigate]
     );
     // „Vorhandenes hinzufügen“: am Hinzufügen-Knopf verankert (teilt sofort), aus dem
-    // Feed-Composer als Dialog (wählt nur aus; der Composer teilt beim Posten).
+    // „+“ im Wissen als Dialog (teilt sofort), aus dem Feed-Composer ebenfalls als Dialog
+    // (wählt nur aus; der Composer teilt beim Posten).
     // Auf dem Handy kommen beide als Sheet von unten.
-    const [picker, setPicker] = useState<'menu' | 'composer' | null>(null);
+    const [picker, setPicker] = useState<'menu' | 'dialog' | 'composer' | null>(null);
     const isMobile = useIsMobile();
     // Wohin die Auswahl aus dem Composer-Dialog zurückgeht.
     const composerPick = useRef<((items: PickerItem[]) => void) | null>(null);
@@ -409,6 +410,21 @@ const GroupInfoSection = memo(
       },
       [refetchSharedContent]
     );
+
+    // Dieselben Einträge stehen am Kopf-Knopf und als „+“ im Wissen.
+    const addMenuProps = {
+      groupId,
+      ...(data?.isAdmin && onAddLink && { onAddLink: () => setLinkOpen(true) }),
+      onFileAdded: (count: number) => {
+        refetchSharedContent?.();
+        onSuccessMessage?.(count === 1 ? 'Datei hinzugefügt.' : `${count} Dateien hinzugefügt.`);
+      },
+      onTextAdded: () => {
+        refetchSharedContent?.();
+        onSuccessMessage?.('Text hinzugefügt.');
+      },
+      onError: (message: string) => onErrorMessage?.(message),
+    };
 
     const pickerContent = (
       <AddExistingPicker
@@ -680,22 +696,7 @@ const GroupInfoSection = memo(
                         <span className="max-sm:sr-only">Hinzufügen</span>
                       </Button>
                     ) : (
-                      <ProjectAddMenu
-                        groupId={groupId}
-                        onPickExisting={() => setPicker('menu')}
-                        {...(data?.isAdmin && onAddLink && { onAddLink: () => setLinkOpen(true) })}
-                        onFileAdded={(count) => {
-                          refetchSharedContent?.();
-                          onSuccessMessage?.(
-                            count === 1 ? 'Datei hinzugefügt.' : `${count} Dateien hinzugefügt.`
-                          );
-                        }}
-                        onTextAdded={() => {
-                          refetchSharedContent?.();
-                          onSuccessMessage?.('Text hinzugefügt.');
-                        }}
-                        onError={(message) => onErrorMessage?.(message)}
-                      />
+                      <ProjectAddMenu {...addMenuProps} onPickExisting={() => setPicker('menu')} />
                     )}
                   </div>
                 </PopoverAnchor>
@@ -899,6 +900,16 @@ const GroupInfoSection = memo(
                 onUseTemplate={handleCloneTemplate}
                 actions={shareActions}
                 onDiscuss={onDiscuss}
+                addMenu={
+                  canShare && !isSystem ? (
+                    <ProjectAddMenu
+                      {...addMenuProps}
+                      compact
+                      // Kein Anker am Kopf-Knopf hier: der Picker kommt als Dialog.
+                      onPickExisting={() => setPicker('dialog')}
+                    />
+                  ) : null
+                }
               />
               {!isSystem && (
                 <ProjectCloudSourcesCard
@@ -929,7 +940,7 @@ const GroupInfoSection = memo(
         />
 
         <Dialog
-          open={picker === 'composer' && !isMobile}
+          open={(picker === 'composer' || picker === 'dialog') && !isMobile}
           onOpenChange={(open) => !open && setPicker(null)}
         >
           <DialogContent
