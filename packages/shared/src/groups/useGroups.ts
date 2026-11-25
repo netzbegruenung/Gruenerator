@@ -160,6 +160,8 @@ export const useUpdateGroupInfo = (groupId: string) => {
       description?: string | null;
       settings?: Record<string, unknown>;
       landesverband?: LandesverbandId | null;
+      /** „Nur Projekt-Rezepte verwenden". */
+      recipesExclusive?: boolean;
       /** `null` clears the colour. */
       color?: GroupColor | null;
     }) => {

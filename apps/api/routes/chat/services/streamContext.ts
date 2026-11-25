@@ -44,7 +44,7 @@ import {
   type ProjectCollabDoc,
 } from '../../../services/groups/projectCollabDocs.js';
 import { getProjectFileDocumentIds } from '../../../services/groups/projectFiles.js';
-import { readThreadProjectLandesverband } from '../../../services/groups/projectLandesverband.js';
+import { readThreadProjectRecipeSettings } from '../../../services/groups/projectLandesverband.js';
 import { getProjectNotebookIds } from '../../../services/groups/projectNotebooks.js';
 import { getProjectRecipeIds } from '../../../services/groups/projectRecipes.js';
 import { getThreadProjectId } from '../../../services/groups/projectRunContext.js';
@@ -1252,17 +1252,20 @@ async function buildStreamContextInner({
     : null;
 
   // Ausdrücklicher Landesverband des Projekts — schlägt die aktive Rolle im
-  // LV-Rezept-Vorzug. Ein Ausfall heißt: Rolle entscheidet wie bisher.
-  const projectLandesverband = actualThreadId
+  // LV-Rezept-Vorzug — und der Schalter „Nur Projekt-Rezepte verwenden". Ein
+  // Ausfall heißt: Rolle entscheidet wie bisher, der Katalog bleibt offen.
+  const projectRecipeSettings = actualThreadId
     ? await withTimeout(
-        readThreadProjectLandesverband(actualThreadId, userId),
+        readThreadProjectRecipeSettings(actualThreadId, userId),
         EXTERNAL_CONTEXT_TIMEOUT_MS,
-        'project landesverband'
+        'project recipe settings'
       ).catch((err: unknown) => {
-        log.warn('[StreamContext] Could not load project landesverband (continuing):', err);
+        log.warn('[StreamContext] Could not load project recipe settings (continuing):', err);
         return null;
       })
     : null;
+  const projectLandesverband = projectRecipeSettings?.landesverband ?? null;
+  const projectRecipesExclusive = projectRecipeSettings?.recipesExclusive === true;
 
   // Rezepte des Projekts — der Katalog listet sie als eigenen Block. Ein
   // Projekt mit Landesverband bringt dessen Rezepte von selbst mit, ohne dass
@@ -1453,6 +1456,7 @@ async function buildStreamContextInner({
     project: projectId ? { id: projectId, documentIds: projectFileDocumentIds } : null,
     ...(projectRecipeIds.length > 0 && { projectRecipeIds }),
     ...(projectLandesverband && { projectLandesverband }),
+    ...(projectRecipesExclusive && { projectRecipesExclusive }),
     contextWindowTokens,
   });
 

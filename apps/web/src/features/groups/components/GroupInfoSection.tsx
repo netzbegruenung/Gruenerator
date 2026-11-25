@@ -80,6 +80,7 @@ import { ProjectCloudSourcesCard } from './ProjectCloudSourcesCard';
 import { ProjectInstructionsCard } from './ProjectInstructionsCard';
 import { ProjectKnowledgeList } from './ProjectKnowledgeList';
 import { ProjectLandesverbandSelect } from './ProjectLandesverbandSelect';
+import { ProjectRecipesExclusiveSwitch } from './ProjectRecipesExclusiveSwitch';
 import { ProjectMembersCard } from './ProjectMembersCard';
 import { ProjectRecipesCard } from './ProjectRecipesCard';
 import { ProjectTasksCard } from './ProjectTasksCard';
@@ -98,6 +99,7 @@ export interface GroupInfo {
   group_type?: 'standard' | 'personal';
   is_system?: boolean;
   landesverband?: LandesverbandId | null | undefined;
+  recipes_exclusive?: boolean | null | undefined;
   archived_at?: string | null;
   color?: string | null;
 }
@@ -563,6 +565,14 @@ const GroupInfoSection = memo(
                   {...(onSuccessMessage && { onSuccessMessage })}
                   {...(onErrorMessage && { onErrorMessage })}
                 />
+                {!isSystem && (
+                  <ProjectRecipesExclusiveSwitch
+                    groupId={groupId}
+                    checked={data?.groupInfo?.recipes_exclusive === true}
+                    {...(onSuccessMessage && { onSuccessMessage })}
+                    {...(onErrorMessage && { onErrorMessage })}
+                  />
+                )}
                 {!isSystem && (
                   <div className="flex flex-col gap-xs">
                     <span className="text-xs font-medium text-grey-600 dark:text-grey-300">
