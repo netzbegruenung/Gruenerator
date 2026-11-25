@@ -119,9 +119,9 @@ Mit der Abkürzung schreibt der Chat den Antrag bzw. sucht für diese Anfrage nu
 
 ## Im Projekt
 
-Arbeitet ihr als Team für einen Landesverband, stell in den Einstellungen des Projekts den Landesverband ein (das dürfen Projekt-Admins). Dann gilt in allen Chats des Projekts: Die Rezepte des Landesverbands stehen als Projekt-Rezepte bereit, die Pressemitteilung kommt im Stil dieses Verbands, und die Wissensdatenbank des Landesverbands wird ohne `@` durchsucht — für alle Mitglieder, auch ohne die Rolle der Landesgeschäftsstelle.
+Arbeitet ihr als Team für einen Landesverband, öffnet als Projekt-Admin **Projektoptionen → Bearbeiten** und wählt den **Landesverband**. Dann gilt in allen Chats des Projekts: Die Rezepte des Landesverbands stehen als Projekt-Rezepte bereit, die Pressemitteilung kommt im Stil dieses Verbands, und die Wissensdatenbank des Landesverbands wird ohne `@` durchsucht — für alle Mitglieder, auch ohne die Rolle der Landesgeschäftsstelle.
 
-Einzelne Rezepte — auch allgemeine wie `@wahlpruefstein` — legst du im Projekt über **Hinzufügen → Vorhandenes hinzufügen** dazu. Die Rezepte des Landesverbands stehen auf der Projektseite unter **Rezepte**.
+Einzelne Rezepte — auch allgemeine wie `@wahlpruefstein` — legst du im Projekt über **Hinzufügen → Vorhandenes hinzufügen** dazu. Die Rezepte des Landesverbands stehen auf der Projektseite unter **Rezepte**. So nutzt du sie [im Projektchat](../chat/im-projekt-chatten.mdx).
 
 ## Die Wissensdatenbank dahinter
 
