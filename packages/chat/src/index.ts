@@ -257,6 +257,7 @@ export { AssistantMessage } from './components/thread/AssistantMessage';
 export { AnswerModeChip } from './components/message-parts/AnswerModeChip';
 export { WelcomeScreen } from './components/thread/WelcomeScreen';
 export { RecipeStarters } from './components/thread/RecipeStarters';
+export { useRecipeMentionRequest, type RecipeLink } from './hooks/useRecipeMentionRequest';
 export {
   GrueneratorThreadListItem,
   GrueneratorArchivedThreadListItem,

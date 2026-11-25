@@ -1,26 +1,54 @@
 /**
- * Der Deeplink `/chat?rezept=…` muss das Rezept auch dann noch tragen, wenn
- * `AgentSwitchListener` einen Commit später `resetThreadContext()` ruft — das
- * ist genau der Fall, in dem ein Systemrezept (`?rezept=presse`) seinen Stil
- * bisher verlor. Deshalb wird hier gegen den echten Store geprüft: setzen,
- * abräumen lassen, und darauf bestehen, dass der Hook nachträgt.
+ * Der Deeplink `/chat?rezept=…` öffnet den leeren Chat mit dem Rezept als
+ * @-Chip. Hier geprüft: die Ansicht wechselt erst auf `overview`, bevor der Chip
+ * angefragt wird (sonst ginge er an den Composer eines Threads, der gleich
+ * verschwindet), und der Parameter fällt danach aus der URL. Die Anfrage selbst
+ * (`useRecipeMentionRequest`) ist in `packages/chat` getestet.
  */
 import { useAgentStore } from '@gruenerator/chat';
-import { act, renderHook } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { act } from '@testing-library/react';
+import { useLocation } from 'react-router-dom';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { readRecipeDeepLink, useRecipeDeepLink } from './useRecipeDeepLink';
 
-beforeEach(() => {
-  useAgentStore.getState().setActiveSkillMention(null, null);
+import { renderWithProviders, screen } from '@/test-utils';
+
+const requested = vi.hoisted(() => [] as Array<{ mention: string; recipeId: string | null }>);
+
+vi.mock('@gruenerator/chat', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return {
+    ...actual,
+    useRecipeMentionRequest: (
+      link: { mention: string; recipeId: string | null } | null,
+      onHandled: () => void
+    ) => {
+      if (link && !requested.some((r) => r.mention === link.mention)) {
+        requested.push(link);
+        queueMicrotask(onHandled);
+      }
+    },
+  };
 });
 
-describe('useRecipeDeepLink', () => {
-  it('activates the recipe for the legacy ?skill= link', () => {
-    const { mention, recipeId } = readRecipeDeepLink(new URLSearchParams('skill=presse-bayern'));
-    renderHook(() => useRecipeDeepLink(mention, recipeId));
+function Probe({ enabled = true }: { enabled?: boolean }) {
+  useRecipeDeepLink(enabled);
+  const location = useLocation();
+  return <output>{location.search}</output>;
+}
 
-    expect(useAgentStore.getState().activeSkillMention).toBe('presse-bayern');
+beforeEach(() => {
+  requested.length = 0;
+  useAgentStore.getState().setChatViewMode('overview');
+});
+
+describe('readRecipeDeepLink', () => {
+  it('reads the legacy ?skill= link', () => {
+    expect(readRecipeDeepLink(new URLSearchParams('skill=presse-bayern'))).toEqual({
+      mention: 'presse-bayern',
+      recipeId: null,
+    });
   });
 
   it('prefers ?rezept= when both parameters are present', () => {
@@ -29,60 +57,36 @@ describe('useRecipeDeepLink', () => {
       recipeId: 'row-1',
     });
   });
+});
 
-  it('trägt Erwähnung und Zeilen-ID in den Store', () => {
-    renderHook(() => useRecipeDeepLink('mein-rezept', 'row-1'));
+describe('useRecipeDeepLink', () => {
+  it('requests the chip and drops the recipe parameters from the URL', async () => {
+    renderWithProviders(<Probe />, { route: '/chat?rezept=presse&projekt=p1' });
 
-    expect(useAgentStore.getState().activeSkillMention).toBe('mein-rezept');
-    expect(useAgentStore.getState().activeRecipeId).toBe('row-1');
+    await act(async () => {});
+
+    expect(requested).toEqual([{ mention: 'presse', recipeId: null }]);
+    expect(screen.getByRole('status')).toHaveTextContent('?projekt=p1');
   });
 
-  it('trägt das Rezept nach, wenn resetThreadContext es abräumt', () => {
-    renderHook(() => useRecipeDeepLink('presse', null));
-    expect(useAgentStore.getState().activeSkillMention).toBe('presse');
+  it('switches a thread view to the empty chat before requesting', async () => {
+    useAgentStore.getState().setChatViewMode('thread');
 
-    act(() => {
-      useAgentStore.getState().resetThreadContext();
-    });
+    renderWithProviders(<Probe />, { route: '/chat?rezept=mein-rezept&rezeptId=row-1' });
+    await act(async () => {});
 
-    expect(useAgentStore.getState().activeSkillMention).toBe('presse');
-    expect(useAgentStore.getState().activeRecipeId).toBeNull();
+    expect(useAgentStore.getState().chatViewMode).toBe('overview');
+    expect(requested).toEqual([{ mention: 'mein-rezept', recipeId: 'row-1' }]);
   });
 
-  it('überschreibt eine selbst gewählte andere Erwähnung nicht', () => {
-    renderHook(() => useRecipeDeepLink('presse', null));
-    expect(useAgentStore.getState().activeSkillMention).toBe('presse');
+  it('does nothing while disabled (Landesverband hub slug)', async () => {
+    useAgentStore.getState().setChatViewMode('thread');
 
-    act(() => {
-      useAgentStore.getState().setActiveSkillMention('antrag', null);
-    });
+    renderWithProviders(<Probe enabled={false} />, { route: '/chat?rezept=presse' });
+    await act(async () => {});
 
-    // Der Deeplink steht weiter in der URL — trotzdem gehört die Wahl der
-    // Person, nicht dem Parameter.
-    expect(useAgentStore.getState().activeSkillMention).toBe('antrag');
-  });
-
-  it('trägt sich auch nach einem Entfernen von Hand wieder ein (dokumentierte Unschärfe)', () => {
-    // `removePillMention` setzt denselben `null`-Wert wie
-    // `resetThreadContext()`; der Store trägt keine Herkunft. Der Hook
-    // entscheidet sich für das Nachtragen — hier festgehalten, damit die
-    // Entscheidung nicht unbemerkt kippt.
-    renderHook(() => useRecipeDeepLink('presse', null));
-
-    act(() => {
-      useAgentStore.getState().setActiveSkillMention(null, null);
-    });
-
-    expect(useAgentStore.getState().activeSkillMention).toBe('presse');
-  });
-
-  it('rührt den Store ohne Parameter nicht an', () => {
-    act(() => {
-      useAgentStore.getState().setActiveSkillMention('handgetippt', null);
-    });
-
-    renderHook(() => useRecipeDeepLink(null, null));
-
-    expect(useAgentStore.getState().activeSkillMention).toBe('handgetippt');
+    expect(requested).toEqual([]);
+    expect(useAgentStore.getState().chatViewMode).toBe('thread');
+    expect(screen.getByRole('status')).toHaveTextContent('?rezept=presse');
   });
 });
