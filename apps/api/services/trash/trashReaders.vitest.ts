@@ -85,6 +85,18 @@ const ALLOWLIST: readonly AllowEntry[] = [
     'SELECT 1 FROM user_sites WHERE id = $1 LIMIT 1',
   ],
   [
+    'apps/api/services/sites/userSiteTrash.ts',
+    'user_sites',
+    'account deletion: a trashed site of the leaver is handed over or purged like a live one',
+    'INNER JOIN user_sites us ON us.id = sm.site_id',
+  ],
+  [
+    'apps/api/services/sites/userSiteTrash.ts',
+    'user_sites',
+    'account deletion: a trashed site the leaver created is handed over or purged too',
+    'SELECT id FROM user_sites WHERE user_id = $1 AND group_id IS NULL',
+  ],
+  [
     'apps/api/services/docs/CollaborativeDocumentService.ts',
     'chat_threads',
     'purge: a purged document takes its chat thread along, trashed or not',

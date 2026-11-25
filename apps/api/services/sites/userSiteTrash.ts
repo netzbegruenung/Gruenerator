@@ -7,6 +7,7 @@
  */
 import { SITES_PER_ACCOUNT_MAX } from '@gruenerator/contracts';
 import { sql } from 'drizzle-orm';
+import { type PoolClient } from 'pg';
 
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
@@ -18,7 +19,9 @@ import {
   type OwnedRestoreResult,
   type OwnedTrashResult,
   type OwnedTrashTable,
+  type Trashed,
 } from '../trash/ownedRowTrash.js';
+import { type TrashCursor, trashKeysetWhere, trashOrderBy } from '../trash/trashCursor.js';
 
 import { requireSiteRole } from './siteAccess.js';
 import { siteRoom } from './siteDraftDoc.js';
@@ -60,24 +63,66 @@ interface TrashedSiteAccess {
 }
 
 /**
- * Who may restore: the same admin rule as `requireSiteRole`, but read on the trashed row
- * (that query filters `deleted_at IS NULL`). Admin is a `site_members` admin or an admin of the
- * live, non-archived project the site belongs to; `moderation = 'removed'` caps it, as there.
+ * Who may restore, and so who sees the trashed site in the Papierkorb: the same admin rule as
+ * `requireSiteRole`, but read on the trashed row (that query filters `deleted_at IS NULL`).
+ * Admin is a `site_members` admin or an admin of the live, non-archived project the site belongs
+ * to; `moderation = 'removed'` caps it, as there. One expression for restore, list and get —
+ * `site` is the `user_sites` alias, `user` the placeholder holding the person's id.
  */
-const TRASHED_SITE_ACCESS_SQL = `
-SELECT us.user_id, us.group_id,
-       us.moderation <> 'removed' AND (
+const siteAdminExpr = (site: string, user: string) => `
+       ${site}.moderation <> 'removed' AND (
          EXISTS (SELECT 1 FROM site_members sm
-                  WHERE sm.site_id = us.id AND sm.user_id = $2 AND sm.role = 'admin')
+                  WHERE sm.site_id = ${site}.id AND sm.user_id = ${user} AND sm.role = 'admin')
          OR EXISTS (SELECT 1 FROM group_memberships gm
                      INNER JOIN groups g ON g.id = gm.group_id
-                      WHERE gm.group_id = us.group_id AND gm.user_id = $2
+                      WHERE gm.group_id = ${site}.group_id AND gm.user_id = ${user}
                         AND gm.is_active = TRUE AND gm.role = 'admin'
                         AND g.deleted_at IS NULL AND g.is_system = FALSE
                         AND g.archived_at IS NULL)
-       ) AS is_admin
+       )`;
+
+const TRASHED_SITE_ACCESS_SQL = `
+SELECT us.user_id, us.group_id,
+${siteAdminExpr('us', '$2')} AS is_admin
   FROM user_sites us
  WHERE us.id = $1 AND us.deleted_at IS NOT NULL`;
+
+type TrashedSiteRow = Trashed<{ title: string }>;
+
+/** Papierkorb list: every trashed site the person could restore, not only the ones they made. */
+export function listTrashedUserSites(
+  userId: string,
+  opts: { limit: number; before: TrashCursor | null }
+): Promise<TrashedSiteRow[]> {
+  const params: unknown[] = [userId];
+  const keyset = trashKeysetWhere('us.deleted_at', 'us.id', opts.before, params);
+  params.push(opts.limit);
+  return getPostgresInstance().query<TrashedSiteRow>(
+    `SELECT us.id, us.site_title AS title, us.deleted_at FROM user_sites us
+     WHERE us.deleted_at IS NOT NULL AND ${siteAdminExpr('us', '$1')} AND ${keyset}
+     ORDER BY ${trashOrderBy('us.deleted_at', 'us.id')}
+     LIMIT $${params.length}`,
+    params
+  );
+}
+
+/** One trashed site for an admin of it; `forbidden` for anyone else. */
+export async function getTrashedUserSite(
+  userId: string,
+  id: string
+): Promise<TrashedSiteRow | 'not_found' | 'forbidden'> {
+  if (!isRowId(id)) return 'not_found';
+  const rows = await getPostgresInstance().query<TrashedSiteRow & { is_admin: boolean }>(
+    `SELECT us.id, us.site_title AS title, us.deleted_at,
+${siteAdminExpr('us', '$2')} AS is_admin
+       FROM user_sites us
+      WHERE us.id = $1 AND us.deleted_at IS NOT NULL`,
+    [id, userId]
+  );
+  if (rows.length === 0) return 'not_found';
+  const { is_admin, ...row } = rows[0];
+  return is_admin ? row : 'forbidden';
+}
 
 /**
  * Undo a trash (admin only). The quota is the creator's personal one, or the project's for a
@@ -130,15 +175,93 @@ export async function restoreUserSite(actorId: string, id: string): Promise<Owne
   }
 }
 
+type SiteQuery = (text: string, params: unknown[]) => Promise<unknown>;
+
+/** What lives beside a site row: its Yjs draft and its shares into projects (no FK to either). */
+async function removeSiteSideStores(query: SiteQuery, id: string): Promise<void> {
+  await query('DELETE FROM yjs_document_updates WHERE document_id = $1', [id]);
+  await query('DELETE FROM yjs_document_snapshots WHERE document_id = $1', [id]);
+  await query(
+    "DELETE FROM group_content_shares WHERE content_type = 'user_sites' AND content_id = $1",
+    [id]
+  );
+}
+
 /**
- * Hard-delete a trashed Website and its draft (the Yjs rows of room `site-<id>`, keyed by
- * the bare id). Trash and restore leave those rows alone, so a restored site keeps its draft.
+ * Hard-delete a trashed Website, its draft (the Yjs rows of room `site-<id>`, keyed by
+ * the bare id) and its project shares. Trash and restore leave those rows alone, so a restored
+ * site keeps its draft.
  */
 export async function purgeUserSite(id: string, cutoff: Date | null): Promise<boolean> {
   if ((await deleteTrashedRow(USER_SITE_TRASH, id, cutoff)) === null) return false;
   await closeSiteRooms([id]);
   const db = getPostgresInstance();
-  await db.query('DELETE FROM yjs_document_updates WHERE document_id = $1', [id]);
-  await db.query('DELETE FROM yjs_document_snapshots WHERE document_id = $1', [id]);
+  await removeSiteSideStores((text, params) => db.query(text, params), id);
   return true;
+}
+
+/**
+ * Account deletion, run before the profile row goes (`user_sites.user_id` cascades from it, so
+ * a site must be handed over first). Personal sites: where the person is the only admin, the
+ * longest-standing other member becomes admin, and with nobody left the site is purged; one they
+ * created that lives on passes `user_id` to the oldest admin. Project sites live on with
+ * `user_id = NULL`. Trashed rows count like live ones. Returns the purged ids — the caller
+ * closes their rooms after the commit.
+ */
+export async function reassignSitesBeforeAccountDeletion(
+  userId: string,
+  tx: Pick<PoolClient, 'query'>
+): Promise<string[]> {
+  const purged: string[] = [];
+  const purge = async (id: string) => {
+    await tx.query('DELETE FROM user_sites WHERE id = $1', [id]);
+    await removeSiteSideStores((text, params) => tx.query(text, params), id);
+    purged.push(id);
+  };
+
+  const sole = await tx.query<{ site_id: string }>(
+    `SELECT sm.site_id FROM site_members sm
+       INNER JOIN user_sites us ON us.id = sm.site_id
+      WHERE sm.user_id = $1 AND sm.role = 'admin' AND us.group_id IS NULL
+        AND NOT EXISTS (SELECT 1 FROM site_members o
+                         WHERE o.site_id = sm.site_id AND o.role = 'admin' AND o.user_id <> $1)`,
+    [userId]
+  );
+  for (const { site_id } of sole.rows) {
+    const promoted = await tx.query(
+      `UPDATE site_members SET role = 'admin'
+        WHERE site_id = $1 AND user_id = (
+          SELECT user_id FROM site_members WHERE site_id = $1 AND user_id <> $2
+           ORDER BY created_at, user_id LIMIT 1)
+        RETURNING user_id`,
+      [site_id, userId]
+    );
+    if (promoted.rows.length === 0) await purge(site_id);
+  }
+
+  const created = await tx.query<{ id: string }>(
+    'SELECT id FROM user_sites WHERE user_id = $1 AND group_id IS NULL',
+    [userId]
+  );
+  for (const { id } of created.rows) {
+    const heir = await tx.query<{ user_id: string }>(
+      `SELECT user_id FROM site_members WHERE site_id = $1 AND role = 'admin' AND user_id <> $2
+        ORDER BY created_at, user_id LIMIT 1`,
+      [id, userId]
+    );
+    if (heir.rows[0]) {
+      await tx.query('UPDATE user_sites SET user_id = $2 WHERE id = $1', [
+        id,
+        heir.rows[0].user_id,
+      ]);
+    } else {
+      await purge(id);
+    }
+  }
+
+  await tx.query(
+    'UPDATE user_sites SET user_id = NULL WHERE user_id = $1 AND group_id IS NOT NULL',
+    [userId]
+  );
+  return purged;
 }

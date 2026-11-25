@@ -134,15 +134,16 @@ describe('Website restore', () => {
 });
 
 describe('Website purge', () => {
-  it('purge deletes the Yjs rows of the site', async () => {
+  it('purge deletes the Yjs rows and project shares of the site', async () => {
     expect(await purgeUserSite(ID, null)).toBe(true);
     const rowDelete = statements.findIndex((s) => s.startsWith('DELETE FROM user_sites'));
     expect(rowDelete).toBeGreaterThan(-1);
     expect(statements.slice(rowDelete + 1)).toEqual([
       'DELETE FROM yjs_document_updates WHERE document_id = $1',
       'DELETE FROM yjs_document_snapshots WHERE document_id = $1',
+      "DELETE FROM group_content_shares WHERE content_type = 'user_sites' AND content_id = $1",
     ]);
-    expect(statementParams.slice(rowDelete + 1)).toEqual([[ID], [ID]]);
+    expect(statementParams.slice(rowDelete + 1)).toEqual([[ID], [ID], [ID]]);
   });
 
   it('closes the open site room of a purged Website, not of a missed one', async () => {

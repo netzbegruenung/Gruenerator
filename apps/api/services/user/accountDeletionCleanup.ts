@@ -30,7 +30,7 @@ import {
   deleteLikesForEntity,
   deleteLikesOfDeletedUser,
 } from '../entityLikes/EntityLikesService.js';
-import { purgeUserSite, USER_SITE_TRASH } from '../sites/userSiteTrash.js';
+import { closeSiteRooms, reassignSitesBeforeAccountDeletion } from '../sites/userSiteTrash.js';
 import { type OwnedTrashTable, trashAllOwnedRowsOfDeletedUser } from '../trash/ownedRowTrash.js';
 import { purgeUserAgent, USER_AGENT_TRASH } from '../userAgents/userAgentsRepository.js';
 
@@ -97,7 +97,14 @@ export async function cleanUpBeforeProfileDelete(userId: string): Promise<void> 
 
   const agents = await purgeAllOwnedRows(USER_AGENT_TRASH, userId, purgeUserAgent);
   const recipes = await purgeAllOwnedRows(TEXT_FORM_TRASH, userId, purgeTextForm);
-  const sites = await purgeAllOwnedRows(USER_SITE_TRASH, userId, purgeUserSite);
+
+  // Not best-effort: the profile DELETE cascades `user_sites.user_id`, so a failed handover
+  // must stop the deletion rather than take shared sites along.
+  const purgedSites = await postgres.transaction((tx) =>
+    reassignSitesBeforeAccountDeletion(userId, tx)
+  );
+  await closeSiteRooms(purgedSites);
+  const sites = purgedSites.length;
 
   try {
     await deleteLikesOfDeletedUser(userId);
@@ -127,6 +134,6 @@ export async function cleanUpBeforeProfileDelete(userId: string): Promise<void> 
   }
 
   log.info(
-    `Removed ${docs} sole-owned documents, ${notebooks} notebooks, ${agents} agents, ${recipes} recipes, ${sites} websites and ${connections} connections of ${userId}`
+    `Removed ${docs} sole-owned documents, ${notebooks} notebooks, ${agents} agents, ${recipes} recipes, ${sites} websites (sole-admin, no one left) and ${connections} connections of ${userId}`
   );
 }
