@@ -27,6 +27,7 @@ import {
   type NotebookChat,
   useNotebookChatStore,
 } from '../features/notebook/stores/notebookChatStore';
+import { useSettingsDialogStore } from '../features/settings/settingsDialogStore';
 import { useTrashUndoToast } from '../features/trash/trashUndoToast';
 import { useSetUserDefault } from '../features/user-defaults/userDefaultsQueries';
 import { sessionDebug } from '../lib/sessionDebug';
@@ -269,6 +270,10 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
       },
       wolkeConnectUrl: '/settings/wolke',
       onOpenSourceDocument: requestChatSourceReader,
+      // Deferred past the plus menu's close, like the sidebar's settings rows:
+      // closing menu and opening dialog would fight over Radix's focus lock.
+      onOpenConnectorSettings: () =>
+        setTimeout(() => useSettingsDialogStore.getState().openSettings('konnektoren'), 0),
       // Nur für Instanz-Admins: die Rolle lebt in apps/web, die Route auch.
       // packages/chat bekommt fertig entschieden, ob es etwas anzuzeigen gibt.
       chunkInspectorHref: isInstanceAdmin

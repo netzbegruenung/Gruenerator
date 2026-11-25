@@ -17,6 +17,7 @@
 
 import {
   type CustomPrompt,
+  type McpServerSummary,
   type MentionableTextForm,
   type MentionableUserAgent,
   type TextForm,
@@ -33,6 +34,7 @@ import {
   setTextforms,
   setUserAgentMentionables,
   setUserNotebookMentionables,
+  type ConnectorStatus,
   type CustomAgentMentionable,
   type TextformMentionable,
   type UserAgentMentionable,
@@ -97,6 +99,22 @@ export interface McpServerListItem {
   name: string;
   enabled: boolean;
   description?: string | null;
+  authType?: McpServerSummary['authType'];
+  hasToken?: boolean;
+  managed?: boolean;
+  toolsDrift?: McpServerSummary['toolsDrift'];
+}
+
+/**
+ * What a connected server needs before it works fully, if anything. A drifted
+ * `changed` set blocks the whole server until „Werkzeuge freigeben"; an OAuth
+ * server without a token cannot connect at all. Known connectors take their
+ * credentials from the deploy env, so a missing token there means nothing.
+ */
+export function connectorStatusOf(s: McpServerListItem): ConnectorStatus | null {
+  if ((s.toolsDrift?.changed.length ?? 0) > 0) return 'needs_approval';
+  if (!s.managed && s.authType === 'oauth' && s.hasToken === false) return 'needs_login';
+  return null;
 }
 
 /**
@@ -383,7 +401,12 @@ export async function syncMcpServers(get: MentionableFetch): Promise<McpServerLi
   }));
   const list = Array.isArray(res?.servers) ? res.servers.filter((s) => s.enabled) : [];
   setMcpServerMentionables(
-    list.map((s) => ({ id: s.id, name: s.name, description: s.description }))
+    list.map((s) => ({
+      id: s.id,
+      name: s.name,
+      description: s.description,
+      status: connectorStatusOf(s),
+    }))
   );
   return list;
 }

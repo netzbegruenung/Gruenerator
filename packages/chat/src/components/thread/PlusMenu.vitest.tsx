@@ -15,9 +15,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { getAgentMentionables } from '../../lib/mentionables';
+import { getAgentMentionables, setMcpServerMentionables } from '../../lib/mentionables';
+import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useAgentStore } from '../../stores/chatStore';
 import { useUserProfileStore } from '../../stores/userProfileStore';
 
@@ -171,6 +172,123 @@ describe('attach group', () => {
   });
 });
 
+describe('attach group with a direct upload', () => {
+  // Uploading opens the system picker in one click; what is already stored
+  // goes through the panel.
+  it('uploads from the device and opens the panel from two rows', async () => {
+    const onUploadFromDevice = vi.fn();
+    const user = userEvent.setup();
+    renderMenu({ onUploadFromDevice });
+    const menu = await openMenu(user);
+
+    await user.click(within(menu).getByRole('menuitem', { name: /Vom Gerät hochladen/ }));
+    expect(onUploadFromDevice).toHaveBeenCalledTimes(1);
+    expect(onOpenFileBrowser).not.toHaveBeenCalled();
+
+    const again = await openMenu(user);
+    await user.click(within(again).getByRole('menuitem', { name: /Vorhandene Datei/ }));
+    expect(onOpenFileBrowser).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('creation entries', () => {
+  it('shows Sharepic and Bildgenerierung flat at the top level', async () => {
+    const user = userEvent.setup();
+    renderMenu();
+    const menu = await openMenu(user);
+
+    await user.click(within(menu).getByRole('menuitem', { name: 'Sharepic' }));
+    expect(onInsertMention).toHaveBeenCalledWith(expect.objectContaining({ mention: 'sharepic' }));
+  });
+
+  it('keeps the rest under „Mehr erstellen", with the analyses in their own group', async () => {
+    const user = userEvent.setup();
+    renderMenu();
+    const menu = await openMenu(user);
+    await user.hover(within(menu).getByRole('menuitem', { name: /Mehr erstellen/ }));
+
+    expect(await screen.findByRole('menuitem', { name: 'Diagramm' })).toBeInTheDocument();
+    expect(screen.getByText('Auswerten')).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Rechnen' })).toBeInTheDocument();
+    // Featured entries are not listed a second time.
+    expect(screen.getAllByRole('menuitem', { name: 'Sharepic' })).toHaveLength(1);
+  });
+});
+
+describe('menu search', () => {
+  it('replaces the sections with the same results the @ popover finds', async () => {
+    const user = userEvent.setup();
+    renderMenu();
+    const menu = await openMenu(user);
+
+    await user.type(within(menu).getByRole('searchbox', { name: 'Im Menü suchen' }), 'rechnen');
+
+    expect(within(menu).queryByRole('menuitem', { name: /Rezepte/ })).toBeNull();
+    await user.click(within(menu).getByRole('menuitem', { name: 'Rechnen' }));
+    expect(onInsertMention).toHaveBeenCalledWith(expect.objectContaining({ mention: 'rechnen' }));
+  });
+
+  it('says so when nothing matches, and starts empty after the menu closed', async () => {
+    const user = userEvent.setup();
+    renderMenu();
+    const menu = await openMenu(user);
+
+    await user.type(within(menu).getByRole('searchbox', { name: 'Im Menü suchen' }), 'xyzxyz');
+    expect(within(menu).getByText(/Nichts gefunden/)).toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+    const again = await openMenu(user);
+    expect(within(again).getByRole('searchbox', { name: 'Im Menü suchen' })).toHaveValue('');
+    expect(within(again).getByRole('menuitem', { name: /Rezepte/ })).toBeInTheDocument();
+  });
+});
+
+describe('connectors', () => {
+  afterEach(() => {
+    setMcpServerMentionables([]);
+    useChatConfigStore.getState().configure(undefined);
+  });
+
+  it('marks a connector that needs something and offers to manage them', async () => {
+    setMcpServerMentionables([
+      { id: 'a', name: 'Tally' },
+      { id: 'b', name: 'Typeform', status: 'needs_login' },
+    ]);
+    const onOpenConnectorSettings = vi.fn();
+    useChatConfigStore.getState().configure({ onOpenConnectorSettings });
+    const user = userEvent.setup();
+    renderMenu();
+    const menu = await openMenu(user);
+    await user.hover(within(menu).getByRole('menuitem', { name: /Konnektoren/ }));
+
+    expect(
+      await screen.findByRole('menuitem', { name: /Typeform.*Anmeldung nötig/ })
+    ).toBeInTheDocument();
+    // fireEvent: user-event's pointer travel leaves the submenu in jsdom.
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Konnektoren verwalten' }));
+    expect(onOpenConnectorSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it('stays reachable without a connected server when there is a way to add one', async () => {
+    useChatConfigStore.getState().configure({ onOpenConnectorSettings: vi.fn() });
+    const user = userEvent.setup();
+    renderMenu();
+    const menu = await openMenu(user);
+    await user.hover(within(menu).getByRole('menuitem', { name: /Konnektoren/ }));
+
+    expect(
+      await screen.findByRole('menuitem', { name: 'Konnektor verbinden' })
+    ).toBeInTheDocument();
+  });
+
+  it('is absent with neither a server nor a way to add one', async () => {
+    const user = userEvent.setup();
+    renderMenu();
+    const menu = await openMenu(user);
+    expect(within(menu).queryByRole('menuitem', { name: /Konnektoren/ })).toBeNull();
+  });
+});
+
 describe('switch group on the mobile sheet', () => {
   // The sheet branch draws its on/off state with two divs, so the state lives
   // ONLY in the hand-written `role="switch"` + `aria-checked` on the row (see
@@ -214,9 +332,9 @@ describe('mobile sheet levels', () => {
     renderMenu();
     await user.click(screen.getByRole('button', { name: 'Aktionen und Modus' }));
 
-    expect(await screen.findByRole('button', { name: /Erstellen/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /Mehr erstellen/ })).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: /Websuche/ })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Sharepic' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Diagramm' })).toBeNull();
   });
 
   it('opens a section, inserts from it, and starts at the top level next time', async () => {
@@ -224,11 +342,11 @@ describe('mobile sheet levels', () => {
     renderMenu();
     const trigger = screen.getByRole('button', { name: 'Aktionen und Modus' });
     await user.click(trigger);
-    await user.click(await screen.findByRole('button', { name: /Erstellen/ }));
+    await user.click(await screen.findByRole('button', { name: /Mehr erstellen/ }));
 
     expect(screen.queryByRole('switch', { name: /Websuche/ })).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Sharepic' }));
-    expect(onInsertMention).toHaveBeenCalledWith(expect.objectContaining({ title: 'Sharepic' }));
+    await user.click(screen.getByRole('button', { name: 'Diagramm' }));
+    expect(onInsertMention).toHaveBeenCalledWith(expect.objectContaining({ title: 'Diagramm' }));
 
     await user.click(trigger);
     expect(await screen.findByRole('switch', { name: /Websuche/ })).toBeInTheDocument();

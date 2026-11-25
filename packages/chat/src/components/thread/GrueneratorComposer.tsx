@@ -986,6 +986,13 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     });
   }, []);
 
+  // Stable, so `PlusMenu`'s memo holds: an inline arrow here was a new prop on
+  // every composer render and re-rendered the whole menu with it.
+  const handleOpenSkillsPage = useCallback(
+    () => onNavigate?.('/marktplatz?art=rezepte'),
+    [onNavigate]
+  );
+
   const handleApplyPreset = useCallback(
     (text: string) => {
       composerRuntime.setText(text);
@@ -1012,13 +1019,12 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     <PlusMenu
       onInsertMention={handleSelect}
       onOpenFileBrowser={handlePlusMenuOpenFileBrowser}
+      onUploadFromDevice={openFilePicker}
       includeModes={showToolToggles}
       insideAgent={insideAgent}
       firstName={firstName ?? null}
       {...(presets && presets.length > 0 && { presets, onApplyPreset: handleApplyPreset })}
-      {...(onNavigate
-        ? { onNavigate, onOpenSkillsPage: () => onNavigate('/marktplatz?art=rezepte') }
-        : {})}
+      {...(onNavigate ? { onNavigate, onOpenSkillsPage: handleOpenSkillsPage } : {})}
     />
   ) : null;
 
