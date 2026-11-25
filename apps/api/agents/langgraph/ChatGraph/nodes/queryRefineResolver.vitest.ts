@@ -103,7 +103,11 @@ describe('refineSearchQuery — was der Auflöser liefert', () => {
     const result = await refine(
       '{"query": "kommunale Wärmeplanung Finanzierung", "subQueries": null}'
     );
-    expect(result).toEqual({ query: 'kommunale Wärmeplanung Finanzierung', subQueries: null });
+    expect(result).toEqual({
+      query: 'kommunale Wärmeplanung Finanzierung',
+      subQueries: null,
+      contentType: null,
+    });
   });
 
   it('liest JSON auch aus Prosa und Code-Fences heraus', async () => {
@@ -136,6 +140,53 @@ describe('refineSearchQuery — was der Auflöser liefert', () => {
       '{"query": "Wärmeplanung", "subQueries": ["Finanzierung", 42, null, "Zeitplan"]}'
     );
     expect(result?.subQueries).toEqual(['Finanzierung', 'Zeitplan']);
+  });
+});
+
+/**
+ * Die Dokumentart ist ein Filter, kein Suchwort — und nur der Auflöser sieht
+ * den Verlauf. Live 25.11.2026: „was haben wir beschlossen zu hitze?", dann
+ * „@Grüne Hessen suche nur im notebook". Die Heuristik las nur die zweite
+ * Nachricht, der Vorab-Abruf suchte im Hessen-Notebook über alles.
+ */
+describe('refineSearchQuery — Dokumentart', () => {
+  it('liest eine bekannte Art', async () => {
+    const result = await refine('{"query": "Hitze", "contentType": "beschluss"}');
+    expect(result?.contentType).toBe('beschluss');
+  });
+
+  it('verwirft eine unbekannte Art — ein falscher Filter leerte die Suche', async () => {
+    const result = await refine('{"query": "Hitze", "contentType": "beschlüsse"}');
+    expect(result).toMatchObject({ query: 'Hitze', contentType: null });
+  });
+
+  it('der Folge-Turn ohne eigenes Typwort behält den Filter des Auflösers', async () => {
+    answering('{"query": "Hitze und Hitzeschutz", "contentType": "beschluss"}');
+    const result = await classifierNode(
+      buildForcedSearchState('@Grüne Hessen suche nur im notebook')
+    );
+    expect(result.searchQuery).toBe('Hitze und Hitzeschutz');
+    expect(result.detectedFilters).toEqual({ content_type: 'beschluss' });
+  });
+
+  it('ohne Art vom Auflöser bleibt die Heuristik', async () => {
+    answering('{"query": "Klimaschutz"}');
+    const result = await classifierNode(
+      buildForcedSearchState('Pressemitteilungen zum Klimaschutz')
+    );
+    expect(result.detectedFilters).toEqual({ content_type: 'presse' });
+  });
+
+  it('sagt dem Modell, dass die Art aus dem Verlauf weitergilt', async () => {
+    answering('{"query": "Hitze"}');
+    await refineSearchQuery({
+      userContent: 'suche nur im notebook',
+      conversationContext: 'GESPRÄCHSVERLAUF:\nNutzer: was haben wir beschlossen zu hitze?',
+      topicalContext: null,
+    });
+    const systemPrompt = (requestAt(0) as { systemPrompt?: string }).systemPrompt ?? '';
+    expect(systemPrompt).toContain('gilt die Dokumentart aus dem Gesprächsverlauf weiter');
+    expect(systemPrompt).toContain('beschluss');
   });
 });
 
@@ -285,7 +336,9 @@ describe('refineSearchQuery — was er dem Modell schickt', () => {
     });
     const sent = requestAt(0) as { systemPrompt?: string };
     expect(sent.systemPrompt).toContain('Du formulierst Suchanfragen');
-    expect(sent.systemPrompt?.length).toBeLessThan(1_500);
+    // Die Grenze trennt diesen Prompt vom 27k-Klassifikator, sie ist kein
+    // Feinbudget (1.500 → 2.000 mit der Dokumentart-Regel, 25.11.2026).
+    expect(sent.systemPrompt?.length).toBeLessThan(2_000);
   });
 
   it('reicht Themen- und Gesprächskontext mit', async () => {
