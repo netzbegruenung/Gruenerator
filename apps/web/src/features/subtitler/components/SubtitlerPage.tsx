@@ -524,19 +524,20 @@ const SubtitlerPage = (): React.ReactElement => {
     }, 300);
   }, [resetSocialText, uploadInfo?.uploadId, resetExport, goToStep]);
 
-  // „Bearbeiten“ opens the saved project in the video editor, captions already
-  // split there. Without a saved project the in-page editor stays the fallback.
-  const editProjectId = loadedProject?.id || autoSavedProjectId;
+  // „Bearbeiten“ stays in the subtitler's own editor; the video editor is a
+  // separate choice next to it, for a saved project only.
   const handleEditAgain = useCallback(() => {
-    if (editProjectId) {
-      void navigate(`/studio/videoeditor?untertitel=${encodeURIComponent(editProjectId)}`);
-      return;
-    }
     // Reset export state so user must re-export after making changes
     // This prevents downloading old video after editing
     resetExport();
     goToStep('edit');
-  }, [editProjectId, navigate, resetExport, goToStep]);
+  }, [resetExport, goToStep]);
+
+  const editorProjectId = loadedProject?.id || autoSavedProjectId;
+  const handleOpenInEditor = useCallback(() => {
+    if (!editorProjectId) return;
+    void navigate(`/studio/videoeditor?untertitel=${encodeURIComponent(editorProjectId)}`);
+  }, [editorProjectId, navigate]);
 
   // New handlers for styling step
   const handleStyleSelect = useCallback((style: string) => {
@@ -707,6 +708,7 @@ const SubtitlerPage = (): React.ReactElement => {
                 <VideoSuccessScreen
                   onReset={handleReset}
                   onEditAgain={handleEditAgain}
+                  onOpenInEditor={editorProjectId ? handleOpenInEditor : undefined}
                   isLoading={exportStatus === 'starting' || exportStatus === 'exporting'}
                   socialText={socialText}
                   uploadId={exportToken || uploadInfo?.uploadId || undefined}
