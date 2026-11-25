@@ -152,6 +152,14 @@ export const siteHeroLayoutSchema = z.enum(['portrait', 'vollbild']);
 export type SiteHeroLayout = z.infer<typeof siteHeroLayoutSchema>;
 export const DEFAULT_SITE_HERO_LAYOUT: SiteHeroLayout = 'portrait';
 
+/**
+ * A block's own background, chosen over the colour variant. Absent means automatic: the variant
+ * decides. Named by meaning, not by colour, because each country resolves it on its own palette
+ * ("hell" is cream in Germany and the Hellgrün tint in Austria). A photo behind a block wins.
+ */
+export const siteBlockBackgroundSchema = z.enum(['weiss', 'hell', 'dunkel', 'leuchtend']);
+export type SiteBlockBackground = z.infer<typeof siteBlockBackgroundSchema>;
+
 // ── Page blocks ─────────────────────────────────────────────────────────────
 
 /** A block or item id: stored with the page, so a copy or a concurrent move keeps its identity. */
@@ -210,11 +218,12 @@ export interface SiteBlockFields {
   richText: (max: number) => z.ZodType<RichTextDoc>;
   items: <T extends z.ZodType>(item: T, max: number) => z.ZodType<z.output<T>[]>;
   hidden: z.ZodOptional<z.ZodBoolean>;
+  background: z.ZodOptional<typeof siteBlockBackgroundSchema>;
   layout: z.ZodOptional<typeof siteHeroLayoutSchema>;
 }
 
 export function siteBlockObjects(f: SiteBlockFields) {
-  const base = { id: siteIdSchema, hidden: f.hidden };
+  const base = { id: siteIdSchema, hidden: f.hidden, background: f.background };
   return {
     hero: z.object({ ...base, type: z.literal('hero'), layout: f.layout }),
     about: z.object({
@@ -287,6 +296,7 @@ const ROW_BLOCKS = siteBlockObjects({
   richText: (max) => boundedRichTextDoc(max),
   items: (item, max) => z.array(item).max(max),
   hidden: z.boolean().optional(),
+  background: siteBlockBackgroundSchema.optional(),
   layout: siteHeroLayoutSchema.optional(),
 });
 
@@ -568,6 +578,7 @@ function snapshotSchemaFor(mode: 'publish' | 'preview') {
     richText,
     items: (item, max) => lenient(z.array(item).max(max), []),
     hidden: lenient(z.boolean().optional(), undefined),
+    background: lenient(siteBlockBackgroundSchema.optional(), undefined),
     layout: lenient(siteHeroLayoutSchema.optional(), undefined),
   });
   const block = z.discriminatedUnion('type', [
