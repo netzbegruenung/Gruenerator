@@ -44,7 +44,7 @@ describe('docs index (generated)', () => {
         entry.url === '/docs/guides/einsteigerinnen/magic-search-in-notebooks-nutzen' &&
         entry.anchor === '#so-gehts'
     );
-    expect(section?.text).toContain('Gehe zu Wissen und öffne das Notebook Berlin.');
+    expect(section?.text).toContain('Gehe zu Notebooks und öffne das Notebook Berlin.');
   });
 
   it('anchors are lowercase slugs on the same page as their section', () => {

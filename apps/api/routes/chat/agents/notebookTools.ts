@@ -61,7 +61,7 @@ import {
   type PersonalToolCtx,
   type ResultRow,
 } from './personalDataTools.js';
-import { collectionsForLocale } from './searchTools.js';
+import { collectionsForLocale, searchCollectionOrBundle } from './searchTools.js';
 
 import type {
   PendingAction,
@@ -83,6 +83,7 @@ import type {
   WolkeFolderPreviewInput,
 } from '../../../services/notebook/notebookWolkeAttach.js';
 import type { NotebookAccess } from '../../notebook/notebookAccess.js';
+import type { DirectSearchResult } from './directSearch.js';
 
 const log = createLogger('notebookTools');
 
@@ -113,6 +114,8 @@ export interface NotebookToolDeps {
   >;
   access: (notebookId: string, userId: string) => Promise<NotebookAccess>;
   search: (input: NotebookSearchInput) => Promise<NotebookSearchOutcome>;
+  /** Die Suche von `gruenerator_search`, für ein System-Notebook als id. */
+  searchSystem: (input: { query: string; collection: string }) => Promise<DirectSearchResult>;
   listPublic: (viewerLocale: UserLocale) => Promise<NotebookCollection[]>;
   listShared: (userId: string) => Promise<GroupSharedNotebook[]>;
   preview: (input: WolkeFolderPreviewInput) => Promise<WolkeFolderPreview | { error: string }>;
@@ -130,6 +133,9 @@ function resolveDeps(partial: Partial<NotebookToolDeps> | undefined): NotebookTo
     helper: partial?.helper ?? (helperSingleton ??= new NotebookQdrantHelper()),
     access: partial?.access ?? checkNotebookAccess,
     search: partial?.search ?? runNotebookSearch,
+    searchSystem:
+      partial?.searchSystem ??
+      ((input) => searchCollectionOrBundle({ ...input, limit: SYSTEM_SEARCH_LIMIT })),
     listPublic: partial?.listPublic ?? ((locale) => listPublicNotebooksForViewer(locale)),
     listShared: partial?.listShared ?? ((userId) => listGroupSharedNotebooksForUser(userId)),
     preview: partial?.preview ?? previewWolkeFolder,
@@ -197,6 +203,9 @@ export function systemNotebookRows(locale: UserLocale | null): ResultRow[] {
   });
 }
 
+/** So viele Quellen holt `search` aus einem System-Notebook — der Standard von `gruenerator_search`. */
+const SYSTEM_SEARCH_LIMIT = 8;
+
 /**
  * Ein System-Notebook („berlin") ist hier keine id — seine Quellen liest
  * `notebook_quellen`, seinen Inhalt durchsucht `gruenerator_search`. Live
@@ -204,11 +213,7 @@ export function systemNotebookRows(locale: UserLocale | null): ResultRow[] {
  * Notebook Berlin" zweimal mit `get`/`search` id="berlin" an, bekam ein nacktes
  * „nicht gefunden" und die Antwort behauptete danach, es gebe keinen Zugriff.
  */
-function systemHandover(id: string, locale: UserLocale | null): { error: string } | null {
-  const resolved = resolveSystemCollection(id, collectionsForLocale(locale));
-  if (!resolved) return null;
-  if ('error' in resolved) return resolved;
-  const { key, name } = resolved.collection;
+function systemHandover(id: string, key: string, name: string): { error: string } {
   return {
     error: `„${id}" ist das System-Notebook ${name} und hat hier keine id. Quellen auflisten, lesen oder zählen: notebook_quellen mit notebookId="${key}" (z. B. action="list", sortBy="date"). Inhaltlich durchsuchen: gruenerator_search mit collection="${key}".`,
   };
@@ -274,12 +279,39 @@ export function makeNotebooksTool(ctx: NotebookToolCtx): Tool {
   const deps = resolveDeps(ctx.deps);
   const audience: UserLocale = state.userLocale ?? 'de-DE';
 
+  async function searchSystemNotebook(collection: string, name: string, query: string) {
+    const found = await deps.searchSystem({ query, collection });
+    if (found.error === true) {
+      groundNote(sourceRegistry, `Notebook „${name}"`, found.message ?? 'Suche fehlgeschlagen');
+      return { error: found.message ?? 'Suche fehlgeschlagen' };
+    }
+    const sources = sourceRegistry.register(
+      found.results.map((r): SearchResult => ({
+        source: r.source,
+        title: r.source,
+        content: r.excerpt,
+        ...(r.url ? { url: r.url } : {}),
+        ...(r.publishedDate ? { publishedDate: r.publishedDate } : {}),
+        ...(r.documentId ? { documentId: r.documentId } : {}),
+        collectionId: r.collectionId ?? collection,
+      }))
+    );
+    if (found.resultsCount === 0) {
+      return {
+        notebook: name,
+        resultCount: 0,
+        message: `Keine Treffer im Notebook „${name}" — formuliere die Anfrage mit anderen Begriffen.`,
+      };
+    }
+    return { notebook: name, resultCount: found.resultsCount, sources };
+  }
+
   return tool({
     description: `Zugriff auf die Notebooks der Person (eigene Wissenssammlungen aus Dokumenten, Wolke-Ordnern und Office-Dokumenten) — auflisten, ansehen, inhaltlich befragen, anlegen und verwalten.
 
 NUTZE FÜR: Notebooks auflisten (list — scope="mine" die eigenen, scope="system" die vom Grünerator gepflegten Wissenssammlungen, scope="basis" die öffentlich geteilten Notebooks anderer, scope="shared" die Notebooks, die andere in ein Projekt der Person geteilt haben), Details eines Notebooks mit Dokumenten, Wolke-Ordnern, Freigaben und wartenden Dateien (get), eine Frage AN DEN INHALT eines Notebooks stellen und belegt beantworten (search mit id + query — „was steht im Notebook X zu …?"), ein Notebook anlegen (create; mit wolkeFolder wird der Ordner sofort angehängt und importiert), einen Wolke-Ordner an ein bestehendes Notebook hängen (add_wolke_folder), eigene Dokumente oder Office-Dokumente hinzufügen (add_documents), umbenennen (rename), Beschreibung, Anweisung (customPrompt) und Labels ändern (update), Sichtbarkeit und Bearbeitungsrechte ändern (set_visibility), mit einem Projekt teilen (share_to_group), löschen (delete mit confirm=true nach Zustimmung).
 
-Ein System-Notebook hat keine id zum Befragen — seine Zeile nennt im Feld ref den collection-Schlüssel, mit dem 'gruenerator_search' seinen Inhalt durchsucht. Öffentlich gelistete und über Projekte geteilte Notebooks haben eine echte id: get und search funktionieren damit wie bei eigenen.
+Ein System-Notebook hat keine eigene id — search mit seinem Schlüssel aus ref durchsucht seinen Inhalt wie 'gruenerator_search', die übrigen Aktionen gelten nur für eigene und geteilte Notebooks. Öffentlich gelistete und über Projekte geteilte Notebooks haben eine echte id: get und search funktionieren damit wie bei eigenen.
 
 NICHT für: Dateien in der Wolke durchsehen oder lesen (dafür 'cloud_files' — action=list_connections liefert die connectionId und action=list die Pfade, die wolkeFolder braucht), eigene Dokumente und Tabellen selbst (dafür 'documents'), Projekte verwalten (dafür 'groups'), die grüne Inhaltsdatenbank (dafür 'gruenerator_search'). Quellen lesen, durchsuchen oder auflisten: dafür 'notebook_quellen'.
 
@@ -435,8 +467,18 @@ Wolke-Import, Sichtbarkeit und Teilen werden der Person als Karte zur Bestätigu
 
       // Alle weiteren Aktionen zielen auf EIN Notebook.
       if (!id) return { error: `${action} braucht eine Notebook-ID (id).` };
-      const system = systemHandover(id, state.userLocale ?? null);
-      if (system) return system;
+      const system = resolveSystemCollection(id, collectionsForLocale(state.userLocale ?? null));
+      if (system && 'error' in system) return system;
+      if (system) {
+        const { key, name } = system.collection;
+        // Live 25.11.2026: der Projekt-Chat nennt dem Planer das Notebook als
+        // „hessen-notebook", und er fragte damit `search` an. Die Übergabe als
+        // Fehler kostete einen Schritt; die Suche kann das Werkzeug selbst.
+        if (action !== 'search') return systemHandover(id, key, name);
+        const query = args.query?.trim();
+        if (!query) return { error: 'search braucht query.' };
+        return searchSystemNotebook(key, name, query);
+      }
       const notebookId = await resolveNotebookRef(id);
       const access = await deps.access(notebookId, userId);
       if (!access.exists || !access.canRead) return { error: NOT_FOUND };

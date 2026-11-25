@@ -14,9 +14,10 @@ vi.mock('../hooks/useSiteSharing', () => ({
 }));
 vi.mock('../SitesContext', () => ({
   FROM_OVERVIEW_STATE: { fromOverview: true },
+  useAuth: () => ({ user: { display_name: 'Anna Beispiel', locale: 'de-DE' } }),
   useSitesPaths: () => ({
     overview: '/sites',
-    create: '/sites/neu',
+    create: '/sites/erstellen',
     site: (handle: string) => `/sites/${handle}`,
   }),
 }));
@@ -92,7 +93,7 @@ describe('SitesOverviewPage', () => {
     expect(screen.getByText('Veröffentlicht')).toBeInTheDocument();
     expect(screen.getByText('Ausgeblendet')).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('link', { name: /Seite anna-wien/ }));
+    await userEvent.click(screen.getByRole('link', { name: 'Seite anna-wien bearbeiten' }));
     const where = screen.getByTestId('pfad');
     expect(where).toHaveTextContent('/sites/anna-wien');
     expect(where).toHaveAttribute('data-from-overview', 'true');
@@ -102,14 +103,14 @@ describe('SitesOverviewPage', () => {
     setList([summary('anna')]);
     renderOverview();
     await userEvent.click(screen.getByRole('button', { name: 'Neue Website' }));
-    expect(screen.getByTestId('pfad')).toHaveTextContent('/sites/neu');
+    expect(screen.getByTestId('pfad')).toHaveTextContent('/sites/erstellen');
   });
 
   it('goes straight to creating when there is no site yet', () => {
     setList([]);
     renderOverview();
     const where = screen.getByTestId('pfad');
-    expect(where).toHaveTextContent('/sites/neu');
+    expect(where).toHaveTextContent('/sites/erstellen');
     expect(where).toHaveAttribute('data-from-overview', 'false');
   });
 
@@ -118,6 +119,35 @@ describe('SitesOverviewPage', () => {
     renderOverview();
     expect(screen.getByRole('button', { name: 'Neue Website' })).toBeDisabled();
     expect(screen.getByText(/Höchstzahl an Websites/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Neue Website erstellen' })).toBeNull();
+  });
+
+  it('greets by first name', () => {
+    setList([summary('anna')]);
+    renderOverview();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Deine Websites, Anna');
+  });
+
+  it('finds a site by address and opens it from the search', async () => {
+    setList([summary('anna'), summary('kreistag-berta', { site_title: 'Berta für den Kreistag' })]);
+    renderOverview();
+    const user = userEvent.setup();
+    await user.type(screen.getByRole('searchbox', { name: 'Websites durchsuchen' }), 'kreistag');
+    expect(screen.queryByRole('button', { name: /Seite anna/ })).toBeNull();
+    await user.click(screen.getByRole('button', { name: /Berta für den Kreistag/ }));
+    const where = screen.getByTestId('pfad');
+    expect(where).toHaveTextContent('/sites/kreistag-berta');
+    expect(where).toHaveAttribute('data-from-overview', 'true');
+  });
+
+  it('offers creating from the search, also without a match', async () => {
+    setList([summary('anna')]);
+    renderOverview();
+    const user = userEvent.setup();
+    await user.type(screen.getByRole('searchbox', { name: 'Websites durchsuchen' }), 'zzz');
+    expect(screen.getByText('Keine Website gefunden.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Neue Website erstellen.*Beschreibung/ }));
+    expect(screen.getByTestId('pfad')).toHaveTextContent('/sites/erstellen');
   });
 
   it('sorts sites into own, project and shared sections', () => {

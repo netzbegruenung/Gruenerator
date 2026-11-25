@@ -10,6 +10,8 @@ import { SocialFeedSectionEditor } from '../../components/editor/sections/Social
 import { ThemesSectionEditor } from '../../components/editor/sections/ThemesSectionEditor';
 import { useDraft } from '../../draft/SiteDraftContext';
 
+import { BlockBackgroundField } from './BlockBackgroundField';
+
 const FORMS: Record<SiteBlockType, (props: { blockId: string }) => ReactNode> = {
   hero: HeroSectionEditor,
   about: AboutSectionEditor,
@@ -22,11 +24,17 @@ const FORMS: Record<SiteBlockType, (props: { blockId: string }) => ReactNode> = 
 
 /**
  * The form of one block, without a frame: everything about it that is not text on the page
- * (links, networks, Instagram, card details). The element panel and the sidebar both host it.
+ * (links, networks, Instagram, card details, its background). The element panel and the sidebar
+ * both host it.
  */
 export function BlockForm({ blockId }: { blockId: string }) {
   const type = useDraft((d) => d.blocks.find((block) => block.id === blockId)?.type ?? null);
   if (!type) return null;
   const Form = FORMS[type];
-  return <Form blockId={blockId} />;
+  return (
+    <>
+      <Form blockId={blockId} />
+      <BlockBackgroundField blockId={blockId} />
+    </>
+  );
 }

@@ -39,3 +39,51 @@ export function heuristicExtractFilters(query: string): SubcategoryFilters | nul
 
   return Object.keys(filters).length > 0 ? filters : null;
 }
+
+/**
+ * Filters of a forced-search turn. The resolver's content type wins over the
+ * heuristic's: it saw the conversation, so a follow-up without a type word of
+ * its own („suche nur im notebook" after „was haben wir beschlossen") keeps the
+ * Beschluss filter. The heuristic reads only this message and stays the
+ * fallback for a resolver that failed or named no type.
+ */
+export function forcedSearchFilters(
+  userContent: string,
+  refinedContentType: string | null
+): SubcategoryFilters | null {
+  const heuristic = heuristicExtractFilters(userContent);
+  return refinedContentType ? { ...heuristic, content_type: refinedContentType } : heuristic;
+}
+
+/**
+ * The content type a turn asked for, as the list `lvContentType` takes —
+ * `undefined` when it asked for none.
+ */
+export function contentTypesOf(
+  filters: SubcategoryFilters | null | undefined
+): readonly string[] | undefined {
+  const raw = filters?.content_type;
+  if (raw === undefined) return undefined;
+  const list = typeof raw === 'string' ? [raw] : raw;
+  return list.length > 0 ? list : undefined;
+}
+
+/**
+ * `detectedFilters` as the per-collection params of `executeDirectSearch`.
+ *
+ * `content_type` speaks the Landesverband vocabulary (`beschluss`, `presse`);
+ * as a plain filter it went to every collection and emptied the ones that
+ * don't carry those values. As `lvContentType` it only touches
+ * `landesverbaende_documents`. An agent's pinned type wins, as on the loop path.
+ */
+export function collectionFilterParams(
+  filters: SubcategoryFilters | null | undefined,
+  pinnedContentType: readonly string[] | undefined
+): { filters?: SubcategoryFilters; lvContentType?: readonly string[] } {
+  const lvContentType = pinnedContentType?.length ? pinnedContentType : contentTypesOf(filters);
+  const { content_type: _scoped, ...rest } = filters ?? {};
+  return {
+    ...(Object.keys(rest).length > 0 && { filters: rest }),
+    ...(lvContentType && { lvContentType }),
+  };
+}

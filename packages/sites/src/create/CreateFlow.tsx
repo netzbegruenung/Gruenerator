@@ -16,6 +16,20 @@ import { handleApiError, SitesApiError } from '../utils/errorHandler';
 import { nameToSubdomain } from '../utils/sanitization';
 import { validators } from '../utils/validation';
 
+import { LiveSitePreview } from './LiveSitePreview';
+
+const HANDLE_MAX = 30;
+
+/** The name-based suggestion, counted past the account's own addresses (`anna`, `anna-2`, …). */
+function suggestHandle(base: string, own: readonly string[]): string {
+  if (!base || !own.includes(base)) return base;
+  for (let n = 2; ; n++) {
+    const suffix = `-${n}`;
+    const candidate = `${base.slice(0, HANDLE_MAX - suffix.length)}${suffix}`;
+    if (!own.includes(candidate)) return candidate;
+  }
+}
+
 async function isOwnSite(handle: string): Promise<boolean> {
   try {
     const res = await getContractsClient().sites.getSiteByHandle({ params: { handle } });
@@ -25,13 +39,20 @@ async function isOwnSite(handle: string): Promise<boolean> {
   }
 }
 
-export function CreateFlow({ onBack }: { onBack?: () => void }) {
+export function CreateFlow({
+  onBack,
+  ownHandles = [],
+}: {
+  onBack?: () => void;
+  /** The account's own addresses, so the suggested one is not already taken by itself. */
+  ownHandles?: readonly string[];
+}) {
   const { user } = useAuth();
   const { publicOrigin, createSite, isCreating } = useCreateSite();
   const navigate = useNavigate();
   const routeState: unknown = useLocation().state;
   const paths = useSitesPaths();
-  const { generate, cancel, steps, current, isGenerating, isFlyer } = useSiteGeneration();
+  const { generate, cancel, steps, current, isGenerating, isFlyer, draft } = useSiteGeneration();
   const toast = useToast();
   const [failure, setFailure] = useState<{ message: string; retry: (() => void) | null } | null>(
     null
@@ -39,7 +60,8 @@ export function CreateFlow({ onBack }: { onBack?: () => void }) {
 
   const [subdomainInput, setSubdomainInput] = useState<string | null>(null);
   const subdomain =
-    subdomainInput ?? (user?.display_name ? nameToSubdomain(user.display_name) : '');
+    subdomainInput ??
+    suggestHandle(user?.display_name ? nameToSubdomain(user.display_name) : '', ownHandles);
   const contactEmail = user?.email ?? '';
   const [description, setDescription] = useState('');
   const [projectId, setProjectId] = useState('');
@@ -134,24 +156,48 @@ export function CreateFlow({ onBack }: { onBack?: () => void }) {
     await runGeneration({ file });
   };
 
-  if (isCreating) {
+  // The page takes over once the name is written: before that its head would read
+  // "Hallo, ich bin !". Until then, and while the site is stored without one, the card stays.
+  const page = draft?.hero?.heading?.trim() ? draft : null;
+  if (isCreating && !page) {
     return <EditorSkeleton label="Seite wird angelegt" />;
   }
+
+  // From then on the page itself shows the progress and stays up while the site is stored, so
+  // the editor opens on the page that was just written.
+  const busy = isGenerating || isCreating;
+  const live = page ? (
+    <LiveSitePreview
+      draft={page}
+      contactEmail={contactEmail}
+      handle={subdomain}
+      locale={user?.locale ?? 'de-DE'}
+      steps={steps}
+      current={current}
+      creating={isCreating}
+      onCancel={cancel}
+    />
+  ) : null;
 
   // The form stays mounted while a run is going, so its step and inputs survive a cancel.
   return (
     <>
-      {isGenerating && (
-        <EditorSkeleton label="Seite wird generiert">
-          <GenerationProgress
-            message={isFlyer ? 'Flyer wird analysiert …' : 'KI generiert deine Seite …'}
-            steps={steps}
-            current={current}
-            onCancel={cancel}
-          />
+      {busy && (
+        <EditorSkeleton
+          label={isCreating ? 'Seite wird angelegt' : 'Seite wird generiert'}
+          page={live ?? undefined}
+        >
+          {!live && (
+            <GenerationProgress
+              message={isFlyer ? 'Flyer wird analysiert …' : 'KI generiert deine Seite …'}
+              steps={steps}
+              current={current}
+              onCancel={cancel}
+            />
+          )}
         </EditorSkeleton>
       )}
-      <div hidden={isGenerating}>
+      <div hidden={busy}>
         <CreateSiteScreen
           subdomain={subdomain}
           publicOrigin={publicOrigin}

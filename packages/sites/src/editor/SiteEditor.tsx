@@ -17,7 +17,11 @@ import { useLeaveWarning } from '../hooks/useLeaveWarning';
 import { type SiteData } from '../hooks/useSite';
 import { SITE_EDIT_SLOTS } from '../inline/editSlots';
 import { SitePreviewFrame } from '../preview/SitePreviewFrame';
-import { usePreviewHighlight, usePreviewSelection } from '../preview/usePreviewInteractions';
+import {
+  usePreviewHighlight,
+  usePreviewInsertMark,
+  usePreviewSelection,
+} from '../preview/usePreviewInteractions';
 import { useAuth } from '../SitesContext';
 import { useEditorStore } from '../stores/editorStore';
 
@@ -122,6 +126,7 @@ export function PreviewPane({ site, editable = true }: { site: SiteData; editabl
 function PreviewInteractions({ doc }: { doc: Document | null }) {
   usePreviewSelection(doc);
   usePreviewHighlight(doc);
+  usePreviewInsertMark(doc);
   return null;
 }
 

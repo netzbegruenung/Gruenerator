@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router-dom';
+import { Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
 import { renderWithProviders, screen } from '../../../test-utils';
@@ -22,10 +22,16 @@ vi.mock('../../usage/useItemUsage', () => ({
 
 const { NotebookResolver } = await import('./NotebookResolver');
 
+function LocationProbe() {
+  const location = useLocation();
+  return <p>at:{location.pathname + location.search}</p>;
+}
+
 const renderAt = (route: string) =>
   renderWithProviders(
     <Routes>
       <Route path="/notebooks/:idOrSlug" element={<NotebookResolver />} />
+      <Route path="/notebooks/hessen" element={<LocationProbe />} />
     </Routes>,
     { route }
   );
@@ -59,6 +65,13 @@ describe('NotebookResolver', () => {
     renderAt('/notebooks/presseschau-Ab3xK9');
 
     expect(recordUsage).not.toHaveBeenCalledWith('notebook', expect.any(String));
+  });
+
+  // Der Projekt-Feed verlinkt `/notebook/<id>` mit der Registry-Id.
+  it('forwards a registry id to the canonical page, keeping the thread', () => {
+    renderAt('/notebooks/hessen-notebook?thread=t1');
+
+    expect(screen.getByText('at:/notebooks/hessen?thread=t1')).toBeInTheDocument();
   });
 
   it('calls a segment without a slug tail unknown', () => {

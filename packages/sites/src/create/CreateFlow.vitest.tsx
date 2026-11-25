@@ -14,11 +14,13 @@ const m = vi.hoisted(() => ({
   cancel: vi.fn(),
   toastError: vi.fn(),
   projects: [] as Array<{ id: string; name: string; isAdmin: boolean }>,
+  isCreating: false,
   gen: {
     steps: [] as string[],
     current: null as string | null,
     isGenerating: false,
     isFlyer: false,
+    draft: null as Record<string, unknown> | null,
   },
 }));
 
@@ -26,7 +28,7 @@ vi.mock('../SitesContext', () => ({
   useAuth: () => ({ user: { display_name: 'Anna', email: 'a@b.de', locale: 'de-DE' } }),
   useSitesPaths: () => ({
     overview: '/sites',
-    create: '/sites/neu',
+    create: '/sites/erstellen',
     site: (handle: string) => `/sites/${handle}`,
   }),
 }));
@@ -35,7 +37,7 @@ vi.mock('../hooks/useSite', () => ({
   useCreateSite: () => ({
     publicOrigin: 'https://grsites.de',
     createSite: m.createSite,
-    isCreating: false,
+    isCreating: m.isCreating,
   }),
 }));
 vi.mock('@gruenerator/shared/api', () => ({
@@ -46,6 +48,13 @@ vi.mock('../hooks/useSiteSharing', () => ({
 }));
 vi.mock('../hooks/useSiteGeneration', () => ({
   useSiteGeneration: () => ({ generate: m.generate, cancel: m.cancel, ...m.gen }),
+}));
+vi.mock('../preview/SitePreviewFrame', () => ({
+  SitePreviewFrame: ({ snapshot, title }: { snapshot: { site_title: string }; title: string }) => (
+    <div role="document" aria-label={title}>
+      {snapshot.site_title}
+    </div>
+  ),
 }));
 vi.mock('../hooks/useToast', () => ({
   useToast: () => ({ success: vi.fn(), error: m.toastError }),
@@ -82,9 +91,9 @@ function Where() {
 
 function render(ui: ReactElement) {
   return rtlRender(
-    <MemoryRouter initialEntries={['/sites/neu']}>
+    <MemoryRouter initialEntries={['/sites/erstellen']}>
       <Routes>
-        <Route path="/sites/neu" element={ui} />
+        <Route path="/sites/erstellen" element={ui} />
         <Route path="/sites/:handle" element={<Where />} />
       </Routes>
     </MemoryRouter>
@@ -119,6 +128,8 @@ describe('CreateFlow', () => {
     m.gen.current = null;
     m.gen.isGenerating = false;
     m.gen.isFlyer = false;
+    m.gen.draft = null;
+    m.isCreating = false;
   });
 
   it('creates the site right after generating, without a review step', async () => {
@@ -150,6 +161,18 @@ describe('CreateFlow', () => {
     await user.click(screen.getByRole('button', { name: 'Generieren' }));
     await waitFor(() =>
       expect(m.createSite).toHaveBeenCalledWith(expect.objectContaining({ group_id: 'g1' }))
+    );
+  });
+
+  it("suggests an address past the account's own ones", async () => {
+    m.generate.mockResolvedValue(generated);
+    const user = userEvent.setup();
+    render(<CreateFlow ownHandles={['anna', 'anna-2']} />);
+    await user.click(screen.getByLabelText('Beschreibung'));
+    await user.paste('x'.repeat(80));
+    await user.click(screen.getByRole('button', { name: 'Generieren' }));
+    await waitFor(() =>
+      expect(m.createSite).toHaveBeenCalledWith(expect.objectContaining({ subdomain: 'anna-3' }))
     );
   });
 
@@ -250,5 +273,63 @@ describe('CreateFlow', () => {
       expect(m.toastError).toHaveBeenCalledWith('Fehler', 'Du hast bereits 25 Websites.')
     );
     expect(m.getSiteByHandle).not.toHaveBeenCalled();
+  });
+
+  describe('live build', () => {
+    it('shows the page as far as it is written instead of the progress card', () => {
+      m.gen.isGenerating = true;
+      m.gen.steps = ['write', 'images'];
+      m.gen.current = 'write';
+      m.gen.draft = { hero: { heading: 'Lena Hoffmann' } };
+      render(<CreateFlow />);
+      expect(screen.getByRole('document', { name: 'Deine Website entsteht' })).toHaveTextContent(
+        'Lena Hoffmann'
+      );
+      expect(screen.queryByRole('region', { name: 'KI generiert deine Seite …' })).toBeNull();
+      expect(screen.getByText('Texte werden geschrieben …')).toBeInTheDocument();
+      expect(screen.getByText('Schritt 1 von 2')).toBeInTheDocument();
+    });
+
+    it('keeps the progress card until the first draft arrives', () => {
+      m.gen.isGenerating = true;
+      m.gen.steps = ['write', 'images'];
+      m.gen.current = 'write';
+      render(<CreateFlow />);
+      expect(
+        screen.getByRole('region', { name: 'KI generiert deine Seite …' })
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('document')).toBeNull();
+    });
+
+    it('keeps the progress card until the name is written', () => {
+      m.gen.isGenerating = true;
+      m.gen.steps = ['write'];
+      m.gen.current = 'write';
+      m.gen.draft = { hero: { heading: '' } };
+      render(<CreateFlow />);
+      expect(
+        screen.getByRole('region', { name: 'KI generiert deine Seite …' })
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('document')).toBeNull();
+    });
+
+    it('cancels from the live page', async () => {
+      m.gen.isGenerating = true;
+      m.gen.steps = ['write'];
+      m.gen.current = 'write';
+      m.gen.draft = { hero: { heading: 'Lena' } };
+      render(<CreateFlow />);
+      await userEvent.click(screen.getByRole('button', { name: 'Abbrechen' }));
+      expect(m.cancel).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the page up while the site is stored, with nothing left to cancel', () => {
+      m.isCreating = true;
+      m.gen.draft = { hero: { heading: 'Lena Hoffmann' } };
+      render(<CreateFlow />);
+      expect(screen.getByRole('document', { name: 'Deine Website entsteht' })).toBeInTheDocument();
+      expect(screen.getByText('Seite wird angelegt …')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Abbrechen' })).toBeNull();
+    });
   });
 });

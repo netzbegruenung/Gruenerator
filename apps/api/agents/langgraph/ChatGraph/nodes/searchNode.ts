@@ -90,6 +90,7 @@ import {
   extractDomain,
   resolveCollectionName,
 } from './citationUtils.js';
+import { collectionFilterParams, contentTypesOf } from './classifierFilters.js';
 import { retrieveConnectFile } from './connectRetrieval.js';
 import { retrieveWolkeFile } from './wolkeRetrieval.js';
 
@@ -803,7 +804,7 @@ export async function executeDocumentSearchParallel(
   const uniqueCollections = [...new Set(collectionsToSearch)];
   const queries = subQueries?.length ? subQueries : [query];
 
-  const searchFilters = filters || undefined;
+  const scoped = collectionFilterParams(filters, agentConfig.defaultFilter?.content_type);
 
   const collectedErrors: SearchErrorEntry[] = [];
   const searchPromises = uniqueCollections.flatMap((collection) =>
@@ -812,13 +813,8 @@ export async function executeDocumentSearchParallel(
         query: sq,
         collection,
         limit: 3,
+        ...scoped,
       };
-      if (searchFilters != null) {
-        params.filters = searchFilters;
-      }
-      if (agentConfig.defaultFilter?.content_type?.length) {
-        params.lvContentType = agentConfig.defaultFilter.content_type;
-      }
       return executeDirectSearch(params).catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
         log.warn(`[Search] Collection ${collection} failed for query "${sq}": ${msg}`);
@@ -1132,8 +1128,15 @@ export async function executeMultiDocFanout(
    * und nicht der Standard, weil der Einzelpfad danach ohnehin `rerankNode`
    * fährt — dort wäre es eine zweite Stufe für dasselbe Geld. Gesetzt wird es
    * vom Loop-Anhang-Pfad, dem einzigen ohne solche zweite Stufe.
+   *
+   * `contentType`: die Dokumentart, nach der der Turn fragt
+   * (`detectedFilters.content_type`). Nur Notebook-Quellen nehmen sie, und
+   * `executeDirectSearch` wendet sie nur auf `landesverbaende_documents` an. Die
+   * feste Vorgabe eines LV-Agents geht vor. Ohne den Parameter suchte ein
+   * Folge-Turn „suche nur im notebook" nach „was haben wir beschlossen" im
+   * Hessen-Notebook über alles (25.11.2026).
    */
-  opts?: { rerankChunks?: boolean }
+  opts?: { rerankChunks?: boolean; contentType?: readonly string[] }
 ): Promise<MultiDocFanoutResult> {
   const perSourceLimit = fairShare(
     FANOUT_CHUNK_BUDGET,
@@ -1254,20 +1257,36 @@ export async function executeMultiDocFanout(
       }
 
       if (src.kind === 'notebook' && src.collectionIds && src.collectionIds.length > 0) {
-        const collectionPromises = src.collectionIds.map((collection) => {
+        const pinned = agentConfig.defaultFilter?.content_type?.length
+          ? agentConfig.defaultFilter.content_type
+          : undefined;
+        const lvContentType = pinned ?? opts?.contentType;
+        const collectionPromises = src.collectionIds.map(async (collection) => {
           collections.add(collection);
-          return executeDirectSearch({
-            query,
-            collection,
-            limit: perSourceLimit,
-            ...(agentConfig.defaultFilter?.content_type?.length && {
-              lvContentType: agentConfig.defaultFilter.content_type,
-            }),
-          }).catch((err: unknown) => {
+          const search = (contentType: readonly string[] | undefined) =>
+            executeDirectSearch({
+              query,
+              collection,
+              limit: perSourceLimit,
+              ...(contentType && { lvContentType: contentType }),
+            });
+          try {
+            const filtered = await search(lvContentType);
+            // Die Art aus dem Turn ist geraten. Rät sie falsch, soll die Frage
+            // nicht ohne Notebook-Treffer bleiben — einmal ohne sie. Die feste
+            // Vorgabe eines Agents bleibt fest.
+            if (!pinned && lvContentType && (filtered.results?.length ?? 0) === 0) {
+              log.info(
+                `[Search] Notebook ${collection}: keine Treffer mit contentType=${lvContentType.join(',')} — ohne Filter wiederholt`
+              );
+              return await search(undefined);
+            }
+            return filtered;
+          } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : String(err);
             errors.push({ source: `notebook:${src.id}:${collection}`, message: msg });
             return null;
-          });
+          }
         });
         const responses = await Promise.all(collectionPromises);
         const results: SearchResult[] = [];
@@ -1446,7 +1465,10 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         `[Search] Multi-doc fan-out across ${retrievableDocSources.length} sources: ${retrievableDocSources.map((s) => `${s.kind}:${s.id.slice(0, 8)}`).join(', ')}`
       );
 
-      const fanoutResult = await executeMultiDocFanout(query, retrievableDocSources, agentConfig);
+      const contentType = contentTypesOf(detectedFilters);
+      const fanoutResult = await executeMultiDocFanout(query, retrievableDocSources, agentConfig, {
+        ...(contentType && { contentType }),
+      });
 
       const aggregatedErrors = fanoutResult.errors;
       const flatResults = Object.values(fanoutResult.perSourceResults).flat();
@@ -1821,13 +1843,8 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
               query: sq,
               collection,
               limit: perCollectionLimit,
+              ...collectionFilterParams(detectedFilters, agentConfig.defaultFilter?.content_type),
             };
-            if (detectedFilters != null) {
-              params.filters = detectedFilters;
-            }
-            if (agentConfig.defaultFilter?.content_type?.length) {
-              params.lvContentType = agentConfig.defaultFilter.content_type;
-            }
             return executeDirectSearch(params).catch((err: unknown) => {
               const msg = err instanceof Error ? err.message : String(err);
               log.warn(`[Search] Collection ${collection} failed for query "${sq}": ${msg}`);

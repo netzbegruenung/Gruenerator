@@ -117,8 +117,7 @@ const ROUTES = [
   // Das Kanban liegt auf `/boards/:id` — `/boards` ist eine Weiterleitung.
   // Erreichbar nur mit festem Datenstand, siehe apiFixtures.
   `/boards/${FIXTURE_BOARD_ID}`,
-  '/wissen',
-  // `/agentura` leitet seit dem Marktplatz hierher weiter.
+  // `/agentura` und `/wissen` leiten seit dem Marktplatz hierher weiter.
   '/marktplatz',
   '/office',
   // `/studio/mediathek` leitet seit der Zusammenlegung hierher weiter.

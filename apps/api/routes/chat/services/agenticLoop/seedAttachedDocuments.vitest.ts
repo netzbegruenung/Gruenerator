@@ -228,6 +228,45 @@ describe('seedAttachedDocuments', () => {
     expect(sourceRegistry.renderAll()).toContain('Beschlusslage Verkehr.');
   });
 
+  /**
+   * Live 25.11.2026: „suche nur im notebook" nach „was haben wir beschlossen".
+   * Die Art kam beim Fan-out nicht an, und der Planer, der nur `{query}` sah,
+   * suchte dieselbe Frage mit Beschluss-Filter ein zweites Mal.
+   */
+  it('reicht die Dokumentart des Turns durch und sagt sie dem Planer', async () => {
+    fanout.mockResolvedValue({
+      perSourceResults: { 'nb-1': [{ ...hit, source: 'gruenerator:hessen' }] },
+      searchedCollections: [],
+      errors: [],
+    });
+    const notebook = { kind: 'notebook', id: 'nb-1', label: 'Hessen', collectionIds: ['hessen'] };
+    const state = stateWith({
+      documentSources: [notebook],
+      detectedFilters: { content_type: 'beschluss' },
+    });
+
+    const { replay } = await run(state);
+
+    expect(fanout.mock.calls[0]?.[3]).toMatchObject({ contentType: ['beschluss'] });
+    const result = JSON.stringify(replay[1]);
+    expect(result).toContain('Gefiltert auf Inhaltstyp beschluss.');
+    // Im Aufruf steht nur, was `dokumente_lesen` als Argument kennt.
+    expect(JSON.stringify(replay[0])).not.toContain('contentType');
+  });
+
+  it('ohne Dokumentart bleibt der Abruf ungefiltert', async () => {
+    fanout.mockResolvedValue({
+      perSourceResults: { 'nb-1': [{ ...hit, source: 'gruenerator:hessen' }] },
+      searchedCollections: [],
+      errors: [],
+    });
+    const notebook = { kind: 'notebook', id: 'nb-1', label: 'Hessen', collectionIds: ['hessen'] };
+    const { replay } = await run(stateWith({ documentSources: [notebook] }));
+
+    expect(fanout.mock.calls[0]?.[3]).not.toHaveProperty('contentType');
+    expect(JSON.stringify(replay[1])).not.toContain('Gefiltert auf');
+  });
+
   it('ohne tabelle_auswerten bleibt der Tabellenauszug zitierbar', async () => {
     fanout.mockResolvedValue({
       perSourceResults: { 'doc-1': [{ ...hit, title: 'Buchungen.xlsx', content: '| B-0142 |' }] },

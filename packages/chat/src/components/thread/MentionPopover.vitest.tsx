@@ -34,16 +34,16 @@ const rowKey = (m: Mentionable) => `${m.title}|${m.trigger}${m.mention}`;
 
 function renderedRows(): string[] {
   return screen.getAllByRole('option').map((el) => {
-    const [title, mention] = Array.from(el.querySelectorAll('p')).map((p) => p.textContent ?? '');
-    return `${title}|${mention}`;
+    const title = el.querySelector('[data-part="title"]')?.textContent ?? '';
+    return `${title}|${el.getAttribute('data-mention') ?? ''}`;
   });
 }
 
 /** Titles of the rows rendered under one sublabel ("eigene", "aus deinen Projekten"). */
 function rowTitlesUnder(sublabel: string): string[] {
-  const group = screen.getByText(sublabel).parentElement;
+  const group = screen.getByText(sublabel).closest('[data-mention-group]');
   return Array.from(group?.querySelectorAll('[role="option"]') ?? []).map(
-    (el) => el.querySelector('p')?.textContent ?? ''
+    (el) => el.querySelector('[data-part="title"]')?.textContent ?? ''
   );
 }
 
@@ -121,7 +121,7 @@ describe('MentionPopover ↔ keyboard list', () => {
       rerender(popover(i));
       const selected = screen.getAllByRole('option').filter((el) => el.dataset.selected === 'true');
       expect(selected).toHaveLength(1);
-      expect(selected[0].querySelector('p')?.textContent).toBe(flat[i].title);
+      expect(selected[0].querySelector('[data-part="title"]')?.textContent).toBe(flat[i].title);
     }
   });
 
@@ -328,7 +328,7 @@ describe('recipes saved from another user', () => {
 });
 
 describe('recipe descriptions', () => {
-  it('shows the recipe description as one clamped line', async () => {
+  it('shows the recipe description on the title line, truncated', async () => {
     const description =
       'Schreibt eine Pressemitteilung. Nutze es, wenn etwas veröffentlicht werden soll.';
     setCustomAgents([{ id: 'own-d', name: 'Presse-Rezept', slug: 'presse-rezept', description }]);
@@ -343,7 +343,7 @@ describe('recipe descriptions', () => {
       />
     );
 
-    expect(screen.getByText(description)).toHaveClass('line-clamp-1');
+    expect(screen.getByText(description)).toHaveClass('truncate');
     expect(await axe(container)).toHaveNoViolations();
   });
 
@@ -374,7 +374,30 @@ describe('recipe descriptions', () => {
     expect(screen.getByText('Einladung zur Mitgliederversammlung, förmlich.')).toBeInTheDocument();
   });
 
-  it('adds no description line to a row without one', () => {
+  it('bolds the typed text in the title and names the handle only when the title misses it', () => {
+    setCustomAgents([
+      { id: 'own-h', name: 'Presse-Rezept', slug: 'kv-presse', description: 'Mein Stil' },
+    ]);
+    const popover = (query: string) => (
+      <MentionPopover
+        query={query}
+        visible
+        onSelect={vi.fn()}
+        onDismiss={vi.fn()}
+        selectedIndex={0}
+        anchorRect={anchorRect}
+      />
+    );
+    const { rerender } = render(popover('presse'));
+    const row = () => screen.getAllByRole('option')[0];
+    expect(row().querySelector('strong')?.textContent).toBe('Presse');
+    expect(row().querySelector('[data-part="handle"]')).toBeNull();
+
+    rerender(popover('kv-pre'));
+    expect(row().querySelector('[data-part="handle"]')?.textContent).toBe('@kv-presse');
+  });
+
+  it('shows the handle instead of a description on a row without one', () => {
     setCustomAgents([{ id: 'own-e', name: 'Presse-Rezept', slug: 'presse-rezept' }]);
     render(
       <MentionPopover
@@ -388,6 +411,7 @@ describe('recipe descriptions', () => {
     );
 
     const row = screen.getAllByRole('option')[0];
-    expect(row.querySelectorAll('p')).toHaveLength(2);
+    expect(row.querySelector('[data-part="description"]')).toBeNull();
+    expect(row.querySelector('[data-part="handle"]')?.textContent).toBe('@presse-rezept');
   });
 });

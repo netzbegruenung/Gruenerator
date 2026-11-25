@@ -14,7 +14,6 @@ import { loadCanvasStudioPage } from '../features/image-studio/routeChunks';
 import { type BriefingCardId } from '../features/monitor/briefing/BriefingCard';
 import { BriefingSkeleton } from '../features/monitor/briefing/BriefingSkeleton';
 import { loadNotebookOverview, loadNotebookPage } from '../features/notebook/routeChunks';
-import { WissenDashboardSkeleton } from '../features/notebook/wissen/WissenSkeletons';
 import { isDesktopApp } from '../utils/platform';
 import { startTabLink } from '../utils/startpage';
 
@@ -380,9 +379,13 @@ const SharepicVorlageInstantiatePage = lazy(
 const CanvasToStudioRedirect = lazy(() => Promise.resolve({ default: createRedirect('/studio') }));
 // Deprecated /imagine and /bild-editor routes → Studio.
 const ImagineRedirect = lazy(() => Promise.resolve({ default: createRedirect('/studio') }));
-const WissenPage = lazy(() => import('../features/notebook/WissenPage'));
-// The notebook hub is now the standalone /wissen page (no longer a workplace tab).
-const WissenRedirect = lazy(() => Promise.resolve({ default: createRedirect('/wissen') }));
+// Die Seite /wissen gibt es nicht mehr: Notebooks findet man im Marktplatz.
+// Ihre alten Pfade (auch /workplace/wissen und /notebooks) leiten dorthin.
+const NotebooksMarketplaceRedirect = lazy(() =>
+  Promise.resolve({
+    default: () => createElement(Navigate, { to: '/marktplatz?art=notebooks', replace: true }),
+  })
+);
 // Arbeiten ist ein Tab von /start; die früheren Arbeiten-URLs (/workplace,
 // /workplace/arbeiten, /desk) bleiben als Weiterleitung auf diesen Tab bestehen.
 const ToArbeitenTab: FC<Record<string, unknown>> = () =>
@@ -461,14 +464,8 @@ const standardRoutes: RouteConfig[] = [
   { path: '/testsommer', component: TestsommerPage, public: true, layoutMode: 'noChrome' as const },
   // Unified Text Generator route (wildcard for path-based tab navigation)
   { path: '/texte/*', component: GrueneratorenBundle.Texte, withForm: true },
-  // Wissen is now a standalone page; keep the old tab path as a redirect.
-  { path: '/workplace/wissen', component: WissenRedirect },
-  {
-    path: '/wissen',
-    component: WissenPage,
-    layoutMode: 'sidebarOnly',
-    fallback: createElement(WissenDashboardSkeleton),
-  },
+  { path: '/workplace/wissen', component: NotebooksMarketplaceRedirect },
+  { path: '/wissen', component: NotebooksMarketplaceRedirect },
   // Chat und Arbeiten sind zwei Tabs einer Seite: ein Route-Eintrag mit
   // optionalem Tab-Segment, damit der Wechsel nichts neu mountet und trotzdem
   // in der History steht. sidebarOnly hält die Leiste an ihrem Platz.
@@ -641,7 +638,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/kommunal', component: GrueneratorenBundle.Oparl },
   // Notebook overview now lives in the workplace "Wissen" tab; detail routes
   // below keep their canonical /notebooks/:idOrSlug URLs.
-  { path: '/notebooks', component: WissenRedirect },
+  { path: '/notebooks', component: NotebooksMarketplaceRedirect },
   // Explicit routes must come BEFORE the catch-all /notebooks/:idOrSlug so they
   // win the match — react-router resolves by listed order for path-level conflicts.
   {
@@ -995,7 +992,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/boards/public/:id', component: PublicBoardPage, layoutMode: 'noChrome', public: true },
   { path: '/boards/:id', component: BoardPage, layoutMode: 'sidebarOnly' },
   // Sites Feature Routes — embedded candidate site builder
-  { path: '/sites', component: SitesEditPage, layoutMode: 'immersive' },
+  { path: '/sites', component: SitesEditPage, layoutMode: 'sidebarOnly' },
   { path: '/sites/:handle', component: SitesEditPage, layoutMode: 'immersive' },
   { path: '/sites/login', component: SitesLegacyRedirect, layoutMode: 'immersive', public: true },
   { path: '/sites/demo', component: SitesLegacyRedirect, layoutMode: 'sidebarOnly' },

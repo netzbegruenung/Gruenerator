@@ -3,7 +3,12 @@
  */
 import { describe, it, expect } from 'vitest';
 
-import { GEMMA_31B_ALTERNATE, GEMMA_31B_PRIMARY } from '../gemmaHosts.js';
+import {
+  GEMMA_31B_ALTERNATE,
+  GEMMA_31B_ON_CORTECS,
+  GEMMA_31B_ON_MELIOUS_ECO,
+  GEMMA_31B_PRIMARY,
+} from '../gemmaHosts.js';
 import {
   AI_LANES,
   isLaneId,
@@ -31,8 +36,6 @@ describe('the lane table', () => {
     for (const type of [
       'board_generation',
       'canvas_ai_suggest',
-      'website',
-      'flyer-analysis',
       'sharepic_dreizeilen',
       'sharepic_zitat',
       'sharepic_zitat_pure',
@@ -44,6 +47,22 @@ describe('the lane table', () => {
     ]) {
       expect(route(type), type).toEqual({ provider: 'mistral', model: 'mistral-large-4' });
     }
+  });
+
+  // Measured 25.11.2026, see the comment on the row: 10/10 valid on `:eco`, and
+  // it streams the tool arguments, which the live build of the preview needs.
+  it('routes candidate-site content to Gemma 4 on Melious eco', () => {
+    expect(route('website')).toEqual({ provider: 'melious', model: GEMMA_31B_ON_MELIOUS_ECO });
+  });
+
+  // Melious answered flyers without an e-mail address with HTTP 503 (9/9), so
+  // this row names the Cortecs host instead of following GEMMA_31B_ALTERNATE.
+  it('routes the flyer analysis to Gemma 4 on Cortecs, not Melious', () => {
+    expect(route('flyer-analysis')).toEqual({
+      provider: GEMMA_31B_ON_CORTECS.provider,
+      model: GEMMA_31B_ON_CORTECS.model,
+    });
+    expect(route('flyer-analysis').provider).not.toBe('melious');
   });
 
   it('has a row for the flyer analysis', () => {

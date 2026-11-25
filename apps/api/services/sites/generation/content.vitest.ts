@@ -1,7 +1,7 @@
 import { SITE_ACTION_TEXT_MAX, stripGreeting, type WebsiteContent } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { attachImages, clampSections, validateWebsiteContent } from './content.js';
+import { attachImages, clampSections, toSiteDraft, validateWebsiteContent } from './content.js';
 import { actionLinksFor } from './prompt.js';
 
 function content(themes: number, actions: number): WebsiteContent {
@@ -151,5 +151,47 @@ describe('stripGreeting', () => {
     input.hero.heading = 'Hallo, ich bin Lena Hoffmann!';
     const result = validateWebsiteContent('de-DE')(input);
     expect(result.ok && result.value.hero.heading).toBe('Lena Hoffmann');
+  });
+});
+
+describe('toSiteDraft', () => {
+  it('cuts lists to the three items validation keeps', () => {
+    const themes = [1, 2, 3, 4].map((n) => ({ title: `T${n}` }));
+    expect(toSiteDraft({ themes })?.themes).toHaveLength(3);
+  });
+
+  it('drops the contact e-mail and action links', () => {
+    const draft = toSiteDraft({
+      contact: { title: 'Schreib mir', email: 'a@b.de' },
+      actions: [{ text: 'Mitmachen', link: 'https://www.gruene.de/mitglied-werden' }],
+    });
+    expect(draft).toEqual({ contact: { title: 'Schreib mir' }, actions: [{ text: 'Mitmachen' }] });
+  });
+
+  it('returns null for text that does not have the shape yet', () => {
+    expect(toSiteDraft({ themes: 'noch nicht' })).toBeNull();
+  });
+});
+
+describe('attachImages — onUpdate', () => {
+  it('reports the content each time an image arrives', async () => {
+    const site = {
+      hero: { heading: 'H', text: 't' },
+      about: { title: 'A', content: 'c' },
+      hero_image: { title: 'B', subtitle: 's' },
+      themes: [{ title: 'T', content: 'c' }],
+      actions: [{ text: 'X', link: '#kontakt' }],
+      contact: { title: 'K', email: '' },
+    };
+    let n = 0;
+    const updates: string[] = [];
+    await attachImages(
+      site,
+      async () => `/img/${++n}.jpg`,
+      (c) => updates.push(c.themes[0]?.imageUrl ?? '')
+    );
+    // hero image, one theme, one action, contact background
+    expect(updates).toHaveLength(4);
+    expect(updates.at(-1)).not.toBe('');
   });
 });

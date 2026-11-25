@@ -32,6 +32,8 @@
  * Warnung; siehe dort.
  */
 
+import { parsePartialJson } from 'ai';
+
 import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 import { AiProviderError, classifyProviderError } from '../providers/providerErrors.js';
@@ -226,7 +228,8 @@ function toEnvelope(
   extra: Partial<AIRequestOptions> = {},
   /** Die Frist DIESES Versuchs (`attemptBudget`), nicht die des Aufrufers.
    *  `execute.ts` macht daraus das Abbruchsignal des Anbieters. */
-  timeoutMs?: number
+  timeoutMs?: number,
+  hooks: ChainHooks = {}
 ): AIRequestData {
   const options: AIRequestOptions = {
     ...extra,
@@ -246,7 +249,13 @@ function toEnvelope(
     ...(timeoutMs != null && { timeoutMs }),
     ...(call.signal != null && { signal: call.signal }),
     ...(call.platforms != null && { metadata: { platforms: [...call.platforms] } }),
+    ...(hooks.onToolInputText != null && { onToolInputText: hooks.onToolInputText }),
   };
+}
+
+/** Listeners that ride along a call without being part of what the model sees. */
+interface ChainHooks {
+  onToolInputText?: (text: string) => void;
 }
 
 /**
@@ -342,7 +351,8 @@ async function withBudget<T>(work: Promise<T>, ms: number, provider: ProviderNam
 async function runChain(
   call: AiCall,
   extra: Partial<AIRequestOptions>,
-  deadline: number
+  deadline: number,
+  hooks: ChainHooks
 ): Promise<AiResult> {
   const target = targetFor(call);
   const chain: ProviderName[] = [
@@ -381,7 +391,7 @@ async function runChain(
     const model = index === 0 ? target.model : null;
     try {
       const result = await withBudget(
-        executeProvider(provider, requestId, toEnvelope(call, model, extra, budget)),
+        executeProvider(provider, requestId, toEnvelope(call, model, extra, budget, hooks)),
         budget,
         provider
       );
@@ -430,13 +440,17 @@ async function runChain(
  * Der Zeitgeber bricht den Anbieteraufruf weiterhin nicht ab; das tut jetzt
  * das Abbruchsignal, das `execute.ts` aus der Versuchsfrist baut.
  */
-async function runWithFallback(call: AiCall, extra: Partial<AIRequestOptions> = {}) {
+async function runWithFallback(
+  call: AiCall,
+  extra: Partial<AIRequestOptions> = {},
+  hooks: ChainHooks = {}
+) {
   const timeoutMs = call.timeoutMs ?? env.REQUEST_TIMEOUT;
   let timer: NodeJS.Timeout | undefined;
 
   try {
     return await Promise.race([
-      runChain(call, extra, Date.now() + timeoutMs),
+      runChain(call, extra, Date.now() + timeoutMs, hooks),
       new Promise<never>((_, reject) => {
         timer = setTimeout(
           () =>
@@ -501,6 +515,18 @@ export interface AiObjectCall<T> extends AiCall {
   attempts?: number;
   /** Log prefix, e.g. 'pdf'. Defaults to the tool name. */
   label?: string;
+  /**
+   * The tool-call arguments written so far, parsed leniently, while the model
+   * is still writing — for a UI that fills in as the answer arrives. Setting it
+   * makes the call stream; leaving it out changes nothing.
+   *
+   * Every report is the WHOLE object so far, not a delta. A new provider in the
+   * fallback chain or a repair turn starts from an empty object again, so the
+   * listener sees the draft shrink and regrow; it must replace, not merge.
+   * The value is UNVALIDATED: `validate` runs only on the finished call, so a
+   * listener that shows it applies the same limits itself.
+   */
+  onPartial?: (partial: Record<string, unknown>) => void;
 }
 
 /**
@@ -573,6 +599,27 @@ const DEFAULT_TEMPERATURE = 0.4;
  *    with prose (the common case on the model this ran on) the quality gate was
  *    silently skipped and the empty deck shipped.
  */
+/**
+ * Turns the raw argument text into the object so far. `parsePartialJson` is
+ * async and the chunks arrive faster than it resolves, so only the latest text
+ * may report — an older parse finishing late would roll the draft back.
+ */
+function partialHooks(onPartial: AiObjectCall<unknown>['onPartial']): ChainHooks {
+  if (!onPartial) return {};
+  let latest = 0;
+  return {
+    onToolInputText: (text) => {
+      const seq = ++latest;
+      void parsePartialJson(text).then(({ value, state }) => {
+        if (seq !== latest) return;
+        if (state !== 'successful-parse' && state !== 'repaired-parse') return;
+        if (value === null || typeof value !== 'object' || Array.isArray(value)) return;
+        onPartial(value as Record<string, unknown>);
+      });
+    },
+  };
+}
+
 export async function aiObject<T>(call: AiObjectCall<T>): Promise<StructuredResult<T>> {
   const attempts = call.attempts ?? 2;
   const label = call.label ?? call.toolName;
@@ -584,6 +631,7 @@ export async function aiObject<T>(call: AiObjectCall<T>): Promise<StructuredResu
   const opening: AIRequestData['messages'] = call.messages ?? [
     { role: 'user', content: call.prompt ?? '' },
   ];
+  const hooks = partialHooks(call.onPartial);
 
   let lastError = '';
   let lastRaw = '';
@@ -622,7 +670,8 @@ export async function aiObject<T>(call: AiObjectCall<T>): Promise<StructuredResu
           // A repair runs deterministically — creativity already failed once.
           temperature: isRepair ? 0 : (call.temperature ?? DEFAULT_TEMPERATURE),
         },
-        { tools: [tool], tool_choice: 'required' }
+        { tools: [tool], tool_choice: 'required' },
+        hooks
       );
 
       const toolInput = extractToolInput(result, call.toolName);

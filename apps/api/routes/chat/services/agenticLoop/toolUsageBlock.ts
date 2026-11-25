@@ -8,7 +8,7 @@
  */
 
 import { NO_PHANTOM_ACTION_RULE } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
-import { SOURCE_LINK_RULE } from '../../../../agents/langgraph/ChatGraph/nodes/sourceLinkRule.js';
+import { sourceLinkRule } from '../../../../agents/langgraph/ChatGraph/nodes/sourceLinkRule.js';
 
 import { RECENCY_RULE } from './recencyRule.js';
 
@@ -127,8 +127,13 @@ export function buildToolUsageBlock(
    * Websuche (Testserver 23.09.2026). Ein Hinweis, kein Scope: die Websuche
    * bleibt für alles, was nicht im Notebook steht.
    */
-  notebook: { id: string; name: string | null } | null = null
+  notebook: { id: string; name: string | null } | null = null,
+  /** `agentConfig.inlineSourceLinks`: the agent writes text that leaves the app
+   *  (reply emails), so sources are linked by their real URL, not `quelle:N`
+   *  (#5615). */
+  inlineSourceLinks = false
 ): string {
+  const linkRule = sourceLinkRule(inlineSourceLinks);
   // Which rules this turn can even act on. Read off the mounted toolset, not
   // off an intent: the toolset is the ground truth about what the model can do,
   // and it is already decided by the time this runs. Live 13.08.2026 22:12 a
@@ -145,7 +150,7 @@ export function buildToolUsageBlock(
       `- Du hast maximal ${maxSteps} Schritte.`,
       '- Belege Fakten mit [N]-Markern, die den nummerierten Quellen entsprechen.',
       '- Ein [N] steht nur hinter einer Aussage, die Quelle N selbst trägt — verbinde nie Aussagen aus verschiedenen Quellen zu einem neuen Satz mit Beleg.',
-      `- ${SOURCE_LINK_RULE}`,
+      `- ${linkRule}`,
       // Nichts wird nachgeschlagen, es zählt also ausschliesslich, wie ALTE
       // Quellen gelesen werden — der Turn mit dem grössten Risiko, einen
       // vergangenen Stand als heutigen auszugeben.
@@ -208,7 +213,7 @@ export function buildToolUsageBlock(
       ? [
           '- Belege Fakten mit [N]-Markern, die den nummerierten Quellen im Feld "sources" der Tool-Ergebnisse entsprechen.',
           '- Ein [N] steht nur hinter einer Aussage, die Quelle N selbst trägt — verbinde nie Aussagen aus verschiedenen Quellen zu einem neuen Satz mit Beleg.',
-          `- ${SOURCE_LINK_RULE}`,
+          `- ${linkRule}`,
         ]
       : []),
     ...(hasSearchTools || hasCarriedSources ? [`- ${RECENCY_RULE}`] : []),

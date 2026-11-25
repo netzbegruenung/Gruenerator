@@ -16,15 +16,16 @@ import {
  * collections are named `<slug>-system`; where slug and collection differ, the
  * page resolver's collection-id lookup catches it.
  *
- * A thread that asked several collections belongs to the aggregate, web's only
- * multi-source notebook, which lives at `/wissen`. Its first collection alone
- * names a narrower notebook (`grundsatz-system` is the Grüne notebook's).
+ * A thread that asked several collections came from the aggregate notebook on
+ * the former `/wissen` page. That page is gone, so such a thread opens on the
+ * page of its first collection (`grundsatz-system` → the Grüne notebook): the
+ * page loads any thread by `?thread=`, the history stays readable, and a
+ * follow-up then asks only that notebook.
  */
 export function buildNotebookThreadPath(
   collectionIds: readonly string[],
   remoteId: string
 ): string {
-  if (collectionIds.length > 1) return `/wissen?thread=${remoteId}`;
   const slug = collectionIds[0].replace(/-system$/, '');
   return `/notebooks/${slug}?thread=${remoteId}`;
 }
