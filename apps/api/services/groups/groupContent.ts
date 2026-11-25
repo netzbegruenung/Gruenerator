@@ -91,6 +91,7 @@ export const CONTENT_LABELS: Record<string, string> = {
   chat_threads: 'einen Chat',
   user_text_forms: 'ein Rezept',
   nextcloud_share_link: 'eine Wolke-Verbindung',
+  user_sites: 'eine Website',
 };
 
 export interface ShareContentToGroupInput {
@@ -166,6 +167,14 @@ export async function shareContentToGroup(
 ): Promise<ShareContentOutcome> {
   const { userId, contentType, groupId, permissions, sharerName } = input;
   let { contentId } = input;
+  // A Website is shared only through /api/sites/:id/groups (admin, personal sites).
+  if (contentType === 'user_sites') {
+    return {
+      status: 400,
+      success: false,
+      message: 'Websites werden über die Website-Einstellungen geteilt.',
+    };
+  }
   const note = input.note?.trim() || null;
   const { postgres } = deps;
 
@@ -424,6 +433,8 @@ export async function hydrateGroupContent(
          LEFT JOIN profiles p ON p.id = gcs.shared_by_user_id
          LEFT JOIN profiles pp ON pp.id = gcs.pinned_by
         WHERE gcs.group_id = $1
+          -- A shared Website is access, not a feed post: it has no bucket and no card here.
+          AND gcs.content_type <> 'user_sites'
         ORDER BY gcs.shared_at DESC`,
       [groupId],
       { table: 'group_content_shares' }

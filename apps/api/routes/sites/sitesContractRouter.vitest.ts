@@ -62,6 +62,18 @@ vi.mock('../../services/sites/siteAccess.js', () => ({
   requireSiteRole: requireSiteRoleMock,
   getSiteRole: getSiteRoleMock,
 }));
+const members = vi.hoisted(() => ({
+  listSiteMembers: vi.fn(),
+  setSiteMemberRole: vi.fn(),
+  removeSiteMember: vi.fn(),
+}));
+const shares = vi.hoisted(() => ({
+  addGroupShare: vi.fn(),
+  removeGroupShare: vi.fn(),
+  GroupShareForbiddenError: class GroupShareForbiddenError extends Error {},
+}));
+vi.mock('../../services/sites/siteMembers.js', () => members);
+vi.mock('../../services/groups/groupShareWriter.js', () => shares);
 vi.mock('../../services/sites/publishLocale.js', () => ({
   resolvePublishLocale: resolvePublishLocaleMock,
 }));
@@ -158,6 +170,15 @@ beforeEach(() => {
   hocuspocusInternalOrNull.mockReset().mockResolvedValue(null);
   closeCollabRooms.mockReset().mockResolvedValue(undefined);
   access.current = { role: 'admin', groupId: null, creatorId: USER_ID };
+  for (const fn of [
+    members.listSiteMembers,
+    members.setSiteMemberRole,
+    members.removeSiteMember,
+    shares.addGroupShare,
+    shares.removeGroupShare,
+  ]) {
+    fn.mockReset();
+  }
   requireSiteRoleMock.mockClear();
   getSiteRoleMock.mockReset().mockResolvedValue('admin');
   resolvePublishLocaleMock.mockReset().mockResolvedValue('de-DE');
@@ -671,5 +692,122 @@ describe('sitesContract', () => {
     expect((await call('deleteSite', { params: { id: SITE_ID } })).status).toBe(403);
     expect(queryMock).not.toHaveBeenCalled();
     expect(closeCollabRooms).not.toHaveBeenCalled();
+  });
+
+  describe('members', () => {
+    const OTHER = '55555555-5555-4555-8555-555555555555';
+    const setRole = (role: string) =>
+      call('setSiteMemberRole', { params: { id: SITE_ID, userId: OTHER }, body: { role } });
+    const remove = (userId: string) =>
+      call('removeSiteMember', { params: { id: SITE_ID, userId } });
+
+    it('lists members for admins only', async () => {
+      members.listSiteMembers.mockResolvedValue([{ userId: OTHER, role: 'editor' }]);
+      const ok = await call('listSiteMembers', { params: { id: SITE_ID } });
+      expect(ok.status).toBe(200);
+      expect(ok.body.members).toHaveLength(1);
+      access.current = { role: 'editor', groupId: null, creatorId: null };
+      expect((await call('listSiteMembers', { params: { id: SITE_ID } })).status).toBe(403);
+    });
+
+    it('maps the service verdicts to 200, 409 and 422', async () => {
+      members.setSiteMemberRole.mockResolvedValueOnce('ok');
+      expect((await setRole('editor')).status).toBe(200);
+      expect(members.setSiteMemberRole).toHaveBeenCalledWith({
+        siteId: SITE_ID,
+        actorId: USER_ID,
+        targetId: OTHER,
+        role: 'editor',
+      });
+      members.setSiteMemberRole.mockResolvedValueOnce('last_admin');
+      const last = await setRole('viewer');
+      expect([last.status, last.body.code]).toEqual([409, 'last_admin']);
+      members.setSiteMemberRole.mockResolvedValueOnce('not_eligible');
+      const not = await setRole('viewer');
+      expect([not.status, not.body.code]).toEqual([422, 'not_eligible']);
+    });
+
+    it('a missing site is 404 before the service is asked', async () => {
+      access.current = 'not_found';
+      expect((await setRole('editor')).status).toBe(404);
+      expect(members.setSiteMemberRole).not.toHaveBeenCalled();
+    });
+
+    it('removing somebody else needs admin; leaving needs any role', async () => {
+      access.current = { role: 'viewer', groupId: null, creatorId: null };
+      expect((await remove(OTHER)).status).toBe(403);
+      expect(members.removeSiteMember).not.toHaveBeenCalled();
+
+      members.removeSiteMember.mockResolvedValueOnce('ok');
+      expect((await remove(USER_ID)).status).toBe(204);
+      expect(members.removeSiteMember).toHaveBeenCalledWith({ siteId: SITE_ID, targetId: USER_ID });
+
+      access.current = 'not_found';
+      expect((await remove(USER_ID)).status).toBe(404);
+    });
+
+    it('delete answers 409 for the last admin and 404 for a stranger', async () => {
+      members.removeSiteMember.mockResolvedValueOnce('last_admin');
+      expect((await remove(OTHER)).status).toBe(409);
+      members.removeSiteMember.mockResolvedValueOnce('not_found');
+      expect((await remove(OTHER)).status).toBe(404);
+    });
+  });
+
+  describe('project shares', () => {
+    const put = (write = true) =>
+      call('setSiteGroup', { params: { id: SITE_ID, groupId: GROUP_ID }, body: { write } });
+    const del = () => call('removeSiteGroup', { params: { id: SITE_ID, groupId: GROUP_ID } });
+
+    it('shares through the writer with write permission and the user_sites type', async () => {
+      shares.addGroupShare.mockResolvedValue({ created: true });
+      expect((await put(false)).status).toBe(200);
+      expect(shares.addGroupShare).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: USER_ID,
+          groupId: GROUP_ID,
+          contentType: 'user_sites',
+          contentId: SITE_ID,
+          permissions: { read: true, write: false },
+          onExisting: 'update-permissions',
+        })
+      );
+    });
+
+    it('403 when the admin may not share into that project', async () => {
+      shares.addGroupShare.mockRejectedValue(new shares.GroupShareForbiddenError('no'));
+      expect((await put()).status).toBe(403);
+    });
+
+    it('409 on a project site, for list, share and unshare', async () => {
+      access.current = { role: 'admin', groupId: GROUP_ID, creatorId: null };
+      expect((await put()).status).toBe(409);
+      expect((await del()).status).toBe(409);
+      expect((await call('listSiteGroups', { params: { id: SITE_ID } })).status).toBe(409);
+      expect(shares.addGroupShare).not.toHaveBeenCalled();
+      expect(shares.removeGroupShare).not.toHaveBeenCalled();
+    });
+
+    it('needs admin; unshare removes by type, site and project', async () => {
+      access.current = { role: 'editor', groupId: null, creatorId: null };
+      expect((await put()).status).toBe(403);
+      expect((await del()).status).toBe(403);
+      access.current = { role: 'admin', groupId: null, creatorId: null };
+      shares.removeGroupShare.mockResolvedValueOnce(true);
+      expect((await del()).status).toBe(204);
+      expect(shares.removeGroupShare).toHaveBeenCalledWith({
+        groupId: GROUP_ID,
+        contentType: 'user_sites',
+        contentId: SITE_ID,
+      });
+      shares.removeGroupShare.mockResolvedValueOnce(false);
+      expect((await del()).status).toBe(404);
+    });
+
+    it('lists the projects with their write flag', async () => {
+      queryMock.mockResolvedValueOnce([{ id: GROUP_ID, name: 'KV', write: true }]);
+      const res = await call('listSiteGroups', { params: { id: SITE_ID } });
+      expect(res.body.groups).toEqual([{ groupId: GROUP_ID, name: 'KV', write: true }]);
+    });
   });
 });

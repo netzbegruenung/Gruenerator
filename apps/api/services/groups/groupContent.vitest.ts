@@ -62,6 +62,16 @@ const base = {
 };
 
 describe('shareContentToGroup', () => {
+  it('refuses user_sites: a Website is shared only through its own endpoint', async () => {
+    const { deps, exec } = fakeDeps({ owner: { user_id: 'u1' } });
+    const out = await shareContentToGroup(
+      { ...base, contentType: 'user_sites', contentId: 's1' },
+      deps
+    );
+    expect(out.status).toBe(400);
+    expect(exec).not.toHaveBeenCalled();
+  });
+
   it('inserts a share for content the caller owns', async () => {
     const { deps, exec } = fakeDeps({ owner: { created_by: 'u1' } });
     const out = await shareContentToGroup(
@@ -400,6 +410,32 @@ describe('hydrateGroupContent', () => {
     };
     return { deps, query };
   }
+
+  it('leaves a user_sites share out of the feed: excluded in SQL, ignored when it slips through', async () => {
+    const { deps, query } = fakeHydrateDeps();
+    const withSite: unknown[] = [
+      ...shares,
+      {
+        content_type: 'user_sites',
+        content_id: 's1',
+        shared_at: '2026-09-01T07:00:00Z',
+        permissions: { read: true, write: true },
+        shared_by_user_id: 'u1',
+        first_name: null,
+        display_name: 'Moritz',
+        share_id: 'share-s1',
+      },
+    ];
+    query.mockImplementation((async (sql: string) =>
+      sql.includes('FROM group_content_shares') ? withSite : []) as never);
+    const out = await hydrateGroupContent('g1', 'viewer', deps);
+    const sharesSql = (query.mock.calls as unknown as [string][])[0][0];
+    expect(sharesSql).toContain("gcs.content_type <> 'user_sites'");
+    expect(JSON.stringify(out)).not.toContain('s1');
+    expect(Object.values(out).flat()).not.toContainEqual(
+      expect.objectContaining({ contentType: 'user_sites' })
+    );
+  });
 
   it('resolves each share to its record and attaches the share metadata', async () => {
     const { deps } = fakeHydrateDeps();

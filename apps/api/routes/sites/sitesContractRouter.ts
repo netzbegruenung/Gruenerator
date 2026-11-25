@@ -14,6 +14,8 @@
  *   POST   /api/sites/:id/draft
  *   GET    /api/sites/check-subdomain
  *   DELETE /api/sites/:id
+ *   GET    /api/sites/:id/members, PUT|DELETE /api/sites/:id/members/:userId
+ *   GET    /api/sites/:id/groups, PUT|DELETE /api/sites/:id/groups/:groupId
  *   POST   /api/sites/generate (SSE, see siteGenerationRoute.ts)
  *
  * Authentication: routes.ts applies requireAuth for /api/sites before this
@@ -43,10 +45,20 @@ import { siteOrigin } from '../../config/sitesOrigin.js';
 import { type UserSiteRawRow, type UserSiteRow } from '../../database/schema/sites.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import {
+  addGroupShare,
+  GroupShareForbiddenError,
+  removeGroupShare,
+} from '../../services/groups/groupShareWriter.js';
 import { resolvePublishLocale } from '../../services/sites/publishLocale.js';
 import { getSiteRole, requireSiteRole } from '../../services/sites/siteAccess.js';
 import { ensureSiteDraft, readSiteDraft, siteRoom } from '../../services/sites/siteDraftDoc.js';
 import { toSite } from '../../services/sites/siteMapper.js';
+import {
+  listSiteMembers,
+  removeSiteMember,
+  setSiteMemberRole,
+} from '../../services/sites/siteMembers.js';
 import {
   siteAccountLockKey,
   siteGroupLockKey,
@@ -75,6 +87,15 @@ function denied(result: 'not_found' | 'forbidden') {
     ? { status: 403 as const, body: { error: 'Dafür fehlt dir die Berechtigung' } }
     : { status: 404 as const, body: { error: 'Website nicht gefunden' } };
 }
+
+const UNAUTHENTICATED = { status: 401 as const, body: { error: 'Nicht authentifiziert' } };
+const NOT_PERSONAL = {
+  status: 409 as const,
+  body: {
+    error: 'Eine Projekt-Website gehört dem Projekt und wird nicht geteilt',
+    code: 'not_personal' as const,
+  },
+};
 
 function publicOrigin(): string | null {
   return env.SITES_HOST ? siteOrigin(env.SITES_HOST, getServerConfig().port) : null;
@@ -646,6 +667,158 @@ export const sitesContractRouter = s.router(sitesContract, {
     } catch (error) {
       log.error('Error deleting site:', error);
       return { status: 500 as const, body: { error: 'Fehler beim Löschen der Website' } };
+    }
+  },
+
+  listSiteMembers: async ({ req, params }) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return UNAUTHENTICATED;
+      const access = await requireSiteRole(params.id, userId, 'admin');
+      if (typeof access === 'string') return denied(access);
+      return { status: 200 as const, body: { members: await listSiteMembers(params.id) } };
+    } catch (error) {
+      log.error('Error listing site members:', error);
+      return { status: 500 as const, body: { error: 'Fehler beim Laden der Mitglieder' } };
+    }
+  },
+
+  setSiteMemberRole: async ({ req, params, body }) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return UNAUTHENTICATED;
+      // First, so a missing site is a 404 and not "not eligible".
+      const access = await requireSiteRole(params.id, userId, 'admin');
+      if (typeof access === 'string') return denied(access);
+
+      const result = await setSiteMemberRole({
+        siteId: params.id,
+        actorId: userId,
+        targetId: params.userId,
+        role: body.role,
+      });
+      if (result === 'last_admin') {
+        return {
+          status: 409 as const,
+          body: { error: 'Die Website braucht mindestens eine Admin', code: 'last_admin' as const },
+        };
+      }
+      if (result === 'not_eligible') {
+        return {
+          status: 422 as const,
+          body: {
+            error: 'Die Person teilt kein Projekt mit dir und ist nicht auf der Website',
+            code: 'not_eligible' as const,
+          },
+        };
+      }
+      return { status: 200 as const, body: { success: true } };
+    } catch (error) {
+      log.error('Error setting site member role:', error);
+      return { status: 500 as const, body: { error: 'Fehler beim Ändern der Rolle' } };
+    }
+  },
+
+  removeSiteMember: async ({ req, params }) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return UNAUTHENTICATED;
+      // Leaving is for everyone with a role; removing somebody else is for admins.
+      const leaving = params.userId === userId;
+      const access = await requireSiteRole(params.id, userId, leaving ? 'viewer' : 'admin');
+      if (typeof access === 'string') return denied(access);
+
+      const result = await removeSiteMember({ siteId: params.id, targetId: params.userId });
+      if (result === 'last_admin') {
+        return {
+          status: 409 as const,
+          body: { error: 'Die Website braucht mindestens eine Admin', code: 'last_admin' as const },
+        };
+      }
+      if (result === 'not_found') {
+        return { status: 404 as const, body: { error: 'Mitglied nicht gefunden' } };
+      }
+      return { status: 204 as const, body: undefined };
+    } catch (error) {
+      log.error('Error removing site member:', error);
+      return { status: 500 as const, body: { error: 'Fehler beim Entfernen des Mitglieds' } };
+    }
+  },
+
+  listSiteGroups: async ({ req, params }) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return UNAUTHENTICATED;
+      const access = await requireSiteRole(params.id, userId, 'admin');
+      if (typeof access === 'string') return denied(access);
+      if (access.groupId !== null) return NOT_PERSONAL;
+
+      const rows = await db.query<{ id: string; name: string; write: boolean }>(
+        `SELECT g.id, g.name, (gcs.permissions->>'write') = 'true' AS write
+           FROM group_content_shares gcs
+           INNER JOIN groups g ON g.id = gcs.group_id AND g.deleted_at IS NULL
+          WHERE gcs.content_type = 'user_sites' AND gcs.content_id = $1
+          ORDER BY g.name`,
+        [params.id]
+      );
+      return {
+        status: 200 as const,
+        body: {
+          groups: (rows ?? []).map((r) => ({ groupId: r.id, name: r.name, write: r.write })),
+        },
+      };
+    } catch (error) {
+      log.error('Error listing site groups:', error);
+      return { status: 500 as const, body: { error: 'Fehler beim Laden der Projekte' } };
+    }
+  },
+
+  setSiteGroup: async ({ req, params, body }) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return UNAUTHENTICATED;
+      const access = await requireSiteRole(params.id, userId, 'admin');
+      if (typeof access === 'string') return denied(access);
+      if (access.groupId !== null) return NOT_PERSONAL;
+
+      try {
+        await addGroupShare({
+          userId,
+          groupId: params.groupId,
+          contentType: 'user_sites',
+          contentId: params.id,
+          permissions: { read: true, write: body.write },
+          onExisting: 'update-permissions',
+        });
+      } catch (error) {
+        if (error instanceof GroupShareForbiddenError) return denied('forbidden');
+        throw error;
+      }
+      return { status: 200 as const, body: { success: true } };
+    } catch (error) {
+      log.error('Error sharing site with project:', error);
+      return { status: 500 as const, body: { error: 'Fehler beim Teilen mit dem Projekt' } };
+    }
+  },
+
+  removeSiteGroup: async ({ req, params }) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return UNAUTHENTICATED;
+      const access = await requireSiteRole(params.id, userId, 'admin');
+      if (typeof access === 'string') return denied(access);
+      if (access.groupId !== null) return NOT_PERSONAL;
+
+      const removed = await removeGroupShare({
+        groupId: params.groupId,
+        contentType: 'user_sites',
+        contentId: params.id,
+      });
+      if (!removed) return { status: 404 as const, body: { error: 'Freigabe nicht gefunden' } };
+      return { status: 204 as const, body: undefined };
+    } catch (error) {
+      log.error('Error removing site share:', error);
+      return { status: 500 as const, body: { error: 'Fehler beim Aufheben der Freigabe' } };
     }
   },
 });

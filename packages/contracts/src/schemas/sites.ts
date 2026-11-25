@@ -953,3 +953,29 @@ export type CheckSubdomainResponse = z.infer<typeof checkSubdomainResponseSchema
 export const deleteSiteResponseSchema = z.object({ success: z.boolean() });
 
 export const sitesErrorSchema = z.object({ error: z.string() });
+
+/** One person with access to a site, by the way they got it (the highest role wins). */
+export const siteMemberSchema = z.object({
+  userId: z.string(),
+  displayName: z.string().nullable(),
+  role: siteRoleSchema,
+  source: z.enum(['member', 'project', 'share']),
+  groupId: z.string().nullable(),
+});
+export type SiteMember = z.infer<typeof siteMemberSchema>;
+export const siteMembersResponseSchema = z.object({ members: z.array(siteMemberSchema) });
+export const setSiteMemberBodySchema = z.object({ role: siteRoleSchema });
+export const siteMemberErrorSchema = z.object({
+  error: z.string(),
+  code: z.enum(['last_admin', 'not_eligible', 'not_personal']),
+});
+
+/** A project a personal site is shared into; `write` lets its members edit. */
+export const siteGroupShareSchema = z.object({
+  groupId: z.string(),
+  name: z.string(),
+  write: z.boolean(),
+});
+export type SiteGroupShare = z.infer<typeof siteGroupShareSchema>;
+export const siteGroupsResponseSchema = z.object({ groups: z.array(siteGroupShareSchema) });
+export const setSiteGroupBodySchema = z.object({ write: z.boolean() });
