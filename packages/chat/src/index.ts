@@ -313,7 +313,12 @@ export {
   useCitationPanel,
   type CitationPanelSource,
 } from './context/CitationPanelContext';
-export { CitationSidePanel } from './components/message-parts/CitationSidePanel';
+export {
+  CitationSidePanel,
+  type CitationOriginalViewer,
+  type CitationOriginalViewerProps,
+  type CitationPdfMark,
+} from './components/message-parts/CitationSidePanel';
 
 // Layout & UI Components
 export { ChatLayout } from './components/ChatLayout';

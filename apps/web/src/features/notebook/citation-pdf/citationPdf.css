@@ -1,0 +1,78 @@
+/*
+ * The part of pdf.js' `web/pdf_viewer.css` the text layer needs, scoped to the
+ * citation viewer. The full stylesheet would bring the whole viewer chrome
+ * into the bundle for a few rules.
+ */
+.cpdf-page {
+  --scale-round-x: 1px;
+  --scale-round-y: 1px;
+  position: relative;
+  margin-inline: auto;
+  background: #fff;
+  box-shadow: 0 1px 6px rgb(0 0 0 / 0.35);
+}
+
+.cpdf-page canvas {
+  display: block;
+}
+
+.cpdf-page .textLayer {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  line-height: 1;
+  text-align: initial;
+  transform-origin: 0 0;
+  forced-color-adjust: none;
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+}
+
+.cpdf-page .textLayer :is(span, br) {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+}
+
+.cpdf-page .textLayer > :not(.markedContent),
+.cpdf-page .textLayer .markedContent span:not(.markedContent) {
+  z-index: 1;
+  --font-height: 0;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  --scale-x: 1;
+  --rotate: 0deg;
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+
+.cpdf-page .textLayer .markedContent {
+  display: contents;
+}
+
+.cpdf-page .textLayer ::selection {
+  background: rgb(70 150 43 / 0.35);
+}
+
+/* The cited passage. Same green as the passage mark in the text view. */
+.cpdf-page .textLayer .cpdf-hl {
+  background: rgb(70 150 43 / 0.3);
+  border-radius: 2px;
+  margin: -1px;
+  padding: 1px;
+}
+
+.cpdf-page .textLayer .cpdf-hl-active {
+  background: rgb(70 150 43 / 0.5);
+  box-shadow: 0 0 0 1px rgb(46 125 31);
+}
+
+@media (forced-colors: active) {
+  .cpdf-page .textLayer .cpdf-hl,
+  .cpdf-page .textLayer .cpdf-hl-active {
+    background: Highlight;
+    forced-color-adjust: none;
+    opacity: 0.4;
+  }
+}
