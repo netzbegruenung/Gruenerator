@@ -12,7 +12,7 @@
  * chosen by whichever provider the fallback chain reached.
  */
 
-import { defaultSettingsMiddleware, generateText, wrapLanguageModel } from 'ai';
+import { defaultSettingsMiddleware, generateText, streamText, wrapLanguageModel } from 'ai';
 
 import ToolHandler from '../../tools/index.js';
 import { getGenerationConfig } from '../config.js';
@@ -25,18 +25,68 @@ import {
   resolveToolChoice,
 } from './adapterUtils.js';
 
-import type { SdkToolChoice } from './adapterUtils.js';
 import type { ProviderName } from '../providers.js';
 import type { AIRequestData, AIRequestOptions, AiResult } from '../types.js';
+import type { SdkToolChoice } from './adapterUtils.js';
 import type { LanguageModel } from 'ai';
 
 /** Injected so tests drive the executor with a fake instead of `vi.mock('ai')`
  *  — the pattern `loopEngine.ts` uses, and the one that survives an SDK rename. */
 export interface ExecuteDeps {
   generateText: typeof generateText;
+  /** Only read when a request streams (`onToolInputText`); absent, the SDK's own
+   *  `streamText` is used. Kept out of `defaultDeps` on purpose: reading it at
+   *  module load breaks every test that replaces `ai` with a fake lacking it. */
+  streamText?: typeof streamText;
 }
 
 const defaultDeps: ExecuteDeps = { generateText };
+
+type SdkCallArgs = Parameters<typeof generateText>[0] & Parameters<typeof streamText>[0];
+
+/**
+ * The same call as `generateText`, streamed, reporting the tool-call arguments
+ * as they are written. Returns the four fields `buildAdapterResult` reads, so
+ * everything above `execute` (fallback chain, validation, repair turn) sees the
+ * same `AiResult` as before.
+ *
+ * Only worth it where the provider streams arguments: Melious and Cortecs
+ * (Gemma) do, in ~190 chunks per site; Mistral sends the whole tool call as one
+ * chunk (measured 25.11.2026), so there it degrades to one late report.
+ */
+async function streamWithToolInput(
+  stream: typeof streamText,
+  args: SdkCallArgs,
+  onText: (text: string) => void,
+  label: string
+): Promise<Parameters<typeof buildAdapterResult>[0]['result']> {
+  const result = stream(args);
+  let text = '';
+  let streamError: unknown = null;
+  for await (const part of result.fullStream) {
+    if (part.type === 'tool-input-start') {
+      text = '';
+    } else if (part.type === 'tool-input-delta') {
+      text += part.delta;
+      try {
+        onText(text);
+      } catch (error) {
+        // A failing listener must not cost the generation.
+        console.warn(`[${label}] onToolInputText threw: ${String(error)}`);
+      }
+    } else if (part.type === 'error') {
+      streamError = part.error;
+    }
+  }
+  if (streamError != null) throw streamError;
+  const [answer, finishReason, toolCalls, usage] = await Promise.all([
+    result.text,
+    result.finishReason,
+    result.toolCalls,
+    result.usage,
+  ]);
+  return { text: answer, finishReason, toolCalls, usage };
+}
 
 interface Sampling {
   temperature: number;
@@ -177,7 +227,7 @@ export async function execute(
     // difference is HOW retryability is decided: the old loop matched substrings
     // against the error message, so a provider that reworded its errors silently
     // stopped being retried. The SDK reads the structured `APICallError`.
-    const result = await deps.generateText({
+    const args: SdkCallArgs = {
       model: modelFor(provider, model, options, toolChoice),
       ...(system != null && { system }),
       messages: modelMessages,
@@ -208,7 +258,17 @@ export async function execute(
       ...(toolChoice != null && { toolChoice }),
       // Absent, the provider's off switch applies (meliousFetch, Large 4's middleware).
       ...(options.reasoning != null && { reasoning: options.reasoning }),
-    });
+    };
+
+    const onToolInputText = data.onToolInputText;
+    const result = onToolInputText
+      ? await streamWithToolInput(
+          deps.streamText ?? streamText,
+          args,
+          onToolInputText,
+          `${provider} ${requestId}`
+        )
+      : await deps.generateText(args);
 
     return buildAdapterResult({ provider, model, requestId, type, requestMetadata, result });
   } catch (error: unknown) {

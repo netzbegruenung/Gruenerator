@@ -15,6 +15,8 @@ import { handleApiError, SitesApiError } from '../utils/errorHandler';
 import { nameToSubdomain } from '../utils/sanitization';
 import { validators } from '../utils/validation';
 
+import { LiveSitePreview } from './LiveSitePreview';
+
 const HANDLE_MAX = 30;
 
 /** The name-based suggestion, counted past the account's own addresses (`anna`, `anna-2`, …). */
@@ -49,7 +51,7 @@ export function CreateFlow({
   const navigate = useNavigate();
   const routeState: unknown = useLocation().state;
   const paths = useSitesPaths();
-  const { generate, cancel, steps, current, isGenerating, isFlyer } = useSiteGeneration();
+  const { generate, cancel, steps, current, isGenerating, isFlyer, draft } = useSiteGeneration();
   const toast = useToast();
   const [failure, setFailure] = useState<{ message: string; retry: (() => void) | null } | null>(
     null
@@ -144,24 +146,48 @@ export function CreateFlow({
     await runGeneration({ file });
   };
 
-  if (isCreating) {
+  // The page takes over once the name is written: before that its head would read
+  // "Hallo, ich bin !". Until then, and while the site is stored without one, the card stays.
+  const page = draft?.hero?.heading?.trim() ? draft : null;
+  if (isCreating && !page) {
     return <EditorSkeleton label="Seite wird angelegt" />;
   }
+
+  // From then on the page itself shows the progress and stays up while the site is stored, so
+  // the editor opens on the page that was just written.
+  const busy = isGenerating || isCreating;
+  const live = page ? (
+    <LiveSitePreview
+      draft={page}
+      contactEmail={contactEmail}
+      handle={subdomain}
+      locale={user?.locale ?? 'de-DE'}
+      steps={steps}
+      current={current}
+      creating={isCreating}
+      onCancel={cancel}
+    />
+  ) : null;
 
   // The form stays mounted while a run is going, so its step and inputs survive a cancel.
   return (
     <>
-      {isGenerating && (
-        <EditorSkeleton label="Seite wird generiert">
-          <GenerationProgress
-            message={isFlyer ? 'Flyer wird analysiert …' : 'KI generiert deine Seite …'}
-            steps={steps}
-            current={current}
-            onCancel={cancel}
-          />
+      {busy && (
+        <EditorSkeleton
+          label={isCreating ? 'Seite wird angelegt' : 'Seite wird generiert'}
+          page={live ?? undefined}
+        >
+          {!live && (
+            <GenerationProgress
+              message={isFlyer ? 'Flyer wird analysiert …' : 'KI generiert deine Seite …'}
+              steps={steps}
+              current={current}
+              onCancel={cancel}
+            />
+          )}
         </EditorSkeleton>
       )}
-      <div hidden={isGenerating}>
+      <div hidden={busy}>
         <CreateSiteScreen
           subdomain={subdomain}
           publicOrigin={publicOrigin}

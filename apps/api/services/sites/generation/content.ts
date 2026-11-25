@@ -1,11 +1,18 @@
-import { stripGreeting, type WebsiteContent, websiteContentSchema } from '@gruenerator/contracts';
+import {
+  SITE_DRAFT_SECTION_ITEMS,
+  siteContentDraftSchema,
+  stripGreeting,
+  type SiteContentDraft,
+  type WebsiteContent,
+  websiteContentSchema,
+} from '@gruenerator/contracts';
 
 import { type StructuredValidation } from '../../ai/structuredParsing.js';
 import { type Locale } from '../../localization/index.js';
 
 import { actionLinksFor } from './prompt.js';
 
-export const MAX_SECTION_ITEMS = 3;
+export const MAX_SECTION_ITEMS = SITE_DRAFT_SECTION_ITEMS;
 
 export function clampSections(content: WebsiteContent): WebsiteContent {
   return {
@@ -21,10 +28,14 @@ export type PickImage = (text: string, exclude: readonly string[]) => Promise<st
  * Picks in parallel, then re-picks a later section's image if an earlier one
  * already uses it (order: hero, themes, actions, contact), so a site never
  * shows the same stock photo twice while alternatives exist.
+ *
+ * `onUpdate` gets the content with every image known so far, each time one
+ * arrives — the live preview shows them one by one. A re-pick reports again.
  */
 export async function attachImages(
   content: WebsiteContent,
-  pick: PickImage
+  pick: PickImage,
+  onUpdate?: (content: WebsiteContent) => void
 ): Promise<WebsiteContent> {
   const texts = [
     `${content.hero_image.title} ${content.hero_image.subtitle}`,
@@ -32,19 +43,10 @@ export async function attachImages(
     ...content.actions.map((action) => action.text),
     `${content.contact.title} Kontakt Politik Grüne`,
   ];
-  const urls = await Promise.all(texts.map((text) => pick(text, [])));
-
-  const used = new Set<string>();
-  for (const [i, text] of texts.entries()) {
-    let url = urls[i] ?? '';
-    if (url !== '' && used.has(url)) url = await pick(text, [...used]);
-    urls[i] = url;
-    if (url !== '') used.add(url);
-  }
-
+  const urls: string[] = texts.map(() => '');
   const themeStart = 1;
   const actionStart = themeStart + content.themes.length;
-  return {
+  const withUrls = (): WebsiteContent => ({
     ...content,
     hero_image: { ...content.hero_image, imageUrl: urls[0] ?? '' },
     themes: content.themes.map((theme, i) => ({ ...theme, imageUrl: urls[themeStart + i] ?? '' })),
@@ -53,7 +55,38 @@ export async function attachImages(
       imageUrl: urls[actionStart + i] ?? '',
     })),
     contact: { ...content.contact, backgroundImageUrl: urls[urls.length - 1] ?? '' },
-  };
+  });
+
+  await Promise.all(
+    texts.map(async (text, i) => {
+      urls[i] = await pick(text, []);
+      onUpdate?.(withUrls());
+    })
+  );
+
+  const used = new Set<string>();
+  for (const [i, text] of texts.entries()) {
+    let url = urls[i] ?? '';
+    if (url !== '' && used.has(url)) {
+      url = await pick(text, [...used]);
+      urls[i] = url;
+      onUpdate?.(withUrls());
+    }
+    if (url !== '') used.add(url);
+  }
+
+  return withUrls();
+}
+
+/**
+ * The model's arguments so far, as something the client may show: lists cut
+ * to the same three items the validator keeps, no contact e-mail and no action
+ * links (the draft schema has neither field, so parsing drops them). `null`
+ * when the text so far does not have the shape yet.
+ */
+export function toSiteDraft(input: unknown): SiteContentDraft | null {
+  const parsed = siteContentDraftSchema.safeParse(clampLists(dropNulls(input)));
+  return parsed.success ? parsed.data : null;
 }
 
 function dropNulls(value: unknown): unknown {
