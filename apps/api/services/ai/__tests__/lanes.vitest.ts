@@ -3,7 +3,7 @@
  */
 import { describe, it, expect } from 'vitest';
 
-import { GEMMA_31B_ALTERNATE, GEMMA_31B_PRIMARY } from '../gemmaHosts.js';
+import { GEMMA_31B_ALTERNATE, GEMMA_31B_ON_MELIOUS_ECO, GEMMA_31B_PRIMARY } from '../gemmaHosts.js';
 import {
   AI_LANES,
   isLaneId,
@@ -31,7 +31,6 @@ describe('the lane table', () => {
     for (const type of [
       'board_generation',
       'canvas_ai_suggest',
-      'website',
       'flyer-analysis',
       'sharepic_dreizeilen',
       'sharepic_zitat',
@@ -44,6 +43,12 @@ describe('the lane table', () => {
     ]) {
       expect(route(type), type).toEqual({ provider: 'mistral', model: 'mistral-large-4' });
     }
+  });
+
+  // Measured 25.11.2026, see the comment on the row: 10/10 valid on `:eco`, and
+  // it streams the tool arguments, which the live build of the preview needs.
+  it('routes candidate-site content to Gemma 4 on Melious eco', () => {
+    expect(route('website')).toEqual({ provider: 'melious', model: GEMMA_31B_ON_MELIOUS_ECO });
   });
 
   it('has a row for the flyer analysis', () => {
