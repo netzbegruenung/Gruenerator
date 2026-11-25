@@ -22,10 +22,10 @@ const m = vi.hoisted(() => ({
 }));
 
 vi.mock('../SitesContext', () => ({
+  FROM_OVERVIEW_STATE: { fromOverview: true },
   useAuth: () => ({ user: { display_name: 'Anna', email: 'a@b.de', locale: 'de-DE' } }),
   useSitesPaths: () => ({
     overview: '/sites',
-    create: '/sites/neu',
     site: (handle: string) => `/sites/${handle}`,
   }),
 }));
@@ -65,14 +65,20 @@ vi.mock('../components/CreateSiteScreen', () => ({
 import { CreateFlow } from './CreateFlow';
 
 function Where() {
-  return <span data-testid="pfad">{useLocation().pathname}</span>;
+  const location = useLocation();
+  const state = location.state as { fromOverview?: boolean } | null;
+  return (
+    <span data-testid="pfad" data-from-overview={String(state?.fromOverview === true)}>
+      {location.pathname}
+    </span>
+  );
 }
 
 function render(ui: ReactElement) {
   return rtlRender(
-    <MemoryRouter initialEntries={['/sites/neu']}>
+    <MemoryRouter initialEntries={['/sites']}>
       <Routes>
-        <Route path="/sites/neu" element={ui} />
+        <Route path="/sites" element={ui} />
         <Route path="/sites/:handle" element={<Where />} />
       </Routes>
     </MemoryRouter>
@@ -120,6 +126,26 @@ describe('CreateFlow', () => {
       })
     );
     expect(await screen.findByTestId('pfad')).toHaveTextContent('/sites/anna');
+  });
+
+  it('opens the new site on top of the overview, so back returns to it', async () => {
+    m.generate.mockResolvedValue(generated);
+    await fillAndGenerate();
+    const where = await screen.findByTestId('pfad');
+    expect(where).toHaveTextContent('/sites/anna');
+    expect(where).toHaveAttribute('data-from-overview', 'true');
+  });
+
+  it("suggests an address past the account's own ones", async () => {
+    m.generate.mockResolvedValue(generated);
+    const user = userEvent.setup();
+    render(<CreateFlow ownHandles={['anna', 'anna-2']} />);
+    await user.click(screen.getByLabelText('Beschreibung'));
+    await user.paste('x'.repeat(80));
+    await user.click(screen.getByRole('button', { name: 'Generieren' }));
+    await waitFor(() =>
+      expect(m.createSite).toHaveBeenCalledWith(expect.objectContaining({ subdomain: 'anna-3' }))
+    );
   });
 
   it('shows the flyer message while a flyer runs', () => {

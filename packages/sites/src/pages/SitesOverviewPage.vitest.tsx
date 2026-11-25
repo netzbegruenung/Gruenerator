@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ReactNode } from 'react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -8,11 +9,23 @@ const hoisted = vi.hoisted(() => ({ list: { current: {} as Record<string, unknow
 vi.mock('../hooks/useSite', () => ({ useSiteList: () => hoisted.list.current }));
 vi.mock('../SitesContext', () => ({
   FROM_OVERVIEW_STATE: { fromOverview: true },
+  useAuth: () => ({ user: { display_name: 'Anna Beispiel', locale: 'de-DE' } }),
   useSitesPaths: () => ({
     overview: '/sites',
-    create: '/sites/neu',
     site: (handle: string) => `/sites/${handle}`,
   }),
+}));
+// The create flow has its own tests; here it only shows where it sits and whether it is locked.
+vi.mock('../create/CreateFlow', () => ({
+  CreateFlow: (p: { header: ReactNode; children: ReactNode; disabledReason: string | null }) => (
+    <div>
+      {p.header}
+      <div data-testid="composer" data-locked={String(!!p.disabledReason)}>
+        {p.disabledReason}
+      </div>
+      {p.children}
+    </div>
+  ),
 }));
 
 import { SitesOverviewPage } from './SitesOverviewPage';
@@ -80,31 +93,34 @@ describe('SitesOverviewPage', () => {
     expect(screen.getByText('Veröffentlicht')).toBeInTheDocument();
     expect(screen.getByText('Ausgeblendet')).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('link', { name: /Seite anna-wien/ }));
+    await userEvent.click(screen.getByRole('link', { name: 'Seite anna-wien bearbeiten' }));
     const where = screen.getByTestId('pfad');
     expect(where).toHaveTextContent('/sites/anna-wien');
     expect(where).toHaveAttribute('data-from-overview', 'true');
   });
 
-  it('opens the create flow from the button', async () => {
+  it('greets by first name above the composer once there are sites', () => {
     setList([summary('anna')]);
     renderOverview();
-    await userEvent.click(screen.getByRole('button', { name: 'Neue Website' }));
-    expect(screen.getByTestId('pfad')).toHaveTextContent('/sites/neu');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Deine Websites, Anna');
+    expect(screen.getByTestId('composer')).toHaveAttribute('data-locked', 'false');
   });
 
-  it('goes straight to creating when there is no site yet', () => {
+  it('stays on the page without a site: the composer is the whole page', () => {
     setList([]);
     renderOverview();
-    const where = screen.getByTestId('pfad');
-    expect(where).toHaveTextContent('/sites/neu');
-    expect(where).toHaveAttribute('data-from-overview', 'false');
+    expect(screen.queryByTestId('pfad')).toBeNull();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      'Deine Kandidat*innen-Seite'
+    );
+    expect(screen.getByTestId('composer')).toBeInTheDocument();
+    expect(screen.queryByRole('list')).toBeNull();
   });
 
-  it('disables a new site at the limit', () => {
+  it('locks the composer at the limit and says why', () => {
     setList([summary('a1'), summary('a2')], 2);
     renderOverview();
-    expect(screen.getByRole('button', { name: 'Neue Website' })).toBeDisabled();
-    expect(screen.getByText(/Höchstzahl an Websites/)).toBeInTheDocument();
+    expect(screen.getByTestId('composer')).toHaveAttribute('data-locked', 'true');
+    expect(screen.getByText(/Höchstzahl von 2 Websites/)).toBeInTheDocument();
   });
 });

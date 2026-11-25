@@ -66,13 +66,12 @@ export function useSitesBasePath(): string {
   return useSitesContext().basePath;
 }
 
-/** The overview path (`/sites`), the create path, or one site's editor (`/sites/<handle>`). */
+/** The overview path (`/sites`, where sites are also created) or one site's editor (`/sites/<handle>`). */
 export function useSitesPaths() {
   const basePath = useSitesBasePath();
   return useMemo(
     () => ({
       overview: basePath,
-      create: `${basePath}/neu`,
       site: (handle: string) => `${basePath}/${encodeURIComponent(handle)}`,
     }),
     [basePath]

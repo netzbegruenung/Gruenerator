@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -13,7 +13,7 @@ import { CreateSiteScreen } from './CreateSiteScreen';
 
 const noop = () => {};
 
-function ContentStep({
+function Composer({
   onGenerate = noop,
   onFlyerUpload,
 }: {
@@ -31,15 +31,13 @@ function ContentStep({
       onGenerate={onGenerate}
       onFlyerUpload={onFlyerUpload}
       isProcessing={false}
-      isGenerating={false}
     />
   );
 }
 
-async function openContentStep(user: ReturnType<typeof userEvent.setup>) {
+async function addressIsFree() {
   check.mockResolvedValue({ status: 200, body: { available: true } });
-  await waitFor(() => expect(screen.getByRole('button', { name: /Weiter/ })).toBeEnabled());
-  await user.click(screen.getByRole('button', { name: /Weiter/ }));
+  expect(await screen.findByText('Diese Adresse ist frei')).toBeInTheDocument();
 }
 
 function Screen() {
@@ -53,7 +51,6 @@ function Screen() {
       onDescriptionChange={() => {}}
       onGenerate={() => {}}
       isProcessing={false}
-      isGenerating={false}
     />
   );
 }
@@ -69,43 +66,58 @@ describe('CreateSiteScreen address', () => {
     expect(screen.getByText('grsites.de/')).toBeInTheDocument();
     await user.type(screen.getByLabelText('Adresse'), 'anna');
     expect(await screen.findByText('Diese Adresse ist bereits vergeben')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Weiter/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Seite generieren/ })).toBeDisabled();
   });
 
-  it('lets a free address continue', async () => {
+  it('reports a free address', async () => {
     check.mockResolvedValue({ status: 200, body: { available: true } });
     const user = userEvent.setup();
     render(<Screen />);
     await user.type(screen.getByLabelText('Adresse'), 'berta');
     expect(await screen.findByText('Diese Adresse ist frei')).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole('button', { name: /Weiter/ })).toBeEnabled());
   });
 });
 
-describe('CreateSiteScreen content step', () => {
+describe('CreateSiteScreen composer', () => {
   beforeEach(() => check.mockReset());
 
   const PDF = () => new File(['x'], 'flyer.pdf', { type: 'application/pdf' });
 
-  it('shows the description and the file upload together, without a mode switch', async () => {
-    const user = userEvent.setup();
-    render(<ContentStep onFlyerUpload={noop} />);
-    await openContentStep(user);
+  it('shows address, description and the file upload in one step', () => {
+    check.mockResolvedValue({ status: 200, body: { available: true } });
+    render(<Composer onFlyerUpload={noop} />);
+    expect(screen.getByLabelText('Adresse')).toBeInTheDocument();
     expect(screen.getByLabelText('Beschreibung')).toBeEnabled();
-    expect(screen.getByText('oder Datei hochladen')).toBeInTheDocument();
-    expect(screen.getByText('PDF, max. 20 MB, bis 100 Seiten')).toBeInTheDocument();
-    expect(screen.queryByRole('radio')).toBeNull();
-    expect(screen.getByRole('heading', { name: 'Erzähl uns von dir' }).className).not.toMatch(
-      /GrueneType/
+    expect(screen.getByRole('button', { name: /Flyer \(PDF\)/ })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: /Weiter/ })).toBeNull();
+  });
+
+  it('locks everything and says why when nothing can be created', () => {
+    check.mockResolvedValue({ status: 200, body: { available: true } });
+    render(
+      <CreateSiteScreen
+        subdomain="anna"
+        publicOrigin="https://grsites.de"
+        onSubdomainChange={noop}
+        description={'x'.repeat(80)}
+        onDescriptionChange={noop}
+        onGenerate={noop}
+        onFlyerUpload={noop}
+        isProcessing={false}
+        disabledReason="Limit erreicht."
+      />
     );
+    expect(screen.getByText('Limit erreicht.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Beschreibung')).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Seite generieren/ })).toBeDisabled();
   });
 
   it('generates from the text once it is long enough', async () => {
     const onGenerate = vi.fn();
     const onFlyerUpload = vi.fn();
     const user = userEvent.setup();
-    render(<ContentStep onGenerate={onGenerate} onFlyerUpload={onFlyerUpload} />);
-    await openContentStep(user);
+    render(<Composer onGenerate={onGenerate} onFlyerUpload={onFlyerUpload} />);
+    await addressIsFree();
     expect(screen.getByRole('button', { name: /Seite generieren/ })).toBeDisabled();
     await user.click(screen.getByLabelText('Beschreibung'));
     await user.paste('x'.repeat(60));
@@ -118,8 +130,8 @@ describe('CreateSiteScreen content step', () => {
     const onGenerate = vi.fn();
     const onFlyerUpload = vi.fn();
     const user = userEvent.setup();
-    render(<ContentStep onGenerate={onGenerate} onFlyerUpload={onFlyerUpload} />);
-    await openContentStep(user);
+    render(<Composer onGenerate={onGenerate} onFlyerUpload={onFlyerUpload} />);
+    await addressIsFree();
     const file = PDF();
     await user.upload(screen.getByLabelText('PDF-Datei auswählen', { selector: 'input' }), file);
     expect(screen.getByLabelText('Beschreibung')).toBeDisabled();
