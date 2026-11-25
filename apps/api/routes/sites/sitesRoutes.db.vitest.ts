@@ -121,7 +121,7 @@ describe.skipIf(!url)('Sites routes by role (DB)', () => {
     await pool?.end();
     await adminPool.query(`DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`);
     await adminPool.end();
-  });
+  }, 60_000);
 
   it('create of a personal site inserts the creator as admin member, and project sites do not count', async () => {
     const g = await project();

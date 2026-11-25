@@ -18,6 +18,7 @@ import {
   siteDraftFromSite,
   siteDraftToSnapshotSource,
   type PublishedSiteSnapshot,
+  type SiteMember,
   type SiteDraft,
   type SiteSnapshotSource,
   type Site,
@@ -183,9 +184,16 @@ export function installSitesApi(
     locale?: SupportedLocale;
     /** The live draft, when a room serves one: publish builds the snapshot from it, as the API does. */
     readDraft?: () => SiteDraft | null;
+    /** The caller's role on the site (default `admin`). */
+    role?: 'admin' | 'editor' | 'viewer';
+    /** The project a project site belongs to (default none). */
+    group?: { id: string; name: string } | null;
+    members?: SiteMember[];
   }
 ): { state: SitesStubState } {
   const locale = options.locale ?? 'de-DE';
+  const role = options.role ?? 'admin';
+  const group = options.group ?? null;
   const state: SitesStubState = { site: null, snapshot: null, published: false, createBodies: [] };
 
   if (options.unlocked) {
@@ -227,7 +235,9 @@ export function installSitesApi(
     const tail = pathname.replace('/api/sites/', '');
 
     if (method === 'GET' && pathname === '/api/sites') {
-      const sites = state.site ? [state.site] : [];
+      const sites = state.site
+        ? [{ ...state.site, role, group, is_creator: role === 'admin' }]
+        : [];
       return json(route, { sites, public_origin: PUBLIC_ORIGIN, limit: 25 });
     }
     if (method === 'GET' && tail.startsWith('by-handle/')) {
@@ -236,7 +246,7 @@ export function installSitesApi(
       if (!site || (site.subdomain !== handle && site.id !== handle)) {
         return json(route, { error: 'Website nicht gefunden' }, 404);
       }
-      return json(route, { site, public_origin: PUBLIC_ORIGIN });
+      return json(route, { site, role, group, public_origin: PUBLIC_ORIGIN });
     }
     if (method === 'GET' && tail === 'my-site') {
       return json(route, { site: state.site, public_origin: PUBLIC_ORIGIN });
@@ -274,6 +284,11 @@ export function installSitesApi(
 
     const [id, action] = tail.split('/');
     if (!state.site || id !== state.site.id) return json(route, { error: 'Not found' }, 404);
+
+    if (method === 'GET' && action === 'members') {
+      return json(route, { members: options.members ?? [] });
+    }
+    if (method === 'GET' && action === 'groups') return json(route, { groups: [] });
 
     if (method === 'PUT' && !action) {
       const body = request.postDataJSON() as Partial<Site>;

@@ -196,3 +196,115 @@ test.describe('Sites: Editor', () => {
     }
   });
 });
+
+test.describe('Sites: Rollen im Editor', () => {
+  test.beforeEach(() => {
+    if (BYPASS_AKTIV) return;
+    const reason = 'VITE_E2E_AUTH_BYPASS ist nicht gesetzt.';
+    if (process.env.CI) throw new Error(`${reason} Die Sites-Lane hätte nichts geprüft.`);
+    test.skip(true, reason);
+  });
+
+  const openEditor = async (page: Page, role: 'admin' | 'editor' | 'viewer') => {
+    await installApiFixtures(page);
+    const site = makeSite();
+    const room = await startDraftServer(site);
+    const { state } = installSitesApi(page, {
+      unlocked: true,
+      readDraft: room.readDraft,
+      role,
+      members: [
+        {
+          userId: '00000000-0000-4000-a000-000000000001',
+          displayName: 'Anna Beispiel',
+          role: 'admin',
+          source: 'member',
+          groupId: null,
+        },
+      ],
+    });
+    state.site = site;
+    await page.goto(`/sites/${site.subdomain}`);
+    return room;
+  };
+
+  test('editor: edits, cannot publish or share', async ({ page }) => {
+    const room = await openEditor(page, 'editor');
+    try {
+      await expect(page.getByText('Veröffentlichen können nur Admins.')).toBeVisible({
+        timeout: 15_000,
+      });
+      await expect(page.getByRole('button', { name: 'Teilen' })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: /veröffentlichen/i })).toHaveCount(0);
+      const preview = page.frameLocator('iframe').first();
+      await expect(preview.getByRole('textbox', { name: 'Dein Name' })).toBeVisible();
+    } finally {
+      await room.close();
+    }
+  });
+
+  test('viewer: no sidebar, cannot publish or share', async ({ page }) => {
+    const room = await openEditor(page, 'viewer');
+    try {
+      await expect(page.getByText('Veröffentlichen können nur Admins.')).toBeVisible({
+        timeout: 15_000,
+      });
+      await expect(page.getByRole('button', { name: 'Teilen' })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: /veröffentlichen/i })).toHaveCount(0);
+      await expect(page.getByRole('tab')).toHaveCount(0);
+      await expect(page.getByRole('tablist')).toHaveCount(0);
+    } finally {
+      await room.close();
+    }
+  });
+
+  test('admin: share dialog lists people and projects, axe clean', async ({ page }) => {
+    const room = await openEditor(page, 'admin');
+    try {
+      await page.getByRole('button', { name: 'Teilen' }).click({ timeout: 15_000 });
+      const dialog = page.getByRole('dialog');
+      await expect(dialog.getByRole('heading', { name: 'Personen' })).toBeVisible();
+      await expect(dialog.getByRole('heading', { name: 'Projekte' })).toBeVisible();
+      await expect(dialog.getByText('Anna Beispiel (du)')).toBeVisible();
+
+      const { violations } = await wcagAxe(page).include('[role=dialog]').analyze();
+      expect(
+        violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`)
+      ).toEqual([]);
+    } finally {
+      await room.close();
+    }
+  });
+
+  test('two people: an edit by the editor shows up for the admin', async ({ browser }) => {
+    const site = makeSite();
+    const room = await startDraftServer(site);
+    const contexts = await Promise.all([browser.newContext(), browser.newContext()]);
+    try {
+      const [adminPage, editorPage] = await Promise.all(contexts.map((c) => c.newPage()));
+      for (const [page, role] of [
+        [adminPage, 'admin'],
+        [editorPage, 'editor'],
+      ] as const) {
+        await installApiFixtures(page);
+        const { state } = installSitesApi(page, {
+          unlocked: true,
+          readDraft: room.readDraft,
+          role,
+        });
+        state.site = site;
+        await page.goto(`/sites/${site.subdomain}`);
+      }
+      const nameOf = (page: Page) =>
+        page.frameLocator('iframe').first().getByRole('textbox', { name: 'Dein Name' });
+      await expect(nameOf(adminPage)).toHaveText(GENERATED.hero.heading, { timeout: 15_000 });
+      await expect(nameOf(editorPage)).toHaveText(GENERATED.hero.heading, { timeout: 15_000 });
+
+      await nameOf(editorPage).fill('Gemeinsam bearbeitet');
+      await expect(nameOf(adminPage)).toHaveText('Gemeinsam bearbeitet');
+    } finally {
+      await Promise.all(contexts.map((c) => c.close()));
+      await room.close();
+    }
+  });
+});
