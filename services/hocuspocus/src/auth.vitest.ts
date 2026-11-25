@@ -28,13 +28,7 @@ interface Rows {
   displayName?: string;
   profilesFail?: boolean;
   /** The `user_sites` row behind a `site-` room, as the access query would see it. */
-  site?: {
-    user_id: string;
-    moderation: string;
-    trashed?: boolean;
-    locked?: boolean;
-    admin?: boolean;
-  } | null;
+  site?: { role: string } | null;
   /** A `user_sites` row with the bare room's id exists (trashed or not). */
   siteExists?: boolean;
 }
@@ -47,15 +41,7 @@ function makeDb(rows: Rows) {
   const db: DbQueryFn = vi.fn(async (sql: string, params?: unknown[]) => {
     captured.push({ sql, params });
     if (/SELECT 1 FROM user_sites/i.test(sql)) return rows.siteExists ? [{ '?column?': 1 }] : [];
-    if (/FROM user_sites/i.test(sql)) {
-      const site = rows.site;
-      if (!site) return [];
-      if (site.trashed && !/s\.deleted_at IS NULL/.test(sql)) return [site];
-      if (site.locked && !/sites_unlocked = true/.test(sql)) return [site];
-      if (site.trashed) return [];
-      if (site.locked && !(site.admin && /is_admin = true/.test(sql))) return [];
-      return [site];
-    }
+    if (/WITH site AS/.test(sql)) return rows.site ? [rows.site] : [];
     if (/UPDATE collaborative_documents/i.test(sql)) return [];
     if (/FROM collaborative_documents/i.test(sql)) return rows.doc ? [rows.doc] : [];
     if (/FROM chat_threads/i.test(sql)) return rows.thread ? [rows.thread] : [];
@@ -629,55 +615,28 @@ describe('AuthService — site rooms', () => {
     return (await service.checkRoomAccess(room, userId)).reason;
   };
 
-  it('site room: owner gets read-write', async () => {
-    const { db, captured } = makeDb({ site: { user_id: 'user-9', moderation: 'ok' } });
+  it.each([
+    ['admin', false],
+    ['editor', false],
+    ['viewer', true],
+  ])('site room: role %s gets readOnly=%s', async (role, readOnly) => {
+    const { db, captured } = makeDb({ site: { role } });
     const res = await new AuthService({ db, redis }).authenticateConnection(withToken(ROOM));
-    expect(res).toMatchObject({ authenticated: true, userId: 'user-9', readOnly: false });
-    const query = captured.find((c) => /FROM user_sites s/.test(c.sql));
-    expect(query?.params).toEqual([SITE_ID]);
+    expect(res).toMatchObject({ authenticated: true, userId: 'user-9', readOnly });
+    const query = captured.find((c) => /WITH site AS/.test(c.sql));
+    expect(query?.params).toEqual([SITE_ID, 'user-9']);
     expect(captured.some((c) => /FROM collaborative_documents/.test(c.sql))).toBe(false);
   });
 
-  it('site room: another user is denied', async () => {
-    const { db } = makeDb({ site: { user_id: 'owner-1', moderation: 'ok' } });
+  it('site room: no role is denied', async () => {
+    const { db } = makeDb({ site: null });
     const res = await new AuthService({ db, redis }).authenticateConnection(withToken(ROOM));
     expect(res.authenticated).toBe(false);
     expect(await roomReason(db, ROOM)).toBe('Access denied');
   });
 
-  it.each([
-    ['trashed', { trashed: true }],
-    ['not unlocked', { locked: true }],
-  ])('site room: a trashed or not-unlocked site is denied (%s)', async (_label, flags) => {
-    const { db, captured } = makeDb({ site: { user_id: 'user-9', moderation: 'ok', ...flags } });
-    const res = await new AuthService({ db, redis }).authenticateConnection(withToken(ROOM));
-    expect(res.authenticated).toBe(false);
-    expect(await roomReason(db, ROOM)).toBe('Site not found');
-    const sql = captured.find((c) => /FROM user_sites s/.test(c.sql))?.sql ?? '';
-    expect(sql).toContain('s.deleted_at IS NULL');
-    expect(sql).toContain('sites_unlocked = true');
-  });
-
-  it('site room: an admin owner without the unlock connects', async () => {
-    const { db, captured } = makeDb({
-      site: { user_id: 'user-9', moderation: 'ok', locked: true, admin: true },
-    });
-    const res = await new AuthService({ db, redis }).authenticateConnection(withToken(ROOM));
-    expect(res).toMatchObject({ authenticated: true, userId: 'user-9', readOnly: false });
-    const sql = captured.find((c) => /FROM user_sites s/.test(c.sql))?.sql ?? '';
-    expect(sql).toContain('s.deleted_at IS NULL');
-  });
-
-  it('site room: a trashed site of an admin owner is still denied', async () => {
-    const { db } = makeDb({
-      site: { user_id: 'user-9', moderation: 'ok', trashed: true, admin: true },
-    });
-    const res = await new AuthService({ db, redis }).authenticateConnection(withToken(ROOM));
-    expect(res.authenticated).toBe(false);
-  });
-
   it('site room: a room without a uuid is denied without a query', async () => {
-    const { db, captured } = makeDb({ site: { user_id: 'user-9', moderation: 'ok' } });
+    const { db, captured } = makeDb({ site: { role: 'editor' } });
     const res = await new AuthService({ db, redis }).authenticateConnection(withToken('site-x'));
     expect(res.authenticated).toBe(false);
     expect(await roomReason(db, 'site-x')).toBe('Site not found');
@@ -685,7 +644,7 @@ describe('AuthService — site rooms', () => {
   });
 
   it('site room: an upper-case uuid is denied without a query', async () => {
-    const { db, captured } = makeDb({ site: { user_id: 'user-9', moderation: 'ok' } });
+    const { db, captured } = makeDb({ site: { role: 'editor' } });
     const room = `site-${SITE_ID.toUpperCase()}`;
     const res = await new AuthService({ db, redis }).authenticateConnection(withToken(room));
     expect(res.authenticated).toBe(false);
@@ -693,17 +652,11 @@ describe('AuthService — site rooms', () => {
     expect(captured.some((c) => /user_sites/.test(c.sql))).toBe(false);
   });
 
-  it('site room: removed by moderation is read-only', async () => {
-    const { db } = makeDb({ site: { user_id: 'user-9', moderation: 'removed' } });
-    const res = await new AuthService({ db, redis }).authenticateConnection(withToken(ROOM));
-    expect(res).toMatchObject({ authenticated: true, readOnly: true });
-  });
-
   it('site room: a guest is denied', async () => {
     global.fetch = vi.fn(
       async () => new Response('{}', { status: 401 })
     ) as unknown as typeof fetch;
-    const { db, captured } = makeDb({ site: { user_id: 'user-9', moderation: 'ok' } });
+    const { db, captured } = makeDb({ site: { role: 'editor' } });
     const res = await new AuthService({ db, redis }).authenticateConnection(guest(ROOM));
     expect(res.authenticated).toBe(false);
     expect(captured.some((c) => /FROM collaborative_documents/.test(c.sql))).toBe(false);
