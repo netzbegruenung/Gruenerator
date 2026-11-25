@@ -1,3 +1,7 @@
+import { buildSitePreviewSnapshot, siteDraftToSnapshotSource } from '@gruenerator/contracts';
+import { SiteBody, sitePaths } from '@gruenerator/sites-design';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
 import { liveSiteDraft } from './liveDraft';
@@ -30,5 +34,29 @@ describe('liveSiteDraft', () => {
     const page = liveSiteDraft({ actions: [{ text: 'Mitmachen' }] }, '');
     const actions = page.blocks.find((b) => b.type === 'actions');
     expect(actions?.type === 'actions' && actions.items[0]?.link).toBe('');
+  });
+
+  it('renders a half-written page without the editor prompts of empty sections', () => {
+    const snapshot = buildSitePreviewSnapshot(
+      siteDraftToSnapshotSource(liveSiteDraft({ hero: { heading: 'Lena' } }, 'a@b.de'), null),
+      'de-DE'
+    );
+    const markup = renderToStaticMarkup(
+      createElement(SiteBody, {
+        snapshot,
+        links: { ...sitePaths('lena'), report: null },
+        mode: 'public',
+      })
+    );
+    expect(markup).toContain('Lena');
+    for (const prompt of [
+      'Erzähl hier, wer du bist.',
+      'Noch kein Bild',
+      'Noch keine Themen',
+      'Noch keine Mitmach-Aktionen',
+    ]) {
+      expect(markup).not.toContain(prompt);
+    }
+    expect(markup).not.toContain('data-empty');
   });
 });

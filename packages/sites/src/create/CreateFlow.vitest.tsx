@@ -270,6 +270,18 @@ describe('CreateFlow', () => {
       expect(screen.queryByRole('document')).toBeNull();
     });
 
+    it('keeps the progress card until the name is written', () => {
+      m.gen.isGenerating = true;
+      m.gen.steps = ['write'];
+      m.gen.current = 'write';
+      m.gen.draft = { hero: { heading: '' } };
+      render(<CreateFlow />);
+      expect(
+        screen.getByRole('region', { name: 'KI generiert deine Seite …' })
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('document')).toBeNull();
+    });
+
     it('cancels from the live page', async () => {
       m.gen.isGenerating = true;
       m.gen.steps = ['write'];

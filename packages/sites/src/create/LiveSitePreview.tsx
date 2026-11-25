@@ -102,6 +102,8 @@ export function LiveSitePreview({
         snapshot={snapshot}
         handle={handle}
         title="Deine Website entsteht"
+        // As visitors will see it: a section appears once its text does, never as an editor prompt.
+        mode="public"
         className="block h-full w-full border-0"
         onFrameDocument={setFrameDoc}
       />

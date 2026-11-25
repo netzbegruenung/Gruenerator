@@ -146,17 +146,19 @@ export function CreateFlow({
     await runGeneration({ file });
   };
 
-  // Without a draft there is nothing to show while the site is stored.
-  if (isCreating && !draft) {
+  // The page takes over once the name is written: before that its head would read
+  // "Hallo, ich bin !". Until then, and while the site is stored without one, the card stays.
+  const page = draft?.hero?.heading?.trim() ? draft : null;
+  if (isCreating && !page) {
     return <EditorSkeleton label="Seite wird angelegt" />;
   }
 
-  // Once the first draft arrives, the page itself shows the progress and stays up while the site
-  // is stored, so the editor opens on the page that was just written.
+  // From then on the page itself shows the progress and stays up while the site is stored, so
+  // the editor opens on the page that was just written.
   const busy = isGenerating || isCreating;
-  const live = draft ? (
+  const live = page ? (
     <LiveSitePreview
-      draft={draft}
+      draft={page}
       contactEmail={contactEmail}
       handle={subdomain}
       locale={user?.locale ?? 'de-DE'}

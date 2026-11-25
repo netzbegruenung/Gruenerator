@@ -11,6 +11,7 @@ import {
   sitePaths,
   type SiteEditSlots,
   type SiteFontFile,
+  type SiteRenderMode,
 } from '@gruenerator/sites-design';
 import siteCss from '@gruenerator/sites-design/site.css?inline';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -75,6 +76,8 @@ interface SitePreviewFrameProps {
   onFrameDocument?: (doc: Document | null) => void;
   /** Renders only the snapshot's first block, without header and footer (block picker cards). */
   blockOnly?: boolean;
+  /** `public` shows the page as visitors see it: empty sections left out, no placeholders. */
+  mode?: SiteRenderMode;
 }
 
 export function SitePreviewFrame({
@@ -86,6 +89,7 @@ export function SitePreviewFrame({
   edit,
   onFrameDocument,
   blockOnly = false,
+  mode = 'preview',
 }: SitePreviewFrameProps) {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [frameDoc, setFrameDoc] = useState<Document | null>(null);
@@ -143,7 +147,7 @@ export function SitePreviewFrame({
           ) : (
             <SiteBody
               snapshot={snapshot}
-              mode="preview"
+              mode={mode}
               links={links}
               renderInstagram={(username) => <EditorInstagram username={username} />}
               edit={edit}
