@@ -1,8 +1,8 @@
 /**
- * `RecipeCreatorPage` is the guided recipe creator entry
- * (`/agentura/rezept/neu`): describe → AI draft, or skip straight into an
- * empty shared `RecipeEditor` via "Lieber manuell anlegen?". These tests cover
- * both entry paths plus the start screen's own-recipes grid and a11y.
+ * `RecipeCreatorPage` (`/projekte/rezept/neu`) opens the shared
+ * `RecipeEditor` empty — there is no start screen any more. Only „Als Rezept
+ * speichern" under a chat answer still runs an AI draft first, with the answer
+ * as the first example.
  */
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
@@ -41,37 +41,15 @@ beforeEach(() => {
 });
 
 describe('RecipeCreatorPage', () => {
-  it('entwirft aus der Beschreibung und öffnet den Editor vorausgefüllt', async () => {
-    draft.mockResolvedValueOnce({
-      status: 200,
-      body: {
-        success: true,
-        spec: {
-          title: 'Vereinseinladung',
-          mention: 'vereinseinladung',
-          description: 'Einladung zur Mitgliederversammlung',
-          iconKey: 'PiEnvelope',
-          styleBlock: 'Förmlicher Ton, mit Tagesordnung.',
-        },
-      },
-    });
-    const { user } = renderWithProviders(<RecipeCreatorPage />);
+  it('öffnet den Editor sofort leer, ohne Startbildschirm und ohne KI-Entwurf', () => {
+    renderWithProviders(<RecipeCreatorPage />);
 
-    // The prompt's icon-only submit button carries no accessible name once
-    // text is entered (`@gruenerator/ui`, out of this task's scope) — Enter
-    // is the input's own submit path (`handleKeyDown` in `AIPromptInput`).
-    await user.type(
-      screen.getByPlaceholderText('Beschreibe dein neues Rezept...'),
-      'Einladung zur Mitgliederversammlung, förmlicher Ton{Enter}'
-    );
-
-    await waitFor(() => expect(draft).toHaveBeenCalledTimes(1));
-    expect(await screen.findByLabelText('Name')).toHaveValue('Vereinseinladung');
-    expect(screen.getByLabelText('@mention')).toHaveValue('vereinseinladung');
-    expect(screen.getByLabelText('Beschreibung')).toHaveValue(
-      'Einladung zur Mitgliederversammlung'
-    );
-    expect(screen.getByLabelText('Anleitung')).toHaveValue('Förmlicher Ton, mit Tagesordnung.');
+    expect(screen.getByRole('heading', { name: 'Neues Rezept' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Name')).toHaveValue('');
+    expect(screen.getByLabelText('Anleitung')).toHaveValue('');
+    expect(screen.queryByText('Lieber manuell anlegen?')).not.toBeInTheDocument();
+    expect(screen.queryByText('Meine Rezepte')).not.toBeInTheDocument();
+    expect(draft).not.toHaveBeenCalled();
   });
 
   it('prefills the draft from an answer', async () => {
@@ -91,15 +69,20 @@ describe('RecipeCreatorPage', () => {
     locationState.value = { fromAnswer: { text: 'Liebe Mitglieder, wir laden herzlich ein.' } };
     renderWithProviders(<RecipeCreatorPage />);
 
+    expect(screen.getByRole('status')).toHaveTextContent('Rezeptentwurf');
     await waitFor(() => expect(draft).toHaveBeenCalledTimes(1));
     const sent = (draft.mock.calls[0]?.[0] as { body: { description: string } }).body.description;
     expect(sent).toContain('Ein Rezept, das Texte wie dieses Beispiel erzeugt.');
     expect(sent).toContain('Liebe Mitglieder, wir laden herzlich ein.');
     expect(sent.length).toBeLessThanOrEqual(4000);
     expect(await screen.findByLabelText('Name')).toHaveValue('Vereinseinladung');
+    expect(screen.getByLabelText('Im Chat aufrufen mit')).toHaveValue('vereinseinladung');
+    expect(screen.getByLabelText('Wann soll der Grünerator es nutzen?')).toHaveValue(
+      'Einladung zur Mitgliederversammlung'
+    );
     expect(screen.getByLabelText('Anleitung')).toHaveValue('Förmlicher Ton, mit Tagesordnung.');
-    // Die Antwort steht als erstes Beispiel im (zugeklappten) Beispiel-Feld.
-    expect(screen.getByText(/^Aus Beispielen lernen · 1/)).toBeInTheDocument();
+    // Die Antwort steht als erstes Beispiel hinter „Aus Beispielen lernen".
+    expect(screen.getByRole('button', { name: /^Aus Beispielen lernen · 1/ })).toBeInTheDocument();
   });
 
   it('opens the editor with the answer as example when the draft fails', async () => {
@@ -108,58 +91,7 @@ describe('RecipeCreatorPage', () => {
     renderWithProviders(<RecipeCreatorPage />);
 
     expect(await screen.findByLabelText('Name')).toHaveValue('');
-    expect(screen.getByText(/^Aus Beispielen lernen · 1/)).toBeInTheDocument();
-  });
-
-  it('„Lieber manuell anlegen?" öffnet den Editor leer', async () => {
-    const { user } = renderWithProviders(<RecipeCreatorPage />);
-
-    await user.click(screen.getByRole('button', { name: 'Lieber manuell anlegen?' }));
-
-    // Ein Formular, keine Tabs: Name und Anleitung stehen gleichzeitig da.
-    expect(screen.getByLabelText('Name')).toHaveValue('');
-    expect(screen.getByLabelText('Anleitung')).toHaveValue('');
-    expect(draft).not.toHaveBeenCalled();
-  });
-
-  it('bietet keinen zweiten Einstieg mehr an, der dasselbe täte', async () => {
-    renderWithProviders(<RecipeCreatorPage />);
-
-    // „Aus Beispielen anlernen" öffnete denselben leeren Editor wie „manuell",
-    // nur auf einem anderen Tab — und die Tabs gibt es nicht mehr.
-    expect(
-      screen.queryByRole('button', { name: 'Aus Beispielen anlernen' })
-    ).not.toBeInTheDocument();
-  });
-
-  it('zeigt „Meine Rezepte" nicht, wenn die eigene Liste leer ist', async () => {
-    renderWithProviders(<RecipeCreatorPage />);
-
-    await waitFor(() => expect(list).toHaveBeenCalled());
-    expect(screen.queryByText('Meine Rezepte')).not.toBeInTheDocument();
-  });
-
-  it('zeigt eigene Rezepte unter „Meine Rezepte", wenn welche existieren', async () => {
-    list.mockResolvedValue({
-      status: 200,
-      body: {
-        forms: [
-          {
-            id: 'r1',
-            kind: 'custom',
-            mention: 'mein-rezept',
-            title: 'Mein Rezept',
-            description: 'Kurzbeschreibung',
-            iconKey: 'PiSparkle',
-            sharedFromGroup: null,
-          },
-        ],
-      },
-    });
-    renderWithProviders(<RecipeCreatorPage />);
-
-    expect(await screen.findByText('Meine Rezepte')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Mein Rezept' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Aus Beispielen lernen · 1/ })).toBeInTheDocument();
   });
 
   it('ist frei von Verstößen gegen die Zugänglichkeit', async () => {

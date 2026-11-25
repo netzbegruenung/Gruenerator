@@ -1,12 +1,13 @@
 /**
- * `RecipeEditor` is the create/edit surface for one recipe ("Rezept"): one
- * continuous form, no tabs. These tests cover the behaviours the brief calls
- * out: the Save button gates on the required fields (including the examples
- * budget), a successful save PUTs the payload (description/iconKey included)
- * and navigates, a 409 (mention already taken) surfaces the colliding slug
- * under the mention field rather than as a banner, and the sharing section is
+ * `RecipeEditor` is the create/edit page for one recipe ("Rezept"): one
+ * column, a sticky footer with the category chip and the actions. Save is
+ * never disabled — a click with gaps names every missing field and focuses
+ * the first. A successful save PUTs the payload (description/iconKey included)
+ * and navigates, a 409 (mention already taken) surfaces under the mention
+ * field rather than as a banner, and the sharing dialog behind „⋯" is
  * accessible.
  */
+import { SKILL_CATEGORY_LABELS } from '@gruenerator/shared/agents';
 import {
   EMPTY_RECIPE_FORM,
   type RecipeFormState,
@@ -21,6 +22,7 @@ import { axe, fireEvent, renderWithProviders, screen, waitFor } from '@/test-uti
 
 const save = vi.hoisted(() => vi.fn());
 const analyze = vi.hoisted(() => vi.fn());
+const describeRecipe = vi.hoisted(() => vi.fn());
 const list = vi.hoisted(() => vi.fn());
 const getShareSettings = vi.hoisted(() => vi.fn());
 const listMyGroups = vi.hoisted(() => vi.fn());
@@ -28,7 +30,7 @@ const listMyGroups = vi.hoisted(() => vi.fn());
 vi.mock('@gruenerator/shared/api', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   getContractsClient: () => ({
-    userTextForms: { save, analyze, list, getShareSettings },
+    userTextForms: { save, analyze, describe: describeRecipe, list, getShareSettings },
     notebookSharing: { listMyGroups },
   }),
 }));
@@ -40,6 +42,8 @@ vi.mock('react-router-dom', async (importOriginal) => ({
 }));
 
 const WANN_BESCHREIBUNG = 'Kurze Rundbriefe. Nutzen, wenn ein Rundbrief entsteht.';
+const WANN = 'Wann soll der Grünerator es nutzen?';
+const MENTION = 'Im Chat aufrufen mit';
 
 function customCreateForm(over: Partial<RecipeFormState> = {}): RecipeFormState {
   return { ...EMPTY_RECIPE_FORM, ...over };
@@ -64,18 +68,27 @@ async function fillTitleAndInstruction(
   instruction: string
 ) {
   await user.type(screen.getByLabelText('Name'), title);
-  await user.type(screen.getByLabelText('Beschreibung'), WANN_BESCHREIBUNG);
   await user.type(screen.getByLabelText('Anleitung'), instruction);
+  await user.type(screen.getByLabelText(WANN), WANN_BESCHREIBUNG);
 }
 
-/** Die Klappe „Aus Beispielen lernen" unter dem Anleitung-Feld aufziehen. */
+const saveButton = () => screen.getByRole('button', { name: 'Speichern' });
+
+/** Der Teilen-Dialog hinter „⋯" — nur beim Bearbeiten eines eigenen Rezepts. */
+async function openSharing(user: ReturnType<typeof renderWithProviders>['user']) {
+  await user.click(screen.getByRole('button', { name: 'Weitere Aktionen' }));
+  await user.click(await screen.findByRole('menuitem', { name: 'Teilen …' }));
+}
+
+/** Statt der Anleitung die Beispiele zeigen, aus denen sie entsteht. */
 async function openExamples(user: ReturnType<typeof renderWithProviders>['user']) {
-  await user.click(screen.getByText(/^Aus Beispielen lernen/));
+  await user.click(screen.getByRole('button', { name: /^Aus Beispielen lernen/ }));
 }
 
 beforeEach(() => {
   save.mockReset();
   analyze.mockReset();
+  describeRecipe.mockReset();
   navigate.mockReset();
   list.mockReset().mockResolvedValue({ status: 200, body: { success: true, forms: [] } });
   getShareSettings.mockReset().mockResolvedValue({
@@ -86,74 +99,75 @@ beforeEach(() => {
 });
 
 describe('RecipeEditor', () => {
-  it('zeigt alle Felder gleichzeitig, ohne Tabs', async () => {
+  it('zeigt alle Felder gleichzeitig, ohne Tabs und ohne Vorschau', async () => {
     const { user } = renderWithProviders(
       <RecipeEditor mode="create" initialState={customCreateForm()} />
     );
 
     expect(screen.queryAllByRole('tab')).toHaveLength(0);
+    expect(screen.queryByText('Vorschau')).not.toBeInTheDocument();
 
     await fillTitleAndInstruction(user, 'Mein Testrezept', 'Schreibe kurz und klar.');
 
-    // Beides steht nebeneinander — das war vorher ein Tab-Wechsel.
     expect(screen.getByLabelText('Name')).toHaveValue('Mein Testrezept');
     expect(screen.getByLabelText('Anleitung')).toHaveValue('Schreibe kurz und klar.');
+    expect(screen.getByLabelText(WANN)).toHaveValue(WANN_BESCHREIBUNG);
   });
 
-  it('sperrt Speichern ohne Beschreibung und nennt im Feld die Frage nach dem Wann', async () => {
+  it('nennt beim Speichern jedes fehlende Feld und setzt den Fokus auf das erste', async () => {
     const { user } = renderWithProviders(
       <RecipeEditor mode="create" initialState={customCreateForm()} />
     );
 
-    expect(screen.getByLabelText('Beschreibung')).toHaveAttribute(
-      'placeholder',
-      'Wann soll der Grünerator dieses Rezept nutzen?'
-    );
-    await user.type(screen.getByLabelText('Name'), 'Mein Testrezept');
-    await user.type(screen.getByLabelText('Anleitung'), 'Schreibe kurz und klar.');
-    expect(screen.getByRole('button', { name: 'Speichern' })).toBeDisabled();
+    // Nie grau: ein gesperrter Knopf sagt nicht, was fehlt.
+    expect(saveButton()).toBeEnabled();
+    await user.click(saveButton());
 
-    await user.type(screen.getByLabelText('Beschreibung'), WANN_BESCHREIBUNG);
-    expect(screen.getByRole('button', { name: 'Speichern' })).toBeEnabled();
+    expect(save).not.toHaveBeenCalled();
+    expect(screen.getByText('Gib dem Rezept einen Namen.')).toBeInTheDocument();
+    expect(screen.getByText(/Schreib eine Anleitung/)).toBeInTheDocument();
+    expect(screen.getByText(/Beschreib in mindestens 30 Zeichen/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Name')).toHaveFocus();
+    expect(screen.getByLabelText('Name')).toHaveAttribute('aria-invalid', 'true');
   });
 
-  it('sperrt Speichern, bis Name und Anleitung ausgefüllt sind', async () => {
+  it('speichert nicht ohne Beschreibung und springt zu ihr', async () => {
     const { user } = renderWithProviders(
       <RecipeEditor mode="create" initialState={customCreateForm()} />
     );
 
-    expect(screen.getByRole('button', { name: 'Speichern' })).toBeDisabled();
-
     await user.type(screen.getByLabelText('Name'), 'Mein Testrezept');
-    expect(screen.getByRole('button', { name: 'Speichern' })).toBeDisabled();
-
-    await user.type(screen.getByLabelText('Beschreibung'), WANN_BESCHREIBUNG);
-    expect(screen.getByRole('button', { name: 'Speichern' })).toBeDisabled();
-
     await user.type(screen.getByLabelText('Anleitung'), 'Schreibe kurz und klar.');
+    await user.click(saveButton());
 
-    expect(screen.getByRole('button', { name: 'Speichern' })).toBeEnabled();
+    expect(save).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(WANN)).toHaveFocus();
   });
 
-  it('sperrt Speichern bei zu vielen Beispielen und sagt warum', async () => {
+  it('zeigt Fehler erst nach dem ersten Speichern, nicht schon beim Öffnen', () => {
+    renderWithProviders(<RecipeEditor mode="create" initialState={customCreateForm()} />);
+
+    expect(screen.queryByText('Gib dem Rezept einen Namen.')).not.toBeInTheDocument();
+    expect(screen.getByLabelText(WANN)).not.toHaveAttribute('aria-invalid');
+    // Der Zähler nennt die Mindestlänge ruhig, solange sie fehlt.
+    expect(screen.getByText('0/30')).toBeInTheDocument();
+  });
+
+  it('speichert nicht bei zu vielen Beispielen und sagt warum', async () => {
     const { user } = renderWithProviders(
       <RecipeEditor mode="create" initialState={customCreateForm()} />
     );
 
     await fillTitleAndInstruction(user, 'Mein Testrezept', 'Schreibe kurz und klar.');
-    expect(screen.getByRole('button', { name: 'Speichern' })).toBeEnabled();
-
-    // Examples sit under the Anleitung field, behind the "Aus Beispielen
-    // lernen" disclosure — raw material for that field, not a subject of
-    // their own.
     await openExamples(user);
     const tooMany = Array.from({ length: 21 }, (_, i) => `Beispiel ${i}`).join(EXAMPLE_SEPARATOR);
     fireEvent.change(screen.getByRole('textbox', { name: /Beispiele/ }), {
       target: { value: tooMany },
     });
 
-    expect(screen.getByRole('button', { name: 'Speichern' })).toBeDisabled();
     expect(screen.getByText(/Höchstens \d+ Beispiele erlaubt/)).toBeInTheDocument();
+    await user.click(saveButton());
+    expect(save).not.toHaveBeenCalled();
   });
 
   it('speichert erfolgreich mit Beschreibung/Icon und navigiert zur Detailseite', async () => {
@@ -168,10 +182,8 @@ describe('RecipeEditor', () => {
       <RecipeEditor mode="create" initialState={customCreateForm()} />
     );
 
-    await user.type(screen.getByLabelText('Name'), 'Mein Testrezept');
-    await user.type(screen.getByLabelText('Beschreibung'), WANN_BESCHREIBUNG);
-    await user.type(screen.getByLabelText('Anleitung'), 'Schreibe kurz und klar.');
-    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+    await fillTitleAndInstruction(user, 'Mein Testrezept', 'Schreibe kurz und klar.');
+    await user.click(saveButton());
 
     await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
     const call = save.mock.calls[0]?.[0] as {
@@ -184,7 +196,17 @@ describe('RecipeEditor', () => {
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/agentura/rezept/mein-testrezept'));
   });
 
-  it('speichert die gewählte Kategorie mit', async () => {
+  it('zeigt den Namen im Chat erst, wenn ein Name getippt ist, und leitet ihn davon ab', async () => {
+    const { user } = renderWithProviders(
+      <RecipeEditor mode="create" initialState={customCreateForm()} />
+    );
+
+    expect(screen.queryByLabelText(MENTION)).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText('Name'), 'Einladung MV');
+    expect(screen.getByLabelText(MENTION)).toHaveValue('einladung-mv');
+  });
+
+  it('speichert die im Chip gewählte Kategorie mit', async () => {
     save.mockResolvedValueOnce({
       status: 200,
       body: { success: true, form: { id: 'r1', mention: 'mein-testrezept', title: 'x' } },
@@ -194,43 +216,111 @@ describe('RecipeEditor', () => {
     );
 
     await fillTitleAndInstruction(user, 'Mein Testrezept', 'Schreibe kurz und klar.');
-    await user.selectOptions(screen.getByLabelText('Kategorie'), 'social');
-    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+    await user.click(screen.getByRole('button', { name: 'Kategorie: Keine Kategorie' }));
+    await user.click(
+      await screen.findByRole('menuitemradio', { name: SKILL_CATEGORY_LABELS.social })
+    );
+    await user.click(saveButton());
 
     await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
     const call = save.mock.calls[0]?.[0] as { body: Record<string, unknown> };
     expect(call.body.category).toBe('social');
   });
 
-  it('zeigt die gespeicherte Kategorie beim Bearbeiten', async () => {
+  it('zeigt die gespeicherte Kategorie beim Bearbeiten im Chip', () => {
     renderWithProviders(
       <RecipeEditor mode="edit" initialState={customEditForm({ category: 'presse' })} />
     );
 
-    expect(screen.getByLabelText('Kategorie')).toHaveValue('presse');
-  });
-
-  it('nennt unter der Beschreibung die Mindestlänge und markiert das Feld, solange sie fehlt', async () => {
-    renderWithProviders(<RecipeEditor mode="create" initialState={customCreateForm()} />);
-    const field = screen.getByLabelText(/^Beschreibung/);
-    expect(field).toHaveAttribute('aria-invalid', 'true');
-    expect(screen.getByText(/Mindestens 30 Zeichen/)).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: `Kategorie: ${SKILL_CATEGORY_LABELS.presse}` })
+    ).toBeInTheDocument();
   });
 
   it('lässt ein bestehendes Rezept mit leerer Beschreibung unverändert speichern', async () => {
+    save.mockResolvedValue({
+      status: 200,
+      body: { success: true, form: { id: 'r1', mention: 'mein-rezept', title: 'Mein Rezept' } },
+    });
     const { user } = renderWithProviders(
       <RecipeEditor mode="edit" initialState={customEditForm({ description: '' })} />
     );
-    expect(screen.getByRole('button', { name: 'Speichern' })).toBeEnabled();
 
     // Wer die Beschreibung anfasst, muss die Mindestlänge halten.
-    await user.type(screen.getByLabelText(/^Beschreibung/), 'kurz');
-    expect(screen.getByRole('button', { name: 'Speichern' })).toBeDisabled();
-    await user.clear(screen.getByLabelText(/^Beschreibung/));
-    expect(screen.getByRole('button', { name: 'Speichern' })).toBeEnabled();
+    await user.type(screen.getByLabelText(WANN), 'kurz');
+    await user.click(saveButton());
+    expect(save).not.toHaveBeenCalled();
+
+    await user.clear(screen.getByLabelText(WANN));
+    await user.click(saveButton());
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
   });
 
-  it('zeigt einen 409 unter dem sichtbaren Mention-Feld statt als Banner', async () => {
+  it('schreibt die Beschreibung mit KI aus Name und Anleitung', async () => {
+    describeRecipe.mockResolvedValueOnce({
+      status: 200,
+      body: { success: true, description: WANN_BESCHREIBUNG },
+    });
+    const { user } = renderWithProviders(
+      <RecipeEditor mode="create" initialState={customCreateForm()} />
+    );
+
+    const ai = screen.getByRole('button', { name: 'Mit KI erstellen' });
+    expect(ai).toBeDisabled();
+
+    await user.type(screen.getByLabelText('Name'), 'Rundbrief');
+    await user.type(screen.getByLabelText('Anleitung'), 'Schreibe kurz und klar.');
+    await user.click(ai);
+
+    await waitFor(() => expect(screen.getByLabelText(WANN)).toHaveValue(WANN_BESCHREIBUNG));
+    expect(describeRecipe).toHaveBeenCalledWith({
+      body: { title: 'Rundbrief', styleBlock: 'Schreibe kurz und klar.' },
+    });
+  });
+
+  it('fragt nach, bevor die KI eine getippte Beschreibung ersetzt', async () => {
+    const { user } = renderWithProviders(
+      <ConfirmDialogProvider>
+        <RecipeEditor
+          mode="create"
+          initialState={customCreateForm({
+            title: 'Rundbrief',
+            styleBlock: 'Schreibe kurz.',
+            description: 'Meine eigene Beschreibung, die bleiben soll.',
+          })}
+        />
+      </ConfirmDialogProvider>
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Mit KI neu erstellen' }));
+    expect(await screen.findByText('Beschreibung ersetzen?')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Abbrechen' }));
+
+    expect(describeRecipe).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(WANN)).toHaveValue('Meine eigene Beschreibung, die bleiben soll.');
+  });
+
+  it('meldet eine fehlgeschlagene KI-Beschreibung am Feld', async () => {
+    describeRecipe.mockResolvedValueOnce({
+      status: 500,
+      body: { success: false, message: 'Beschreibung konnte nicht erstellt werden.' },
+    });
+    const { user } = renderWithProviders(
+      <RecipeEditor
+        mode="create"
+        initialState={customCreateForm({ title: 'Rundbrief', styleBlock: 'Schreibe kurz.' })}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Mit KI erstellen' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Beschreibung konnte nicht erstellt werden.'
+    );
+    expect(screen.getByLabelText(WANN)).toHaveValue('');
+  });
+
+  it('zeigt einen 409 unter dem Namen im Chat statt als Banner', async () => {
     save.mockResolvedValueOnce({
       status: 409,
       body: { success: false, message: 'Diese Mention ist bereits vergeben.' },
@@ -240,13 +330,11 @@ describe('RecipeEditor', () => {
     );
 
     await fillTitleAndInstruction(user, 'Mein Testrezept', 'Schreibe kurz und klar.');
-    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+    await user.click(saveButton());
 
     expect(await screen.findByText('Diese Mention ist bereits vergeben.')).toBeInTheDocument();
-    // The colliding slug must be visible in the field the error sits under —
-    // not an empty input, which is what binding to the raw (untouched) draft
-    // mention instead of the derived one would show.
-    expect(screen.getByLabelText('@mention')).toHaveValue('mein-testrezept');
+    // Der kollidierende Name muss im Feld stehen, unter dem der Fehler steht.
+    expect(screen.getByLabelText(MENTION)).toHaveValue('mein-testrezept');
     expect(navigate).not.toHaveBeenCalled();
   });
 
@@ -260,23 +348,57 @@ describe('RecipeEditor', () => {
     });
   });
 
-  it('ist frei von Verstößen gegen die Zugänglichkeit im Teilen-Abschnitt', async () => {
-    const { container } = renderWithProviders(
-      <RecipeEditor mode="edit" initialState={customEditForm()} />
+  it('ist frei von Verstößen nach einem Speicherversuch mit Lücken', async () => {
+    const { container, user } = renderWithProviders(
+      <RecipeEditor mode="create" initialState={customCreateForm()} />
     );
-
-    await waitFor(() => expect(getShareSettings).toHaveBeenCalled());
+    await user.click(saveButton());
 
     await waitFor(async () => {
       expect(await axe(container)).toHaveNoViolations();
     });
   });
-  it('tippt einen Bindestrich mitten in der Mention durch', async () => {
+
+  it('legt Im Chat verwenden, Teilen und Löschen beim Bearbeiten hinter „⋯"', async () => {
+    const { user } = renderWithProviders(
+      <RecipeEditor mode="edit" initialState={customEditForm()} />
+    );
+
+    expect(screen.queryByRole('button', { name: 'Löschen' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Weitere Aktionen' }));
+
+    expect(await screen.findByRole('menuitem', { name: 'Im Chat verwenden' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Teilen …' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Löschen' })).toBeInTheDocument();
+  });
+
+  it('bietet beim Anlegen kein „⋯"-Menü an', () => {
+    renderWithProviders(<RecipeEditor mode="create" initialState={customCreateForm()} />);
+
+    expect(screen.queryByRole('button', { name: 'Weitere Aktionen' })).not.toBeInTheDocument();
+  });
+
+  it('ist frei von Verstößen gegen die Zugänglichkeit im Teilen-Dialog', async () => {
+    const { baseElement, user } = renderWithProviders(
+      <RecipeEditor mode="edit" initialState={customEditForm()} />
+    );
+
+    await openSharing(user);
+    await waitFor(() => expect(getShareSettings).toHaveBeenCalled());
+
+    await waitFor(async () => {
+      expect(await axe(baseElement)).toHaveNoViolations();
+    });
+  });
+
+  it('tippt einen Bindestrich mitten im Namen im Chat durch', async () => {
     const { user } = renderWithProviders(
       <RecipeEditor mode="create" initialState={customCreateForm()} />
     );
 
-    const mentionField = screen.getByLabelText('@mention');
+    await user.type(screen.getByLabelText('Name'), 'x');
+    const mentionField = screen.getByLabelText(MENTION);
+    await user.clear(mentionField);
     await user.type(mentionField, 'mein-rezept');
 
     // `slugifyName` schneidet den Bindestrich am Ende ab — auf jedem
@@ -284,27 +406,29 @@ describe('RecipeEditor', () => {
     expect(mentionField).toHaveValue('mein-rezept');
   });
 
-  it('sperrt Speichern, wenn der Titel auf keine Mention slugt', async () => {
+  it('speichert nicht, wenn der Titel auf keinen Namen im Chat slugt', async () => {
     const { user } = renderWithProviders(
       <RecipeEditor mode="create" initialState={customCreateForm()} />
     );
 
     await fillTitleAndInstruction(user, '!!!', 'Schreibe kurz und klar.');
+    expect(screen.getByLabelText(MENTION)).toHaveValue('');
 
-    expect(screen.getByLabelText('@mention')).toHaveValue('');
-    expect(screen.getByText('Bitte einen Namen für die Mention angeben.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Speichern' })).toBeDisabled();
+    await user.click(saveButton());
+    expect(screen.getByText(/Der Name im Chat braucht mindestens zwei/)).toBeInTheDocument();
+    expect(screen.getByLabelText(MENTION)).toHaveFocus();
+    expect(save).not.toHaveBeenCalled();
   });
 
-  it('weist eine reservierte Mention ab, ohne zu speichern', async () => {
+  it('weist einen reservierten Namen im Chat ab, ohne zu speichern', async () => {
     const { user } = renderWithProviders(
       <RecipeEditor mode="create" initialState={customCreateForm()} />
     );
 
-    await user.clear(screen.getByLabelText('@mention'));
-    await user.type(screen.getByLabelText('@mention'), 'neu');
     await fillTitleAndInstruction(user, 'Irgendein Rezept', 'Schreibe kurz und klar.');
-    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+    await user.clear(screen.getByLabelText(MENTION));
+    await user.type(screen.getByLabelText(MENTION), 'neu');
+    await user.click(saveButton());
 
     expect(await screen.findByText('Dieser Name ist reserviert.')).toBeInTheDocument();
     expect(save).not.toHaveBeenCalled();
@@ -316,7 +440,7 @@ describe('RecipeEditor', () => {
     );
 
     await fillTitleAndInstruction(user, 'Presse', 'Schreibe kurz und klar.');
-    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+    await user.click(saveButton());
 
     expect(await screen.findByText(/gehört zu einem mitgelieferten Rezept/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Zum Rezept' })).toHaveAttribute(
@@ -326,7 +450,7 @@ describe('RecipeEditor', () => {
     expect(save).not.toHaveBeenCalled();
   });
 
-  it('zeigt auch einen 400 vom Server unter dem Mention-Feld', async () => {
+  it('zeigt auch einen 400 vom Server unter dem Namen im Chat', async () => {
     save.mockResolvedValueOnce({
       status: 400,
       body: { success: false, message: "@presse ist ein Preset, nicht kind='custom'." },
@@ -335,7 +459,7 @@ describe('RecipeEditor', () => {
       <RecipeEditor mode="edit" initialState={customEditForm()} />
     );
 
-    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+    await user.click(saveButton());
 
     expect(
       await screen.findByText("@presse ist ein Preset, nicht kind='custom'.")
@@ -353,11 +477,12 @@ describe('RecipeEditor', () => {
 
     await user.clear(screen.getByLabelText('Name'));
     await user.type(screen.getByLabelText('Name'), 'Ganz anderer Titel');
-    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+    await user.click(saveButton());
 
     await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
     const call = save.mock.calls[0]?.[0] as { params: { mention: string } };
     expect(call.params).toEqual({ mention: 'mein-rezept' });
+    expect(await screen.findByText('Gespeichert ✓')).toBeInTheDocument();
   });
 
   it('speichert eine Preset-Anpassung auf die feste Mention des Presets', async () => {
@@ -379,8 +504,12 @@ describe('RecipeEditor', () => {
       />
     );
 
+    // Die feste Erwähnung steht als Text, nicht als Feld.
+    expect(screen.queryByLabelText(MENTION)).not.toBeInTheDocument();
+    expect(screen.getByText('@presse')).toBeInTheDocument();
+
     await user.type(screen.getByLabelText('Anleitung'), 'Schreibe sachlich.');
-    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+    await user.click(saveButton());
 
     await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
     const call = save.mock.calls[0]?.[0] as {
@@ -408,19 +537,20 @@ describe('RecipeEditor', () => {
     fireEvent.change(screen.getByRole('textbox', { name: /Beispiele/ }), {
       target: { value: 'Ein Beispieltext.' },
     });
-    await user.click(screen.getByRole('button', { name: 'Gemeinsamkeiten erkennen' }));
+    await user.click(screen.getByRole('button', { name: 'Anleitung erstellen' }));
 
     expect(await screen.findByText('Vorhandene Anleitung ersetzen?')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Behalten' }));
 
     // Abgelehnt heißt: keine Anfrage und der Entwurf steht noch da.
     expect(analyze).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Zur Anleitung' }));
     expect(screen.getByLabelText('Anleitung')).toHaveValue(
       'Ein Entwurf, den niemand verlieren will.'
     );
   });
 
-  it('analysiert ohne Rückfrage, solange die Anleitung leer ist', async () => {
+  it('analysiert ohne Rückfrage und zeigt danach wieder die Anleitung', async () => {
     analyze.mockResolvedValueOnce({
       status: 200,
       body: { success: true, styleBlock: '## STIL: Mein Rezept', model: 'test' },
@@ -433,7 +563,7 @@ describe('RecipeEditor', () => {
     fireEvent.change(screen.getByRole('textbox', { name: /Beispiele/ }), {
       target: { value: 'Ein Beispieltext.' },
     });
-    await user.click(screen.getByRole('button', { name: 'Gemeinsamkeiten erkennen' }));
+    await user.click(screen.getByRole('button', { name: 'Anleitung erstellen' }));
 
     await waitFor(() => expect(analyze).toHaveBeenCalledTimes(1));
     const body = (analyze.mock.calls[0]?.[0] as { body: Record<string, unknown> }).body;
@@ -466,17 +596,16 @@ describe('RecipeEditor', () => {
       target: { value: 'Ein Beispieltext.' },
     });
 
-    expect(screen.getByRole('button', { name: 'Gemeinsamkeiten erkennen' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Anleitung erstellen' })).toBeDisabled();
     expect(analyze).not.toHaveBeenCalled();
     expect(screen.getByText(/Gib dem Rezept oben einen Namen/)).toBeInTheDocument();
 
-    // Genau EIN Namensfeld, auch mit offener Beispiel-Klappe. Solange die
-    // Tabs den Namen vor dieser Klappe versteckten, trug sie ein zweites.
+    // Genau EIN Namensfeld, auch während die Beispiele offen sind.
     const names = screen.getAllByLabelText('Name');
     expect(names).toHaveLength(1);
 
     await user.type(names[0]!, 'Pressemitteilungen Hessen');
-    expect(screen.getByRole('button', { name: 'Gemeinsamkeiten erkennen' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Anleitung erstellen' })).toBeEnabled();
   });
 
   it('behandelt eine 200 ohne styleBlock als fehlgeschlagene Analyse', async () => {
@@ -493,10 +622,11 @@ describe('RecipeEditor', () => {
     fireEvent.change(screen.getByRole('textbox', { name: /Beispiele/ }), {
       target: { value: 'Ein Beispieltext.' },
     });
-    await user.click(screen.getByRole('button', { name: 'Gemeinsamkeiten erkennen' }));
+    await user.click(screen.getByRole('button', { name: 'Anleitung erstellen' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('ohne Ergebnis');
     // Das Formular steht noch, die Anleitung ist unberührt.
+    await user.click(screen.getByRole('button', { name: 'Zur Anleitung' }));
     expect(screen.getByLabelText('Anleitung')).toHaveValue('');
   });
 
@@ -510,7 +640,7 @@ describe('RecipeEditor', () => {
     fireEvent.change(screen.getByRole('textbox', { name: /Beispiele/ }), {
       target: { value: 'Ein Beispieltext.' },
     });
-    await user.click(screen.getByRole('button', { name: 'Gemeinsamkeiten erkennen' }));
+    await user.click(screen.getByRole('button', { name: 'Anleitung erstellen' }));
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Analyse fehlgeschlagen: Modell nicht erreichbar.');
@@ -523,14 +653,15 @@ describe('RecipeEditor', () => {
       status: 200,
       body: { share_mode: 'authenticated', is_public: true, public_ownership: 'owner' },
     });
-    const { container } = renderWithProviders(
+    const { baseElement, user } = renderWithProviders(
       <RecipeEditor mode="edit" initialState={customEditForm()} />
     );
 
+    await openSharing(user);
     expect(await screen.findByText('Bitte bestätige:')).toBeInTheDocument();
 
     await waitFor(async () => {
-      expect(await axe(container)).toHaveNoViolations();
+      expect(await axe(baseElement)).toHaveNoViolations();
     });
   });
 });

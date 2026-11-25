@@ -1,6 +1,6 @@
 /**
  * Examples editor for a recipe: the one raw-text field (split heuristically
- * into individual examples), file upload, and the "Gemeinsamkeiten erkennen"
+ * into individual examples), file upload, and the "Anleitung erstellen"
  * analyze action. Fully controlled — `rawExamples` lives in the parent form
  * state (`RecipeEditor`), this component never copies it into its own state.
  *
@@ -15,7 +15,6 @@ import {
   useAnalyzeRecipe,
   EXAMPLE_SEPARATOR,
   splitExamples,
-  splitStrategyLabel,
 } from '@gruenerator/shared/grueneratoren';
 import { Button, Textarea, toast, useConfirm } from '@gruenerator/ui';
 import { useId, useMemo, useRef, useState } from 'react';
@@ -56,6 +55,7 @@ export function ExamplesPanel({
 }: ExamplesPanelProps) {
   const examplesFieldId = useId();
   const examplesStatusId = useId();
+  const examplesHintId = useId();
   const [isReadingFiles, setIsReadingFiles] = useState(false);
   // Warum die Analyse nicht lief — als Meldung neben dem Knopf statt als Toast.
   // Ein Toast ist nach Sekunden weg, und der Editor stellt seine Fehler ohnehin
@@ -174,92 +174,91 @@ export function ExamplesPanel({
     }
   };
 
+  const overLimit = tooManyExamples || tooManyChars;
   return (
-    <div className="flex flex-col gap-md">
-      <div className="flex flex-col gap-sm">
-        <label htmlFor={examplesFieldId} className="text-sm font-medium">
-          Beispiele — alle in dieses Feld, bis zu {MAX_TEXT_FORM_EXAMPLES} Stück
-        </label>
-        <p className="m-0 text-xs text-foreground-muted">
-          Einfach alles hintereinander einfügen. Wir trennen die Beispiele automatisch — an einer
-          Zeile aus <code>---</code>, an Überschriften wie „Beispiel 2&ldquo;, an einer Nummerierung
-          oder an doppelten Leerzeilen.
-        </p>
-        <Textarea
-          id={examplesFieldId}
-          className="min-h-[280px] font-mono"
-          value={rawExamples}
-          onChange={(e) => onChange(e.target.value)}
-          maxLength={MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS}
-          placeholder={'Beispiel 1…\n\n---\n\nBeispiel 2…'}
-          rows={14}
-          aria-describedby={examplesStatusId}
-        />
-        <p
-          id={examplesStatusId}
-          aria-live="polite"
-          className={
-            tooManyExamples || tooManyChars
-              ? 'm-0 text-xs text-destructive'
-              : 'm-0 text-xs text-foreground-muted'
-          }
-        >
-          {filledExamples.length === 0
-            ? `0 Beispiele — noch nichts eingefügt (${NUM(MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS)} Zeichen Platz)`
-            : `${filledExamples.length} ${filledExamples.length === 1 ? 'Beispiel' : 'Beispiele'} erkannt (${splitStrategyLabel(split.strategy)}) · ${NUM(usedChars)} von ${NUM(MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS)} Zeichen`}
-          {tooManyExamples && ` — höchstens ${MAX_TEXT_FORM_EXAMPLES} Beispiele.`}
-        </p>
-        <div className="flex flex-wrap items-center gap-md">
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isReadingFiles}
-            className="flex items-center gap-1 text-xs text-primary-600 hover:underline disabled:opacity-60 dark:text-primary-400"
-          >
-            <FiUpload size={14} /> {isReadingFiles ? 'Lese Dateien…' : 'Dateien hochladen'}
-          </button>
-          <span className="text-xs text-foreground-muted">
-            PDF, Word, PowerPoint, Bilder oder Textdateien
-          </span>
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept={EXAMPLE_FILE_ACCEPT}
-            className="hidden"
-            aria-label="Dateien mit Beispieltexten hochladen"
-            onChange={(e) => {
-              void handleFiles(e.target.files);
-              e.target.value = '';
-            }}
-          />
-        </div>
-      </div>
+    <div className="flex flex-col gap-sm">
+      {/* Keine sichtbare Überschrift: „Aus Beispielen lernen" steht schon darüber.
+          Wie getrennt wird, braucht nur, wer nicht sieht, was der Zähler meldet. */}
+      <label htmlFor={examplesFieldId} className="sr-only">
+        Beispiele
+      </label>
+      <p id={examplesHintId} className="sr-only">
+        Bis zu {MAX_TEXT_FORM_EXAMPLES} Texte hintereinander einfügen, getrennt durch eine Zeile aus
+        drei Bindestrichen oder eine Leerzeile.
+      </p>
+      <Textarea
+        id={examplesFieldId}
+        className="max-h-[60vh] min-h-[calc(6lh+1rem)]"
+        value={rawExamples}
+        onChange={(e) => onChange(e.target.value)}
+        maxLength={MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS}
+        placeholder={
+          'Füge zwei oder drei Texte ein, die so klingen sollen …\n\n---\n\nMehrere Texte mit --- trennen.'
+        }
+        rows={6}
+        aria-describedby={`${examplesHintId} ${examplesStatusId}`}
+        aria-invalid={overLimit ? true : undefined}
+      />
+      <p
+        id={examplesStatusId}
+        aria-live="polite"
+        className={
+          overLimit
+            ? 'm-0 min-h-4 text-xs text-destructive'
+            : 'm-0 min-h-4 text-xs text-foreground-muted'
+        }
+      >
+        {filledExamples.length > 0 &&
+          `${filledExamples.length} ${filledExamples.length === 1 ? 'Beispiel' : 'Beispiele'} erkannt`}
+        {tooManyExamples && ` — höchstens ${MAX_TEXT_FORM_EXAMPLES} möglich.`}
+        {tooManyChars &&
+          ` — ${NUM(usedChars)} von ${NUM(MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS)} Zeichen, bitte kürzen.`}
+      </p>
 
-      <div className="flex flex-col gap-xs">
+      <div className="flex flex-wrap items-center gap-sm">
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isReadingFiles}
+          title="PDF, Word, PowerPoint, Bilder oder Textdateien"
+          className="flex items-center gap-1 text-sm text-foreground-muted hover:text-foreground disabled:opacity-60"
+        >
+          <FiUpload size={14} aria-hidden />{' '}
+          {isReadingFiles ? 'Lese Dateien…' : 'Dateien hochladen'}
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept={EXAMPLE_FILE_ACCEPT}
+          className="hidden"
+          aria-label="Dateien mit Beispieltexten hochladen"
+          onChange={(e) => {
+            void handleFiles(e.target.files);
+            e.target.value = '';
+          }}
+        />
         <Button
           type="button"
-          size="sm"
-          variant="outline"
-          className="self-start"
+          variant="brand"
+          size="brand-sm"
+          className="ml-auto"
           onClick={() => void handleAnalyze()}
           disabled={
             analyzeMut.isPending || filledExamples.length === 0 || tooManyExamples || labelMissing
           }
         >
-          {analyzeMut.isPending ? 'Analysiere…' : 'Gemeinsamkeiten erkennen'}
+          {analyzeMut.isPending ? 'Wird erstellt …' : 'Anleitung erstellen'}
         </Button>
-        {labelMissing && (
-          <p className="m-0 text-xs text-foreground-muted">
-            Gib dem Rezept oben einen Namen — er beschriftet den erkannten Stil.
-          </p>
-        )}
-        {analyzeError && (
-          <p role="alert" className="m-0 text-sm text-destructive">
-            {analyzeError}
-          </p>
-        )}
       </div>
+      {labelMissing && filledExamples.length > 0 && (
+        <p className="m-0 text-xs text-foreground-muted">Gib dem Rezept oben einen Namen.</p>
+      )}
+      {analyzeError && (
+        <p role="alert" className="m-0 text-sm text-destructive">
+          {analyzeError}
+        </p>
+      )}
     </div>
   );
 }

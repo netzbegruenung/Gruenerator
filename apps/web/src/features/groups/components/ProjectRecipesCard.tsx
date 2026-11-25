@@ -5,11 +5,25 @@ import {
   landesverbandTitle,
 } from '@gruenerator/shared/agents';
 import { type GroupFeedItem } from '@gruenerator/shared/groups';
+import { lazy, Suspense, useState } from 'react';
 import { PiNotebook, PiPlus } from 'react-icons/pi';
 import { Link } from 'react-router-dom';
 
 import { KnowledgeRow } from './ProjectKnowledgeList';
 import { type ShareActions } from './shareActions';
+
+import { useAuthStore } from '@/stores/authStore';
+
+// Erst beim ersten Öffnen geladen: Editor, Icon-Auswahl und Beispiel-Analyse
+// gehören nicht in das Bundle jeder Projektseite.
+const RecipeDialog = lazy(() =>
+  import('../../agentura/recipes/RecipeDialog').then((m) => ({
+    default: m.RecipeDialog,
+  }))
+);
+
+/** Welcher Rezept-Dialog offen ist: anlegen oder ein eigenes bearbeiten. */
+type RecipeDialogState = { kind: 'create' } | { kind: 'edit'; mention: string };
 
 interface ProjectRecipesCardProps {
   groupId: string;
@@ -25,9 +39,9 @@ interface ProjectRecipesCardProps {
 
 /**
  * „Rezepte": die ins Projekt geteilten Rezepte. Chats im Projekt laden sie
- * vorab (`services/groups/projectRecipes.ts`). „+ Rezept" legt ein neues an und
- * teilt es gleich hierher; ein Rezept gehört aber der Person und bleibt auch
- * ohne Projekt bestehen.
+ * vorab (`services/groups/projectRecipes.ts`). „+ Rezept" legt im Dialog ein
+ * neues an und teilt es gleich hierher; ein Rezept gehört aber der Person und
+ * bleibt auch ohne Projekt bestehen.
  */
 export function ProjectRecipesCard({
   groupId,
@@ -37,6 +51,8 @@ export function ProjectRecipesCard({
   onDiscuss,
   landesverband,
 }: ProjectRecipesCardProps) {
+  const [dialog, setDialog] = useState<RecipeDialogState | null>(null);
+  const userId = useAuthStore((st) => st.user?.id ?? null);
   // Was das Projekt über seinen Landesverband mitbringt (`streamContext.ts`):
   // nicht geteilt, also auch nicht zu entfernen — nur sichtbar machen.
   const shared = new Set(items.map((i) => i.slug));
@@ -61,13 +77,14 @@ export function ProjectRecipesCard({
           Rezepte
         </h2>
         {canAdd && (
-          <Link
-            to={`/agentura/rezept/neu?projekt=${encodeURIComponent(groupId)}`}
+          <button
+            type="button"
+            onClick={() => setDialog({ kind: 'create' })}
             className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-primary-600 dark:text-primary-400 hover:bg-muted"
           >
             <PiPlus aria-hidden className="size-4" />
             Rezept
-          </Link>
+          </button>
         )}
       </div>
       {items.length === 0 ? (
@@ -79,16 +96,29 @@ export function ProjectRecipesCard({
         )
       ) : (
         <ul className="m-0 flex list-none flex-col p-0">
-          {items.map((item) => (
-            <KnowledgeRow
-              key={item.key}
-              item={item}
-              onUseTemplate={() => {}}
-              actions={actions}
-              onDiscuss={onDiscuss}
-              hideKind
-            />
-          ))}
+          {items.map((item) => {
+            // Ein geteiltes eigenes Rezept ist ein Verweis auf die Zeile der
+            // teilenden Person — nur sie darf es ändern, Projekt-Admins nicht.
+            // Mitgelieferte Rezepte (`system_recipes`) teilt man, besitzt sie
+            // aber nicht: dort sagt `sharedById` nichts über das Ändern.
+            const editMention =
+              item.contentType === 'user_text_forms' && userId && item.sharedById === userId
+                ? item.slug
+                : null;
+            return (
+              <KnowledgeRow
+                key={item.key}
+                item={item}
+                onUseTemplate={() => {}}
+                actions={actions}
+                onDiscuss={onDiscuss}
+                onEdit={
+                  editMention ? () => setDialog({ kind: 'edit', mention: editMention }) : null
+                }
+                hideKind
+              />
+            );
+          })}
         </ul>
       )}
       {lvRecipes.length > 0 && (
@@ -106,6 +136,16 @@ export function ProjectRecipesCard({
             </span>
           ))}
         </p>
+      )}
+      {dialog !== null && (
+        <Suspense fallback={null}>
+          <RecipeDialog
+            open
+            onOpenChange={(open) => !open && setDialog(null)}
+            projectId={groupId}
+            mention={dialog.kind === 'edit' ? dialog.mention : null}
+          />
+        </Suspense>
       )}
     </section>
   );

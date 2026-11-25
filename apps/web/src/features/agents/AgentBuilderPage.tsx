@@ -8,7 +8,7 @@ function AgentBuilderPage() {
   const [searchParams] = useSearchParams();
   return (
     <Navigate
-      to={searchParams.get('mode') === 'recurring' ? '/wiederkehrend/neu' : '/agentura/rezept/neu'}
+      to={searchParams.get('mode') === 'recurring' ? '/wiederkehrend/neu' : '/projekte/rezept/neu'}
       replace
     />
   );
