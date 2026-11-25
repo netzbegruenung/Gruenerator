@@ -47,7 +47,7 @@ describe('SiteBlockPreview', () => {
     const markup = renderToStaticMarkup(
       <SiteBlockPreview snapshot={sampleBlockSnapshot('heroImage', 'de-DE', 'dunkel')} />
     );
-    expect(markup).toContain(`unsplash.jpg${THUMB_SIZE.replace('&', '&amp;')}"`);
+    expect(markup).toContain(`unsplash.jpg${THUMB_SIZE.replaceAll('&', '&amp;')}"`);
     expect(markup).not.toContain('srcSet');
   });
 
