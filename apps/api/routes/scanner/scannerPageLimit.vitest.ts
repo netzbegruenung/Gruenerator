@@ -30,7 +30,7 @@ beforeAll(async () => {
   const app = express();
   app.use('/api/scanner', scannerRouter);
   await new Promise<void>((resolve) => {
-    server = app.listen(0, resolve);
+    server = app.listen(0, () => resolve());
   });
   baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 });
