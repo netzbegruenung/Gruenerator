@@ -18,6 +18,7 @@ import {
   upsertSyncEvents,
 } from '../../services/monitor/ContentSyncEventsService.js';
 import { getEuGreenProfile } from '../../services/monitor/EuGreenProfileService.js';
+import { getLandBriefing } from '../../services/monitor/landBriefing.js';
 import { getMeinungsbild } from '../../services/monitor/MeinungsbildService.js';
 import {
   getLatestSnapshot,
@@ -256,6 +257,17 @@ export const monitorContractRouter = s.router(monitorContract, {
     } catch (error) {
       log.error(`GET /bluesky failed: ${toError(error).message}`);
       return { status: 502 as const, body: { error: 'Bluesky-Beiträge nicht erreichbar' } };
+    }
+  },
+
+  landBriefing: async ({ params, res }) => {
+    try {
+      const body = await getLandBriefing(params.land);
+      cache(res, 'private, max-age=300, stale-while-revalidate=600');
+      return { status: 200 as const, body };
+    } catch (error) {
+      log.error(`GET /land/:land failed: ${toError(error).message}`);
+      return { status: 500 as const, body: { error: 'Land-Briefing konnte nicht geladen werden' } };
     }
   },
 

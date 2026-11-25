@@ -83,6 +83,12 @@ export const KNOWN_RSS_FEEDS: Record<string, string> = {
   'eurotopics.net': 'https://www.eurotopics.net/export/de/rss-debatten.xml',
   'gruene-bundestag.de/fachtexte': 'https://www.gruene-bundestag.de/fachtexte-rss-feed.xml',
   'gruene-bundestag.de/presse': 'https://www.gruene-bundestag.de/pressemitteilungen-rss-feed.xml',
+  // Landes-Rubriken for the Land view of /briefing (laender.ts attributes every
+  // item to its Land). The publishers' main feeds above are world feeds.
+  // Verified 2026-11-25.
+  'hna.de/hessen': 'https://www.hna.de/hessen/rssfeed.rdf',
+  'fr.de/rhein-main': 'https://www.fr.de/rhein-main/rssfeed.rdf',
+  'kleinezeitung.at/steiermark': 'https://www.kleinezeitung.at/rss/steiermark',
 };
 
 /**

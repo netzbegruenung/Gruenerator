@@ -1397,7 +1397,8 @@ CREATE TABLE IF NOT EXISTS monitor_articles (
     topic_scores JSONB DEFAULT '{}',
     first_seen_at TIMESTAMPTZ DEFAULT now(),
     last_seen_at TIMESTAMPTZ DEFAULT now(),
-    top_nouns JSONB DEFAULT '[]'
+    top_nouns JSONB DEFAULT '[]',
+    lands TEXT[] NOT NULL DEFAULT '{}'
 );
 
 CREATE INDEX IF NOT EXISTS idx_monitor_articles_title_trgm ON monitor_articles USING GIN(title gin_trgm_ops);
