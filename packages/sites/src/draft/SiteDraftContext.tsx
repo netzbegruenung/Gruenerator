@@ -28,6 +28,7 @@ import {
 import { useStore } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 
+import { createDraftHistory, type DraftHistory, type DraftHistoryState } from './draftHistory';
 import { createSiteDraftStore, type SiteDraftStore } from './draftStore';
 
 import type * as Y from 'yjs';
@@ -54,6 +55,7 @@ export interface SiteDraftActions {
 interface SiteDraftContextValue {
   ydoc: Y.Doc;
   store: SiteDraftStore;
+  history: DraftHistory;
   actions: SiteDraftActions;
 }
 
@@ -76,18 +78,26 @@ function bindActions(ydoc: Y.Doc): SiteDraftActions {
 }
 
 export function SiteDraftProvider({ ydoc, children }: { ydoc: Y.Doc; children: ReactNode }) {
-  const [owned, setOwned] = useState<{ ydoc: Y.Doc; store: SiteDraftStore } | null>(null);
-  // The store subscribes to the doc, so it is created and destroyed in one effect: nothing in
-  // render can leak a listener when StrictMode discards a render or re-runs the effect.
+  const [owned, setOwned] = useState<{
+    ydoc: Y.Doc;
+    store: SiteDraftStore;
+    history: DraftHistory;
+  } | null>(null);
+  // Store and history subscribe to the doc, so they are created and destroyed in one effect:
+  // nothing in render can leak a listener when StrictMode discards a render or re-runs the effect.
   useEffect(() => {
     const store = createSiteDraftStore(ydoc);
-    setOwned({ ydoc, store });
-    return () => store.destroy();
+    const history = createDraftHistory(ydoc);
+    setOwned({ ydoc, store, history });
+    return () => {
+      store.destroy();
+      history.destroy();
+    };
   }, [ydoc]);
   const value = useMemo<SiteDraftContextValue | null>(
     () =>
       owned && owned.ydoc === ydoc
-        ? { ydoc, store: owned.store, actions: bindActions(ydoc) }
+        ? { ydoc, store: owned.store, history: owned.history, actions: bindActions(ydoc) }
         : null,
     [ydoc, owned]
   );
@@ -125,6 +135,16 @@ export function useDraftReader(): () => SiteDraft {
 
 export function useDraftActions(): SiteDraftActions {
   return useDraftContext().actions;
+}
+
+/** Undo and redo over this person's edits to the draft. */
+export function useDraftHistory(): DraftHistoryState & Pick<DraftHistory, 'undo' | 'redo'> {
+  const { history } = useDraftContext();
+  const state = useStore(
+    history,
+    useShallow((s) => s)
+  );
+  return { ...state, undo: history.undo, redo: history.redo };
 }
 
 export function useSiteYdoc(): Y.Doc {
