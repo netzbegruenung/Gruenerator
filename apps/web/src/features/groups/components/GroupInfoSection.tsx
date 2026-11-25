@@ -199,7 +199,9 @@ const GroupInfoSection = memo(
     onErrorMessage,
   }: GroupInfoSectionProps) => {
     const navigate = useNavigate();
-    const { members, isLoadingMembers } = useGroupMembers(groupId, { isActive: true });
+    const { members, isLoadingMembers, isErrorMembers } = useGroupMembers(groupId, {
+      isActive: true,
+    });
     const [membersDialogOpen, setMembersDialogOpen] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
@@ -616,7 +618,10 @@ const GroupInfoSection = memo(
                 <p className="text-[15px] text-muted-foreground mt-xs m-0">
                   {isSystem
                     ? 'Für alle im Grünerator'
-                    : `Projekt · ${memberCount} ${memberCount === 1 ? 'Mitglied' : 'Mitglieder'}`}
+                    : // Ohne geladene Liste keine Zahl — „0 Mitglieder" wäre falsch.
+                      isLoadingMembers || isErrorMembers
+                      ? 'Projekt'
+                      : `Projekt · ${memberCount} ${memberCount === 1 ? 'Mitglied' : 'Mitglieder'}`}
                 </p>
                 {isTeam && data?.groupInfo?.description && (
                   <p className="m-0 mt-xs line-clamp-2 whitespace-pre-wrap text-sm text-muted-foreground">
