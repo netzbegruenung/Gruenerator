@@ -38,6 +38,20 @@ describe('isFreshlyIndexed — junge Inhalte (unverändert gegenüber vorher)', 
     expect(isFreshlyIndexed(URL_UNDER_TEST, null, now)).toBe(false);
   });
 
+  it('zählt die drei Tage ab der letzten Prüfung, nicht ab der Einbettung (#6007)', () => {
+    // Unverändert neu geholte Seiten bekommen nur checked_at, indexed_at bleibt
+    // die Einbettungszeit — ohne checked_at holte jeder Stundenlauf sie neu.
+    const checkedYesterday = {
+      published_at: young,
+      indexed_at: iso(now - 30 * DAY),
+      checked_at: iso(now - DAY),
+    };
+    expect(isFreshlyIndexed(URL_UNDER_TEST, checkedYesterday, now)).toBe(true);
+    expect(
+      isFreshlyIndexed(URL_UNDER_TEST, { ...checkedYesterday, checked_at: iso(now - 4 * DAY) }, now)
+    ).toBe(false);
+  });
+
   it('behandelt undatierte Punkte wie junge', () => {
     expect(isFreshlyIndexed(URL_UNDER_TEST, { indexed_at: iso(now - DAY) }, now)).toBe(true);
     expect(isFreshlyIndexed(URL_UNDER_TEST, { indexed_at: iso(now - 4 * DAY) }, now)).toBe(false);
