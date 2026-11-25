@@ -3,8 +3,8 @@
  *
  * Takes the user's pasted example texts and distills their COMMONALITIES into an
  * editable German style block, sourced from the user's own pasted examples
- * instead of a central corpus. A single Mistral `generateObject`
- * call extracts structured style fields; we render them deterministically to the
+ * instead of a central corpus. A single forced tool call on the `creator_draft`
+ * lane extracts structured style fields; we render them deterministically to the
  * markdown block that later gets injected into the chat system prompt.
  */
 
@@ -13,15 +13,24 @@ import {
   TEXT_FORM_TYPE_LABELS,
   type TextFormType,
 } from '@gruenerator/contracts';
-import { generateObject } from 'ai';
 import { z } from 'zod';
 
 import { createLogger } from '../../utils/logger.js';
-import { getModel } from '../ai/providers.js';
+import { aiObject } from '../ai/generate.js';
+import { laneTarget } from '../ai/lanes.js';
+import { type StructuredValidation } from '../ai/structuredParsing.js';
+import { toolInputJsonSchema } from '../ai/toolJsonSchema.js';
 
 const log = createLogger('TextFormAnalysisService');
 
-const ANALYSIS_MODEL = 'mistral-large-latest';
+/**
+ * Dieselbe Gemma-Lane wie Entwurf und „Mit KI erstellen" (`textFormDraftService`):
+ * alles, was über ein Rezept schreibt. Bis 11/2026 ging die Analyse direkt mit
+ * `generateObject` an Mistral Large — an Tabelle, Ausweichkette und
+ * Gesundheitsvermerk vorbei; zwei kurze Beispiele brauchten dort ~90 s, der
+ * Browser gab nach 60 s auf.
+ */
+const ANALYSIS_LANE = 'creator_draft' as const;
 
 // Structured extraction. Free strings/arrays — the deterministic renderer below
 // turns them into the injected block, so the model never has to format markdown.
@@ -43,12 +52,47 @@ const StyleSchema = z.object({
 
 type StyleExtract = z.infer<typeof StyleSchema>;
 
+const STYLE_TOOL_SCHEMA = toolInputJsonSchema(StyleSchema);
+
+/**
+ * Gemma schreibt Abfolgen gern als LaTeX-Pfeil `$\rightarrow$`, und beim
+ * Transport über den Tool-Aufruf wird aus `\r` ein Steuerzeichen — im Feld stand
+ * dann `$\nightarrow$`. Nur dieses Muster wird zum Pfeil; sonst bleibt der Text.
+ */
+function unLatexArrows(text: string): string {
+  return text.replace(/\$\s*\\?[\r\n]?r?ightarrow\s*\$/g, '→');
+}
+
+function cleanStyle(s: StyleExtract): StyleExtract {
+  const list = (xs: string[]) => xs.map(unLatexArrows);
+  return {
+    tonality: unLatexArrows(s.tonality),
+    sentenceStyle: unLatexArrows(s.sentenceStyle),
+    vocabulary: unLatexArrows(s.vocabulary),
+    structure: unLatexArrows(s.structure),
+    dos: list(s.dos),
+    donts: list(s.donts),
+    signaturePhrases: s.signaturePhrases,
+  };
+}
+
+function validateStyle(input: unknown): StructuredValidation<StyleExtract> {
+  const parsed = StyleSchema.safeParse(input);
+  if (parsed.success) return { ok: true, value: parsed.data };
+  const issues = parsed.error.issues
+    .slice(0, 6)
+    .map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`)
+    .join('; ');
+  return { ok: false, error: `Ungültige Stil-Analyse: ${issues}` };
+}
+
 const SYSTEM_PROMPT = `Du bist ein Stil-Analyst. Dir werden mehrere echte Beispieltexte derselben Person oder Organisation vorgelegt. Deine Aufgabe: die GEMEINSAMKEITEN des Schreibstils herausarbeiten — nicht die Inhalte zusammenfassen.
 
 Regeln:
 - Beschreibe nur, was in den Beispielen tatsächlich erkennbar ist. Erfinde keine Merkmale.
 - signaturePhrases: nur Formulierungen, die WÖRTLICH (oder fast wörtlich) in den Beispielen vorkommen.
-- Schreibe auf Deutsch, knapp und präzise. Keine Meta-Kommentare.`;
+- Schreibe auf Deutsch, knapp und präzise. Keine Meta-Kommentare.
+- Reiner Text: kein LaTeX, keine Formeln. Für eine Abfolge schreibe „→“.`;
 
 /**
  * Rendert die Beispiele und hält dabei das Zeichenbudget ein. Zod deckelt die
@@ -104,26 +148,27 @@ export async function analyzeTextForm(
   label: string,
   examples: ReadonlyArray<{ content: string }>
 ): Promise<{ styleBlock: string; model: string }> {
-  const model = getModel('mistral', ANALYSIS_MODEL);
   const examplesText = buildExamplesText(examples);
 
-  const result = await generateObject({
-    model,
-    schema: StyleSchema,
+  const result = await aiObject<StyleExtract>({
+    lane: ANALYSIS_LANE,
     system: SYSTEM_PROMPT,
     prompt: `## ${label} — Beispiele\n\n${examplesText}\n\nAnalysiere die Gemeinsamkeiten des Schreibstils.`,
+    toolName: 'describe_writing_style',
+    toolDescription: 'Gibt die Gemeinsamkeiten des Schreibstils der Beispiele zurück.',
+    schema: STYLE_TOOL_SCHEMA,
+    validate: validateStyle,
     maxOutputTokens: 8000,
     temperature: 0.25,
-    // Bis zu ~40k Token Eingabe: der alte 45-s-Deckel reichte für fünf kurze
-    // Beispiele, nicht für zwanzig lange.
-    abortSignal: AbortSignal.timeout(150_000),
+    label: 'text_form_analysis',
   });
+  if (!result.ok) throw result.cause ?? new Error(result.error);
 
-  const styleBlock = renderStyleBlock(label, result.object);
+  const styleBlock = renderStyleBlock(label, cleanStyle(result.data));
   log.info(
     `[analyzeTextForm] "${label}" — ${examples.length} examples / ${examplesText.length} chars → ${styleBlock.length} chars`
   );
-  return { styleBlock, model: ANALYSIS_MODEL };
+  return { styleBlock, model: laneTarget(ANALYSIS_LANE).model ?? ANALYSIS_LANE };
 }
 
 /** Human-readable label for a preset text type (for prompts & headings). */

@@ -196,7 +196,7 @@ function restoreLineBreaks(text: string): string {
 const DESCRIBE_SYSTEM_PROMPT = `Du schreibst die Auslöser-Beschreibung eines Grünerator-Rezepts. Ein Rezept ist eine Schreibvorgabe für eine Textsorte. An der Beschreibung allein entscheidet der Grünerator, ob er das Rezept für eine Anfrage nutzt.
 
 Regeln:
-- Genau ein bis zwei Sätze, 60 bis 220 Zeichen, auf Deutsch, mit Genderstern (*innen).
+- Genau ein bis zwei Sätze, 60 bis 220 Zeichen, auf Deutsch. Genderstern (*innen) nur bei Personenbezeichnungen (Mitglieder*innen, Bürger*innen), nie bei Sachwörtern.
 - Muster: „<Was das Rezept liefert>. Nutzen, wenn <Auslöser>.“ — etwa „Einladungen zu Ortsverbandstreffen mit Termin und Ort. Nutzen, wenn zu einem Treffen oder einer Sitzung eingeladen werden soll.“
 - Nur die Beschreibung ausgeben: keine Anführungszeichen, keine Überschrift, keine Erklärung.`;
 
