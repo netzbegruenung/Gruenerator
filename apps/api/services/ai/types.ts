@@ -109,6 +109,12 @@ export interface AIRequestData {
   /** Abbruch durch den Aufrufer (`AiCall.signal`); `execute.ts` verbindet ihn
    *  mit der Frist zu einem `abortSignal`. */
   signal?: AbortSignal | undefined;
+  /**
+   * Set by `aiObject` when its caller wants partial results. `execute.ts` then
+   * streams instead of generating and reports the tool-call arguments written
+   * so far (the whole text, not the delta). Absent, nothing changes.
+   */
+  onToolInputText?: ((text: string) => void) | undefined;
   [key: string]: unknown;
 }
 
