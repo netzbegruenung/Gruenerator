@@ -1,10 +1,14 @@
+import { useCollaborators, PresenceAvatars } from '@gruenerator/collab';
 import {
   buildSitePreviewSnapshot,
   siteDraftToSnapshotSource,
+  type SiteRole,
   type SupportedLocale,
 } from '@gruenerator/contracts';
-import { ToggleGroup, ToggleGroupItem } from '@gruenerator/ui';
+import { Button, ToggleGroup, ToggleGroupItem } from '@gruenerator/ui';
+import { type HocuspocusProvider } from '@hocuspocus/provider';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { FiUserPlus } from 'react-icons/fi';
 
 import { LoadErrorState } from '../components/common/LoadErrorState';
 import { SiteDraftProvider, useDraft } from '../draft/SiteDraftContext';
@@ -23,6 +27,7 @@ import { EditorHeader } from './EditorHeader';
 import { EditorSkeleton } from './EditorSkeleton';
 import { PreviewDialog } from './PreviewDialog';
 import { PublishControls } from './publish/PublishControls';
+import { SiteShareDialog } from './share/SiteShareDialog';
 import { SiteSidebarPanel, SiteSidebarTabs } from './sidebar/SiteSidebar';
 
 function DraftPreview({ site, editable }: { site: SiteData; editable: boolean }) {
@@ -76,7 +81,7 @@ function CanvasOverlay({ doc }: { doc: Document | null }) {
 
 type PreviewView = 'draft' | 'live';
 
-export function PreviewPane({ site }: { site: SiteData }) {
+export function PreviewPane({ site, editable = true }: { site: SiteData; editable?: boolean }) {
   const [view, setView] = useState<PreviewView>('draft');
   const published = site.published_snapshot;
   const showLive = view === 'live' && published !== null;
@@ -107,7 +112,7 @@ export function PreviewPane({ site }: { site: SiteData }) {
             className="block h-full w-full border-0"
           />
         ) : (
-          <DraftPreview site={site} editable />
+          <DraftPreview site={site} editable={editable} />
         )}
       </div>
     </div>
@@ -126,9 +131,26 @@ const EDITOR_CHROME_VARS = {
   '--image-studio-tab-bar-width': '76px',
 } as CSSProperties;
 
-export function SiteEditor({ site, onBack }: { site: SiteData; onBack?: () => void }) {
+export const PUBLISH_ADMINS_ONLY = 'Veröffentlichen können nur Admins.';
+
+function HeaderPresence({ provider }: { provider: HocuspocusProvider }) {
+  const collaborators = useCollaborators(provider);
+  return <PresenceAvatars collaborators={collaborators} />;
+}
+
+export function SiteEditor({
+  site,
+  role,
+  onBack,
+}: {
+  site: SiteData;
+  role: SiteRole;
+  onBack?: () => void;
+}) {
   const session = useSiteDraftSession(site.id);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const shareButtonRef = useRef<HTMLButtonElement>(null);
   const previewButtonRef = useRef<HTMLButtonElement>(null);
   useLeaveWarning(session.state === 'ready' && session.save !== 'saved');
   // The editor store is module state: leave no selection or open panel behind for the next visit.
@@ -171,15 +193,50 @@ export function SiteEditor({ site, onBack }: { site: SiteData; onBack?: () => vo
               onBack={onBack}
               previewButtonRef={previewButtonRef}
             >
-              <PublishControls site={site} provider={session.provider} />
+              <HeaderPresence provider={session.provider} />
+              {role === 'admin' && (
+                <>
+                  <Button
+                    ref={shareButtonRef}
+                    variant="outline"
+                    onClick={() => setShareOpen(true)}
+                    title="Teilen"
+                  >
+                    <FiUserPlus aria-hidden="true" />
+                    <span className="hidden md:inline">Teilen</span>
+                  </Button>
+                  <PublishControls site={site} provider={session.provider} />
+                </>
+              )}
             </EditorHeader>
-            <div className="absolute bottom-0 left-0 top-[var(--editor-topbar-height)] z-[120] max-canvas-mobile:contents">
-              <SiteSidebarTabs />
+            {role !== 'admin' && (
+              <p className="m-0 border-b border-grey-200 bg-background-pure px-md py-xs text-sm text-grey-600 dark:border-grey-700 dark:text-grey-400">
+                {PUBLISH_ADMINS_ONLY}
+              </p>
+            )}
+            {role !== 'viewer' && (
+              <div className="absolute bottom-0 left-0 top-[var(--editor-topbar-height)] z-[120] max-canvas-mobile:contents">
+                <SiteSidebarTabs role={role} />
+              </div>
+            )}
+            <div
+              className={
+                role === 'viewer'
+                  ? 'min-h-0 flex-1'
+                  : 'min-h-0 flex-1 canvas-mobile:pl-[calc(var(--image-studio-tab-bar-width)+var(--canvas-panel-width,0px))]'
+              }
+            >
+              <PreviewPane site={site} editable={role !== 'viewer'} />
             </div>
-            <div className="min-h-0 flex-1 canvas-mobile:pl-[calc(var(--image-studio-tab-bar-width)+var(--canvas-panel-width,0px))]">
-              <PreviewPane site={site} />
-            </div>
-            <SiteSidebarPanel />
+            {role !== 'viewer' && <SiteSidebarPanel />}
+            {role === 'admin' && (
+              <SiteShareDialog
+                site={site}
+                open={shareOpen}
+                onOpenChange={setShareOpen}
+                returnFocusRef={shareButtonRef}
+              />
+            )}
             <PreviewDialog
               open={previewOpen}
               onOpenChange={setPreviewOpen}

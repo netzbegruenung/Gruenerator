@@ -21,6 +21,10 @@ interface CreateSiteScreenProps {
   isProcessing: boolean;
   isGenerating: boolean;
   isGeneratingFromFlyer?: boolean;
+  /** Projects the person administers; with none the site is simply their own. */
+  projects?: ReadonlyArray<{ id: string; name: string }>;
+  projectId?: string;
+  onProjectChange?: (id: string) => void;
 }
 
 // Matches validators.description in utils/validation.ts — keep in sync.
@@ -38,6 +42,9 @@ export function CreateSiteScreen({
   isProcessing,
   isGenerating,
   isGeneratingFromFlyer,
+  projects = [],
+  projectId = '',
+  onProjectChange,
 }: CreateSiteScreenProps) {
   const [step, setStep] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -155,6 +162,31 @@ export function CreateSiteScreen({
                 autoFocus
                 large
               />
+              {projects.length > 0 && onProjectChange && (
+                <div className="mt-md space-y-2">
+                  <Label htmlFor="site-project" className="text-base">
+                    Projekt (optional)
+                  </Label>
+                  <select
+                    id="site-project"
+                    value={projectId}
+                    onChange={(e) => onProjectChange(e.target.value)}
+                    disabled={isProcessing}
+                    className="w-full rounded-md border border-grey-300 bg-background px-sm py-sm text-base text-foreground dark:border-grey-600"
+                  >
+                    <option value="">Persönliche Website</option>
+                    {projects.map((project) => (
+                      <option key={project.id} value={project.id}>
+                        {project.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-sm text-grey-500 dark:text-grey-400">
+                    Eine Projektseite gehört dem Projekt: Projekt-Admins sind Admins, Mitglieder
+                    bearbeiten mit.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

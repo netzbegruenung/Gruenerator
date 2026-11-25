@@ -9,6 +9,7 @@ import { EditorSkeleton } from '../editor/EditorSkeleton';
 import { SiteGenerationError, type SiteGenerationInput } from '../generation/siteGenerationStream';
 import { useCreateSite, type GeneratedSiteData } from '../hooks/useSite';
 import { useSiteGeneration } from '../hooks/useSiteGeneration';
+import { useSiteProjects } from '../hooks/useSiteSharing';
 import { useToast } from '../hooks/useToast';
 import { useAuth, useSitesPaths } from '../SitesContext';
 import { handleApiError, SitesApiError } from '../utils/errorHandler';
@@ -41,6 +42,9 @@ export function CreateFlow({ onBack }: { onBack?: () => void }) {
     subdomainInput ?? (user?.display_name ? nameToSubdomain(user.display_name) : '');
   const contactEmail = user?.email ?? '';
   const [description, setDescription] = useState('');
+  const [projectId, setProjectId] = useState('');
+  // Only projects the person administers can own a site (the server checks it again).
+  const adminProjects = (useSiteProjects().data ?? []).filter((g) => g.isAdmin);
 
   // The generated content goes straight into a new site, and its editor opens.
   // A failed create keeps the content in the retry, so a second click does not regenerate it.
@@ -54,6 +58,7 @@ export function CreateFlow({ onBack }: { onBack?: () => void }) {
         tagline: data.tagline,
         contact_email: data.contact_email || contactEmail,
         sections: data.sections,
+        ...(projectId ? { group_id: projectId } : {}),
       });
       toast.success('Seite erstellt', 'Deine Seite wurde erfolgreich erstellt');
       void navigate(paths.site(site.subdomain), { replace: true, state: routeState });
@@ -154,6 +159,9 @@ export function CreateFlow({ onBack }: { onBack?: () => void }) {
           isProcessing={isGenerating || isCreating}
           isGenerating={isGenerating}
           isGeneratingFromFlyer={isGenerating && isFlyer}
+          projects={adminProjects}
+          projectId={projectId}
+          onProjectChange={setProjectId}
         />
         {failure && (
           <div role="alert" className="mx-auto max-w-xl p-md text-center">

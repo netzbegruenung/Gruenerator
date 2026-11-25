@@ -83,6 +83,7 @@ const siteRow = { id: 's1', subdomain: 'anna', legal: null };
 function setSite(over: Record<string, unknown>) {
   hoisted.site.current = {
     site: null,
+    role: 'admin',
     isLoading: false,
     error: null,
     refetch: hoisted.refetch,
@@ -171,5 +172,24 @@ describe('EditPage', () => {
     expect(screen.queryByText('Grünerator Sites')).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'Zurück' }));
     expect(screen.getByTestId('pfad')).toHaveTextContent('/sites');
+  });
+
+  it('an admin sees publishing and sharing, no banner', () => {
+    setSite({ site: siteRow, role: 'admin' });
+    hoisted.session.current = { state: 'ready', ydoc: seededDoc({}), provider: {}, save: 'saved' };
+    renderAt();
+    expect(screen.getByRole('button', { name: 'Veröffentlichen' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Teilen' })).toBeInTheDocument();
+    expect(screen.queryByText('Veröffentlichen können nur Admins.')).not.toBeInTheDocument();
+  });
+
+  it.each(['editor', 'viewer'])('%s sees the banner and no publish or share button', (role) => {
+    setSite({ site: siteRow, role });
+    hoisted.session.current = { state: 'ready', ydoc: seededDoc({}), provider: {}, save: 'saved' };
+    renderAt();
+    expect(screen.getByText('Veröffentlichen können nur Admins.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Veröffentlichen' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Teilen' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Weitere Aktionen' })).not.toBeInTheDocument();
   });
 });

@@ -16,7 +16,7 @@ interface EditPageProps {
 }
 
 export function EditPage({ handle }: EditPageProps) {
-  const { site, publicOrigin, isLoading, error, refetch } = useSiteByHandle(handle);
+  const { site, role, publicOrigin, isLoading, error, refetch } = useSiteByHandle(handle);
   const navigate = useNavigate();
   const routeState: unknown = useLocation().state;
   const paths = useSitesPaths();
@@ -34,7 +34,7 @@ export function EditPage({ handle }: EditPageProps) {
     return <LoadErrorState onRetry={() => void refetch()} />;
   }
 
-  if (!site) {
+  if (!site || !role) {
     return (
       <div
         role="alert"
@@ -50,8 +50,8 @@ export function EditPage({ handle }: EditPageProps) {
   }
 
   return (
-    <CurrentSiteProvider value={{ site, public_origin: publicOrigin }}>
-      <SiteEditor key={site.id} site={site} onBack={back} />
+    <CurrentSiteProvider value={{ site, role, public_origin: publicOrigin }}>
+      <SiteEditor key={site.id} site={site} role={role} onBack={back} />
     </CurrentSiteProvider>
   );
 }

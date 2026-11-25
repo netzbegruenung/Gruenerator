@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -28,6 +28,8 @@ function summary(subdomain: string, over: Record<string, unknown> = {}) {
     updated_at: '2026-11-20T10:00:00Z',
     profile_image: null,
     theme: null,
+    role: 'admin',
+    group: null,
     ...over,
   };
 }
@@ -106,5 +108,21 @@ describe('SitesOverviewPage', () => {
     renderOverview();
     expect(screen.getByRole('button', { name: 'Neue Website' })).toBeDisabled();
     expect(screen.getByText(/Höchstzahl an Websites/)).toBeInTheDocument();
+  });
+
+  it('sorts sites into own, project and shared sections', () => {
+    setList([
+      summary('eigene'),
+      summary('kv', { group: { id: 'g1', name: 'Kreisverband' }, role: 'editor' }),
+      summary('fremde', { role: 'viewer' }),
+    ]);
+    renderOverview();
+    const own = screen.getByRole('region', { name: 'Meine Websites' });
+    const projects = screen.getByRole('region', { name: 'Projekte' });
+    const shared = screen.getByRole('region', { name: 'Mit mir geteilt' });
+    expect(within(own).getByText('Seite eigene')).toBeInTheDocument();
+    expect(within(projects).getByText('Seite kv')).toBeInTheDocument();
+    expect(within(projects).getByText('Kreisverband')).toBeInTheDocument();
+    expect(within(shared).getByText('Seite fremde')).toBeInTheDocument();
   });
 });
