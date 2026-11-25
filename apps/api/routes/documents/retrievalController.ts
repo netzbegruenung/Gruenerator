@@ -505,7 +505,13 @@ router.get(
 );
 
 function pdfFilename(url: string): string {
-  const name = decodeURIComponent(new URL(url).pathname.split('/').pop() ?? '');
+  const last = new URL(url).pathname.split('/').pop() ?? '';
+  let name: string;
+  try {
+    name = decodeURIComponent(last);
+  } catch {
+    name = last;
+  }
   return /\.pdf$/i.test(name) ? name : 'dokument.pdf';
 }
 

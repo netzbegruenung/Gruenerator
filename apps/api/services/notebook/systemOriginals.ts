@@ -100,7 +100,7 @@ async function readCapped(response: Response): Promise<Buffer> {
  * request gives up after 20 s. The stored URL comes from our own index, but
  * the hosts are third parties and their redirects are not ours to trust.
  */
-async function fetchUrlHardened(
+export async function fetchUrlHardened(
   url: string,
   options: { headers: Record<string, string>; acceptStatus: number[] }
 ): Promise<Response> {
@@ -111,10 +111,18 @@ async function fetchUrlHardened(
   if (response.status === 304) return new Response(null, { status: 304 });
   if (!response.ok) throw new Error(`HTTP ${response.status} for ${url}`);
   const bytes = await readCapped(response);
-  return new Response(new Uint8Array(bytes), {
+  const copy = new Response(new Uint8Array(bytes), {
     status: response.status,
     headers: response.headers,
   });
+  // A constructed Response has an empty `url`; `fetchPdfDocument` resolves a
+  // WPDM link against it, which must be the page after redirects (as in
+  // BaseScraper's `withBodyIdleTimeout`).
+  Object.defineProperties(copy, {
+    url: { value: response.url },
+    redirected: { value: response.redirected },
+  });
+  return copy;
 }
 
 export type SystemOriginal =

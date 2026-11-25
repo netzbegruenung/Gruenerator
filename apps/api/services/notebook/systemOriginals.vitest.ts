@@ -7,7 +7,11 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { hashBytes } from '../scrapers/utils/binaryFingerprint.js';
 import { LocalSystemMediaStorage } from '../systemMedia/storage.js';
 
-import { loadSystemOriginal, pdfSourceFromPayload } from './systemOriginals.js';
+const safeFetch = vi.fn();
+vi.mock('../../utils/validation/urlSecurity.js', () => ({ safeFetch }));
+
+const { fetchUrlHardened, loadSystemOriginal, pdfSourceFromPayload } =
+  await import('./systemOriginals.js');
 
 const PDF = Buffer.from('%PDF-1.7\n1 0 obj <<>> endobj\n%%EOF');
 const HASH = hashBytes(PDF);
@@ -96,5 +100,30 @@ describe('loadSystemOriginal', () => {
       { storage, fetchUrl: serving(Buffer.from('<html>404</html>')) }
     );
     expect(result).toBeNull();
+  });
+});
+
+describe('fetchUrlHardened', () => {
+  it('keeps the URL after redirects, so a WPDM link resolves against the final page', async () => {
+    const upstream = new Response('<html></html>', { status: 200 });
+    Object.defineProperty(upstream, 'url', { value: 'https://lv.example/after/redirect/' });
+    safeFetch.mockResolvedValue(upstream);
+
+    const res = await fetchUrlHardened('https://lv.example/before', {
+      headers: {},
+      acceptStatus: [304],
+    });
+
+    expect(res.url).toBe('https://lv.example/after/redirect/');
+    expect(await res.text()).toBe('<html></html>');
+  });
+
+  it('refuses a body over the cap', async () => {
+    safeFetch.mockResolvedValue(
+      new Response('x', { status: 200, headers: { 'content-length': String(60 * 1024 * 1024) } })
+    );
+    await expect(
+      fetchUrlHardened('https://lv.example/big.pdf', { headers: {}, acceptStatus: [] })
+    ).rejects.toThrow(/too large/);
   });
 });

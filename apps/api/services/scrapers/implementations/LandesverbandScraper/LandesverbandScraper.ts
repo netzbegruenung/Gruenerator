@@ -1307,7 +1307,10 @@ export class LandesverbandScraper extends BaseScraper {
 
     try {
       await fs.writeFile(tempPath, buffer);
-      const ocrResult = await ocrService.extractTextFromDocument(tempPath, 'docling');
+      // Seitenmarken wie im Archivlauf (#6088).
+      const ocrResult = await ocrService.extractTextFromDocument(tempPath, 'docling', {
+        pageMarkers: true,
+      });
       text = ocrResult.text || '';
       recordExtraction({
         method: ocrResult.extractionMethod || ocrResult.method,
