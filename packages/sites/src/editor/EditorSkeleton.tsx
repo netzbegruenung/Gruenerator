@@ -29,23 +29,32 @@ export function EditorSkeleton({
       role="status"
       aria-label={label}
       aria-busy="true"
-      className="relative min-h-full flex flex-col bg-grey-100 dark:bg-grey-800"
+      className="relative flex h-dvh min-h-0 flex-col bg-grey-100 dark:bg-grey-800"
     >
       {children && (
         <div className="absolute inset-0 z-10 flex items-center justify-center p-md">
           {children}
         </div>
       )}
-      <div className="flex items-center gap-sm py-sm px-md bg-background-pure border-b border-grey-200 dark:border-grey-700 min-h-14">
-        <Skeleton className="size-8 rounded-full" />
-        <Skeleton className="h-8 w-28" />
-        <Skeleton className="h-8 w-24" />
-        <div className="flex gap-xs ml-auto">
-          <Skeleton className="h-9 w-24" />
-          <Skeleton className="h-9 w-28" />
+      {/* The editor's top bar (`EditorHeader`), zone by zone: back, site name and save state;
+          the device widths in the middle; undo, redo, preview and publish. */}
+      <div className="relative flex h-11 shrink-0 items-center gap-xxs border-b border-grey-200 bg-background-pure px-xs dark:border-grey-700">
+        <Skeleton className="size-8" />
+        <Skeleton className="ml-xs h-6 w-28" />
+        <Skeleton className="ml-xs h-3 w-20 max-sm:hidden" />
+        <div className="absolute left-1/2 flex -translate-x-1/2 items-center gap-xs max-canvas-mobile:hidden">
+          <Skeleton className="size-6" />
+          <Skeleton className="size-6" />
+          <Skeleton className="size-6" />
+        </div>
+        <div className="ml-auto flex shrink-0 items-center gap-xs">
+          <Skeleton className="size-6" />
+          <Skeleton className="size-6 max-sm:hidden" />
+          <Skeleton className="size-6" />
+          <Skeleton className="h-8 w-28" />
         </div>
       </div>
-      <div className="relative h-[calc(100dvh-57px)] overflow-hidden bg-background-pure">
+      <div className="relative min-h-0 flex-1 overflow-hidden bg-background-pure">
         {page ?? <PagePlaceholder />}
       </div>
     </div>
