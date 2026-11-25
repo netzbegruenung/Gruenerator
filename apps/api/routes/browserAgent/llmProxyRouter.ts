@@ -22,6 +22,7 @@ import { Router, type NextFunction, type Request, type Response } from 'express'
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 
+import { env } from '../../config/env.js';
 import { jsonBody } from '../../middleware/jsonBody.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { aiText } from '../../services/ai/generate.js';
@@ -191,16 +192,15 @@ function schemaInstruction(schema: Record<string, unknown>): string {
  * der Speicher ist je Cluster-Worker, der Deckel deshalb großzügig. Fein
  * begrenzt wird pro Lauf (`MAX_LLM_CALLS_PER_RUN`).
  */
-const gatewayLimiter =
-  process.env.DISABLE_RATE_LIMITS === 'true'
-    ? (_req: Request, _res: Response, next: NextFunction) => next()
-    : rateLimit({
-        windowMs: 60 * 1000,
-        max: 120,
-        standardHeaders: true,
-        legacyHeaders: false,
-        message: { error: { message: 'Too many requests', type: 'rate_limit_error' } },
-      });
+const gatewayLimiter = env.DISABLE_RATE_LIMITS
+  ? (_req: Request, _res: Response, next: NextFunction) => next()
+  : rateLimit({
+      windowMs: 60 * 1000,
+      max: 120,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { error: { message: 'Too many requests', type: 'rate_limit_error' } },
+    });
 
 const router: Router = Router();
 

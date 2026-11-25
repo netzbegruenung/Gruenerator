@@ -199,7 +199,7 @@ import type { Application, Request, Response, NextFunction } from 'express';
  * Complements the existing Redis-based per-user rate limiter (used for business quotas).
  * Disabled entirely when DISABLE_RATE_LIMITS=true (dev convenience).
  */
-const isRateLimitDisabled = process.env.DISABLE_RATE_LIMITS === 'true';
+const isRateLimitDisabled = env.DISABLE_RATE_LIMITS;
 
 // Bucket key: authenticated user when known, else client IP. Without this,
 // users sharing an egress IP (office NAT, CGNAT, VPN) compete for one bucket.

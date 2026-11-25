@@ -381,16 +381,15 @@ async function startWorker(): Promise<void> {
   // req.headers only (cookie or bearer), so it works on the raw stream; the
   // CORS middleware registered further up already answers OPTIONS preflights
   // itself, so TUS's non-POST verbs are not blocked by it.
-  const uploadBinaryLimiter =
-    process.env.DISABLE_RATE_LIMITS === 'true'
-      ? (_req: Request, _res: Response, next: NextFunction) => next()
-      : rateLimit({
-          windowMs: 15 * 60 * 1000,
-          max: 60,
-          standardHeaders: true,
-          legacyHeaders: false,
-          message: { error: 'Zu viele Uploads. Bitte versuche es später erneut.' },
-        });
+  const uploadBinaryLimiter = env.DISABLE_RATE_LIMITS
+    ? (_req: Request, _res: Response, next: NextFunction) => next()
+    : rateLimit({
+        windowMs: 15 * 60 * 1000,
+        max: 60,
+        standardHeaders: true,
+        legacyHeaders: false,
+        message: { error: 'Zu viele Uploads. Bitte versuche es später erneut.' },
+      });
   // TUS counts uploads, not requests: a 500 MB file is ~100 PATCH chunks of
   // 5 MB, which would exhaust the per-upload budget on its own. Only the POST
   // that creates an upload is limited.
@@ -547,16 +546,15 @@ async function startWorker(): Promise<void> {
   // Better Auth has its own Redis-backed rate limits for business logic, but we
   // also add an IP-based limiter here as defense-in-depth against credential
   // stuffing / brute force at the edge.
-  const betterAuthIpLimiter =
-    process.env.DISABLE_RATE_LIMITS === 'true'
-      ? (_req: Request, _res: Response, next: NextFunction) => next()
-      : rateLimit({
-          windowMs: 15 * 60 * 1000,
-          max: 300,
-          standardHeaders: true,
-          legacyHeaders: false,
-          message: { error: 'Too many authentication requests, please try again later.' },
-        });
+  const betterAuthIpLimiter = env.DISABLE_RATE_LIMITS
+    ? (_req: Request, _res: Response, next: NextFunction) => next()
+    : rateLimit({
+        windowMs: 15 * 60 * 1000,
+        max: 300,
+        standardHeaders: true,
+        legacyHeaders: false,
+        message: { error: 'Too many authentication requests, please try again later.' },
+      });
   const { betterAuthHandler } = await import('./routes/auth/betterAuthHandler.js');
 
   // Hier stand bis better-auth 1.7 ein Shim auf `/api/auth/v2/mcp/authorize`,
