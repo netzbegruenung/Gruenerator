@@ -147,6 +147,18 @@ export const contentRoutes = {
   updateContentPermissions: s.route(groupsContract.updateContentPermissions, async (args) => {
     const { groupId, contentId } = args.params;
     const { contentType, permissions } = args.body;
+    // A Website's write right makes project members editors of a personal site: only its admins
+    // decide that, through /api/sites/:id/groups.
+    if (contentType === 'user_sites') {
+      return {
+        status: 400 as const,
+        body: {
+          success: false as const,
+          message:
+            'Die Rechte einer Website ändern Admins der Website unter /api/sites/:id/groups.',
+        },
+      };
+    }
     try {
       const userId = getUserId(args.req);
       const { postgres, isAdmin } = await getPostgresAndCheckMembership(groupId, userId, false);

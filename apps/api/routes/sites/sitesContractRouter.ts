@@ -791,7 +791,12 @@ export const sitesContractRouter = s.router(sitesContract, {
           onExisting: 'update-permissions',
         });
       } catch (error) {
-        if (error instanceof GroupShareForbiddenError) return denied('forbidden');
+        if (error instanceof GroupShareForbiddenError) {
+          return {
+            status: 403 as const,
+            body: { error: 'Du darfst in diesem Projekt nichts teilen' },
+          };
+        }
         throw error;
       }
       return { status: 200 as const, body: { success: true } };

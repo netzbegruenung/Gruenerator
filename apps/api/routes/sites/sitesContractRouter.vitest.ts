@@ -776,7 +776,9 @@ describe('sitesContract', () => {
 
     it('403 when the admin may not share into that project', async () => {
       shares.addGroupShare.mockRejectedValue(new shares.GroupShareForbiddenError('no'));
-      expect((await put()).status).toBe(403);
+      const res = await put();
+      expect(res.status).toBe(403);
+      expect(res.body.error).toContain('Projekt');
     });
 
     it('409 on a project site, for list, share and unshare', async () => {
