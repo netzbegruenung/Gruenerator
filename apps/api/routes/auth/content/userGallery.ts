@@ -208,42 +208,6 @@ router.get(
 // ============================================================================
 
 router.get(
-  '/antraege-categories',
-  ensureAuthenticated,
-  async (_req: AuthRequest, res: Response): Promise<void> => {
-    try {
-      const postgres = getPostgresInstance();
-      await postgres.ensureInitialized();
-
-      const data = await postgres.query(
-        'SELECT categories FROM database WHERE type = $1 AND status = $2 AND is_private = $3',
-        ['antrag', 'published', false],
-        { table: 'database' }
-      );
-
-      const allCategories = (data || [])
-        .flatMap((row: Record<string, unknown>) =>
-          Array.isArray(row.categories) ? (row.categories as string[]) : []
-        )
-        .filter(Boolean);
-
-      const unique = [...new Set(allCategories)].sort();
-      const categories = unique.map((c) => ({ id: c, label: c }));
-
-      res.json({ success: true, categories });
-    } catch (err) {
-      const error = err as Error;
-      log.error('[Gallery] /antraege-categories error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Fehler beim Laden der Kategorien',
-        details: error.message,
-      });
-    }
-  }
-);
-
-router.get(
   '/antraege',
   ensureAuthenticated,
   async (req: AuthRequest, res: Response): Promise<void> => {
@@ -378,57 +342,6 @@ router.get(
       res.status(500).json({
         success: false,
         message: 'Fehler beim Laden der PR-Texte',
-        details: error.message,
-      });
-    }
-  }
-);
-
-router.get(
-  '/pr-texts/categories',
-  ensureAuthenticated,
-  async (_req: AuthRequest, res: Response): Promise<void> => {
-    try {
-      const prTypes = [
-        'instagram',
-        'facebook',
-        'twitter',
-        'linkedin',
-        'pressemitteilung',
-        'pr_text',
-      ];
-
-      const postgres = getPostgresInstance();
-      await postgres.ensureInitialized();
-
-      const data = await postgres.query(
-        'SELECT DISTINCT type FROM database WHERE type = ANY($1) AND status = $2 AND is_example = $3',
-        [prTypes, 'published', true],
-        { table: 'database' }
-      );
-
-      const presentTypes = [
-        ...new Set((data || []).map((r: Record<string, unknown>) => r.type as string)),
-      ];
-      const labelMap: Record<string, string> = {
-        instagram: 'Instagram',
-        facebook: 'Facebook',
-        twitter: 'Twitter',
-        linkedin: 'LinkedIn',
-        pressemitteilung: 'Pressemitteilung',
-        pr_text: 'PR-Text',
-      };
-      const categories = [{ id: 'all', label: 'Alle Kategorien' }].concat(
-        (presentTypes as string[]).sort().map((t) => ({ id: t, label: labelMap[t] || t }))
-      );
-
-      res.json({ success: true, categories });
-    } catch (err) {
-      const error = err as Error;
-      log.error('[Gallery] /pr-texts/categories GET error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Fehler beim Laden der PR-Kategorien',
         details: error.message,
       });
     }
