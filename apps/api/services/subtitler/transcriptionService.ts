@@ -125,14 +125,17 @@ interface VideoTranscription {
 
 async function transcribeVideo(
   videoPath: string,
+  uploadId: string,
   subtitlePreference: string = 'manual',
   locale: Locale = 'de-DE'
 ): Promise<string> {
-  return (await transcribeVideoWithWords(videoPath, subtitlePreference, locale)).subtitles;
+  return (await transcribeVideoWithWords(videoPath, uploadId, subtitlePreference, locale))
+    .subtitles;
 }
 
 async function transcribeVideoWithWords(
   videoPath: string,
+  uploadId: string,
   subtitlePreference: string = 'manual',
   locale: Locale = 'de-DE'
 ): Promise<VideoTranscription> {
@@ -145,7 +148,6 @@ async function transcribeVideoWithWords(
 
     await extractAudio(videoPath, audioPath);
 
-    const uploadId = path.basename(path.dirname(videoPath));
     try {
       startBackgroundCompression(videoPath, uploadId);
       log.debug(`Background compression started for: ${uploadId}`);

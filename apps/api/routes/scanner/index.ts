@@ -102,6 +102,28 @@ router.post(
         return;
       }
       const provider = req.body.provider ?? queryProvider.data.provider;
+
+      // A scanned PDF goes to a provider billed per page. Count first, so an
+      // oversized scan is rejected before it is paid for (#3617). A PDF that
+      // pdf.js cannot open still goes to extraction, which tolerates it; the
+      // check after extraction covers that case and the other formats.
+      if (ext === '.pdf') {
+        const pdfPageCount = await ocrService
+          .getPDFInfo(tempFilePath)
+          .then((info) => info.pageCount)
+          .catch(() => null);
+        if (pdfPageCount !== null && pdfPageCount > MAX_PAGES) {
+          log.warn(
+            `Page limit exceeded before extraction: ${pdfPageCount} pages (max ${MAX_PAGES})`
+          );
+          res.status(400).json({
+            success: false,
+            error: `Seitenlimit überschritten: Die Datei hat ${pdfPageCount} Seiten (maximal ${MAX_PAGES} erlaubt).`,
+          });
+          return;
+        }
+      }
+
       const result = await ocrService.extractTextFromDocument(tempFilePath, provider);
       const processingTime = Date.now() - startTime;
 
