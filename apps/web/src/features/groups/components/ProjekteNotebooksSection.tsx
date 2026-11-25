@@ -1,15 +1,18 @@
+import { marketplaceHref } from '@gruenerator/shared/marketplace';
 import { Button, SectionHeader } from '@gruenerator/ui';
 import { useMemo } from 'react';
-import { PiBooks, PiPlus } from 'react-icons/pi';
+import { PiBooks, PiPlus, PiStorefront } from 'react-icons/pi';
 import { Link } from 'react-router-dom';
 
 import { getToolTheme } from '../../../config/toolTheme';
+import { notebookFavouriteId } from '../../../stores/sidebarFavouritesStore';
 import { useNotebookCollections } from '../../auth/hooks/useProfileData';
 import { type NotebookConfigEntry } from '../../notebook/config/notebooksConfig';
 import { useSharedNotebookCollections } from '../../notebook/hooks/useSharedNotebookCollections';
 import { OwnNotebookActions } from '../../notebook/wissen/OwnNotebookMenu';
 import { collectionSlug } from '../../notebook/wissen/useNotebookShelves';
 
+import { FavouriteMenuItem } from './FavouriteMenuItem';
 import { TileCard, type TileTone } from './TileCard';
 
 import type { NotebookCollection } from '@/types/notebook';
@@ -68,13 +71,18 @@ export function NotebookTile({
           : []),
       ]}
       description={c.description}
-      // Bearbeiten, Teilen und Löschen nur am eigenen — dieselben Einträge wie auf /wissen.
-      menu={isOwn ? <OwnNotebookActions collection={c} /> : null}
+      // Favoriten an jedem; Bearbeiten, Teilen und Löschen nur am eigenen.
+      menu={
+        <>
+          <FavouriteMenuItem favouriteId={notebookFavouriteId(c.id)} />
+          {isOwn && <OwnNotebookActions collection={c} />}
+        </>
+      }
     />
   );
 }
 
-/** System-Notebook-Kachel (z. B. in „Zuletzt"): dieselbe Kachel, ohne Menü — es gehört niemandem. */
+/** System-Notebook-Kachel (z. B. in „Zuletzt"): dieselbe Kachel, im Menü nur „Zu Favoriten" — es gehört niemandem. */
 export function SystemNotebookTile({
   entry,
   extraMeta = [],
@@ -91,6 +99,8 @@ export function SystemNotebookTile({
       badge={<Icon aria-hidden className="size-5" />}
       meta={extraMeta}
       description={entry.description}
+      // Die Registry-Id, wie früher der Stern auf /wissen: die Seitenleiste löst sie schon auf.
+      menu={<FavouriteMenuItem favouriteId={entry.id} />}
     />
   );
 }
@@ -103,17 +113,24 @@ export function SystemNotebookTile({
 export function ProjekteNotebooksSection() {
   const { own, shared, loading, failed } = useMyNotebooks();
 
-  const newButton = (
-    <Button asChild variant="ghost" size="icon" title="Neues Notebook">
-      <Link to="/notebooks/neu" aria-label="Neues Notebook">
-        <PiPlus aria-hidden className="size-[18px]" />
-      </Link>
-    </Button>
+  const actions = (
+    <>
+      <Button asChild variant="ghost" size="icon" title="Marktplatz">
+        <Link to={marketplaceHref({ tab: 'notebooks' })} aria-label="Notebooks im Marktplatz">
+          <PiStorefront aria-hidden className="size-[18px]" />
+        </Link>
+      </Button>
+      <Button asChild variant="ghost" size="icon" title="Neues Notebook">
+        <Link to="/notebooks/neu" aria-label="Neues Notebook">
+          <PiPlus aria-hidden className="size-[18px]" />
+        </Link>
+      </Button>
+    </>
   );
 
   return (
     <section aria-label="Deine Notebooks" className="mt-xl">
-      <SectionHeader title="Deine Notebooks" actions={newButton} />
+      <SectionHeader title="Deine Notebooks" actions={actions} />
       {own.length + shared.length > 0 ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] sm:gap-4">
           {own.map((c) => (
