@@ -15,8 +15,6 @@ import { useEffect, useState, type ReactNode } from 'react';
 
 import PageContainer from '../../../components/common/PageContainer';
 import { NOTEBOOK_COMPOSER_ACCENT, NOTEBOOK_MAGENTA_BG } from '../notebookTheme';
-import { NotebookOmniComposer } from '../omni/NotebookOmniComposer';
-import { WissenDashboardFrame } from '../wissen/WissenLayout';
 
 import { NotebookLiveSearch } from './NotebookLiveSearch';
 
@@ -53,12 +51,6 @@ interface NotebookStartpageProps {
   manualSearchNotebookId?: string;
   /** Accepted for caller compatibility; the notebook "Chat" tab was removed. */
   notebookMention?: string | null;
-  /**
-   * Overview mode: render only the intelligent omni composer (ask/route/open in
-   * one input) — no live search, no browse sub-tabs. Used by the /notebooks
-   * index + workplace "Wissen" surface.
-   */
-  omniComposer?: boolean;
   /** Paint the signature magenta gradient as the page background. Disabled when
    *  embedded in a surface that paints its own tint (workplace "Wissen" tab).
    *  Defaults to true. */
@@ -98,7 +90,6 @@ export function NotebookStartpage({
   recentCollectionIds,
   showManualSearch = true,
   manualSearchNotebookId,
-  omniComposer = false,
   pageGradient = true,
   footer,
   onOpenChat,
@@ -127,19 +118,9 @@ export function NotebookStartpage({
   }, [raised, hasText]);
 
   const magicIntent: MagicIntent | null =
-    !omniComposer && answerMode === 'auto' && manualSearchAvailable && hasText
+    answerMode === 'auto' && manualSearchAvailable && hasText
       ? detectMagicIntent(composerText)
       : null;
-
-  // --- Overview surface (/wissen): the dashboard frame with the omni composer
-  //     on top; the dashboard itself comes in as `footer`. ---
-  if (omniComposer) {
-    return (
-      <WissenDashboardFrame title={title} composer={<NotebookOmniComposer />}>
-        {footer}
-      </WissenDashboardFrame>
-    );
-  }
 
   // --- Individual notebook page: one composer, live hits below it. Everything
   //     else about the notebook lives on its Übersicht tab. ---

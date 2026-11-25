@@ -90,9 +90,9 @@ export const OFFICE_TOOLS: WorkplaceToolItem[] = [
   },
   {
     id: 'wissen',
-    title: 'Wissen',
-    description: 'Recherche & Notebooks',
-    path: '/wissen',
+    title: 'Notebooks',
+    description: 'Programme & Beschlüsse befragen',
+    path: '/marktplatz?art=notebooks',
     icon: getIcon('navigation', 'notebooks')!,
   },
 ] satisfies RegisteredTile[];

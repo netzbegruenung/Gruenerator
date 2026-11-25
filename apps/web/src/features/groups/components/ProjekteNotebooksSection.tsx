@@ -27,7 +27,7 @@ const byName = (a: NotebookCollection, b: NotebookCollection) => a.name.localeCo
 
 /**
  * Eigene Notebooks und die, die andere in ein gemeinsames Projekt geteilt
- * haben (ohne Doppelte). Die System-Notebooks bleiben auf `/wissen`.
+ * haben (ohne Doppelte). Die System-Notebooks stehen im Marktplatz.
  */
 export function useMyNotebooks() {
   const { query } = useNotebookCollections({ isActive: true });
