@@ -151,6 +151,13 @@ describe('DraggableFeedbackLauncher', () => {
   it('misst eine Leiste neu, die beim Scrollen in die Ecke wandert', () => {
     const box = { left: 0, right: window.innerWidth, top: 300, bottom: 368, width: 0, height: 68 };
     box.width = box.right - box.left;
+    // Gescrollt wird nur einmal je Frame gemessen; den Frame löst der Test
+    // selbst aus, damit er auch zählen kann, wie oft gemessen wurde.
+    const frames: FrameRequestCallback[] = [];
+    const raf = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((cb) => frames.push(cb));
+    let reads = 0;
     function StickyBar() {
       const ref = useRef<HTMLDivElement>(null);
       useMeasuredCornerReservation(ref, {
@@ -160,7 +167,11 @@ describe('DraggableFeedbackLauncher', () => {
       return (
         <div
           ref={(el) => {
-            if (el) el.getBoundingClientRect = () => ({ ...box }) as DOMRect;
+            if (el)
+              el.getBoundingClientRect = () => {
+                reads++;
+                return { ...box } as DOMRect;
+              };
             ref.current = el;
           }}
         />
@@ -177,10 +188,16 @@ describe('DraggableFeedbackLauncher', () => {
 
     box.top = window.innerHeight - 68;
     box.bottom = window.innerHeight;
+    const readsBefore = reads;
+    for (let i = 0; i < 3; i++) document.dispatchEvent(new Event('scroll'));
+    expect(reads).toBe(readsBefore);
+    expect(frames).toHaveLength(1);
     act(() => {
-      document.dispatchEvent(new Event('scroll'));
+      frames.shift()?.(0);
     });
+    expect(reads).toBe(readsBefore + 1);
     expect(button.style.bottom).toBe('calc(68px + 1rem)');
+    raf.mockRestore();
   });
 
   it('hat keine a11y-Verstöße', async () => {

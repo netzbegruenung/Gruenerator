@@ -266,6 +266,19 @@ export function useMeasuredCornerReservation(
       }
     };
 
+    // Der Scroll-Listener hängt am ganzen Dokument und feuert damit für jeden
+    // Leser bei jedem Scrollen irgendwo, auch in verschachtelten Containern.
+    // Höchstens eine Messung je Frame: mehr kann die Ecke ohnehin nicht zeigen,
+    // und jede Messung erzwingt ein Layout.
+    let frame: number | null = null;
+    const measureOnNextFrame = (): void => {
+      if (frame !== null) return;
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        measure();
+      });
+    };
+
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(element);
@@ -273,7 +286,7 @@ export function useMeasuredCornerReservation(
     // Scrollen und wenn der Inhalt darüber wächst (Daten nachgeladen). Ohne
     // diese beiden Auslöser bliebe die beim Mount gemessene Lage stehen.
     if (element.parentElement) observer.observe(element.parentElement);
-    document.addEventListener('scroll', measure, { capture: true, passive: true });
+    document.addEventListener('scroll', measureOnNextFrame, { capture: true, passive: true });
     window.addEventListener('resize', measure);
     // Die eingeblendete Bildschirmtastatur schiebt ein im Fluss liegendes
     // Element nach oben, ohne seine Box zu ändern — der ResizeObserver schweigt
@@ -281,7 +294,8 @@ export function useMeasuredCornerReservation(
     window.visualViewport?.addEventListener('resize', measure);
     return () => {
       observer.disconnect();
-      document.removeEventListener('scroll', measure, { capture: true });
+      if (frame !== null) cancelAnimationFrame(frame);
+      document.removeEventListener('scroll', measureOnNextFrame, { capture: true });
       window.removeEventListener('resize', measure);
       window.visualViewport?.removeEventListener('resize', measure);
       for (const { entry } of registrations) entry.release();
