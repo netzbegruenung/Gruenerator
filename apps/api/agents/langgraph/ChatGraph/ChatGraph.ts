@@ -267,6 +267,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     projectDocs: input.projectDocs ?? null,
     project: input.project ?? null,
     projectRecipeIds: input.projectRecipeIds ?? [],
+    projectRecipesExclusive: input.projectRecipesExclusive === true,
 
     // Memory context (will be set by controller before graph execution)
     memoryContext: null,
