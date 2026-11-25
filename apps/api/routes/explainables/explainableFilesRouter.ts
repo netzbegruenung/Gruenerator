@@ -9,6 +9,7 @@ import { slugifyName } from '@gruenerator/shared/utils';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import rateLimit from 'express-rate-limit';
 
+import { env } from '../../config/env.js';
 import { renderExplainablePdf } from '../../services/explainables/explainablePdf.js';
 import {
   explainableImagePath,
@@ -99,16 +100,15 @@ function pdfHandler(resolve: Resolve) {
 
 // Same budget as the app-level publicReadLimiter. The router is mounted ahead
 // of that limiter and always responds, so no request is counted twice.
-const sharedFilesLimiter =
-  process.env.DISABLE_RATE_LIMITS === 'true'
-    ? (_req: Request, _res: Response, next: NextFunction) => next()
-    : rateLimit({
-        windowMs: 60 * 60 * 1000,
-        max: 2000,
-        standardHeaders: true,
-        legacyHeaders: false,
-        message: { error: 'Too many requests, please try again later.' },
-      });
+const sharedFilesLimiter = env.DISABLE_RATE_LIMITS
+  ? (_req: Request, _res: Response, next: NextFunction) => next()
+  : rateLimit({
+      windowMs: 60 * 60 * 1000,
+      max: 2000,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { error: 'Too many requests, please try again later.' },
+    });
 
 /** Mount at `/api/explainables/shared` (optionalAuth), before the prefix limiter. */
 export const explainableSharedFilesRouter = express.Router();

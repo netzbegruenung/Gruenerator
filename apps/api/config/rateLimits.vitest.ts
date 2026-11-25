@@ -13,3 +13,9 @@ describe('Bundestag-Limits', () => {
     expect(plan.authenticated!.limit).toBeGreaterThan(answer.authenticated!.limit);
   });
 });
+
+describe('development.enabled', () => {
+  it('follows the effective env flag (the production guard lives in env.ts)', () => {
+    expect(rateLimitConfig.development.enabled).toBe(true);
+  });
+});

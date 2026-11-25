@@ -4,6 +4,8 @@
  * Handles URL detection, attachment processing, web search, and document aggregation
  */
 
+import { stripHtmlTags } from '@gruenerator/shared/utils';
+
 import { aiText } from '../services/ai/generate.js';
 import { processAndBuildAttachments } from '../services/attachments/index.js';
 import { extractUrlsFromContent, filterNewUrls, getUrlDomain } from '../services/content/index.js';
@@ -113,8 +115,9 @@ class RequestEnricher {
       const textType = text.document_type || 'text';
       const typeDisplayName = typeDisplayNames[textType] || textType;
 
-      // Strip HTML tags from content
-      const plainContent = (text.content || '').replace(/<[^>]*>/g, '').trim();
+      // Strip HTML tags from content (loops until stable, so nested tags like
+      // "<scr<script>ipt>" cannot survive a single pass)
+      const plainContent = stripHtmlTags(text.content);
       // user_documents hat keine Wortzahl-Spalte; gezählt wird am Text.
       const wordCount = plainContent ? plainContent.split(/\s+/).length : 0;
 

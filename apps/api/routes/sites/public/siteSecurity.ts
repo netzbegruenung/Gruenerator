@@ -4,6 +4,8 @@ import { type RequestHandler } from 'express';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import helmet from 'helmet';
 
+import { env } from '../../../config/env.js';
+
 export const SITE_ROBOTS: 'index' | 'noindex' = 'noindex';
 
 export function cspHash(text: string): string {
@@ -35,7 +37,7 @@ export const siteHelmet: RequestHandler = helmet({
 });
 
 export function createSitesReadLimiter(max: number): RequestHandler {
-  if (process.env.DISABLE_RATE_LIMITS === 'true') return (_req, _res, next) => next();
+  if (env.DISABLE_RATE_LIMITS) return (_req, _res, next) => next();
   return rateLimit({
     windowMs: 60 * 60 * 1000,
     max,

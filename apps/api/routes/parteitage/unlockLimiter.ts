@@ -1,8 +1,10 @@
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 
+import { env } from '../../config/env.js';
+
 import type { NextFunction, Request, Response } from 'express';
 
-const isRateLimitDisabled = process.env.DISABLE_RATE_LIMITS === 'true';
+const isRateLimitDisabled = env.DISABLE_RATE_LIMITS;
 
 // Same bucket key as the other limiters in routes.ts: user when known, else /64-normalised IP.
 const perUserOrIpKey = (req: Request): string =>
