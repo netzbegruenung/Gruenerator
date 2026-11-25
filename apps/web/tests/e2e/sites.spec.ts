@@ -153,158 +153,166 @@ test.describe('Sites: öffentliche Seite, axe', () => {
   }
 });
 
-test.describe('Sites: Editor', () => {
-  test.beforeEach(() => {
-    if (BYPASS_AKTIV) return;
-    const reason = 'VITE_E2E_AUTH_BYPASS ist nicht gesetzt.';
-    if (process.env.CI) throw new Error(`${reason} Die Sites-Lane hätte nichts geprüft.`);
-    test.skip(true, reason);
-  });
+// Both blocks below start the in-memory Hocuspocus on the fixed port 1240 (the Vite
+// `/ws` proxy target). With `fullyParallel` they would race for it across workers, so
+// they share one worker and run in order; 'default' (not 'serial') keeps a failure from
+// skipping the rest.
+test.describe('Sites: Editor-Raum', () => {
+  test.describe.configure({ mode: 'default' });
 
-  test('edit on the page, publish', async ({ page }) => {
-    await installApiFixtures(page);
-    const site = makeSite();
-    const room = await startDraftServer(site);
-    try {
-      // Publish reads the live draft from the room, as the API does.
-      const { state } = installSitesApi(page, { unlocked: true, readDraft: room.readDraft });
-      state.site = site;
-      expect(
-        publishFromDraft(state, 'de-DE', siteDraftToSnapshotSource(room.seeded, site.legal)).ok
-      ).toBe(true);
-
-      // The overview lists the site and opens its editor.
-      await page.goto('/sites');
-      await page.getByRole('link', { name: new RegExp(site.site_title) }).click();
-      await expect(page).toHaveURL(new RegExp(`/sites/${site.subdomain}$`));
-      await expect(page.getByText('Nicht veröffentlicht', { exact: true })).toHaveCount(0);
-      await expect(page.getByText('Live', { exact: true })).toBeVisible();
-
-      const preview = page.frameLocator('iframe').first();
-      await expect(preview.getByText(GENERATED.hero.heading).first()).toBeVisible();
-      // The name is edited on the page itself.
-      const name = preview.getByRole('textbox', { name: 'Dein Name' });
-      await expect(name).toHaveText(GENERATED.hero.heading);
-      await name.fill(`${GENERATED.hero.heading} Neu`);
-
-      await expect(page.getByText('Live', { exact: true })).toHaveCount(0);
-      await page.getByRole('button', { name: 'Änderungen veröffentlichen' }).click();
-      await expect(page.getByText('Live', { exact: true })).toBeVisible();
-      expect(state.snapshot?.site_title).toBe(`${GENERATED.hero.heading} Neu`);
-    } finally {
-      await room.close();
-    }
-  });
-});
-
-test.describe('Sites: Rollen im Editor', () => {
-  test.beforeEach(() => {
-    if (BYPASS_AKTIV) return;
-    const reason = 'VITE_E2E_AUTH_BYPASS ist nicht gesetzt.';
-    if (process.env.CI) throw new Error(`${reason} Die Sites-Lane hätte nichts geprüft.`);
-    test.skip(true, reason);
-  });
-
-  const openEditor = async (page: Page, role: 'admin' | 'editor' | 'viewer') => {
-    await installApiFixtures(page);
-    const site = makeSite();
-    const room = await startDraftServer(site);
-    const { state } = installSitesApi(page, {
-      unlocked: true,
-      readDraft: room.readDraft,
-      role,
-      members: [
-        {
-          userId: '00000000-0000-4000-a000-000000000001',
-          displayName: 'Anna Beispiel',
-          role: 'admin',
-          source: 'member',
-          groupId: null,
-        },
-      ],
+  test.describe('Sites: Editor', () => {
+    test.beforeEach(() => {
+      if (BYPASS_AKTIV) return;
+      const reason = 'VITE_E2E_AUTH_BYPASS ist nicht gesetzt.';
+      if (process.env.CI) throw new Error(`${reason} Die Sites-Lane hätte nichts geprüft.`);
+      test.skip(true, reason);
     });
-    state.site = site;
-    await page.goto(`/sites/${site.subdomain}`);
-    return room;
-  };
 
-  test('editor: edits, cannot publish or share', async ({ page }) => {
-    const room = await openEditor(page, 'editor');
-    try {
-      await expect(page.getByText('Veröffentlichen können nur Admins.')).toBeVisible({
-        timeout: 15_000,
-      });
-      await expect(page.getByRole('button', { name: 'Teilen' })).toHaveCount(0);
-      await expect(page.getByRole('button', { name: /veröffentlichen/i })).toHaveCount(0);
-      const preview = page.frameLocator('iframe').first();
-      await expect(preview.getByRole('textbox', { name: 'Dein Name' })).toBeVisible();
-    } finally {
-      await room.close();
-    }
-  });
-
-  test('viewer: no sidebar, cannot publish or share', async ({ page }) => {
-    const room = await openEditor(page, 'viewer');
-    try {
-      await expect(page.getByText('Veröffentlichen können nur Admins.')).toBeVisible({
-        timeout: 15_000,
-      });
-      await expect(page.getByRole('button', { name: 'Teilen' })).toHaveCount(0);
-      await expect(page.getByRole('button', { name: /veröffentlichen/i })).toHaveCount(0);
-      await expect(page.getByRole('tab')).toHaveCount(0);
-      await expect(page.getByRole('tablist')).toHaveCount(0);
-    } finally {
-      await room.close();
-    }
-  });
-
-  test('admin: share dialog lists people and projects, axe clean', async ({ page }) => {
-    const room = await openEditor(page, 'admin');
-    try {
-      await page.getByRole('button', { name: 'Teilen' }).click({ timeout: 15_000 });
-      const dialog = page.getByRole('dialog');
-      await expect(dialog.getByRole('heading', { name: 'Personen' })).toBeVisible();
-      await expect(dialog.getByRole('heading', { name: 'Projekte' })).toBeVisible();
-      await expect(dialog.getByText('Anna Beispiel (du)')).toBeVisible();
-
-      const { violations } = await wcagAxe(page).include('[role=dialog]').analyze();
-      expect(
-        violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`)
-      ).toEqual([]);
-    } finally {
-      await room.close();
-    }
-  });
-
-  test('two people: an edit by the editor shows up for the admin', async ({ browser }) => {
-    const site = makeSite();
-    const room = await startDraftServer(site);
-    const contexts = await Promise.all([browser.newContext(), browser.newContext()]);
-    try {
-      const [adminPage, editorPage] = await Promise.all(contexts.map((c) => c.newPage()));
-      for (const [page, role] of [
-        [adminPage, 'admin'],
-        [editorPage, 'editor'],
-      ] as const) {
-        await installApiFixtures(page);
-        const { state } = installSitesApi(page, {
-          unlocked: true,
-          readDraft: room.readDraft,
-          role,
-        });
+    test('edit on the page, publish', async ({ page }) => {
+      await installApiFixtures(page);
+      const site = makeSite();
+      const room = await startDraftServer(site);
+      try {
+        // Publish reads the live draft from the room, as the API does.
+        const { state } = installSitesApi(page, { unlocked: true, readDraft: room.readDraft });
         state.site = site;
-        await page.goto(`/sites/${site.subdomain}`);
-      }
-      const nameOf = (page: Page) =>
-        page.frameLocator('iframe').first().getByRole('textbox', { name: 'Dein Name' });
-      await expect(nameOf(adminPage)).toHaveText(GENERATED.hero.heading, { timeout: 15_000 });
-      await expect(nameOf(editorPage)).toHaveText(GENERATED.hero.heading, { timeout: 15_000 });
+        expect(
+          publishFromDraft(state, 'de-DE', siteDraftToSnapshotSource(room.seeded, site.legal)).ok
+        ).toBe(true);
 
-      await nameOf(editorPage).fill('Gemeinsam bearbeitet');
-      await expect(nameOf(adminPage)).toHaveText('Gemeinsam bearbeitet');
-    } finally {
-      await Promise.all(contexts.map((c) => c.close()));
-      await room.close();
-    }
+        // The overview lists the site and opens its editor.
+        await page.goto('/sites');
+        await page.getByRole('link', { name: new RegExp(site.site_title) }).click();
+        await expect(page).toHaveURL(new RegExp(`/sites/${site.subdomain}$`));
+        await expect(page.getByText('Nicht veröffentlicht', { exact: true })).toHaveCount(0);
+        await expect(page.getByText('Live', { exact: true })).toBeVisible();
+
+        const preview = page.frameLocator('iframe').first();
+        await expect(preview.getByText(GENERATED.hero.heading).first()).toBeVisible();
+        // The name is edited on the page itself.
+        const name = preview.getByRole('textbox', { name: 'Dein Name' });
+        await expect(name).toHaveText(GENERATED.hero.heading);
+        await name.fill(`${GENERATED.hero.heading} Neu`);
+
+        await expect(page.getByText('Live', { exact: true })).toHaveCount(0);
+        await page.getByRole('button', { name: 'Änderungen veröffentlichen' }).click();
+        await expect(page.getByText('Live', { exact: true })).toBeVisible();
+        expect(state.snapshot?.site_title).toBe(`${GENERATED.hero.heading} Neu`);
+      } finally {
+        await room.close();
+      }
+    });
+  });
+
+  test.describe('Sites: Rollen im Editor', () => {
+    test.beforeEach(() => {
+      if (BYPASS_AKTIV) return;
+      const reason = 'VITE_E2E_AUTH_BYPASS ist nicht gesetzt.';
+      if (process.env.CI) throw new Error(`${reason} Die Sites-Lane hätte nichts geprüft.`);
+      test.skip(true, reason);
+    });
+
+    const openEditor = async (page: Page, role: 'admin' | 'editor' | 'viewer') => {
+      await installApiFixtures(page);
+      const site = makeSite();
+      const room = await startDraftServer(site);
+      const { state } = installSitesApi(page, {
+        unlocked: true,
+        readDraft: room.readDraft,
+        role,
+        members: [
+          {
+            userId: '00000000-0000-4000-a000-000000000001',
+            displayName: 'Anna Beispiel',
+            role: 'admin',
+            source: 'member',
+            groupId: null,
+          },
+        ],
+      });
+      state.site = site;
+      await page.goto(`/sites/${site.subdomain}`);
+      return room;
+    };
+
+    test('editor: edits, cannot publish or share', async ({ page }) => {
+      const room = await openEditor(page, 'editor');
+      try {
+        await expect(page.getByText('Veröffentlichen können nur Admins.')).toBeVisible({
+          timeout: 15_000,
+        });
+        await expect(page.getByRole('button', { name: 'Teilen' })).toHaveCount(0);
+        await expect(page.getByRole('button', { name: /veröffentlichen/i })).toHaveCount(0);
+        const preview = page.frameLocator('iframe').first();
+        await expect(preview.getByRole('textbox', { name: 'Dein Name' })).toBeVisible();
+      } finally {
+        await room.close();
+      }
+    });
+
+    test('viewer: no sidebar, cannot publish or share', async ({ page }) => {
+      const room = await openEditor(page, 'viewer');
+      try {
+        await expect(page.getByText('Veröffentlichen können nur Admins.')).toBeVisible({
+          timeout: 15_000,
+        });
+        await expect(page.getByRole('button', { name: 'Teilen' })).toHaveCount(0);
+        await expect(page.getByRole('button', { name: /veröffentlichen/i })).toHaveCount(0);
+        await expect(page.getByRole('tab')).toHaveCount(0);
+        await expect(page.getByRole('tablist')).toHaveCount(0);
+      } finally {
+        await room.close();
+      }
+    });
+
+    test('admin: share dialog lists people and projects, axe clean', async ({ page }) => {
+      const room = await openEditor(page, 'admin');
+      try {
+        await page.getByRole('button', { name: 'Teilen' }).click({ timeout: 15_000 });
+        const dialog = page.getByRole('dialog');
+        await expect(dialog.getByRole('heading', { name: 'Personen' })).toBeVisible();
+        await expect(dialog.getByRole('heading', { name: 'Projekte' })).toBeVisible();
+        await expect(dialog.getByText('Anna Beispiel (du)')).toBeVisible();
+
+        const { violations } = await wcagAxe(page).include('[role=dialog]').analyze();
+        expect(
+          violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`)
+        ).toEqual([]);
+      } finally {
+        await room.close();
+      }
+    });
+
+    test('two people: an edit by the editor shows up for the admin', async ({ browser }) => {
+      const site = makeSite();
+      const room = await startDraftServer(site);
+      const contexts = await Promise.all([browser.newContext(), browser.newContext()]);
+      try {
+        const [adminPage, editorPage] = await Promise.all(contexts.map((c) => c.newPage()));
+        for (const [page, role] of [
+          [adminPage, 'admin'],
+          [editorPage, 'editor'],
+        ] as const) {
+          await installApiFixtures(page);
+          const { state } = installSitesApi(page, {
+            unlocked: true,
+            readDraft: room.readDraft,
+            role,
+          });
+          state.site = site;
+          await page.goto(`/sites/${site.subdomain}`);
+        }
+        const nameOf = (page: Page) =>
+          page.frameLocator('iframe').first().getByRole('textbox', { name: 'Dein Name' });
+        await expect(nameOf(adminPage)).toHaveText(GENERATED.hero.heading, { timeout: 15_000 });
+        await expect(nameOf(editorPage)).toHaveText(GENERATED.hero.heading, { timeout: 15_000 });
+
+        await nameOf(editorPage).fill('Gemeinsam bearbeitet');
+        await expect(nameOf(adminPage)).toHaveText('Gemeinsam bearbeitet');
+      } finally {
+        await Promise.all(contexts.map((c) => c.close()));
+        await room.close();
+      }
+    });
   });
 });

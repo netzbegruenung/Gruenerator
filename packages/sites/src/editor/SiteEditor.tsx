@@ -217,9 +217,18 @@ export function SiteEditor({
               )}
             </EditorHeader>
             {role !== 'admin' && (
-              <p className="m-0 border-b border-grey-200 bg-background-pure px-md py-xs text-sm text-grey-600 dark:border-grey-700 dark:text-grey-400">
-                {PUBLISH_ADMINS_ONLY}
-              </p>
+              // Same left inset as the preview below: the sidebar rail overlays this column.
+              <div
+                className={
+                  role === 'viewer'
+                    ? 'border-b border-grey-200 bg-background-pure dark:border-grey-700'
+                    : 'border-b border-grey-200 bg-background-pure dark:border-grey-700 canvas-mobile:pl-[calc(var(--image-studio-tab-bar-width)+var(--canvas-panel-width,0px))]'
+                }
+              >
+                <p className="m-0 px-md py-xs text-sm text-grey-600 dark:text-grey-400">
+                  {PUBLISH_ADMINS_ONLY}
+                </p>
+              </div>
             )}
             {role !== 'viewer' && (
               <div className="absolute bottom-0 left-0 top-[var(--editor-topbar-height)] z-[120] max-canvas-mobile:contents">

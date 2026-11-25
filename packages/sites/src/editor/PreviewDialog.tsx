@@ -46,7 +46,7 @@ export function PreviewDialog({
         }}
         className="top-0 left-0 flex h-dvh max-h-none w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 p-0 sm:max-w-none"
       >
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-sm bg-primary-600 px-md py-sm text-white shadow-md md:px-lg">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-sm border-b border-grey-200 bg-background-pure px-md py-sm text-foreground dark:border-grey-700 md:px-lg">
           <DialogTitle className="text-sm font-semibold md:text-base">Vorschau</DialogTitle>
           <ToggleGroup
             type="single"

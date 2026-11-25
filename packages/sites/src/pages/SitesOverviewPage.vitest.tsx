@@ -168,7 +168,7 @@ describe('SitesOverviewPage', () => {
     const shared = screen.getByRole('region', { name: 'Mit mir geteilt' });
     expect(within(own).getByText('Seite eigene')).toBeInTheDocument();
     expect(within(projects).getByText('Seite kv')).toBeInTheDocument();
-    expect(within(projects).getByText('Kreisverband')).toBeInTheDocument();
+    expect(within(projects).getByText('Projekt: Kreisverband')).toBeInTheDocument();
     expect(within(shared).getByText('Seite fremde')).toBeInTheDocument();
     // A co-admin did not create the site; a demoted creator still did.
     expect(within(shared).getByText('Seite coadmin')).toBeInTheDocument();

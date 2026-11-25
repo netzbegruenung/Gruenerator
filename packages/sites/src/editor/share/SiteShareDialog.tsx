@@ -22,8 +22,10 @@ const ROLE_LABELS: Record<SiteRole, string> = {
 };
 const ROLES: readonly SiteRole[] = ['admin', 'editor', 'viewer'];
 
+// `min-w-0 max-w-full`: a native select is as wide as its longest option and would
+// otherwise push the dialog column past its edge (long project names).
 const selectClass =
-  'rounded-md border border-grey-300 bg-background px-sm py-xs text-sm text-foreground dark:border-grey-600';
+  'min-w-0 max-w-full rounded-md border border-grey-300 bg-background px-sm py-xs text-sm text-foreground dark:border-grey-600';
 
 function errorText(error: unknown, fallback: string): string {
   if (error instanceof SiteMemberError) {
@@ -113,12 +115,12 @@ function ShareBody({ site, isProjectSite }: { site: SiteData; isProjectSite: boo
       </DialogHeader>
 
       {message && (
-        <p role="alert" className="m-0 text-sm text-red-600 dark:text-red-400">
+        <p role="alert" className="m-0 min-w-0 text-sm text-red-600 dark:text-red-400">
           {message}
         </p>
       )}
 
-      <section aria-labelledby="share-people">
+      <section aria-labelledby="share-people" className="min-w-0">
         <h3 id="share-people" className="mb-xs text-base font-semibold text-foreground">
           Personen
         </h3>
@@ -150,7 +152,7 @@ function ShareBody({ site, isProjectSite }: { site: SiteData; isProjectSite: boo
       </section>
 
       {!isProjectSite && (
-        <section aria-labelledby="share-projects">
+        <section aria-labelledby="share-projects" className="min-w-0">
           <h3 id="share-projects" className="mb-xs text-base font-semibold text-foreground">
             Projekte
           </h3>
@@ -196,7 +198,7 @@ function ShareBody({ site, isProjectSite }: { site: SiteData; isProjectSite: boo
           <div className="mt-xs flex flex-wrap items-center gap-sm">
             <select
               aria-label="Projekt hinzufügen"
-              className={selectClass}
+              className={`${selectClass} flex-1`}
               value={pick}
               onChange={(e) => setPick(e.target.value)}
             >

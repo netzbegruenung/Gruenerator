@@ -96,7 +96,7 @@ describe('PublishControls', () => {
 
   it('shows the badge and button for each state', () => {
     const a = setup(site());
-    expect(screen.getByText('Nicht veröffentlicht')).toBeInTheDocument();
+    expect(screen.queryByText('Nicht veröffentlicht')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Veröffentlichen' })).toBeEnabled();
     a.unmount();
 

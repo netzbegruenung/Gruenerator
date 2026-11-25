@@ -132,12 +132,8 @@ export function SitesOverviewPage() {
                     href={paths.site(site.subdomain)}
                     publicOrigin={publicOrigin}
                     locale={locale}
+                    projectName={site.group?.name ?? null}
                   />
-                  {site.group && (
-                    <span className="mt-xs block text-xs text-grey-600 dark:text-grey-400">
-                      {site.group.name}
-                    </span>
-                  )}
                 </li>
               ))}
             </ul>

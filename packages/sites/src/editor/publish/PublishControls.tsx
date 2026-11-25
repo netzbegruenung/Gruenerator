@@ -26,16 +26,14 @@ import { SitesApiError } from '../../utils/errorHandler';
 
 import { ConfirmAlert, DeleteSiteDialog } from './DeleteSiteDialog';
 import { PublishIssues } from './PublishIssues';
-import { publishState, type PublishStatus } from './publishState';
+import { publishState } from './publishState';
 import { waitForSynced } from './waitForSynced';
 
 export const PUBLISH_SYNC_TIMEOUT_MS = 5000;
 
-// 'changed' has no badge: the "Änderungen veröffentlichen" button already says so.
-const BADGE_LABELS: Record<Exclude<PublishStatus, 'changed'>, string> = {
-  unpublished: 'Nicht veröffentlicht',
-  live: 'Live',
-};
+// Only 'live' gets a badge: for 'unpublished' and 'changed' the publish button
+// ("Veröffentlichen" / "Änderungen veröffentlichen") already names the state.
+const LIVE_BADGE = 'Live';
 
 const NOT_SAVED_MESSAGE =
   'Noch nicht alles gespeichert. Prüfe deine Verbindung und versuche es noch einmal.';
@@ -147,10 +145,10 @@ export function PublishControls({ site, provider }: PublishControlsProps) {
 
   return (
     <>
-      {status !== 'changed' && (
-        // The publish button names the state too; on a phone the header has no room for both.
-        <Badge variant={status === 'live' ? 'default' : 'secondary'} className="max-sm:hidden">
-          {BADGE_LABELS[status]}
+      {status === 'live' && (
+        // On a phone the header has no room for badge and button.
+        <Badge variant="default" className="max-sm:hidden">
+          {LIVE_BADGE}
         </Badge>
       )}
       <Popover open={issuesOpen} onOpenChange={setIssuesOpen}>
