@@ -58,6 +58,7 @@ interface CtxOptions {
   query?: (sql: string, params: unknown[]) => unknown[];
   preview?: NotebookToolDeps['preview'];
   search?: NotebookToolDeps['search'];
+  searchSystem?: NotebookToolDeps['searchSystem'];
   /** Antwort auf `scope='basis'` — die öffentlich gelisteten Notebooks. */
   publicCollections?: NotebookCollection[];
   sharedCollections?: Array<NotebookCollection & { shared_via_groups: string[] }>;
@@ -123,6 +124,25 @@ function makeCtx(opts: CtxOptions = {}) {
     access: vi.fn(async () => opts.access ?? OWNER),
     search:
       opts.search ?? vi.fn(async () => ({ ok: false as const, error: 'Suche nicht konfiguriert' })),
+    searchSystem:
+      opts.searchSystem ??
+      vi.fn(async ({ collection }: { collection: string }) => ({
+        collection,
+        query: 'q',
+        searchMode: 'hybrid',
+        resultsCount: 1,
+        results: [
+          {
+            rank: 1,
+            relevance: 'hoch',
+            source: 'Hitzeaktionsplan',
+            url: 'https://x/1',
+            excerpt: 'Der Plan sieht vor …',
+            searchMethod: 'hybrid',
+            collectionId: collection,
+          },
+        ],
+      })),
     listPublic: vi.fn(async () => opts.publicCollections ?? []),
     listShared: vi.fn(async () => opts.sharedCollections ?? []),
     preview: opts.preview ?? vi.fn(async () => ({ error: 'Vorschau nicht konfiguriert' })),
@@ -403,16 +423,70 @@ describe('search', () => {
 
 // Live 28.09.2026: get/search mit id="berlin" endeten in „nicht gefunden".
 describe('System-Notebook als id', () => {
-  it.each(['get', 'search'])(
-    '%s hands over to notebook_quellen and gruenerator_search',
-    async (action) => {
-      const { run, deps } = makeCtx();
-      const out = await run({ action, id: 'oesterreich', query: 'letzte Pressemitteilung' });
-      expect(out.error).toMatch(/notebook_quellen mit notebookId="oesterreich"/);
-      expect(out.error).toMatch(/gruenerator_search mit collection="oesterreich"/);
+  it('get hands over to notebook_quellen and gruenerator_search', async () => {
+    const { run, deps } = makeCtx();
+    const out = await run({ action: 'get', id: 'oesterreich' });
+    expect(out.error).toMatch(/notebook_quellen mit notebookId="oesterreich"/);
+    expect(out.error).toMatch(/gruenerator_search mit collection="oesterreich"/);
+    expect(deps.access).not.toHaveBeenCalled();
+  });
+
+  // Live 25.11.2026: im Projekt-Chat mit „@Grüne Hessen" rief der Planer
+  // search mit id="hessen-notebook" — die id aus seinem Prompt. Die Übergabe
+  // als Fehler kostete einen Schritt; die Suche selbst kann das Werkzeug.
+  it.each(['oesterreich', 'oesterreich-notebook'])(
+    'search with %s searches the collection',
+    async (id) => {
+      const { run, deps, registered } = makeCtx();
+      const out = await run({ action: 'search', id, query: 'Hitzeschutz' });
+      expect(deps.searchSystem).toHaveBeenCalledWith({
+        query: 'Hitzeschutz',
+        collection: 'oesterreich',
+      });
       expect(deps.access).not.toHaveBeenCalled();
+      expect(out.error).toBeUndefined();
+      expect(out).toMatchObject({ resultCount: 1, sources: '[1] Auszug' });
+      expect(registered[0]).toEqual([
+        expect.objectContaining({
+          title: 'Hitzeaktionsplan',
+          content: 'Der Plan sieht vor …',
+          url: 'https://x/1',
+          collectionId: 'oesterreich',
+        }),
+      ]);
     }
   );
+
+  it('search without hits says so and hands over nothing else', async () => {
+    const { run } = makeCtx({
+      searchSystem: vi.fn(async () => ({
+        collection: 'oesterreich',
+        query: 'q',
+        searchMode: 'hybrid',
+        resultsCount: 0,
+        results: [],
+      })),
+    });
+    const out = await run({ action: 'search', id: 'oesterreich', query: 'Hitzeschutz' });
+    expect(out).toMatchObject({ resultCount: 0 });
+    expect(String(out.message)).toMatch(/Keine Treffer/);
+  });
+
+  it('a failed system search is an error, not an empty result', async () => {
+    const { run } = makeCtx({
+      searchSystem: vi.fn(async () => ({
+        collection: 'oesterreich',
+        query: 'q',
+        searchMode: 'hybrid',
+        resultsCount: 0,
+        results: [],
+        error: true,
+        message: 'Suche fehlgeschlagen: timeout',
+      })),
+    });
+    const out = await run({ action: 'search', id: 'oesterreich', query: 'Hitzeschutz' });
+    expect(out.error).toMatch(/Suche fehlgeschlagen: timeout/);
+  });
 
   it('names the locale limit for a system key this turn cannot use', async () => {
     const { run, deps } = makeCtx();
