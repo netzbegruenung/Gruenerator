@@ -53,6 +53,64 @@ export function isRetryableFetchError(error: unknown): boolean {
   return error.status < 400 || error.status >= 500;
 }
 
+/** Statuses whose Response must not carry a body (`new Response` throws otherwise). */
+const NULL_BODY_STATUSES = new Set([101, 103, 204, 205, 304]);
+
+/**
+ * `fetch()` resolves once the headers arrive, so the abort timer in
+ * fetchWithRetry used to cover only the wait for headers: a server that sent
+ * them and then stalled left `response.text()` waiting forever, until the
+ * 50-minute sync cap (#6031). This keeps the same controller armed while the
+ * body is read and aborts once no bytes have arrived for `idleMs`.
+ *
+ * Deliberately an idle deadline, not a total one: a large PDF that streams
+ * steadily may take longer than `timeout` in total and must still finish.
+ * The timer is unref'd so a body nobody reads never holds the process.
+ * `url` and `redirected` are copied over because the wrapper would otherwise
+ * report `''`/`false`, and callers resolve redirects from `response.url`.
+ */
+export function withBodyIdleTimeout(
+  response: Response,
+  controller: AbortController,
+  idleMs: number
+): Response {
+  if (!response.body || NULL_BODY_STATUSES.has(response.status)) return response;
+
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const arm = () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(
+      () => controller.abort(new Error(`Response body stalled for ${idleMs} ms`)),
+      idleMs
+    );
+    timer.unref();
+  };
+  arm();
+
+  const body = response.body.pipeThrough(
+    new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, sink) {
+        arm();
+        sink.enqueue(chunk);
+      },
+      flush() {
+        if (timer) clearTimeout(timer);
+      },
+    })
+  );
+
+  const wrapped = new Response(body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  });
+  Object.defineProperties(wrapped, {
+    url: { value: response.url },
+    redirected: { value: response.redirected },
+  });
+  return wrapped;
+}
+
 /**
  * Abstract base class for all scrapers
  * Subclasses must implement the scrape() method
@@ -268,7 +326,7 @@ export abstract class BaseScraper {
           throw new HttpStatusError(response.status);
         }
 
-        return response;
+        return withBodyIdleTimeout(response, controller, timeout);
       } catch (error) {
         clearTimeout(timeoutId);
         if (retries < maxRetries && isRetryableFetchError(error)) {
