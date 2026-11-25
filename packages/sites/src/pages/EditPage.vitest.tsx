@@ -42,7 +42,7 @@ vi.mock('../SitesContext', () => ({
   useAuth: () => ({ user: { id: 'u1', display_name: 'Anna Beispiel', locale: 'de-DE' } }),
   useSitesPaths: () => ({
     overview: '/sites',
-    create: '/sites/neu',
+    create: '/sites/erstellen',
     site: (handle: string) => `/sites/${handle}`,
   }),
 }));

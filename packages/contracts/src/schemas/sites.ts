@@ -44,6 +44,7 @@ export const RESERVED_SITE_HANDLES: readonly string[] = [
   'gruenerator',
   // Editor paths under /sites/ that a handle must not shadow (/sites/<handle> is the editor).
   'neu',
+  'erstellen',
   'demo',
   'edit',
 ];

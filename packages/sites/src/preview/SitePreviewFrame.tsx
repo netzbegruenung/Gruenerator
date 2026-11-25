@@ -4,6 +4,7 @@ import {
   type PublishedSiteSnapshot,
 } from '@gruenerator/contracts';
 import {
+  SiteBlockPreview,
   SiteBody,
   siteFontFaceCss,
   siteRootAttributes,
@@ -40,6 +41,13 @@ const EDITOR_FRAME_CSS = `
   padding: 4px 10px; border-radius: 999px; background: #ffffff; color: #1f1f1f;
   font: 600 14px/1.4 system-ui, sans-serif; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
 }
+/* Where a block from the picker would land: a line under the block it follows, with its name. */
+[data-editor-insert-after] { position: relative; box-shadow: inset 0 -4px 0 #46962b; }
+[data-editor-insert-after]::after {
+  content: attr(data-editor-insert-after); position: absolute; bottom: 12px; left: 50%; z-index: 30;
+  transform: translateX(-50%); padding: 4px 12px; border-radius: 999px; background: #2e6b1f;
+  color: #ffffff; font: 600 14px/1.4 system-ui, sans-serif; white-space: nowrap;
+}
 @media (prefers-reduced-motion: no-preference) {
   [data-field] { transition: outline-color 0.15s ease; }
 }
@@ -65,6 +73,8 @@ interface SitePreviewFrameProps {
   /** Edits the page in place: the text fields render as editable widgets. */
   edit?: SiteEditSlots;
   onFrameDocument?: (doc: Document | null) => void;
+  /** Renders only the snapshot's first block, without header and footer (block picker cards). */
+  blockOnly?: boolean;
 }
 
 export function SitePreviewFrame({
@@ -75,6 +85,7 @@ export function SitePreviewFrame({
   editable = false,
   edit,
   onFrameDocument,
+  blockOnly = false,
 }: SitePreviewFrameProps) {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [frameDoc, setFrameDoc] = useState<Document | null>(null);
@@ -127,13 +138,17 @@ export function SitePreviewFrame({
         )}
       {frameDoc &&
         createPortal(
-          <SiteBody
-            snapshot={snapshot}
-            mode="preview"
-            links={links}
-            renderInstagram={(username) => <EditorInstagram username={username} />}
-            edit={edit}
-          />,
+          blockOnly ? (
+            <SiteBlockPreview snapshot={snapshot} />
+          ) : (
+            <SiteBody
+              snapshot={snapshot}
+              mode="preview"
+              links={links}
+              renderInstagram={(username) => <EditorInstagram username={username} />}
+              edit={edit}
+            />
+          ),
           frameDoc.body
         )}
     </>
