@@ -520,6 +520,8 @@ const SubtitlerPage = (): React.ReactElement => {
       setSegments([]);
       setError(null);
       setAutoSavedProjectId(null);
+      // The next video is a fresh start, not joined with the previous clips.
+      appendUploadIdsRef.current = [];
       resetSocialText();
     }, 300);
   }, [resetSocialText, uploadInfo?.uploadId, resetExport, goToStep]);
