@@ -36,7 +36,7 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
     platform: ['web', 'desktop', 'mobile'],
   },
   wissen: {
-    note: 'Quellensammlungen durchsuchen und im Chat als Grundlage verwenden. Die Kachel führt in den Marktplatz, zu deinen und zu den offiziellen wie Programmen und Beschlüssen.',
+    note: 'Quellensammlungen durchsuchen und im Chat als Grundlage verwenden. Die Kachel führt in den Marktplatz, zu den offiziellen wie Programmen und Beschlüssen und zu denen, die andere öffentlich teilen.',
     platform: ['web', 'desktop', 'mobile'],
   },
 
