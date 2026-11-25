@@ -30,7 +30,7 @@ import { useChatCollaborationContext } from '../../context/ChatCollaborationCont
 import { useMentionablesQuery } from '../../hooks/useMentionablesQuery';
 import { handleAttachmentAddError } from '../../lib/attachmentErrorHandler';
 import { getCaretCoords } from '../../lib/caretPosition';
-import { showsSearchDepth } from '../../lib/composerControls';
+import { COMPOSER_TOOLS, showsSearchDepth } from '../../lib/composerControls';
 import { connectorBrandIcon } from '../../lib/connectorBrand';
 import {
   registerDocumentSlug,
@@ -69,10 +69,11 @@ import { CloudFileBrowser, type CloudSelection, type CloudSourceHint } from './C
 import { ComposerMentionPills } from './ComposerMentionPills';
 import { ComposerQueueList } from './ComposerQueueList';
 import { ComposerToken } from './ComposerToken';
+import { TOOL_ICONS } from './composerToolIcons';
 import { FileMentionPopover } from './FileMentionPopover';
 import { MentionPopover } from './MentionPopover';
 import { ModelPicker } from './ModelPicker';
-import { PlusMenu, type ComposerPreset } from './PlusMenu';
+import { PlusMenu } from './PlusMenu';
 import { VorlagenMentionPopover } from './VorlagenMentionPopover';
 import { WebMentionPopover } from './WebMentionPopover';
 
@@ -92,9 +93,6 @@ interface GrueneratorComposerProps {
    * (e.g. NotebookChatProvider) so auto-mode resolves to the surface's
    * implicit thread mode. */
   insideAgent?: boolean;
-  /** Surface-specific prompt presets, shown as a "Vorlagen" submenu in the
-   * plus menu (e.g. the workplace example prompts). */
-  presets?: ComposerPreset[];
   /** 'card' (default): textarea with toolbar row below. 'pill': slim
    * single-row composer — plus menu, input, model picker and send inline —
    * that grows with the textarea (workplace hero). */
@@ -425,7 +423,6 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   showToolToggles = true,
   showModelPicker = true,
   insideAgent = false,
-  presets,
   variant = 'card',
   slots,
   requireProfileHydration = false,
@@ -444,6 +441,8 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   const isMistral = useAgentStore((s) => s.selectedProvider === 'mistral');
   const pinnedConnector = useAgentStore((s) => s.pinnedConnector);
   const setPinnedConnector = useAgentStore((s) => s.setPinnedConnector);
+  const enabledTools = useAgentStore((s) => s.enabledTools);
+  const toggleTool = useAgentStore((s) => s.toggleTool);
   // Set while /chat/<slug> is still opening its thread; main is the draft until
   // then, so typing or sending would start a new thread (#5701). The input's
   // autoFocus re-runs once `disabled` drops.
@@ -983,18 +982,11 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     });
   }, []);
 
-  const handleApplyPreset = useCallback(
-    (text: string) => {
-      composerRuntime.setText(text);
-      requestAnimationFrame(() => {
-        const textarea = textareaRef.current;
-        if (textarea) {
-          textarea.setSelectionRange(text.length, text.length);
-          textarea.focus();
-        }
-      });
-    },
-    [composerRuntime]
+  // Stable, so `PlusMenu`'s memo holds: an inline arrow here was a new prop on
+  // every composer render and re-rendered the whole menu with it.
+  const handleOpenSkillsPage = useCallback(
+    () => onNavigate?.('/marktplatz?art=rezepte'),
+    [onNavigate]
   );
 
   const isPill = variant === 'pill';
@@ -1009,13 +1001,11 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     <PlusMenu
       onInsertMention={handleSelect}
       onOpenFileBrowser={handlePlusMenuOpenFileBrowser}
+      onUploadFromDevice={openFilePicker}
       includeModes={showToolToggles}
       insideAgent={insideAgent}
       firstName={firstName ?? null}
-      {...(presets && presets.length > 0 && { presets, onApplyPreset: handleApplyPreset })}
-      {...(onNavigate
-        ? { onNavigate, onOpenSkillsPage: () => onNavigate('/marktplatz?art=rezepte') }
-        : {})}
+      {...(onNavigate ? { onNavigate, onOpenSkillsPage: handleOpenSkillsPage } : {})}
     />
   ) : null;
 
@@ -1031,6 +1021,26 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
       onRemove={() => setPinnedConnector(null)}
     />
   ) : null;
+
+  // A switched-off search toggle holds for every message and thread until the
+  // page reloads, and the only other place it shows is inside the plus menu —
+  // so name it here, with the × switching it back on. Switches at their
+  // default stay invisible.
+  const disabledToolChips = showToolToggles
+    ? COMPOSER_TOOLS.flatMap((tool) =>
+        tool.kind === 'toggle' && enabledTools[tool.key] === false
+          ? [
+              <ComposerToken
+                key={tool.key}
+                icon={TOOL_ICONS[tool.icon]}
+                label={`Ohne ${tool.label}`}
+                removeLabel={`${tool.label} wieder einschalten`}
+                onRemove={() => toggleTool(tool.key)}
+              />,
+            ]
+          : []
+      )
+    : null;
 
   const modelPickerNode = <>{showModelPicker ? <ModelPicker /> : null}</>;
 
@@ -1223,7 +1233,14 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
             {hiddenUploadButton}
             {plusMenuNode}
             {slots?.leading}
-            {pinnedConnectorChip}
+            {/* Mobil eine eigene Zeile über der Eingabe, aus demselben Grund
+                wie die Pills darunter; ab `sm` löst sich der Wrapper auf. */}
+            {(pinnedConnectorChip || (disabledToolChips && disabledToolChips.length > 0)) && (
+              <div className="flex flex-wrap items-center gap-1 max-sm:order-first max-sm:basis-full max-sm:px-1 max-sm:pt-1.5 sm:contents">
+                {pinnedConnectorChip}
+                {disabledToolChips}
+              </div>
+            )}
             {/* Bis `sm` nehmen die Pills per order/basis eine eigene Zeile über
                 der Eingabezeile ein (wie in der Card-Variante) — inline ließen
                 die shrink-0-Pills der Textarea nur wenige Zeichen Breite. */}
@@ -1261,6 +1278,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
                 {plusMenuNode}
                 {slots?.leading}
                 {pinnedConnectorChip}
+                {disabledToolChips}
                 {showToolToggles && <SearchDepthToggleSlot />}
                 {toolbarExtra}
               </div>
