@@ -165,6 +165,8 @@ export interface UpdateGroupInfoInput {
   description?: string | null;
   settings?: Record<string, unknown> | null;
   landesverband?: LandesverbandId | null;
+  /** „Nur Projekt-Rezepte verwenden"; `undefined` leaves it alone. */
+  recipesExclusive?: boolean;
   /** `null` clears the colour, `undefined` leaves it alone. */
   color?: GroupColor | null;
 }
@@ -185,7 +187,7 @@ export async function updateGroupInfo(
   userId: string,
   input: UpdateGroupInfoInput
 ): Promise<UpdateGroupInfoOutcome> {
-  const { name, description, settings, landesverband, color } = input;
+  const { name, description, settings, landesverband, recipesExclusive, color } = input;
   let postgres: ReturnType<typeof getPostgresInstance>;
   let isAdmin: boolean;
   try {
@@ -202,7 +204,7 @@ export async function updateGroupInfo(
   }
 
   const updateFields: string[] = [];
-  const updateValues: Array<string | null> = [];
+  const updateValues: Array<string | boolean | null> = [];
   let paramIndex = 1;
 
   if (name != null) {
@@ -223,6 +225,10 @@ export async function updateGroupInfo(
   if (landesverband !== undefined) {
     updateFields.push(`landesverband = $${paramIndex++}`);
     updateValues.push(landesverband);
+  }
+  if (recipesExclusive !== undefined) {
+    updateFields.push(`recipes_exclusive = $${paramIndex++}`);
+    updateValues.push(recipesExclusive);
   }
 
   if (color !== undefined) {

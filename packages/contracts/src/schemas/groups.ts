@@ -216,6 +216,8 @@ export const groupDetailSchema = z.object({
   slug_suffix: z.string().nullish(),
   // Explicit Landesverband: its recipe variants win over the person's active role.
   landesverband: landesverbandIdSchema.nullish(),
+  // Chats im Projekt laden von sich aus nur die Textsorten-Rezepte des Projekts.
+  recipes_exclusive: z.boolean().nullish(),
   archived_at: z.string().nullish(),
   color: groupColorSchema.nullish(),
 });
@@ -261,6 +263,8 @@ export const updateGroupInfoBodySchema = z.object({
   settings: z.record(z.string(), z.unknown()).nullish(),
   // `null` clears the Landesverband, omitted leaves it alone.
   landesverband: landesverbandIdSchema.nullish(),
+  // „Nur Projekt-Rezepte verwenden"; absent leaves it alone.
+  recipesExclusive: z.boolean().optional(),
   // null clears the colour (back to the default); absent leaves it alone.
   color: groupColorSchema.nullish(),
 });

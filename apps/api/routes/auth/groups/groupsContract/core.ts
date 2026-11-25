@@ -276,7 +276,7 @@ export const coreRoutes = {
         `SELECT gm.role, gm.joined_at, gm.notifications_muted,
                 g.id, g.name, g.description, g.created_at, g.created_by, g.join_token,
                 g.settings, g.avatar_url, g.links, g.is_public, g.audience, g.slug_suffix,
-                g.group_type, g.is_system, g.landesverband, g.archived_at, g.color
+                g.group_type, g.is_system, g.landesverband, g.recipes_exclusive, g.archived_at, g.color
            FROM group_memberships gm
            JOIN groups g ON g.id = gm.group_id
           WHERE gm.group_id = $1 AND gm.user_id = $2 AND g.deleted_at IS NULL`,
@@ -301,6 +301,7 @@ export const coreRoutes = {
         group_type: 'standard' | 'personal' | null;
         is_system: boolean | null;
         landesverband: LandesverbandId | null;
+        recipes_exclusive: boolean | null;
         archived_at: string | Date | null;
         color: GroupColor | null;
       } | null;
@@ -337,6 +338,7 @@ export const coreRoutes = {
             is_system: isSystem,
             slug_suffix: row.slug_suffix ?? null,
             landesverband: row.landesverband ?? null,
+            recipes_exclusive: row.recipes_exclusive ?? false,
             archived_at: toIsoOrNull(row.archived_at),
             color: row.color ?? null,
           },
@@ -359,7 +361,7 @@ export const coreRoutes = {
 
   updateInfo: s.route(groupsContract.updateInfo, async (args) => {
     const { groupId } = args.params;
-    const { name, description, settings, landesverband, color } = args.body;
+    const { name, description, settings, landesverband, recipesExclusive, color } = args.body;
     try {
       const userId = getUserId(args.req);
       const outcome = await updateGroupInfo(groupId, userId, {
@@ -367,6 +369,7 @@ export const coreRoutes = {
         ...(description !== undefined ? { description } : {}),
         ...(settings !== undefined ? { settings } : {}),
         ...(landesverband !== undefined ? { landesverband } : {}),
+        ...(recipesExclusive !== undefined ? { recipesExclusive } : {}),
         ...(color !== undefined ? { color } : {}),
       });
       switch (outcome.status) {

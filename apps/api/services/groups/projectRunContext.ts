@@ -26,6 +26,8 @@ export interface ProjectRunContext {
   projectInstructions: { projectName: string; text: string } | null;
   projectNotebookIds: string[];
   projectRecipeIds: string[];
+  /** Projekt-Schalter „Nur Projekt-Rezepte verwenden" (`groups.recipes_exclusive`). */
+  projectRecipesExclusive: boolean;
   /** Alle Dateien und indexierten Dokumente des Projekts als ein Suchbereich (stilles Notebook, wie im Projekt-Chat). */
   projectFileDocumentIds: string[];
 }
@@ -35,15 +37,21 @@ export async function getActiveProjectName(
   groupId: string,
   userId: string
 ): Promise<string | null> {
-  const row = (await getPostgresInstance().queryOne(
-    `SELECT g.name
+  return (await readActiveProject(groupId, userId))?.name ?? null;
+}
+
+async function readActiveProject(
+  groupId: string,
+  userId: string
+): Promise<{ name: string; recipes_exclusive: boolean | null } | null> {
+  return (await getPostgresInstance().queryOne(
+    `SELECT g.name, g.recipes_exclusive
        FROM groups g
        JOIN group_memberships gm ON gm.group_id = g.id AND gm.user_id = $2::uuid
         AND gm.is_active = TRUE
       WHERE g.id = $1::uuid AND g.deleted_at IS NULL AND COALESCE(g.is_active, TRUE) = TRUE`,
     [groupId, userId]
-  )) as { name: string } | null;
-  return row?.name ?? null;
+  )) as { name: string; recipes_exclusive: boolean | null } | null;
 }
 
 /**
@@ -71,8 +79,9 @@ export async function loadProjectRunContext(
   groupId: string,
   userId: string
 ): Promise<ProjectRunContext | null> {
-  const projectName = await getActiveProjectName(groupId, userId);
-  if (projectName == null) return null;
+  const active = await readActiveProject(groupId, userId);
+  if (active == null) return null;
+  const projectName = active.name;
   const db = getPostgresInstance();
 
   const [instr, notebookRows, recipeRows, fileRows, collabRows] = await Promise.all([
@@ -123,6 +132,7 @@ export async function loadProjectRunContext(
       notebookRows.map((r) => ({ contentType: r.content_type, contentId: r.content_id }))
     ),
     projectRecipeIds: [...new Set(recipeRows.map((r) => r.content_id))],
+    projectRecipesExclusive: active.recipes_exclusive === true,
     projectFileDocumentIds: [...new Set([...fileRows, ...collabRows].map((r) => r.id))],
   };
 }

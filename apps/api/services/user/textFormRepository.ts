@@ -895,6 +895,7 @@ interface MentionableRow {
   description: string | null;
   icon_key: string | null;
   skill_category: string | null;
+  text_type: string | null;
   kind: string;
   is_public: boolean;
   access_rank: number | string;
@@ -938,7 +939,7 @@ export async function listMentionableTextForms(
   const pg = getPostgresInstance();
   const rows = (await pg.query(
     `SELECT tf.id, tf.user_id, tf.created_at, tf.mention, tf.title, tf.description,
-            tf.icon_key, tf.skill_category, tf.kind, tf.is_public,
+            tf.icon_key, tf.skill_category, tf.text_type, tf.kind, tf.is_public,
             ${ACCESS_RANK_SQL} AS access_rank,
             (SELECT g.name
                FROM group_content_shares gcs
@@ -986,6 +987,7 @@ export async function listMentionableTextForms(
       description: winner.description ?? null,
       iconKey: winner.icon_key ?? null,
       category: (winner.skill_category as SkillCategoryValue | null) ?? null,
+      textType: (winner.text_type as TextFormType | null) ?? null,
       kind,
       sharedFromGroup: winner.access === 'group' ? (winner.group_name ?? null) : null,
       ownerName: winner.access === 'own' ? null : (winner.owner_name ?? null),
@@ -1014,7 +1016,7 @@ export async function listVisibleTextFormsByIds(
   const pg = getPostgresInstance();
   const rows = (await pg.query(
     `SELECT tf.id, tf.user_id, tf.created_at, tf.mention, tf.title, tf.description,
-            tf.icon_key, tf.skill_category, tf.kind, tf.is_public,
+            tf.icon_key, tf.skill_category, tf.text_type, tf.kind, tf.is_public,
             ${ACCESS_RANK_SQL} AS access_rank,
             (SELECT g.name
                FROM group_content_shares gcs
@@ -1050,6 +1052,7 @@ export async function listVisibleTextFormsByIds(
       description: row.description ?? null,
       iconKey: row.icon_key ?? null,
       category: (row.skill_category as SkillCategoryValue | null) ?? null,
+      textType: (row.text_type as TextFormType | null) ?? null,
       kind,
       sharedFromGroup: access === 'group' ? (row.group_name ?? null) : null,
       ownerName: access === 'own' ? null : (row.owner_name ?? null),

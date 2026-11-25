@@ -66,6 +66,27 @@ const LV_FAMILY_BY_GENERIC_MENTION: Readonly<Record<string, LvRecipeFamily>> = {
   wahlpruefstein: { category: 'dokumente', owner: 'wahlpruefsteinAgentId' },
 };
 
+/**
+ * Die Textsorte eines mitgelieferten Rezepts: für eine LV-Variante die
+ * generische Mention ihrer Familie (`presse-hessen-fraktion` → `presse`), sonst
+ * die eigene Mention. Rezepte derselben Textsorte konkurrieren um denselben
+ * Auftrag — ein Projekt-Rezept nimmt die übrigen aus dem Katalog
+ * (`prioritizeProjectRecipes`).
+ */
+export function systemRecipeTextsorte(
+  skill: Pick<Skill, 'mention' | 'identifier' | 'skillCategory'>
+): string {
+  for (const [generic, family] of Object.entries(LV_FAMILY_BY_GENERIC_MENTION)) {
+    if (
+      skill.skillCategory === family.category &&
+      LANDESVERBAENDE.some((lv) => lv[family.owner] === skill.identifier)
+    ) {
+      return generic;
+    }
+  }
+  return skill.mention.toLowerCase();
+}
+
 /** Der Landesverband, zu dem ein Agent gehört — gleich welcher LV-Familie. */
 function landesverbandOfAgent(agentIdentifier: string): LandesverbandRecord | null {
   const id = lvIdForAgentIdentifier(agentIdentifier);
