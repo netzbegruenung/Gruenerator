@@ -156,7 +156,7 @@ export function blockGrounds(
       continue;
     }
     shownIndex += 1;
-    const ground =
+    const ground: SiteGround =
       own === 'photo' || chosen(block)
         ? own
         : autoGround(own, above, chosen(shown[shownIndex]), locale);
