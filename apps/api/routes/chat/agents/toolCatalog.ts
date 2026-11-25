@@ -30,6 +30,7 @@
  * Loop-level concerns (guards, SSE cards, timeouts, truncation, step recording)
  * are layered on separately by `wrapToolsForLoop`.
  */
+import { LANDESVERBAENDE, resolveSkillMention } from '@gruenerator/shared/agents';
 import { isIntentAllowedForLocale } from '@gruenerator/shared/chat-intents';
 import { tool, type Tool, type ToolSet } from 'ai';
 import { z } from 'zod';
@@ -191,8 +192,21 @@ const CATALOG_TOOLS = new Set([
   'gruenerator_wahlpruefstein_examples',
 ]);
 
-/** The recipe whose turns get `gruenerator_wahlpruefstein_examples`. */
-const WAHLPRUEFSTEIN_RECIPE = 'wahlpruefstein';
+/**
+ * The recipes whose turns get `gruenerator_wahlpruefstein_examples`: the
+ * generic `wahlpruefstein` and every Landesverband variant
+ * (`wahlpruefstein-<lv>`) — found by owner, not by name, so a new LV needs no
+ * entry here.
+ */
+const WAHLPRUEFSTEIN_OWNERS: ReadonlySet<string> = new Set([
+  'gruenerator-wahlpruefsteine',
+  ...LANDESVERBAENDE.map((lv) => lv.wahlpruefsteinAgentId),
+]);
+
+function isWahlpruefsteinRecipe(mention: string | null | undefined): boolean {
+  const owner = mention ? resolveSkillMention(mention) : null;
+  return owner !== null && WAHLPRUEFSTEIN_OWNERS.has(owner);
+}
 
 /** Tools whose results feed the citation registry and get the lean `sources` shape. */
 const SOURCE_HARVEST_TOOLS = new Set(['gruenerator_search', 'web_search']);
@@ -490,8 +504,8 @@ export function buildChatToolCatalog(params: {
   // gewählt oder als Default des Agenten. Sonst zahlte ihre Beschreibung auf
   // jeden werkzeugtragenden Aufruf ein (toolScopeBudget.vitest.ts).
   const wahlpruefsteinTurn =
-    loop?.state.activeSkillMention === WAHLPRUEFSTEIN_RECIPE ||
-    agentConfig.defaultRecipeMention === WAHLPRUEFSTEIN_RECIPE;
+    isWahlpruefsteinRecipe(loop?.state.activeSkillMention) ||
+    isWahlpruefsteinRecipe(agentConfig.defaultRecipeMention);
   if (!wahlpruefsteinTurn) delete base.gruenerator_wahlpruefstein_examples;
 
   const tools: ToolSet = {};
@@ -1265,7 +1279,10 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
     // 3. Das Vokabular fürs Verwalten: „pausier die Erinnerung", „welche
     //    Aufgaben laufen bei mir".
     const agenturaText = state.lastUserTextNoMentions ?? lastUserText(state);
+    // Experimentell: ohne den Schalter `scheduled_tasks_enabled` (Einstellungen)
+    // montiert nichts, damit das Modell die Funktion gar nicht erst anbietet.
     if (
+      state.scheduledTasksEnabled &&
       state.enabledTools?.['recurring_tasks'] !== false &&
       (state.mentionPinnedTool === 'recurring_tasks' ||
         looksLikeRecurringOrder(agenturaText) ||
@@ -1464,6 +1481,32 @@ NUTZE WENN nach Funktionen, Begriffen, Fähigkeiten oder Anbindungen des Grüner
           });
         }
       }
+    }
+    // Die Präsentation hängt auch ohne erkannte Art, aber ohne Garantie: Ob der Turn
+    // eine bestellt, entscheidet das Modell. Die Art kommt aus Verb plus Substantiv
+    // (`compoundGenerationKind`), und „Ich brauche eine PowerPoint…“ oder „Präsi zu
+    // Radwegen“ trugen keins — sechs von 24 Aufträgen im Chat-Test bekamen eine
+    // Gliederung samt „technisch nicht verfügbar“ (#5956). Keine weitere Wortliste:
+    // das Werkzeug kostet einen kurzen Auftragstext im Schema, und
+    // `forceCompoundGeneration` greift weiter nur bei erkannter Art. Auch neben einer
+    // anderen Art: „Präsentation mit 5 Folien und dazu ein Sharepic“ bekam sonst nur
+    // das Sharepic, und das Modell meldete die Präsentation als erstellt (#5957).
+    // Grenze: Sobald ein Artefakt steht, nimmt `forceFinish` alle Werkzeuge weg; beide
+    // entstehen nur, wenn das Modell sie im selben Schritt ruft.
+    if (
+      loop.req &&
+      !editorSurface &&
+      state.compoundGenerationKind !== 'presentation' &&
+      state.enabledTools?.create_presentation !== false
+    ) {
+      tools.create_presentation = artifactTool('presentation', {
+        sse,
+        state,
+        req: loop.req,
+        threadId: loop.threadId ?? null,
+        sourceRegistry,
+        researchBanned,
+      });
     }
   }
 

@@ -7,6 +7,8 @@ import { ProjektTile } from './ProjektTile';
 
 import type { GroupSummary } from '@gruenerator/shared/groups';
 
+import useSidebarFavouritesStore from '@/stores/sidebarFavouritesStore';
+
 const personalProjekt: GroupSummary = {
   id: 'projekt-1',
   name: 'Mein Projekt',
@@ -33,26 +35,37 @@ describe('ProjektTile', () => {
     );
   });
 
-  it('shows "Nur für dich" for a personal projekt', () => {
-    renderWithProviders(<ProjektTile projekt={personalProjekt} />);
-    expect(screen.getByText('Nur für dich')).toBeInTheDocument();
-  });
-
-  it('shows the pluralized member count for a team projekt', () => {
-    renderWithProviders(<ProjektTile projekt={teamProjekt} />);
-    expect(screen.getByText('3 Mitglieder')).toBeInTheDocument();
-  });
-
-  it('shows singular "Mitglied" for exactly one member', () => {
-    renderWithProviders(<ProjektTile projekt={{ ...teamProjekt, member_count: 1 }} />);
-    expect(screen.getByText('1 Mitglied')).toBeInTheDocument();
-  });
-
-  it('falls back to the admin/member role label when member_count is absent', () => {
+  it('shows the description but no member count or activity date', () => {
     renderWithProviders(
-      <ProjektTile projekt={{ ...teamProjekt, member_count: undefined, isAdmin: true }} />
+      <ProjektTile
+        projekt={{
+          ...teamProjekt,
+          description: 'Wahlkampf 2027',
+          last_activity_at: '2026-11-22T10:00:00Z',
+        }}
+      />
     );
-    expect(screen.getByText('Admin')).toBeInTheDocument();
+    expect(screen.getByText('Wahlkampf 2027')).toBeInTheDocument();
+    expect(screen.queryByText(/Mitglied/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Gestern|Vor /)).not.toBeInTheDocument();
+  });
+
+  it('offers favourites to everyone and archiving only to admins', async () => {
+    const { user, unmount } = renderWithProviders(<ProjektTile projekt={teamProjekt} />);
+    await user.click(screen.getByRole('button', { name: 'Aktionen' }));
+    expect(await screen.findByRole('menuitem', { name: /Zu Favoriten/ })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /Archivieren/ })).not.toBeInTheDocument();
+    unmount();
+    renderWithProviders(<ProjektTile projekt={{ ...teamProjekt, isAdmin: true }} />);
+    await user.click(screen.getByRole('button', { name: 'Aktionen' }));
+    expect(await screen.findByRole('menuitem', { name: /Archivieren/ })).toBeInTheDocument();
+  });
+
+  it('puts the project into the sidebar favourites', async () => {
+    const { user } = renderWithProviders(<ProjektTile projekt={teamProjekt} />);
+    await user.click(screen.getByRole('button', { name: 'Aktionen' }));
+    await user.click(await screen.findByRole('menuitem', { name: /Zu Favoriten/ }));
+    expect(useSidebarFavouritesStore.getState().favouriteIds).toContain('projekt:projekt-2');
   });
 
   it('renders initials when there is no avatar_url', () => {
@@ -73,5 +86,25 @@ describe('ProjektTile', () => {
   it('has no axe violations', async () => {
     const { container } = renderWithProviders(<ProjektTile projekt={teamProjekt} />);
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('renders a chosen colour through the audited palette variables', () => {
+    renderWithProviders(<ProjektTile projekt={{ ...teamProjekt, color: 'gruen' }} />);
+    const card = screen.getByRole('link', { name: /Grüne NRW/ }).parentElement!;
+    expect(card.style.getPropertyValue('--tile-bg')).toBe('#DDEFD9');
+    expect(card.style.getPropertyValue('--tile-title-dark')).toBe('#A9D8AC');
+  });
+
+  it('ignores an unknown colour key and keeps the default tile', () => {
+    renderWithProviders(<ProjektTile projekt={{ ...teamProjekt, color: 'neon' }} />);
+    const card = screen.getByRole('link', { name: /Grüne NRW/ }).parentElement!;
+    expect(card.style.getPropertyValue('--tile-bg')).toBe('');
+  });
+
+  it('marks an archived projekt in the meta line', () => {
+    renderWithProviders(
+      <ProjektTile projekt={{ ...teamProjekt, archived_at: '2026-11-22T10:00:00Z' }} />
+    );
+    expect(screen.getByText('Archiviert')).toBeInTheDocument();
   });
 });

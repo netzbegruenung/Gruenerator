@@ -2,7 +2,6 @@ import { type TrashKind } from '@gruenerator/contracts';
 import {
   Button,
   CardActionsMenu,
-  CardGrid,
   cn,
   DropdownMenuItem,
   InteractiveCard,
@@ -13,9 +12,9 @@ import {
 } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { Download, Share2, Trash2 } from 'lucide-react';
-import React, { memo, useCallback, useState, lazy, Suspense } from 'react';
+import React, { memo, useCallback, useId, useState, lazy, Suspense } from 'react';
 import { PiStar, PiStarFill } from 'react-icons/pi';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 import {
   BoardPreviewBody,
@@ -47,6 +46,7 @@ const LazyShareModal = lazy(() =>
   })
 );
 import { useBoardsTyped } from '../../../hooks/useBoardsTyped';
+import { useGridColumns } from '../../../hooks/useGridColumns';
 import useSidebarFavouritesStore, { useIsFavourite } from '../../../stores/sidebarFavouritesStore';
 import { formatRelativeDate } from '../../../utils/dateFormatter';
 import { downloadBlob } from '../../../utils/downloadFile';
@@ -58,7 +58,7 @@ import {
   shareThumbnailPreviewUrl,
 } from '../../../utils/platform';
 import { webAppDocsAdapter } from '../../docs/docsAdapter';
-import { useCanvasEditorPrefetch } from '../../image-studio/canvasQuery';
+import { useCanvasEditorPrefetch } from '../../image-studio/canvasEditorPrefetch';
 import { Lightbox } from '../../image-studio/components/Lightbox';
 import { profilbildReopenPath } from '../../studio-tools/profilbildHandoff';
 import { invalidateAfterTrashChange } from '../../trash/invalidateAfterTrashChange';
@@ -68,6 +68,8 @@ import {
   type RecentItemType,
   useRecentActivity,
 } from '../hooks/useRecentActivity';
+
+import { ARBEITEN_GRID } from './arbeitenGrid';
 
 // Shared type vocabulary: the footer meta line names each type in one word so a
 // board and a document read as one system. `boardType` disambiguates Kanban vs.
@@ -128,9 +130,11 @@ const formatDuration = (seconds?: number): string => {
   return `${mins}:${String(secs).padStart(2, '0')}`;
 };
 
-// The vertical grid shows this many items by default (a couple of rows, like
-// Word's "Recent"); "Mehr anzeigen" reveals the rest of the fetched items.
-const RECENT_COLLAPSE_THRESHOLD = 12;
+// Collapsed, the grid shows one row; „Mehr anzeigen" opens it to three. A phone's
+// two-column grid shows two rows and doubles to four (one row is only two items).
+// Rows, not a fixed count, so the last row is full at every width.
+const collapsedRows = (columns: number) => (columns <= 2 ? 2 : 1);
+const expandedRows = (columns: number) => (columns <= 2 ? 4 : 3);
 
 const FALLBACK_TITLES: Record<RecentItemType, string> = {
   doc: 'Unbenanntes Dokument',
@@ -145,9 +149,6 @@ const FALLBACK_TITLES: Record<RecentItemType, string> = {
 // Mobile shows two tiles per row, so the plate shrinks with the column width —
 // a 210px preview above a half-width card would read as a tower.
 const PREVIEW_PLATE = 'h-[128px] sm:h-[210px] overflow-hidden bg-grey-50 dark:bg-grey-800/40';
-
-// Two-up on phones (was one), with a tighter gutter so both tiles keep their width.
-const RECENT_GRID = 'grid-cols-2 max-sm:gap-3';
 
 // Schematic preview bodies (placeholder bars, board/table/slides plates) are
 // shared with the Office overview — see components/common/SchematicPreviews.
@@ -409,10 +410,11 @@ const RecentItemCard = memo(
 
         <div className="flex items-start gap-1.5 border-t border-grey-100 px-3 pb-3 pt-2.5 dark:border-grey-700/60 sm:gap-2 sm:px-4 sm:pb-4 sm:pt-3.5">
           <div className="flex min-w-0 flex-1 flex-col gap-0.5 sm:gap-1">
-            <h3 className="m-0 min-w-0 truncate text-[14px] font-semibold text-foreground-heading sm:text-[16px]">
+            {/* Phone cards are ~160 px wide: two lines instead of „Neues Dokum…". */}
+            <h3 className="m-0 min-w-0 line-clamp-2 break-words text-[14px] font-semibold leading-snug text-foreground-heading sm:line-clamp-1 sm:text-[16px]">
               {item.title || fallbackTitle}
             </h3>
-            <p className="m-0 min-w-0 truncate text-[11px] text-grey-500 dark:text-grey-400 sm:text-[13px]">
+            <p className="m-0 min-w-0 truncate text-xs text-grey-500 dark:text-grey-400 sm:text-[13px]">
               {metaLine}
             </p>
           </div>
@@ -510,12 +512,18 @@ const TRASH_KIND_BY_TYPE: Record<RecentItemType, TrashKind> = {
   video: 'subtitler_project',
 };
 
-const RecentlyCreatedSection: React.FC = memo(() => {
+const RecentlyCreatedSection = memo(({ headerAction }: { headerAction?: React.ReactNode }) => {
   const queryClient = useQueryClient();
 
   const { data: items = [], isLoading, isError, refetch } = useRecentActivity();
 
   const [expanded, setExpanded] = useState(false);
+  const [grid, setGrid] = useState<HTMLDivElement | null>(null);
+  const gridId = useId();
+  // Phone layout until the grid is measured (it renders after loading). The
+  // skeleton and the real grid are never mounted together, so one ref serves both.
+  const columns = useGridColumns(grid) || 2;
+  const visibleCount = columns * (expanded ? expandedRows(columns) : collapsedRows(columns));
   const [shareDoc, setShareDoc] = useState<{ id: string; title: string } | null>(null);
 
   // Only the delete mutation is used here; the board list is not read, so it must not be fetched.
@@ -599,22 +607,12 @@ const RecentlyCreatedSection: React.FC = memo(() => {
     );
 
   return (
-    <section className="mb-xl">
-      <SectionHeader
-        title="Zuletzt"
-        actions={
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/papierkorb">
-              <Trash2 aria-hidden="true" className="size-4" />
-              Papierkorb
-            </Link>
-          </Button>
-        }
-      />
+    <section aria-label="Zuletzt" className="flex flex-col">
+      <SectionHeader title="Zuletzt" actions={headerAction} />
 
       {isLoading ? (
-        <CardGrid columns="5" gap="md" className={RECENT_GRID}>
-          {Array.from({ length: 10 }, (_, i) => (
+        <div ref={setGrid} className={ARBEITEN_GRID}>
+          {Array.from({ length: columns * collapsedRows(columns) }, (_, i) => (
             <div
               key={i}
               className="rounded-[14px] border border-grey-200/80 dark:border-grey-700/60 overflow-hidden"
@@ -627,7 +625,7 @@ const RecentlyCreatedSection: React.FC = memo(() => {
               </div>
             </div>
           ))}
-        </CardGrid>
+        </div>
       ) : isError ? (
         <div className="flex flex-col items-center gap-2 py-lg text-center">
           <p className="text-sm text-grey-500 dark:text-grey-400">
@@ -647,21 +645,20 @@ const RecentlyCreatedSection: React.FC = memo(() => {
         </p>
       ) : (
         <>
-          {/* Vertical grid that scrolls with the page (like Word's "Recent"),
-              sliced to the threshold; "Mehr anzeigen" reveals the rest. */}
-          <CardGrid columns="5" gap="md" className={RECENT_GRID}>
-            {(expanded ? items : items.slice(0, RECENT_COLLAPSE_THRESHOLD)).map(renderCard)}
-          </CardGrid>
-          {items.length > RECENT_COLLAPSE_THRESHOLD && (
-            <button
-              type="button"
+          <div ref={setGrid} id={gridId} className={ARBEITEN_GRID}>
+            {items.slice(0, visibleCount).map(renderCard)}
+          </div>
+          {items.length > columns * collapsedRows(columns) && (
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setExpanded((prev) => !prev)}
-              className="mt-sm text-sm text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300 cursor-pointer bg-transparent border-none transition-colors"
+              aria-expanded={expanded}
+              aria-controls={gridId}
+              className="mt-md self-center rounded-full px-5 max-md:h-11 max-md:w-full max-md:self-stretch max-md:text-base max-md:font-semibold"
             >
-              {expanded
-                ? 'Weniger anzeigen'
-                : `+${items.length - RECENT_COLLAPSE_THRESHOLD} weitere anzeigen`}
-            </button>
+              {expanded ? 'Weniger anzeigen' : 'Mehr anzeigen'}
+            </Button>
           )}
         </>
       )}

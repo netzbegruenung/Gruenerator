@@ -205,8 +205,6 @@ export async function exportWithSegments(
           ...(hasAudio ? ['-c:a', 'aac', '-b:a', qualitySettings.audioBitrate] : ['-an']),
           '-movflags',
           '+faststart',
-          '-avoid_negative_ts',
-          'make_zero',
         ];
 
         if (videoCodec === 'libx264') {
@@ -366,7 +364,8 @@ export async function exportWithSegmentsAndSubtitles(
       styleOptions,
       'manual',
       subtitleConfig.stylePreference || 'standard',
-      subtitleConfig.locale || 'de-DE'
+      subtitleConfig.locale || 'de-DE',
+      subtitleConfig.heightPreference || 'standard'
     );
 
     const assFilePath = await assService.createTempAssFile(assResult.content, exportToken);
@@ -434,8 +433,6 @@ export async function exportWithSegmentsAndSubtitles(
           ...(hasAudio ? ['-c:a', 'aac', '-b:a', qualitySettings.audioBitrate] : ['-an']),
           '-movflags',
           '+faststart',
-          '-avoid_negative_ts',
-          'make_zero',
         ];
 
         if (videoCodec === 'libx264') {

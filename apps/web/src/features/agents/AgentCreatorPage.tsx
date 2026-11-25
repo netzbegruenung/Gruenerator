@@ -1,87 +1,17 @@
-import { MAX_DRAFT_BRIEF_CHARS } from '@gruenerator/contracts';
-import { EMPTY_FORM, type FormState, specToFormState } from '@gruenerator/shared/grueneratoren';
-import { useCallback, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-
-import AgentEditor from './AgentEditor';
-import AgentStartScreen from './AgentStartScreen';
-import { useDraftAgent } from './api';
-
-import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
-import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
-import { useAuthStore } from '@/stores/authStore';
+import { Navigate, useSearchParams } from 'react-router-dom';
 
 /**
- * Guided agent creator. A one-shot brief is drafted by the AI, then handed to
- * the same wizard the manual/edit routes use — pre-filled, never persisted
- * until the user saves. No chat (replaces the former conversational creator).
+ * Alter Einstieg (`/agents/new`). Neue Agents gibt es nicht mehr; eine wiederkehrende
+ * Aufgabe baut man im eigenen Editor, alles andere geht zum Rezept-Creator.
  */
 function AgentCreatorPage() {
-  const draftMut = useDraftAgent();
   const [searchParams] = useSearchParams();
-  const variant = searchParams.get('mode') === 'recurring' ? 'recurring' : 'agent';
-  const locale = useAuthStore((s) => s.locale);
-  const [description, setDescription] = useState('');
-  const [initialState, setInitialState] = useState<Partial<FormState> | null>(null);
-  const [phase, setPhase] = useState<'start' | 'build'>('start');
-  const [error, setError] = useState<string | null>(null);
-
-  useDocumentTitle(variant === 'recurring' ? 'Neue wiederkehrende Aufgabe' : 'Neuer Agent');
-
-  const handleGenerate = useCallback(async () => {
-    const brief = description.trim();
-    if (brief.length === 0) return;
-    if (brief.length > MAX_DRAFT_BRIEF_CHARS) {
-      setError(
-        `Die Beschreibung ist zu lang (${brief.length.toLocaleString('de-DE')} von max. ${MAX_DRAFT_BRIEF_CHARS.toLocaleString('de-DE')} Zeichen).`
-      );
-      return;
-    }
-    setError(null);
-    try {
-      const spec = await draftMut.mutateAsync({ description: brief });
-      // Wie im Chat-Entwurf (userAgentTools): ein AT-Profil macht den Agent
-      // österreichisch, egal was das Modell vorgeschlagen hat.
-      setInitialState({ ...specToFormState(spec), ...(locale === 'de-AT' && { locale }) });
-      setPhase('build');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Entwurf fehlgeschlagen.');
-    }
-  }, [description, draftMut, locale]);
-
-  const handleManual = useCallback(() => {
-    setInitialState(null);
-    setPhase('build');
-  }, []);
-
-  const handleBack = useCallback(() => {
-    setPhase('start');
-  }, []);
-
-  if (phase === 'build') {
-    return (
-      <AgentEditor
-        mode="create"
-        initialState={{ ...EMPTY_FORM, locale, ...initialState }}
-        variant={variant}
-        onCancel={handleBack}
-      />
-    );
-  }
-
   return (
-    <AgentStartScreen
-      aiDescription={description}
-      onDescriptionChange={setDescription}
-      onGenerateWithAI={() => void handleGenerate()}
-      isLoading={draftMut.isPending}
-      error={error}
-      onManual={handleManual}
+    <Navigate
+      to={searchParams.get('mode') === 'recurring' ? '/wiederkehrend/neu' : '/agentura/rezept/neu'}
+      replace
     />
   );
 }
 
-export default withAuthRequired(AgentCreatorPage, {
-  title: 'Neuer Agent',
-  fallback: <div className="flex min-h-0 flex-1 bg-background" />,
-});
+export default AgentCreatorPage;

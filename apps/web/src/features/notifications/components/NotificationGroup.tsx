@@ -27,7 +27,7 @@ function extractGroupName(items: Notification[]): string {
     const name = item.metadata?.groupName;
     if (typeof name === 'string') return name;
   }
-  return 'Gruppe';
+  return 'Projekt';
 }
 
 const NotificationGroup = memo(

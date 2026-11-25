@@ -7,6 +7,7 @@
  * Plattformnah bleibt, was nur eine Plattform kennt: das Auth-Gate (`enabled`),
  * die Gruppenliste (Parameter) und die Fehleranzeige (`onError`).
  */
+export * from './agentConversion.js';
 export * from './agentFormState.js';
 export * from './agentLookup.js';
 export * from './agentSharing.js';

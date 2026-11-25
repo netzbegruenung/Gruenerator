@@ -32,7 +32,7 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
     readMore: { label: 'Office', href: '/docs/features/office' },
   },
   canvas: {
-    note: 'Alles Visuelle: KI-Bilder, Sharepics aus Vorlagen und untertitelte Reels. Nimm den Bereich, wenn am Ende ein Bild oder ein Video herauskommen soll — für Text und Zahlen ist Office richtig.',
+    note: 'Alles Visuelle auf einer Seite: oben die Werkzeuge, darunter deine Mediathek mit allen Videos, Sharepics, KI-Bildern, Uploads und Audios — per Ziehen hochladen, filtern, durchsuchen, Titel und Alt-Text pflegen, teilen oder in den Papierkorb legen. Sharepics und KI-Bilder entstehen im Chat und landen von selbst hier.',
     platform: ['web', 'desktop', 'mobile'],
   },
   wissen: {
@@ -67,59 +67,16 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
   },
 
   // ── Studio ────────────────────────────────────────────────────────────────
-  'canvas-vorlagen': {
-    note: 'Fertige Design-Vorlagen im grünen Erscheinungsbild — Ausgangspunkt für Sharepics, wenn du nicht bei null anfangen willst.',
-    platform: ['web', 'desktop', 'mobile'],
-  },
-  'canvas-ki': {
-    note: 'Bilder mit KI erzeugen und bearbeiten. Gut für Motive, für die es kein passendes Foto gibt.',
-    platform: ['web', 'desktop', 'mobile'],
-  },
   'reels-untertitel': {
     note: 'Untertitelt Videoclips automatisch und brennt die Untertitel ein. Gedacht für kurze Social-Clips.',
     platform: ['web', 'desktop', 'mobile'],
   },
-  'studio-videoeditor': {
-    note: 'Schneidet Clips auf einer Zeitleiste, setzt Texte ins Bild und legt Musik darunter. Nimm ihn, wenn ein Clip mehr braucht als Untertitel. Noch in der Beta.',
-    platform: ['web'],
-  },
-  'studio-ki-schnitt': {
-    note: 'Du lädst Rohvideos hoch, dazu auf Wunsch Bilder, Logo und Musik, und die KI schneidet daraus einen ersten Entwurf. Den verbesserst du in Korrekturrunden oder übergibst ihn in den Video Editor. Nimm ihn, wenn du noch keinen fertigen Clip hast, sondern nur Material.',
-    platform: ['web'],
-  },
-  parteitage: {
-    note: 'Die Reden eines Parteitags als fertige 9:16-Reels: je Rede in den Video Editor laden oder die ganze Rede nur untertiteln lassen. Vorerst nur für Instanz-Admins sichtbar, die einzelnen Parteitage sind zunächst passwortgeschützt.',
-    platform: ['web'],
-    readMore: { label: 'Parteitage', href: '/docs/features/parteitage' },
-  },
-  'studio-voice': {
-    note: 'Grünerator Voice verwandelt Text in gesprochene Sprache — als Sprechertext für ein Reel, Ansage für den Anrufbeantworter, Vorlesefassung eines Textes oder Audiodeskription. Die Datei landet in der Mediathek.',
+  'canvas-ki': {
+    note: 'Öffnet den Chat mit einem angefangenen Auftrag für ein Sharepic: Thema ergänzen, abschicken, und der Chat baut Entwürfe. Der erste Entwurf landet von selbst im Studio unter „Deine Inhalte“.',
     platform: ['web', 'desktop'],
   },
-
-  // ── Studio — Werkzeuge ────────────────────────────────────────────────────
-  profilbild: {
-    note: 'Macht aus einem Foto ein Profilbild: Person freistellen und den Hintergrund per Klick wechseln — als Farbe, Verlauf, Vorlage oder eigenes Bild. Im Editor setzt du Sticker und verschiebst Person und Sticker direkt im Bild.',
-    platform: ['web'],
-  },
-  sticker: {
-    note: 'Sticker und Hintergründe für dein Profilbild: unter „Entdecken“ öffnet sich der Marktplatz mit dem, was andere geteilt haben: liken, merken oder melden. Eigene Sticker bleiben privat, bis du sie mit Bestätigung der Bildrechte öffentlich machst.',
-    platform: ['web'],
-  },
-  'bild-erweitern': {
-    note: 'Erweitert ein Bild per KI auf ein anderes Format, zum Beispiel von Quer- auf Hochformat. Eine Vorschau zeigt vorab, welche Flächen die KI ergänzt.',
-    platform: ['web'],
-  },
-  freisteller: {
-    note: 'Entfernt den Hintergrund eines Bildes und liefert die Person oder das Motiv als PNG mit transparentem Hintergrund.',
-    platform: ['web'],
-  },
-  mediathek: {
-    note: 'Alle deine Bilder, Sharepics, KI-Bilder, Videos und Audios an einem Ort: hochladen (auch per Drag & Drop), nach Art filtern, durchsuchen, Titel und Alt-Text pflegen, herunterladen, teilen oder in den Papierkorb legen — ohne Obergrenze.',
-    platform: ['web'],
-  },
-  'bildgenerator-at': {
-    note: 'Nur für Österreich: ein Link zum Sharepic-Bildgenerator der Grünen Österreich auf bildgenerator.gruene.at. Er läuft außerhalb des Grünerators — was du dort erstellst, landet nicht in deiner Mediathek.',
+  'studio-videoeditor': {
+    note: 'Schneidet Clips auf einer Zeitleiste, setzt Texte ins Bild und legt Musik darunter. Nimm ihn, wenn ein Clip mehr braucht als Untertitel. Noch in der Beta.',
     platform: ['web'],
   },
 
@@ -133,7 +90,7 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
     note: 'Projekte bündeln Chats, Dokumente und Mitglieder zu einem Arbeitszusammenhang — etwa für eine Kampagne oder einen Ortsverband.',
     platform: ['web', 'desktop'],
     readMore: {
-      label: 'Wie erstelle ich ein gemeinsames Projekt?',
+      label: 'Wie erstelle ich ein Projekt und lade andere ein?',
       href: '/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen',
     },
   },

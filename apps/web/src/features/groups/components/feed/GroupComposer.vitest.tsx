@@ -23,8 +23,16 @@ const props = {
   groupName: 'Testgruppe',
   memberCount: 9,
   currentUserName: 'Moritz Wächter',
-  onOpenShare: () => {},
+  onPickExisting: () => {},
+  writeDocuments: true,
 };
+
+const SHARE_URL = `http://localhost/api/auth/groups/${GROUP}/share`;
+const DOC = { contentType: 'documents' as const, id: 'doc-1', title: 'Protokoll.txt' };
+
+/** „Aus meinen Inhalten“ wählt sofort `DOC` — der echte Dialog hängt am Host. */
+const pickDoc = (onPicked: (items: never[]) => void) =>
+  onPicked([{ ...DOC, kind: 'file', changedAt: null }] as never[]);
 
 describe('GroupComposer', () => {
   it('expands, posts text and files, and collapses again', async () => {
@@ -42,13 +50,13 @@ describe('GroupComposer', () => {
       })
     );
     const { user, container } = renderWithProviders(<GroupComposer {...props} />);
-    await user.click(screen.getByRole('button', { name: 'Schreib etwas an die Gruppe …' }));
+    await user.click(screen.getByRole('button', { name: 'Schreib etwas an das Projekt …' }));
     expect(screen.getByText(/alle 9 Mitglieder sehen den Beitrag/)).toBeInTheDocument();
 
     const post = screen.getByRole('button', { name: 'Posten' });
     expect(post).toBeDisabled();
 
-    await user.type(screen.getByRole('textbox', { name: 'Beitrag an die Gruppe' }), 'Infostand');
+    await user.type(screen.getByRole('textbox', { name: 'Beitrag an das Projekt' }), 'Infostand');
     const input = container.querySelector<HTMLInputElement>('input[type="file"]')!;
     await user.upload(input, new File(['%PDF'], 'Plan.pdf', { type: 'application/pdf' }));
     expect(screen.getByText('Plan.pdf')).toBeInTheDocument();
@@ -57,7 +65,7 @@ describe('GroupComposer', () => {
     await user.click(post);
     await waitFor(() => expect(received).toEqual({ body: 'Infostand', files: 1 }));
     expect(
-      await screen.findByRole('button', { name: 'Schreib etwas an die Gruppe …' })
+      await screen.findByRole('button', { name: 'Schreib etwas an das Projekt …' })
     ).toBeInTheDocument();
   });
 
@@ -80,19 +88,96 @@ describe('GroupComposer', () => {
       )
     );
     const { user } = renderWithProviders(<GroupComposer {...props} />);
-    await user.click(screen.getByRole('button', { name: 'Schreib etwas an die Gruppe …' }));
-    await user.type(screen.getByRole('textbox', { name: 'Beitrag an die Gruppe' }), 'x');
+    await user.click(screen.getByRole('button', { name: 'Schreib etwas an das Projekt …' }));
+    await user.type(screen.getByRole('textbox', { name: 'Beitrag an das Projekt' }), 'x');
     await user.click(screen.getByRole('button', { name: 'Posten' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Dateityp nicht erlaubt: tool.exe');
   });
 
-  it('hands the draft to the share dialog', async () => {
-    const onOpenShare = vi.fn();
-    const { user } = renderWithProviders(<GroupComposer {...props} onOpenShare={onOpenShare} />);
-    await user.click(screen.getByRole('button', { name: 'Schreib etwas an die Gruppe …' }));
-    await user.type(screen.getByRole('textbox', { name: 'Beitrag an die Gruppe' }), ' Lest das ');
+  it('attaches a picked item and shares it only on Posten, the text as its note', async () => {
+    const shares: unknown[] = [];
+    let posts = 0;
+    server.use(
+      http.post(SHARE_URL, async ({ request }) => {
+        shares.push(await request.json());
+        return HttpResponse.json({ success: true });
+      }),
+      http.post(POSTS_URL, () => {
+        posts += 1;
+        return HttpResponse.json({ success: true, postId: 'p', shareId: 's' }, { status: 201 });
+      })
+    );
+    const onPickExisting = vi.fn(pickDoc);
+    const { user, container } = renderWithProviders(
+      <GroupComposer {...props} onPickExisting={onPickExisting} />
+    );
+    await user.click(screen.getByRole('button', { name: 'Schreib etwas an das Projekt …' }));
+    await user.type(screen.getByRole('textbox', { name: 'Beitrag an das Projekt' }), ' Lest das ');
     await user.click(screen.getByRole('button', { name: 'Aus meinen Inhalten' }));
-    expect(onOpenShare).toHaveBeenCalledWith('Lest das');
+
+    // Angehängt, nicht geteilt.
+    expect(screen.getByRole('list', { name: 'Angehängte Inhalte' })).toHaveTextContent(
+      'Protokoll.txt'
+    );
+    expect(shares).toEqual([]);
+    expect(await axe(container)).toHaveNoViolations();
+
+    await user.click(screen.getByRole('button', { name: 'Posten' }));
+    await waitFor(() => expect(shares).toHaveLength(1));
+    expect(shares[0]).toMatchObject({
+      contentType: 'documents',
+      contentId: 'doc-1',
+      note: 'Lest das',
+    });
+    // Kein zweiter Beitrag mit demselben Text, und der Entwurf ist zu.
+    expect(posts).toBe(0);
+    expect(
+      await screen.findByRole('button', { name: 'Schreib etwas an das Projekt …' })
+    ).toBeInTheDocument();
+  });
+
+  it('posts uploaded files without the text when items carry it as their note', async () => {
+    let received: FormDataEntryValue | null = 'unset';
+    server.use(
+      http.post(SHARE_URL, () => HttpResponse.json({ success: true })),
+      http.post(POSTS_URL, async ({ request }) => {
+        received = (await request.formData()).get('body');
+        return HttpResponse.json({ success: true, postId: 'p', shareId: 's' }, { status: 201 });
+      })
+    );
+    const { user, container } = renderWithProviders(
+      <GroupComposer {...props} onPickExisting={pickDoc} />
+    );
+    await user.click(screen.getByRole('button', { name: 'Schreib etwas an das Projekt …' }));
+    await user.type(screen.getByRole('textbox', { name: 'Beitrag an das Projekt' }), 'Lest das');
+    await user.click(screen.getByRole('button', { name: 'Aus meinen Inhalten' }));
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]')!;
+    await user.upload(input, new File(['%PDF'], 'Plan.pdf', { type: 'application/pdf' }));
+
+    await user.click(screen.getByRole('button', { name: 'Posten' }));
+    await waitFor(() => expect(received).toBe(''));
+  });
+
+  it('keeps an item that failed to share, with the server message', async () => {
+    server.use(
+      http.post(SHARE_URL, () =>
+        HttpResponse.json(
+          { success: false, message: 'Du kannst nur eigene Inhalte teilen.' },
+          { status: 403 }
+        )
+      )
+    );
+    const { user } = renderWithProviders(<GroupComposer {...props} onPickExisting={pickDoc} />);
+    await user.click(screen.getByRole('button', { name: 'Schreib etwas an das Projekt …' }));
+    await user.click(screen.getByRole('button', { name: 'Aus meinen Inhalten' }));
+    await user.click(screen.getByRole('button', { name: 'Posten' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Du kannst nur eigene Inhalte teilen.'
+    );
+    expect(screen.getByRole('list', { name: 'Angehängte Inhalte' })).toHaveTextContent(
+      'Protokoll.txt'
+    );
   });
 });
 
@@ -118,8 +203,8 @@ describe('GroupComposer mentions', () => {
         <GroupComposer {...props} />
       </GroupMentionProvider>
     );
-    await user.click(screen.getByRole('button', { name: 'Schreib etwas an die Gruppe …' }));
-    const box = screen.getByRole('textbox', { name: 'Beitrag an die Gruppe' });
+    await user.click(screen.getByRole('button', { name: 'Schreib etwas an das Projekt …' }));
+    const box = screen.getByRole('textbox', { name: 'Beitrag an das Projekt' });
 
     await user.type(box, 'Hallo @');
     const list = screen.getByRole('listbox', { name: 'Erwähnen' });
@@ -162,8 +247,8 @@ describe('GroupComposer mentions', () => {
         <GroupComposer {...props} />
       </GroupMentionProvider>
     );
-    await user.click(screen.getByRole('button', { name: 'Schreib etwas an die Gruppe …' }));
-    const box = screen.getByRole('textbox', { name: 'Beitrag an die Gruppe' });
+    await user.click(screen.getByRole('button', { name: 'Schreib etwas an das Projekt …' }));
+    const box = screen.getByRole('textbox', { name: 'Beitrag an das Projekt' });
     const free = Number(box.getAttribute('maxlength'));
 
     await user.type(box, '@an{ArrowDown}{Enter}');
@@ -184,8 +269,8 @@ describe('GroupComposer mentions', () => {
         <GroupComposer {...props} memberCount={null} />
       </GroupMentionProvider>
     );
-    await user.click(screen.getByRole('button', { name: 'Schreib etwas an die Gruppe …' }));
-    await user.type(screen.getByRole('textbox', { name: 'Beitrag an die Gruppe' }), '@');
+    await user.click(screen.getByRole('button', { name: 'Schreib etwas an das Projekt …' }));
+    await user.type(screen.getByRole('textbox', { name: 'Beitrag an das Projekt' }), '@');
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
   });
 });

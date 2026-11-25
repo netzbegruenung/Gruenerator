@@ -35,7 +35,7 @@ import { useMarketplaceActions } from './useMarketplaceActions';
 
 /**
  * `/marktplatz/landesverband/<slug>` (web: `MarketplaceLandesverbandPage`) —
- * a Landesverband's page in the Marktplatz: its Agents, its Rezepte and the
+ * a Landesverband's page in the Marktplatz: its Rezepte and the
  * way into its Notebook. Resolved through `getLandesverbandHubBySlug`, the
  * same gate as the web; the country applies too, so an Austrian setting sees
  * no German Landesverband and the other way round.
@@ -88,10 +88,9 @@ function HubView({ hub }: { hub: LvHub }) {
   const router = useRouter();
   const token = useShareToken();
   const actions = useMarketplaceActions();
-  const agents = useHubKind('agent', hub);
+  // Seit 11/2026 nur Rezepte: die LV-Agenten listet der Marktplatz nicht mehr.
   const recipes = useHubKind('recipe', hub);
-  const agentItems = sortByHubOrder(hub, agents.items);
-  const recipeItems = recipes.items;
+  const recipeItems = sortByHubOrder(hub, recipes.items);
   // An item is a Marktplatz page of its own; the back arrow returns here.
   const select = actions.show;
 
@@ -123,7 +122,7 @@ function HubView({ hub }: { hub: LvHub }) {
           {hub.name}
         </Text>
         <Text style={[styles.description, { color: theme.textSecondary }]}>
-          {`Agents und Rezepte von ${hub.name} an einem Ort.`}
+          {`Die Rezepte von ${hub.name} an einem Ort.`}
         </Text>
         {notebook ? (
           <Pressable
@@ -141,13 +140,6 @@ function HubView({ hub }: { hub: LvHub }) {
           </Pressable>
         ) : null}
       </View>
-      <ItemSection
-        title="Agents"
-        query={agents}
-        items={agentItems}
-        token={token}
-        onSelect={select}
-      />
       <ItemSection
         title="Rezepte"
         query={recipes}

@@ -18,12 +18,19 @@
 import { promisify } from 'util';
 import { gzip } from 'zlib';
 
+import {
+  applyBoardAssigneeChange,
+  boardAssigneeUserIds,
+  parseBoardAssignees,
+  serializeBoardAssignees,
+  type BoardAssigneeChange,
+} from '@gruenerator/shared/utils';
 import * as Y from 'yjs';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { createLogger } from '../../utils/logger.js';
 
-import { FIELD_IDS, loadBoardYjsDoc, type FieldDef } from './BoardService.js';
+import { FIELD_IDS, loadBoardYjsDoc, resolveStatusId, type FieldDef } from './BoardService.js';
 
 const gzipAsync = promisify(gzip);
 const log = createLogger('boardCardWriteService');
@@ -33,7 +40,8 @@ export interface CardChanges {
   description?: string;
   /** Target status/column — resolved from name OR id against the board's status field. */
   status?: string;
-  assignee?: string;
+  /** Hinzufügen, ersetzen oder entfernen — die Person kommt aufgelöst (Profil-Id + Name), nie als nackter Name. */
+  assignees?: BoardAssigneeChange;
   /** ISO date string, or null to clear. */
   dueDate?: string | null;
 }
@@ -42,6 +50,12 @@ export interface CardWriteResult {
   ok: true;
   cardId: string;
   applied: string[];
+  /** Profil-Ids, die durch diese Änderung neu zuständig sind — für Verlauf und Benachrichtigung. */
+  addedAssigneeIds: string[];
+  /** Alle Zuständigen nach der Änderung (Namen), wie das Web sie im Verlauf festhält. */
+  assigneeNames: string[];
+  /** Kartentitel nach der Änderung, für den Verlaufseintrag. */
+  cardTitle: string | null;
 }
 
 /**
@@ -58,18 +72,6 @@ async function wasRecentlyEditedLive(boardId: string): Promise<boolean> {
     [boardId]
   );
   return rows.length > 0;
-}
-
-/** Resolve a status name (or raw id) to the option id defined on the board's status field. */
-function resolveStatusId(fields: FieldDef[], status: string): string | null {
-  const statusField = fields.find((f) => f.id === FIELD_IDS.STATUS);
-  const options = Array.isArray(statusField?.typeOptions?.options)
-    ? (statusField.typeOptions.options as Array<{ id: string; name: string }>)
-    : [];
-  const byId = options.find((o) => o.id === status);
-  if (byId) return byId.id;
-  const byName = options.find((o) => o.name.toLowerCase() === status.trim().toLowerCase());
-  return byName?.id ?? null;
 }
 
 /** A refusal the chat model can act on (wrong card id, unknown column) — its
@@ -99,6 +101,9 @@ export async function updateCard(
   if (!doc) throw new BoardCardError(`Board ${boardId} nicht gefunden oder ohne Yjs-Dokument.`);
 
   const applied: string[] = [];
+  let addedAssigneeIds: string[] = [];
+  let assigneeNames: string[] = [];
+  let cardTitle: string | null = null;
   let dueDateForMirror: string | null | undefined;
 
   // try/finally so the Y.Doc is always destroyed — including the throws below
@@ -131,9 +136,17 @@ export async function updateCard(
         cells.set(FIELD_IDS.DESCRIPTION, changes.description);
         applied.push('Beschreibung');
       }
-      if (typeof changes.assignee === 'string') {
-        cells.set(FIELD_IDS.ASSIGNEE, changes.assignee);
-        applied.push('Zuständig');
+      if (changes.assignees) {
+        const raw = cells.get(FIELD_IDS.ASSIGNEE);
+        const before = new Set(boardAssigneeUserIds(raw));
+        const next = applyBoardAssigneeChange(parseBoardAssignees(raw), changes.assignees);
+        const serialized = serializeBoardAssignees(next);
+        if (serialized !== (typeof raw === 'string' ? raw : '')) {
+          cells.set(FIELD_IDS.ASSIGNEE, serialized);
+          addedAssigneeIds = boardAssigneeUserIds(serialized).filter((id) => !before.has(id));
+          assigneeNames = next.map((a) => a.name);
+          applied.push('Zuständig');
+        }
       }
       if (changes.status !== undefined) {
         const statusId = resolveStatusId(fields, changes.status);
@@ -151,7 +164,10 @@ export async function updateCard(
       }
     });
 
-    if (applied.length === 0) return { ok: true, cardId, applied };
+    const title = cells.get(FIELD_IDS.TITLE);
+    cardTitle = typeof title === 'string' && title.trim() ? title : null;
+    if (applied.length === 0)
+      return { ok: true, cardId, applied, addedAssigneeIds, assigneeNames, cardTitle };
 
     const update = Y.encodeStateAsUpdate(doc);
     const compressed = await gzipAsync(Buffer.from(update));
@@ -187,5 +203,5 @@ export async function updateCard(
   }
 
   log.info(`Updated card ${cardId} on board ${boardId}: ${applied.join(', ')}`);
-  return { ok: true, cardId, applied };
+  return { ok: true, cardId, applied, addedAssigneeIds, assigneeNames, cardTitle };
 }

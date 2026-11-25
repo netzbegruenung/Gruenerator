@@ -1,5 +1,4 @@
 import { isChannelVisibleIn, type InstanceChannel } from '@gruenerator/shared/instances';
-import { stickerDiscoverToMarketplaceHref } from '@gruenerator/shared/marketplace';
 import {
   lazy,
   type ComponentType,
@@ -27,9 +26,6 @@ import { withSitesGate } from './sitesGate';
 /**
  * Route configuration interface
  */
-/** Page-level colour accent; see assets/styles/common/accent.css. Omitted = brand green. */
-export type RouteAccent = 'studio';
-
 export type LayoutMode = 'default' | 'fullscreen' | 'immersive' | 'noChrome' | 'sidebarOnly';
 
 export interface RouteConfig {
@@ -37,7 +33,6 @@ export interface RouteConfig {
   component: LazyExoticComponent<ComponentType<Record<string, unknown>>>;
   withForm?: boolean;
   layoutMode?: LayoutMode;
-  accent?: RouteAccent;
   // Auth model: every route requires login by default. Set `public: true` to
   // opt out. The list of public routes is intentionally small — marketing
   // startpage, legal pages, login UI, public shares. New routes are
@@ -221,28 +216,16 @@ const ProfilbildRedirect = lazy(() =>
   Promise.resolve({ default: createRedirect('/studio/profilbild') })
 );
 const ProfilbildPage = lazy(() => import('../features/studio-tools/pages/ProfilbildPage'));
-const BildErweiternPage = lazy(() => import('../features/studio-tools/pages/BildErweiternPage'));
-const FreistellenPage = lazy(() => import('../features/studio-tools/pages/FreistellenPage'));
 const StudioAssetsPage = lazy(() => import('../features/studio-assets/StudioAssetsPage'));
-// „Entdecken" ist im Marktplatz aufgegangen; der alte Pfad leitet für immer
-// weiter (URL-Sonderrecht, CLAUDE.md), samt Suche.
-export const StickerDiscoverRedirectComponent: FC<Record<string, unknown>> = () => {
-  const { search } = useLocation();
-  return createElement(Navigate, {
-    to: stickerDiscoverToMarketplaceHref(new URLSearchParams(search)),
-    replace: true,
-  });
-};
-const StickerDiscoverRedirect = lazy(() =>
-  Promise.resolve({ default: StickerDiscoverRedirectComponent })
-);
+// „Entdecken" ist im Marktplatz aufgegangen; der Redirect liegt in einer
+// eigenen Datei, damit der Marktplatz-Code nicht im Entry landet (#5891).
+const StickerDiscoverRedirect = lazy(() => import('./StickerDiscoverRedirect'));
 const StickerCreatorPage = lazy(
   () => import('../features/studio-assets/creator/StickerCreatorPage')
 );
 const StickerCanvasPage = lazy(() => import('../features/studio-assets/creator/StickerCanvasPage'));
 
-// Legacy KI routes (/studio/ki, /imagine, /bild-editor) now redirect to the Studio, where KI-Bilder
-// are made from the composer.
+// Legacy KI routes (/studio/ki, /imagine, /bild-editor) lead to the Studio.
 const ImageStudioKiRedirect = lazy(() =>
   Promise.resolve({
     default: createRedirect('/studio'),
@@ -250,10 +233,11 @@ const ImageStudioKiRedirect = lazy(() =>
 );
 const ImageStudioKiTypeRedirect = ImageStudioKiRedirect;
 
-// Bild-Editor v2 — focused KI generate/edit/outpaint flow with version tree
-const BildEditorV2Page = lazy(
-  () => import('../features/image-studio/bild-editor-v2/BildEditorV2Page')
-);
+// Sharepics and KI-Bilder are made in the chat. The former creator pages
+// (/studio/freitext, /studio/bild) lead there. „Hintergrund entfernen" and
+// „Erweitern" are part of the canvas editor (their pages /studio/freistellen
+// and /studio/erweitern lead to the Studio).
+const ToChatRedirect = lazy(() => Promise.resolve({ default: createRedirect('/chat') }));
 const ReisekostenListPage = lazy(() => import('../features/reisekosten/ReisekostenListPage'));
 const ReisekostenEventPage = lazy(() => import('../features/reisekosten/EventPage'));
 const ReisekostenAbrechnungPage = lazy(() => import('../features/reisekosten/AbrechnungPage'));
@@ -323,6 +307,7 @@ const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPa
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
 const VideoEditorPage = lazy(() => import('../features/videoeditor/VideoEditorPage'));
 // KI-Schnitt and Parteitage are admin only for now — see adminToolsGate.
+const VideoStartPage = lazy(() => import('../features/video/VideoStartPage'));
 const KiSchnittNewPage = lazy(async () => {
   const { default: Page } = await import('../features/video-ai/KiSchnittNewPage');
   return { default: withAdminToolGate(Page) };
@@ -343,9 +328,7 @@ const SharedVideoPage = lazy(() => import('../features/subtitler/components/Shar
 const SharedMediaPage = lazy(() => import('../features/shared-media/SharedMediaPage'));
 const SharedChatPage = lazy(() => import('../features/chat/SharedChatPage'));
 const AppsPage = lazy(() => import('../features/apps/AppsPage'));
-const MediaLibraryPage = lazy(() =>
-  import('../features/media-library/MediaLibraryPage').then((m) => ({ default: m.default }))
-);
+const AppDownloadRedirect = lazy(() => import('../features/apps/AppDownloadRedirect'));
 
 // Chat page (uses @gruenerator/chat shared package)
 const ChatPage = lazy(() => import('../features/chat/ChatPage'));
@@ -363,25 +346,35 @@ const MobileRenderPage = lazy(() => import('../pages/MobileRenderPage'));
 const ScannerPage = lazy(() => import('../features/scanner/ScannerPage'));
 const ZeichenzaehlerPage = lazy(() => import('../features/zeichenzaehler/ZeichenzaehlerPage'));
 const UebersetzerPage = lazy(() => import('../features/uebersetzer/UebersetzerPage'));
-const VoicePage = lazy(() => import('../features/voice/VoicePage'));
-const TranskriptionPage = lazy(() => import('../features/transkription/TranskriptionPage'));
+const VertonenPage = lazy(() => import('../features/vertonen/VertonenPage'));
+const VoiceRedirect = lazy(() =>
+  import('../features/vertonen/legacyRedirects').then((m) => ({ default: m.VoiceRedirect }))
+);
+const TranskriptionRedirect = lazy(() =>
+  import('../features/vertonen/legacyRedirects').then((m) => ({ default: m.TranskriptionRedirect }))
+);
 const RecurringTasksPage = lazy(() => import('../features/recurring-tasks/RecurringTasksPage'));
+const RecurringTaskBuilderPage = lazy(
+  () => import('../features/recurring-tasks/RecurringTaskBuilderPage')
+);
 const TrashPage = lazy(() => import('../features/trash/TrashPage'));
-const WorkplacePage = lazy(() => import('../features/workplace/WorkplacePage'));
+// /start shows Arbeiten first (one-page layout) or mounts it on idle (tabs): fetch its
+// chunk alongside the page instead of after it, which cost a full round trip on phones.
+const WorkplacePage = lazy(() => {
+  void import('../features/workplace/tabs/ArbeitenTab');
+  return import('../features/workplace/WorkplacePage');
+});
 const ProjektePage = lazy(() => import('../features/groups/pages/ProjektePage'));
 const OfficeSuiteLandingPage = lazy(() => import('../features/docs/OfficeSuiteLandingPage'));
 // The per-type office overviews are consolidated into the /office hub; keep the
 // old paths as redirects so pinned favourites and search results still resolve.
 const OfficeSuiteRedirect = lazy(() => Promise.resolve({ default: createRedirect('/office') }));
-const CanvasLandingPage = lazy(() => import('../features/image-studio/CanvasLandingPage'));
+const StudioPage = lazy(() => import('../features/studio/StudioPage'));
 const PrintVorlageInstantiatePage = lazy(
   () => import('../features/vorlagen/PrintVorlageInstantiatePage')
 );
 const SharepicVorlageInstantiatePage = lazy(
   () => import('../features/vorlagen/SharepicVorlageInstantiatePage')
-);
-const FreitextSharepicPage = lazy(
-  () => import('../features/image-studio/freitext/FreitextSharepicPage')
 );
 // Legacy /canvas landing now lives at /studio — keep /canvas as a redirect.
 const CanvasToStudioRedirect = lazy(() => Promise.resolve({ default: createRedirect('/studio') }));
@@ -398,10 +391,8 @@ const ToArbeitenTab: FC<Record<string, unknown>> = () =>
     replace: true,
   });
 const ArbeitenRedirect = lazy(() => Promise.resolve({ default: ToArbeitenTab }));
-// The Mediathek lives in the Studio now; its old path and the old image gallery lead there.
-const MediathekRedirect = lazy(() =>
-  Promise.resolve({ default: createRedirect('/studio/mediathek') })
-);
+// The Mediathek is the Studio page now; its old paths keep `?typ=` on the way.
+const MediathekRedirect = lazy(() => Promise.resolve({ default: createRedirect('/studio') }));
 const BoardPage = lazy(() => import('../features/boards/BoardPage'));
 const PublicBoardPage = lazy(() => import('../features/boards/PublicBoardPage'));
 const ExplainablePage = lazy(() => import('../features/explainables/ExplainablePage'));
@@ -452,7 +443,6 @@ export const GrueneratorenBundle = {
   MobileEditor: MobileEditorPage,
   MobileRender: MobileRenderPage,
   Scanner: ScannerPage,
-  Transkription: TranskriptionPage,
 } as const;
 
 // Route Konfigurationen
@@ -500,6 +490,8 @@ const standardRoutes: RouteConfig[] = [
     : []),
   // EXPERIMENTAL — recurring agent tasks management.
   { path: '/wiederkehrend', component: RecurringTasksPage },
+  { path: '/wiederkehrend/neu', component: RecurringTaskBuilderPage },
+  { path: '/wiederkehrend/:id/bearbeiten', component: RecurringTaskBuilderPage },
   { path: '/papierkorb', component: TrashPage },
   // /grueneratoren is the overview of what a person works with (own, shared,
   // starred). /marktplatz is the shop for official, Landesverband and public
@@ -627,19 +619,20 @@ const standardRoutes: RouteConfig[] = [
   { path: '/icon-test', component: IconAnimationTestPage, channel: 'internal' },
   { path: '/kugel-test', component: KugelVoiceTestPage, channel: 'internal' },
   { path: '/labor/bundestag', component: BundestagQaPage, channel: 'internal' },
-  { path: '/voice-agent-test', component: VoiceAgentTestPage, channel: 'internal' },
+  // Admin-only on every instance: the gate sits in the page (RequireAdmin).
+  { path: '/voice-agent-test', component: VoiceAgentTestPage },
   {
     path: '/voice-agent-test/mobil',
     component: MobileVoiceAgentPage,
     layoutMode: 'noChrome',
     channel: 'internal',
   },
-  { accent: 'studio', path: '/vorlagen', component: GrueneratorenBundle.VorlagenListe },
+  { path: '/vorlagen', component: GrueneratorenBundle.VorlagenListe },
   { path: '/vorlagen/meine', component: VorlagenMeineRedirect },
   // Link-shared Vorlage. `public` because the öffentlich mode has to open
   // without an account; the page itself asks for a login when the link is
   // the login-gated kind.
-  { accent: 'studio', path: '/vorlagen/v/:id', component: GeteilteVorlagePage, public: true },
+  { path: '/vorlagen/v/:id', component: GeteilteVorlagePage, public: true },
   {
     path: '/datenbank/vorlagen',
     component: lazy(() => Promise.resolve({ default: createRedirect('/vorlagen') })),
@@ -779,9 +772,10 @@ const standardRoutes: RouteConfig[] = [
   { path: '/scanner', component: GrueneratorenBundle.Scanner },
   { path: '/zeichenzaehler', component: ZeichenzaehlerPage },
   { path: '/uebersetzer', component: UebersetzerPage },
-  { path: '/voice', component: VoicePage },
+  { path: '/vertonen', component: VertonenPage },
+  { path: '/voice', component: VoiceRedirect },
   { path: '/transfer', component: TransferRedirect, channel: 'internal' },
-  { path: '/transkription', component: GrueneratorenBundle.Transkription },
+  { path: '/transkription', component: TranskriptionRedirect },
   {
     path: '/subtitler/share/:shareToken',
     component: SharedVideoPage,
@@ -793,10 +787,11 @@ const standardRoutes: RouteConfig[] = [
   { path: '/e/:token', component: PublicExplainablePage, layoutMode: 'noChrome', public: true },
   { path: '/podcast/:slug', component: PodcastPage },
   // Custom generators are removed — prompts were auto-converted to agents.
-  // Keep old links working: create page → agent creator; generator → its agent.
+  // Keep old links working: create page → recipe creator (new agents are
+  // closed); generator → its agent.
   {
     path: '/gruenerator/erstellen',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/agents/new') })),
+    component: lazy(() => Promise.resolve({ default: createRedirect('/agentura/rezept/neu') })),
   },
   { path: '/gruenerator/:slug', component: LegacyGeneratorSlugRedirect },
   // Redirects for removed pages
@@ -876,6 +871,8 @@ const standardRoutes: RouteConfig[] = [
   { path: '/voice-agent', component: VoiceAgentPage, layoutMode: 'noChrome' },
   // Apps & Connect Page
   { path: '/apps', component: AppsPage },
+  // Public target of the app-download QR codes: phones go to their store, others to /apps.
+  { path: '/app', component: AppDownloadRedirect, public: true, layoutMode: 'noChrome' as const },
   // Media Library Route
   { path: '/media-library', component: MediathekRedirect },
   // Legacy /image-studio/* redirects to /studio/* (dev-only — target is sharepics)
@@ -886,63 +883,41 @@ const standardRoutes: RouteConfig[] = [
     component: ImageStudioCategoryTypeRedirect,
     channel: 'internal',
   },
-  // The Bild-Editor is no page of its own any more: the Studio composer opens it at
-  // /studio/bild (below). The old addresses lead to the Studio.
+  // The Bild-Editor is no page of its own any more. The old addresses lead to the Studio.
   { path: '/bild-editor', component: ImagineRedirect },
   { path: '/imagine', component: ImagineRedirect },
   { path: '/imagine/:type', component: ImagineRedirect },
-  // "/studio": the sharepic/graphics landing page. Its composer hands a written
-  // request to the Sharepic-Creator (/studio/freitext). The literal /studio/*
-  // routes below must stay ahead of /studio/:category, which only redirects
-  // links into the retired template wizard. /canvas redirects here for
-  // back-compat. Creation is a research preview gated in-UI by SHOW_SHAREPIC_STUDIO.
-  { accent: 'studio', path: '/studio', component: CanvasLandingPage, layoutMode: 'sidebarOnly' },
+  // "/studio": the Studio — creation tiles and the Mediathek on one page. The
+  // literal /studio/* routes below must stay ahead of /studio/:category, which
+  // only redirects links into the retired template wizard. /canvas redirects
+  // here for back-compat.
+  { path: '/studio', component: StudioPage, layoutMode: 'sidebarOnly' },
   { path: '/canvas', component: CanvasToStudioRedirect },
-  { accent: 'studio', path: '/studio/bild', component: BildEditorV2Page, layoutMode: 'immersive' },
+  { path: '/studio/bild', component: ToChatRedirect },
   {
-    accent: 'studio',
     path: '/studio/profilbild',
     component: ProfilbildPage,
     layoutMode: 'sidebarOnly',
   },
+  { path: '/studio/erweitern', component: CanvasToStudioRedirect },
+  { path: '/studio/freistellen', component: CanvasToStudioRedirect },
+  { path: '/studio/mediathek', component: MediathekRedirect },
   {
-    accent: 'studio',
-    path: '/studio/erweitern',
-    component: BildErweiternPage,
-    layoutMode: 'sidebarOnly',
-  },
-  {
-    accent: 'studio',
-    path: '/studio/freistellen',
-    component: FreistellenPage,
-    layoutMode: 'sidebarOnly',
-  },
-  {
-    accent: 'studio',
-    path: '/studio/mediathek',
-    component: MediaLibraryPage,
-    layoutMode: 'sidebarOnly',
-  },
-  {
-    accent: 'studio',
     path: '/studio/sticker',
     component: StudioAssetsPage,
     layoutMode: 'sidebarOnly',
   },
   {
-    accent: 'studio',
     path: '/studio/sticker/entdecken',
     component: StickerDiscoverRedirect,
     layoutMode: 'sidebarOnly',
   },
   {
-    accent: 'studio',
     path: '/studio/sticker/neu',
     component: StickerCreatorPage,
     layoutMode: 'sidebarOnly',
   },
   {
-    accent: 'studio',
     path: '/studio/sticker/gestalten',
     component: StickerCanvasPage,
     layoutMode: 'immersive',
@@ -951,29 +926,27 @@ const standardRoutes: RouteConfig[] = [
   { path: '/studio/ki', component: ImageStudioKiRedirect },
   { path: '/studio/ki/:type', component: ImageStudioKiTypeRedirect },
   { path: '/studio/video', component: GrueneratorenBundle.Reel },
+  // One start page for Untertitel, KI-Schnitt and the Video Editor.
+  { path: '/video', component: VideoStartPage },
   {
-    accent: 'studio',
     path: '/studio/videoeditor',
     component: VideoEditorPage,
     layoutMode: 'immersive',
   },
   {
-    accent: 'studio',
     path: '/studio/videoeditor/:slug',
     component: VideoEditorPage,
     layoutMode: 'immersive',
   },
   // KI-Schnitt: before /studio/:category, like every literal studio path.
-  { accent: 'studio', path: '/studio/ki-schnitt', component: KiSchnittNewPage },
-  { accent: 'studio', path: '/studio/ki-schnitt/:slug', component: KiSchnittProjectPage },
+  { path: '/studio/ki-schnitt', component: KiSchnittNewPage },
+  { path: '/studio/ki-schnitt/:slug', component: KiSchnittProjectPage },
   {
-    accent: 'studio',
     path: '/parteitage',
     component: ParteitageListPage,
     layoutMode: 'default',
   },
   {
-    accent: 'studio',
     path: '/parteitage/:slug',
     component: ParteitagPage,
     layoutMode: 'default',
@@ -983,22 +956,15 @@ const standardRoutes: RouteConfig[] = [
   // "canvas" segment matches first instead of being interpreted as a category.
   {
     path: '/studio/canvas/:id',
-    accent: 'studio',
     component: CollabCanvasStudioPage,
     layoutMode: 'immersive',
     fallback: createElement(CanvasEditorRouteSkeleton),
   },
-  // Experimental free-text creator — literal path, before /studio/:category.
-  {
-    accent: 'studio',
-    path: '/studio/freitext',
-    component: FreitextSharepicPage,
-    layoutMode: 'immersive',
-  },
+  // The former free-text creator — literal path, before /studio/:category.
+  { path: '/studio/freitext', component: ToChatRedirect },
   // Copies a Grünerator-Vorlage into a new canvas — also opened by the mobile web viewer.
   {
     path: '/studio/vorlage/:id',
-    accent: 'studio',
     component: SharepicVorlageInstantiatePage,
     layoutMode: 'immersive',
     fallback: createElement(CanvasEditorRouteSkeleton),
@@ -1006,7 +972,6 @@ const standardRoutes: RouteConfig[] = [
   // Copies a print Vorlage into a new canvas — the collection launchpad links here.
   {
     path: '/studio/druck/:id',
-    accent: 'studio',
     component: PrintVorlageInstantiatePage,
     layoutMode: 'immersive',
     fallback: createElement(CanvasEditorRouteSkeleton),

@@ -514,7 +514,7 @@ async function runScopedLandesverband(
             runUrl,
             dryRun: opts.dryRun,
           });
-          log.info(sent ? `LV email sent to ${emailTo}` : 'LV email skipped (SMTP not configured)');
+          log.info(sent ? 'LV email sent' : 'LV email skipped (SMTP not configured)');
         } catch (emailErr) {
           log.warn(`LV email send failed (non-fatal): ${toError(emailErr).message}`);
         }

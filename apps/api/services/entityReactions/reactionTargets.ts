@@ -1,9 +1,8 @@
 /**
  * Wer auf welche Entität reagieren darf — eine Prüfung je `ReactionEntityType`.
  *
- * - `group_share` / `group_comment`: Mitglied der Gruppe (`findViewer` aus dem
- *   Gruppen-Feed); in Projekten (`group_type='personal'`) gibt es wie beim
- *   Kommentieren keine Reaktionen.
+ * - `group_share` / `group_comment`: Mitglied des Projekts (`findViewer` aus dem
+ *   Feed), unabhängig vom Projekttyp.
  * - `marketplace_item`: wer den Beitrag sehen darf (`commentTargets[itemType]`);
  *   das alte `agent` ist der Beitrag `('agent', id)`.
  * - `entity_comment` (und die alten `agent_comment` / `template_comment`, deren
@@ -62,7 +61,7 @@ async function checkGroupMember(
 ): Promise<ReactionAccess> {
   if (!groupId) return 'not_found';
   const viewer = await findViewer(deps.postgres, groupId, userId, deps.isInstanceAdmin);
-  if (!viewer || viewer.isPersonal) return 'forbidden';
+  if (!viewer) return 'forbidden';
   return 'ok';
 }
 

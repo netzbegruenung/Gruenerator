@@ -37,6 +37,14 @@ export const startPageSchema = z.enum(['chat', 'arbeiten']);
 export type StartPage = z.infer<typeof startPageSchema>;
 
 /**
+ * How `/start` is laid out: `combined` (default) puts the chat composer on top of
+ * Arbeiten in one page, `tabs` keeps Chat and Arbeiten as two views with tabs on top.
+ * F0: stored in the database; new values only additively.
+ */
+export const startLayoutSchema = z.enum(['tabs', 'combined']);
+export type StartLayout = z.infer<typeof startLayoutSchema>;
+
+/**
  * Closed set of feedback-launcher appearances — how the floating feedback
  * button renders, or whether it renders at all.
  *   'text' → pill with the label „Feedback" (default)
@@ -71,6 +79,7 @@ export const profileUpdateBodySchema = z.object({
   email: z.string().optional(),
   custom_prompt: z.string().optional(),
   default_startpage: startPageSchema.optional(),
+  start_layout: startLayoutSchema.optional(),
   feedback_button: feedbackButtonSchema.optional(),
   reduce_motion: z.boolean().optional(),
   reduce_transparency: z.boolean().optional(),
@@ -81,6 +90,8 @@ export const profileUpdateBodySchema = z.object({
   memory_enabled: z.boolean().optional(),
   /** The Tagesbriefing switch (profiles.proactive_briefing_enabled). */
   proactive_briefing_enabled: z.boolean().optional(),
+  /** The experimental „Geplante Aufgaben" switch (profiles.scheduled_tasks_enabled). */
+  scheduled_tasks_enabled: z.boolean().optional(),
   /**
    * Ausdrückliche Einwilligung nach Art. 9 Abs. 2 lit. a DSGVO. Der Client
    * schreibt nur „erteilt/widerrufen" — den Zeitstempel setzt der Server, damit
@@ -202,6 +213,7 @@ export const userProfileSchema = z.object({
   locale: localeSchema.optional(),
   // Default mirrors the `additionalFields` config in apps/api/config/betterAuth.ts.
   default_startpage: startPageSchema.default('chat'),
+  start_layout: startLayoutSchema.default('combined'),
   feedback_button: feedbackButtonSchema.default('text'),
   reduce_motion: z.boolean().default(false),
   reduce_transparency: z.boolean().default(false),
@@ -241,6 +253,7 @@ export const userProfileSchema = z.object({
   bundestag_api_enabled: z.boolean().optional(),
   memory_enabled: z.boolean().optional(),
   proactive_briefing_enabled: z.boolean().optional(),
+  scheduled_tasks_enabled: z.boolean().optional(),
   /**
    * „Panda" lane unlock, written only by an instance admin; null = instance
    * default. Deliberately absent from `profileUpdateBodySchema`.

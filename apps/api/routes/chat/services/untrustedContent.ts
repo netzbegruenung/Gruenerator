@@ -28,6 +28,8 @@ export type UntrustedKind =
   | 'nutzer_anweisung'
   /** Anweisungen der Projekt-Admins (group_instructions) — Text Dritter. */
   | 'projekt_anweisung'
+  /** Titel der ins Projekt geteilten Dokumente — von Mitgliedern gesetzt. */
+  | 'projekt_dokumente'
   | 'gedaechtnis'
   | 'agenten_prompt';
 

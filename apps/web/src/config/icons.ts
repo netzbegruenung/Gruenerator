@@ -1,5 +1,6 @@
 import GrueneratorGPTIcon from '../components/common/GrueneratorGPTIcon';
 import GrueneratorHomeIcon from '../components/icons/GrueneratorHomeIcon';
+import WorkplaceIcon from '../components/icons/WorkplaceIcon';
 
 import type { ComponentType } from 'react';
 import type { IconBaseProps } from 'react-icons';
@@ -30,6 +31,7 @@ import {
   HiMicrophone,
   HiClipboardCheck,
   HiUserGroup,
+  LuFolderCog,
   HiPencilAlt,
   HiClipboardList,
   HiQuestionMarkCircle,
@@ -69,7 +71,6 @@ import {
   PiSquaresFour,
   PiScan,
   PiUserCircle,
-  PiArrowsOut,
   PiScissors,
   PiSpeakerHigh,
   PiSticker,
@@ -144,7 +145,6 @@ export type NavigationIconName =
   | 'barrierefreiheit'
   | 'imagine'
   | 'profilbild'
-  | 'bild-erweitern'
   | 'freisteller'
   | 'mediathek'
   | 'sticker'
@@ -152,6 +152,7 @@ export type NavigationIconName =
   | 'texte'
   | 'eigene'
   | 'home'
+  | 'workplace'
   | 'scanner'
   | 'reisekosten'
   | 'messenger'
@@ -275,7 +276,6 @@ export const ICONS: IconRegistry = {
     barrierefreiheit: IoAccessibilityOutline,
     imagine: RiMagicLine,
     profilbild: PiUserCircle,
-    'bild-erweitern': PiArrowsOut,
     freisteller: PiScissors,
     mediathek: PiImages,
     sticker: PiSticker,
@@ -283,6 +283,7 @@ export const ICONS: IconRegistry = {
     texte: PiArticle,
     eigene: PiWrench,
     home: GrueneratorHomeIcon,
+    workplace: WorkplaceIcon,
     scanner: PiScan,
     reisekosten: PiReceipt,
     messenger: PiChatCircle,
@@ -290,7 +291,7 @@ export const ICONS: IconRegistry = {
     boards: PiSquaresFour,
     sheets: PiTable,
     presentations: PiPresentation,
-    projekte: HiUserGroup,
+    projekte: LuFolderCog,
     notebooks: FaBook,
     research: PiBrain,
     desk: PiDesktop,

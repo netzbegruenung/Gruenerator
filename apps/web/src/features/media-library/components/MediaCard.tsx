@@ -1,6 +1,5 @@
 import { MediaPreview } from '@gruenerator/shared/media-library/ui';
 import {
-  Badge,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -13,7 +12,7 @@ import { memo, type JSX } from 'react';
 
 import { galleryCard, overlayAction, overlayRow } from '../../../components/common/Gallery/parts';
 import { useSharedMediaUrlOptions } from '../../../components/common/SharedMediaImage';
-import { formatFileSize, formatMediaDate, mediaKindLabel, mediaTitle } from '../mediaFormat';
+import { formatMediaDate, mediaKindLabel, mediaTitle } from '../mediaFormat';
 
 import type { MediaItem } from '@gruenerator/shared/media-library';
 
@@ -98,20 +97,16 @@ export const MediaCard = memo(function MediaCard({
         </div>
       </div>
 
-      <div className="flex flex-col gap-2.5 px-4 pt-3.5 pb-4">
+      <div className="flex flex-col gap-1 px-4 pt-3.5 pb-4">
         <h3
           className="truncate text-[0.9375rem] font-semibold text-foreground-heading"
           title={title}
         >
           {title}
         </h3>
-        <div className="flex items-center gap-2 text-sm text-grey-600 dark:text-grey-400">
-          <Badge variant="outline">{mediaKindLabel(item)}</Badge>
-          <span className="truncate">{formatMediaDate(item.createdAt)}</span>
-          <span className="ml-auto whitespace-nowrap max-sm:hidden">
-            {formatFileSize(item.fileSize)}
-          </span>
-        </div>
+        <p className="m-0 truncate text-sm text-grey-600 dark:text-grey-400">
+          {mediaKindLabel(item)} · {formatMediaDate(item.createdAt)}
+        </p>
       </div>
     </InteractiveCard>
   );

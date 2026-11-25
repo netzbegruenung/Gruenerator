@@ -6,6 +6,7 @@ import { denyUpgrade, resolveUpgradeAuth } from '../../middleware/resolveUpgrade
 import { recordOperation } from '../../services/usage/UsageTrackingService.js';
 import { createLogger } from '../../utils/logger.js';
 
+import { handleFluidSession } from './fluidSession.js';
 import { handleTurnSession } from './voxtralTurnSession.js';
 
 import type http from 'http';
@@ -13,6 +14,8 @@ import type http from 'http';
 const log = createLogger('voiceRealtime');
 const MISTRAL_API_KEY = env.MISTRAL_API_KEY;
 const REALTIME_MODEL = 'voxtral-mini-transcribe-realtime-3';
+/** KugelAudio Fluid 1 for `/voice-agent-test` (admins only, checked in the session). */
+const FLUID_PATH = '/api/voice/fluid';
 
 const AUDIO_FORMAT = {
   encoding: AudioEncoding.PcmS16le,
@@ -24,7 +27,7 @@ export function attachRealtimeWebSocket(server: http.Server): void {
 
   server.on('upgrade', (request, socket, head) => {
     const url = new URL(request.url || '', `http://${request.headers.host}`);
-    if (url.pathname !== '/api/voice/realtime') return;
+    if (url.pathname !== '/api/voice/realtime' && url.pathname !== FLUID_PATH) return;
 
     // Solange der Socket noch uns gehört, braucht er einen eigenen
     // `error`-Listener: ein roher Socket ohne Listener wirft bei einem
@@ -62,6 +65,10 @@ export function attachRealtimeWebSocket(server: http.Server): void {
   wss.on('connection', (ws: WsWebSocket, request: http.IncomingMessage, userId: string) => {
     log.debug('[Realtime] Client verbunden user=%s', userId);
     const url = new URL(request.url || '', `http://${request.headers.host}`);
+    if (url.pathname === FLUID_PATH) {
+      void handleFluidSession(ws, userId);
+      return;
+    }
     if (url.searchParams.get('turns') === 'server') {
       handleTurnSession(ws, userId);
       return;

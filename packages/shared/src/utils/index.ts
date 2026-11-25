@@ -67,7 +67,7 @@ export {
 } from './cloudShareLink.js';
 
 // Usage-based ranking (favourites-first ordering for notebooks & agents)
-export { compareUsageStats, sortByUsage } from './usageRanking.js';
+export { compareUsageStats, rankByUsage, sortByUsage } from './usageRanking.js';
 export type { UsageStat, UsageMap } from './usageRanking.js';
 
 // MCP connector brand colours (shared by settings + chat mention picker)
@@ -147,8 +147,11 @@ export { CONTENT_REPORT_REASON_LABELS, CONTENT_REPORT_REASONS } from './contentR
 // Board-Karten: Erledigt-Spalte und Zuständigkeit (Web-Board und Tagesbriefing)
 export {
   BOARD_STATUS_FIELD_ID,
+  applyBoardAssigneeChange,
   boardAssigneeUserIds,
   boardStatusOptions,
   getBoardDoneStatusId,
+  parseBoardAssignees,
+  serializeBoardAssignees,
 } from './boardCards.js';
-export type { BoardStatusOption } from './boardCards.js';
+export type { BoardAssignee, BoardAssigneeChange, BoardStatusOption } from './boardCards.js';

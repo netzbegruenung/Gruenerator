@@ -161,48 +161,22 @@ describe('agentSource.list', () => {
     for (const a of deOnly) expect(official.map((i) => i.ref)).not.toContain(a.identifier);
   });
 
-  it('shows no Landesverband without the role, and only the own one with it', async () => {
+  it('lists no Landesverband agents — their recipes stand in front', async () => {
+    // Every LV agent owns a full recipe since 11/2026 (`recipeSource` lists
+    // them with the same role and `lv` gating); the agents stay resolvable.
     const without = await agentSource.list(ctx(), query({ origin: 'landesverband' }));
     expect(without.items).toEqual([]);
-
     m.loadUserRoles.mockResolvedValue([HESSEN_ROLE]);
-    const withRole = await agentSource.list(ctx(), query({ origin: 'landesverband' }));
-    expect(withRole.items.length).toBeGreaterThan(0);
-    expect(withRole.items.every((i) => lvIdForAgentIdentifier(i.ref) === 'hessen')).toBe(true);
-  });
-
-  it('lists one requested Landesverband, with or without its role', async () => {
-    const berlin = await agentSource.list(
-      ctx({ lvId: 'berlin' }),
-      query({ origin: 'landesverband' })
-    );
-    expect(berlin.items.length).toBeGreaterThan(0);
-    expect(berlin.items.every((i) => lvIdForAgentIdentifier(i.ref) === 'berlin')).toBe(true);
-
-    // The role of another Landesverband does not widen the page.
-    m.loadUserRoles.mockResolvedValue([HESSEN_ROLE]);
-    const stillBerlin = await agentSource.list(
-      ctx({ lvId: 'berlin' }),
-      query({ origin: 'landesverband' })
-    );
-    expect(stillBerlin.items.map((i) => i.ref)).toEqual(berlin.items.map((i) => i.ref));
+    expect(await refs(ctx(), query({ origin: 'landesverband' }))).toEqual([]);
+    expect(await refs(ctx({ lvId: 'berlin' }), query({ origin: 'landesverband' }))).toEqual([]);
+    const all = await refs(ctx({ lvId: 'berlin' }), query());
+    expect(all.some((ref) => lvIdForAgentIdentifier(ref) !== null)).toBe(false);
   });
 
   it('does not load the roles when a Landesverband is asked for by `lv`', async () => {
     m.loadUserRoles.mockClear();
     await agentSource.list(ctx({ lvId: 'berlin' }), query({ origin: 'landesverband' }));
     expect(m.loadUserRoles).not.toHaveBeenCalled();
-  });
-
-  it('lists nothing for an unknown, switched-off or foreign-country Landesverband', async () => {
-    m.loadUserRoles.mockResolvedValue([HESSEN_ROLE]);
-    const lvRefs = (c: ReturnType<typeof ctx>) => refs(c, query({ origin: 'landesverband' }));
-    expect(await lvRefs(ctx({ lvId: 'atlantis' }))).toEqual([]);
-    // Hamburg switched its notebook off (`enabled: false`).
-    expect(await lvRefs(ctx({ lvId: 'hamburg' }))).toEqual([]);
-    expect(await lvRefs(ctx({ lvId: 'oesterreich' }))).toEqual([]);
-    expect(await lvRefs(ctx({ locale: 'de-AT', lvId: 'berlin' }))).toEqual([]);
-    expect((await lvRefs(ctx({ locale: 'de-AT', lvId: 'oesterreich' }))).length).toBeGreaterThan(0);
   });
 
   it('drops an agent an admin hid', async () => {

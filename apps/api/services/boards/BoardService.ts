@@ -1,6 +1,7 @@
 import { promisify } from 'util';
 import { gunzip, gzip } from 'zlib';
 
+import { serializeBoardAssignees } from '@gruenerator/shared/utils';
 import * as Y from 'yjs';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
@@ -194,7 +195,15 @@ export interface BoardListItem {
  * `listBoards` contract handler; `content` carries the denormalized preview for
  * an optional snippet.
  */
-export async function listUserBoards(userId: string, limit: number): Promise<BoardListItem[]> {
+/**
+ * Die Boards, die die Person sehen darf, zuletzt bearbeitete zuerst. Mit
+ * `groupId` nur die, die in dieses Projekt geteilt sind (Projekt-Chat).
+ */
+export async function listUserBoards(
+  userId: string,
+  limit: number,
+  groupId: string | null = null
+): Promise<BoardListItem[]> {
   const db = getPostgresInstance();
   const result = await db.query(
     `SELECT cd.id, cd.title, cd.updated_at, cd.content
@@ -212,9 +221,16 @@ export async function listUserBoards(userId: string, limit: number): Promise<Boa
            WHERE gcs.content_type = 'collaborative_documents'
          )
        )
+       AND (
+         $4::uuid IS NULL
+         OR cd.id::text IN (
+           SELECT pgcs.content_id FROM group_content_shares pgcs
+           WHERE pgcs.group_id = $4::uuid AND pgcs.content_type = 'collaborative_documents'
+         )
+       )
      ORDER BY cd.updated_at DESC
      LIMIT $3`,
-    [BOARDS_SUBTYPE, userId, limit]
+    [BOARDS_SUBTYPE, userId, limit, groupId]
   );
   return result as unknown as BoardListItem[];
 }
@@ -598,6 +614,38 @@ export async function createBoardDocument(
 }
 
 /**
+ * Die Spalten-Id zu einem Status, genannt per Id oder Name. Das Web sortiert
+ * Karten über die Id ein (`applyGroups`); ein roher Name landet in „Ohne Status".
+ */
+export function resolveStatusId(fields: FieldDef[], status: string): string | null {
+  const statusField = fields.find((f) => f.id === FIELD_IDS.STATUS);
+  const options = Array.isArray(statusField?.typeOptions?.options)
+    ? (statusField.typeOptions.options as Array<{ id: string; name: string }>)
+    : [];
+  const byId = options.find((o) => o.id === status);
+  if (byId) return byId.id;
+  const byName = options.find((o) => o.name.toLowerCase() === status.trim().toLowerCase());
+  return byName?.id ?? null;
+}
+
+/**
+ * Zellenwert für `row.assignee`: eine aufgelöste Person (`{ id, name }`, so legt
+ * der Chat seit 11/2026 Karten an) als JSON-Array wie im Web, sonst der Text wie
+ * bisher (Board-Generierung, MCP).
+ */
+function assigneeCell(value: unknown): string {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const a = value as Record<string, unknown>;
+    if (typeof a.id === 'string' && a.id && typeof a.name === 'string') {
+      const avatar = typeof a.avatarRobotId === 'number' ? a.avatarRobotId : 1;
+      return serializeBoardAssignees([{ id: a.id, name: a.name, avatarRobotId: avatar }]);
+    }
+    return '';
+  }
+  return typeof value === 'string' ? value : '';
+}
+
+/**
  * Add rows to an existing board by loading the Yjs document,
  * appending rows to the 'rows' array, and persisting the update.
  */
@@ -618,6 +666,7 @@ export async function addRowsToBoard(
   }
 
   const yRows = doc.getArray('rows');
+  const fields = doc.getArray('fields').toJSON() as FieldDef[];
   const now = new Date().toISOString();
 
   doc.transact(() => {
@@ -632,11 +681,13 @@ export async function addRowsToBoard(
 
       const cells = new Y.Map();
       cells.set(FIELD_IDS.TITLE, String(row.title || ''));
-      cells.set(FIELD_IDS.STATUS, String(row.status || ''));
+      // Ein Spaltenname (Chat, MCP) wird zur Id; Unbekanntes bleibt wie bisher stehen.
+      const status = String(row.status || '');
+      cells.set(FIELD_IDS.STATUS, status ? (resolveStatusId(fields, status) ?? status) : '');
       cells.set(FIELD_IDS.DESCRIPTION, String(row.description || ''));
       cells.set(FIELD_IDS.DUE_DATE, row.dueDate ? String(row.dueDate) : null);
       cells.set(FIELD_IDS.LABELS, []);
-      cells.set(FIELD_IDS.ASSIGNEE, String(row.assignee || ''));
+      cells.set(FIELD_IDS.ASSIGNEE, assigneeCell(row.assignee));
       cells.set(FIELD_IDS.LINKED_DOCS, '[]');
       newRow.set('cells', cells);
 

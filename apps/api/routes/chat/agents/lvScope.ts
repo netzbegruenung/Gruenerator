@@ -20,7 +20,13 @@
  * an LV notebook still grounds in the right LV.
  */
 
-import { type LvEbene, lvEbeneForSkillMention } from '@gruenerator/shared/agents';
+import {
+  LANDESVERBAENDE,
+  type LvEbene,
+  lvEbeneForSkillMention,
+  lvIdForAgentIdentifier,
+  resolveSkillMention,
+} from '@gruenerator/shared/agents';
 
 import { COLLECTION_MAP } from '../../../config/collectionMap.js';
 import { getCollectionDefaultFilter } from '../../../config/systemCollectionsConfig.js';
@@ -76,6 +82,26 @@ export function resolveExamplesLvScope(
     ? scope.notebookCollectionIds
     : scope?.defaultNotebookCollectionIds;
   return deriveLvFromCollections(collections);
+}
+
+/**
+ * Der LV-Ausschnitt, den die aktiven Rezepte mitbringen: ein LV-Rezept
+ * (`presse-berlin-partei`, `wahlpruefstein-nrw`) gehört einem LV-Agenten, und
+ * dessen Landesverband ist der Ausschnitt. Für ein Rezept, das erst mitten im
+ * Loop über `rezept_laden` dazukommt — dann hat weder der Agent noch ein
+ * Notebook den Landesverband gesetzt. Österreich führt keine
+ * `landesverband`-Codes und bleibt draußen.
+ */
+export function lvScopeForRecipeMentions(
+  mentions: readonly (string | null | undefined)[]
+): string | readonly string[] | undefined {
+  for (const mention of mentions) {
+    const owner = mention ? resolveSkillMention(mention) : null;
+    const lvId = owner ? lvIdForAgentIdentifier(owner) : null;
+    const lv = lvId ? LANDESVERBAENDE.find((entry) => entry.id === lvId) : undefined;
+    if (lv && lv.audience === 'de-DE') return lv.codes;
+  }
+  return undefined;
 }
 
 /** Fraktions-PMs liegen im Korpus unter dem LV-Code mit `-F`-Suffix. */

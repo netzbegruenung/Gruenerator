@@ -94,6 +94,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     canva_connection JSONB DEFAULT NULL,
     document_mode TEXT DEFAULT 'manual',
     default_startpage TEXT NOT NULL DEFAULT 'chat' CHECK (default_startpage IN ('chat', 'arbeiten')),
+    start_layout TEXT NOT NULL DEFAULT 'combined' CHECK (start_layout IN ('tabs', 'combined')),
     tts_voice_id TEXT,
     user_defaults JSONB DEFAULT '{}',
     docs BOOLEAN DEFAULT FALSE,
@@ -101,6 +102,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     bundestag_api_enabled BOOLEAN DEFAULT FALSE,
     memory_enabled BOOLEAN DEFAULT TRUE,
     proactive_briefing_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    scheduled_tasks_enabled BOOLEAN NOT NULL DEFAULT FALSE,
     panda_enabled BOOLEAN,
     feedback_button TEXT NOT NULL DEFAULT 'text' CHECK (feedback_button IN ('text', 'icon', 'off')),
     reduce_motion BOOLEAN NOT NULL DEFAULT FALSE,
@@ -116,6 +118,7 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS boards BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS bundestag_api_enabled BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS memory_enabled BOOLEAN DEFAULT TRUE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS proactive_briefing_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS scheduled_tasks_enabled BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS panda_enabled BOOLEAN;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS feedback_button TEXT NOT NULL DEFAULT 'text' CHECK (feedback_button IN ('text', 'icon', 'off'));
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS reduce_motion BOOLEAN NOT NULL DEFAULT FALSE;
@@ -229,7 +232,9 @@ CREATE TABLE IF NOT EXISTS groups (
     avatar_url TEXT,
     links JSONB DEFAULT '[]',
     slug_suffix TEXT,
-    is_system BOOLEAN NOT NULL DEFAULT FALSE
+    is_system BOOLEAN NOT NULL DEFAULT FALSE,
+    archived_at TIMESTAMPTZ,
+    color TEXT
 );
 
 -- Stable 6-char tail for Notion-style group URLs (`/gruppen/<name>-<suffix>`).
@@ -293,12 +298,34 @@ CREATE TABLE IF NOT EXISTS group_post_files (
     position SMALLINT NOT NULL DEFAULT 0
 );
 
+-- Synchronisierte Ablagen als Projektwissen (#5945, experimentell); Kommentar in der Migration.
+CREATE TABLE IF NOT EXISTS group_cloud_sources (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    provider TEXT NOT NULL CHECK (provider IN ('wolke', 'google-drive')),
+    share_link_id TEXT NOT NULL DEFAULT '',
+    folder_path TEXT NOT NULL DEFAULT '',
+    name TEXT NOT NULL,
+    include_subfolders BOOLEAN NOT NULL DEFAULT TRUE,
+    picked_files JSONB NOT NULL DEFAULT '[]'::jsonb,
+    synced_files JSONB NOT NULL DEFAULT '{}'::jsonb,
+    file_count INTEGER NOT NULL DEFAULT 0,
+    pending_count INTEGER NOT NULL DEFAULT 0,
+    last_synced_at TIMESTAMPTZ,
+    last_error TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (group_id, user_id, provider, share_link_id, folder_path)
+);
+
 CREATE TABLE IF NOT EXISTS group_instructions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
     custom_prompt TEXT DEFAULT '',
     instructions_enabled BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
+    welcome_message TEXT DEFAULT '',
+    start_questions JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(group_id)
@@ -434,6 +461,14 @@ CREATE TABLE IF NOT EXISTS collaborative_documents_init (
     init_data BYTEA,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY(document_id)
+);
+
+CREATE TABLE IF NOT EXISTS collab_search_index (
+    document_id UUID PRIMARY KEY REFERENCES collaborative_documents(id) ON DELETE CASCADE,
+    content_hash TEXT NOT NULL,
+    chunk_count INTEGER NOT NULL DEFAULT 0,
+    checked_at TIMESTAMPTZ NOT NULL,
+    indexed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS collaborative_document_folders (
@@ -885,6 +920,7 @@ CREATE INDEX IF NOT EXISTS idx_group_share_comments_parent ON group_share_commen
 CREATE INDEX IF NOT EXISTS idx_group_posts_group ON group_posts(group_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_group_post_files_post ON group_post_files(post_id, position);
 CREATE INDEX IF NOT EXISTS idx_group_instructions_group_id ON group_instructions(group_id);
+CREATE INDEX IF NOT EXISTS idx_group_cloud_sources_group ON group_cloud_sources(group_id);
 CREATE INDEX IF NOT EXISTS idx_group_instructions_is_active ON group_instructions(is_active);
 CREATE INDEX IF NOT EXISTS idx_group_instructions_group_active ON group_instructions(group_id, is_active);
 

@@ -64,7 +64,30 @@ export function NavigateToChatOnSend() {
   return null;
 }
 
-const ChatInnerReady: React.FC = () => {
+// Eine Projektseite kann lange offen stehen, bevor jemand schreibt.
+const PROJECT_PICK_TTL_MS = 60 * 60_000;
+
+interface ChatInnerProps {
+  /** TRIAL: fill the parent instead of the 720 px chat column (Arbeiten hero). */
+  wide?: boolean;
+  /** 'pill' (default): one slim row. 'card': text field above its toolbar, the
+   * two-line composer of the chat page (phones, where the row gets cramped). */
+  variant?: 'card' | 'pill';
+  /**
+   * Projekt-Übersicht: der neue Chat entsteht in diesem Projekt (`pendingGroup`).
+   * Fehlt = Start-Composer ohne Projekt.
+   */
+  projectId?: string;
+  /** Der Chat wird mit dem Team geteilt (nur mit `projectId`). */
+  teamShared?: boolean;
+}
+
+const ChatInnerReady: React.FC<ChatInnerProps> = ({
+  projectId,
+  teamShared = false,
+  wide = false,
+  variant = 'pill',
+}) => {
   const navigate = useNavigate();
   const location = useLocation();
   const firstName = useFirstName();
@@ -100,12 +123,39 @@ const ChatInnerReady: React.FC = () => {
     void aui.threads.switchToNewThread();
   }, [aui, onChat]);
 
+  // Projekt vorwählen, und beim Verlassen ohne Senden wieder abräumen: sonst
+  // stünde das Projekt im nächsten Start-Composer noch gewählt. Nach dem Senden
+  // ist der Thread nicht mehr leer, und die Thread-Anlage hat die Wahl schon
+  // verbraucht (`GrueneratorThreadListAdapter`).
+  const threadEmptyRef = useRef(true);
+  threadEmptyRef.current = useAuiState((s) => s.optional.thread?.isEmpty ?? true);
+  useEffect(() => {
+    if (!projectId) return;
+    useAgentStore.getState().setPendingGroup(projectId, teamShared, PROJECT_PICK_TTL_MS);
+  }, [projectId, teamShared]);
+  useEffect(() => {
+    if (!projectId) return;
+    return () => {
+      const store = useAgentStore.getState();
+      if (threadEmptyRef.current && store.pendingGroup?.id === projectId) {
+        store.setPendingGroup(null);
+      }
+    };
+  }, [projectId]);
+
   if (!threadAvailable) return null;
 
   return (
     <ThreadPrimitive.Root
       className={cn(
-        'w-full shrink-0 mx-auto max-w-[720px]',
+        // Auf der Projektseite bündig mit Kopf, Tabs und Chat-Liste, auf der Startseite zentriert.
+        // Auf der Projektseite schließt der Composer bündig mit der Spalte ab:
+        // ohne den Fußabstand und den seitlichen Rand des Chat-Bildschirms.
+        projectId
+          ? 'w-full shrink-0 [&>div]:pb-0! [&_form.composer-root]:mx-0 [&_form.composer-root]:max-w-none'
+          : wide
+            ? 'w-full shrink-0 [&_form.composer-root]:max-w-none'
+            : 'w-full shrink-0 mx-auto max-w-[720px]',
         '[&>div]:px-0',
         // The hero shows the mode-toggle link instead of the disclaimer.
         '[&>div>p.text-center]:hidden'
@@ -113,7 +163,7 @@ const ChatInnerReady: React.FC = () => {
     >
       <NavigateToChatOnSend />
       <GrueneratorComposer
-        variant="pill"
+        variant={variant}
         onNavigate={handleNavigate}
         firstName={firstName}
         presets={WORKPLACE_PRESETS}
@@ -129,12 +179,17 @@ const ChatInnerReady: React.FC = () => {
 // useAui()/useVoiceState() there crashes with "requires an
 // AuiProvider". Gate on runtime readiness (same guard as ChatPage/SearchPage)
 // and reserve the composer's footprint so the hero doesn't jump.
-const ChatInner: React.FC = memo(() => {
+const ChatInner: React.FC<ChatInnerProps> = memo((props) => {
   const runtimeReady = useChatRuntimeReady();
   if (!runtimeReady) {
-    return <div className="w-full shrink-0 mx-auto max-w-[720px] min-h-24" aria-hidden />;
+    return (
+      <div
+        className={cn('w-full shrink-0 min-h-24', !props.projectId && 'mx-auto max-w-[720px]')}
+        aria-hidden
+      />
+    );
   }
-  return <ChatInnerReady />;
+  return <ChatInnerReady {...props} />;
 });
 
 ChatInner.displayName = 'ChatInner';

@@ -519,8 +519,18 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   let pinnedOwnContentTool: 'notebooks' | 'find_content' | null = null;
   if (intent === 'summary' && !hasMaterialToSummarise && !CURRENT_THREAD_REFERENCE.test(userText)) {
     if (detectedUrls.length === 0 && carriedUrls.length > 0) detectedUrls = carriedUrls;
-    pinnedOwnContentTool = detectedUrls.length === 0 ? ownContentFirstTool(userText) : null;
-    if (pinnedOwnContentTool) {
+    // Im Projekt-Chat sind Dateien und Docs des Projekts das Material („Fasse
+    // das Protokoll zur Plakatierung zusammen"). Live 22.11.2026 ging das ins
+    // Web; der Loop hat im Projekt `read_artifact` und `groups` (search) immer
+    // sichtbar (`catalogAssembly`), die Vorab-Suche liefert die Fundstellen.
+    const inProjectWithMaterial =
+      detectedUrls.length === 0 && (state.project?.documentIds.length ?? 0) > 0;
+    pinnedOwnContentTool =
+      detectedUrls.length === 0 && !inProjectWithMaterial ? ownContentFirstTool(userText) : null;
+    if (inProjectWithMaterial) {
+      log.info('[Classifier] summary in a project chat → loop over the project material');
+      intent = 'agentic';
+    } else if (pinnedOwnContentTool) {
       log.info(`[Classifier] summary of own content → loop with ${pinnedOwnContentTool} pinned`);
       intent = 'agentic';
     } else if (detectedUrls.length > 0) {
@@ -2389,7 +2399,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // Erwähnung tut — nur dass hier der Detektor pinnt. Der Loop-Planer füllt
     // Takt und Zustellung selbst, und das Anlegen ist eine Karte; bis 09/2026
     // schrieb der Intent `create_recurring_task` ohne Bestätigung in die DB.
-    if (looksLikeRecurringOrder(userContent)) {
+    if (state.scheduledTasksEnabled && looksLikeRecurringOrder(userContent)) {
       log.info('[Classifier] Recurring order → loop with recurring_tasks pinned (LLM skipped)');
       recordDecision('classifier.tier', 'tier3.4_recurring_order', {});
       return {
@@ -2537,11 +2547,13 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // to Tier 4 also keeps the router's persistent-action gate in the path: it
     // only ever sees ARTIFACT intents, so an early `produktion` here would quietly
     // retire the gate instead of satisfying it.
+    let generationUndecided = false;
     if (
       GENERATION_SIGNAL.test(userContent) &&
       !isNegatedArtifactRequest(userContent, GENERATION_SIGNAL)
     ) {
       const generation = await resolveGenerationScope({ userContent, conversationContext });
+      generationUndecided = generation === null;
       if (generation !== null) {
         const resolvedIntent =
           generation === 'keine'
@@ -2608,11 +2620,16 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // `keepsSinglePass` is the only place that keeps a turn out. Anything else
     // the table produced (a low-confidence artifact or gated verdict) stands — it found SOMETHING, just not confidently, and the
     // router's licence and negative-action gates are what check it.
-    const residualIntent: SearchIntent = proseGoesToLoop(heuristic.intent)
-      ? 'agentic'
-      : NO_RETRIEVAL_VERDICTS.has(heuristic.intent) && heuristic.intent !== 'greeting'
-        ? 'produktion'
-        : heuristic.intent;
+    // Der Auflöser war gefragt und blieb ohne Urteil (Zeitlimit, Ausfall): dann
+    // entscheidet der Loop, nicht die schwache Regel. Live 22.11.: „… 8 Folien mit
+    // Diagrammen" lief nach 1501 ms Zeitlimit als `chart@0.65` und bekam kein Deck
+    // (#5958); der Loop bietet die Erstell-Werkzeuge an und das Modell wählt.
+    const residualIntent: SearchIntent =
+      proseGoesToLoop(heuristic.intent) || (generationUndecided && isAgenticLoopEnabled())
+        ? 'agentic'
+        : NO_RETRIEVAL_VERDICTS.has(heuristic.intent) && heuristic.intent !== 'greeting'
+          ? 'produktion'
+          : heuristic.intent;
     const classificationTimeMs = Date.now() - startTime;
     log.info(
       `[Classifier] Residual: heuristic ${heuristic.intent}@${effectiveConfidence.toFixed(2)} → ${residualIntent} in ${classificationTimeMs}ms`

@@ -1,8 +1,14 @@
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { createLogger } from '../../utils/logger.js';
+import { getDocumentProcessingService } from '../document-services/DocumentProcessingService/index.js';
+import { getPostgresDocumentService } from '../document-services/PostgresDocumentService/index.js';
+import { purgeDocument } from '../document-services/PostgresDocumentService/metadataOperations.js';
 
 import { assertCanShareToGroup } from './groupMembership.js';
-import { addGroupShare } from './groupShareWriter.js';
+import { addGroupShare, GroupShareForbiddenError } from './groupShareWriter.js';
+import { projectThreadScopeSql, teamChatShareExistsSql } from './projectThreadScope.js';
+
+import type { TextProcessingResult } from '../document-services/DocumentProcessingService/types.js';
 
 const log = createLogger('createInGroup');
 
@@ -87,5 +93,83 @@ export async function shareNewDocumentIntoGroup(
       log.error(`[shareNewDocumentIntoGroup] undo failed for ${documentId}:`, undoError)
     );
     throw error;
+  }
+}
+
+/**
+ * Einen eingefügten Text als Datei ins Projekt legen — der eine Weg für
+ * „Hinzufügen → Text" (`POST /documents/add-text`) und die bestätigte Chat-Karte
+ * (`add_project_text`). Teilrecht vorher prüfen, Text samt Vektoren anlegen,
+ * teilen; scheitert das Teilen, geht das Dokument restlos (Papierkorb, dann
+ * sofort endgültig — die Person hat es nie gesehen).
+ *
+ * @throws GroupShareForbiddenError, wenn die Person im Projekt nichts anlegen darf.
+ */
+export async function addTextToGroup(input: {
+  userId: string;
+  groupId: string;
+  title: string;
+  content: string;
+}): Promise<TextProcessingResult> {
+  const { userId, groupId, title, content } = input;
+  if (!(await mayShareIntoGroup(groupId, userId))) {
+    throw new GroupShareForbiddenError(CREATE_IN_GROUP_FORBIDDEN);
+  }
+  const result = await getDocumentProcessingService().processTextContent(
+    userId,
+    title,
+    content,
+    'manual'
+  );
+  await shareNewDocumentIntoGroup({ userId, groupId, documentId: result.id }, async () => {
+    await getPostgresDocumentService().trashDocuments([result.id], userId);
+    await purgeDocument(getPostgresInstance(), result.id, null);
+  });
+  return result;
+}
+
+/**
+ * Was der Chat in einem Team-Chat eines Projekts erstellt (Dokument, Tabelle,
+ * Präsentation, Board), gehört dem Projekt: es wird mit Schreibrecht geteilt
+ * wie „Neu im Projekt anlegen" (`createInGroup`), im System-Projekt nur lesend.
+ *
+ * Nur im Team-Chat: ein privater Chat im Projekt bleibt privat, sein Ergebnis
+ * auch — sonst öffnete das Teilen etwas, das andere Mitglieder nie sehen
+ * sollten. Ein archiviertes Projekt nimmt nichts Neues an. Scheitert das Teilen
+ * (keine Teilrechte, DB-Fehler), bleibt der Inhalt privat und die Erstellung
+ * gelingt trotzdem: die Person hat ihn bestellt und sieht ihn im Chat.
+ *
+ * @returns die Projekt-Id, wenn geteilt wurde, sonst `null`.
+ */
+export async function shareCreatedIntoTeamChatProject(input: {
+  threadId: string;
+  userId: string;
+  documentId: string;
+}): Promise<string | null> {
+  const { threadId, userId, documentId } = input;
+  try {
+    const row = (await getPostgresInstance().queryOne(
+      `SELECT g.id, g.is_system
+         FROM ${projectThreadScopeSql('$1', '$2')}
+        WHERE ${teamChatShareExistsSql('t', 'g.id')}
+          AND g.archived_at IS NULL`,
+      [threadId, userId]
+    )) as { id: string; is_system: boolean | null } | null;
+    if (!row) return null;
+    await addGroupShare({
+      userId,
+      groupId: row.id,
+      contentType: 'collaborative_documents',
+      contentId: documentId,
+      permissions: { read: true, write: row.is_system !== true },
+      // Die Mitglieder sehen es im Team-Chat entstehen; im Feed steht es trotzdem.
+      notify: false,
+    });
+    return row.id;
+  } catch (error) {
+    log.warn(
+      `[shareCreatedIntoTeamChatProject] ${documentId} stays private: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return null;
   }
 }

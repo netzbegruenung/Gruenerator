@@ -33,6 +33,8 @@ interface AutoSaveParams {
   uploadId: string;
   originalFilename: string;
   segments: SubtitleSegment[];
+  /** Word timings in seconds from the start of the original video. */
+  words?: { word: string; start: number; end: number }[];
   metadata: VideoMetadata;
   fileStats?: FileStats;
   stylePreference?: string;
@@ -134,6 +136,7 @@ async function autoSaveProject(params: AutoSaveParams): Promise<SaveResult & { i
     uploadId,
     originalFilename,
     segments,
+    words,
     metadata,
     fileStats,
     stylePreference,
@@ -176,6 +179,7 @@ async function autoSaveProject(params: AutoSaveParams): Promise<SaveResult & { i
     videoFilename: originalFilename,
     videoSize: fileStats?.size || 0,
     videoSourcePath: originalVideoPath,
+    ...(words != null && words.length > 0 && { words }),
     ...(sourceSystemMediaId != null && { sourceSystemMediaId }),
   });
 

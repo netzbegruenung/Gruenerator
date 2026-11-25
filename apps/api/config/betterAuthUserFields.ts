@@ -37,6 +37,7 @@ export const USER_ADDITIONAL_FIELDS = {
   chat_background: { type: 'string', required: false, input: false },
   document_mode: { type: 'string', required: false, input: false, defaultValue: 'manual' },
   default_startpage: { type: 'string', required: false, input: false, defaultValue: 'chat' },
+  start_layout: { type: 'string', required: false, input: false, defaultValue: 'combined' },
   feedback_button: { type: 'string', required: false, input: false, defaultValue: 'text' },
   reduce_motion: { type: 'boolean', required: false, input: false, defaultValue: false },
   // Kein defaultValue: NULL heißt Standardstimme (DEFAULT_TTS_VOICE_ID), damit
@@ -79,6 +80,12 @@ export const USER_ADDITIONAL_FIELDS = {
   bundestag_api_enabled: { type: 'boolean', required: false, input: false, defaultValue: false },
   memory_enabled: { type: 'boolean', required: false, input: false, defaultValue: true },
   proactive_briefing_enabled: {
+    type: 'boolean',
+    required: false,
+    input: false,
+    defaultValue: false,
+  },
+  scheduled_tasks_enabled: {
     type: 'boolean',
     required: false,
     input: false,

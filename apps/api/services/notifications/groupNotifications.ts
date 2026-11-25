@@ -72,7 +72,7 @@ export async function notifyGroupMembers(params: NotifyGroupParams): Promise<voi
  * them.
  */
 export async function notifyGroupAdmins(params: NotifyGroupParams): Promise<void> {
-  const { groupId, excludeUserId } = params;
+  const { groupId, excludeUserId, skipUserIds = [] } = params;
 
   try {
     const db = getPostgresInstance();
@@ -85,8 +85,8 @@ export async function notifyGroupAdmins(params: NotifyGroupParams): Promise<void
          SELECT created_by AS user_id FROM groups
           WHERE id = $1 AND created_by IS NOT NULL AND deleted_at IS NULL
        ) admins
-       WHERE user_id != $2`,
-      [groupId, excludeUserId]
+       WHERE user_id != $2 AND user_id <> ALL($3::uuid[])`,
+      [groupId, excludeUserId, skipUserIds]
     )) as Array<{ user_id: string }>;
 
     if (!admins || admins.length === 0) return;
@@ -153,7 +153,7 @@ async function deliver(
   params: NotifyGroupParams
 ): Promise<void> {
   const { groupId, type, title, body, actionUrl, metadata } = params;
-  const groupName = group?.name || 'Gruppe';
+  const groupName = group?.name || 'Projekt';
   // In the system group notifications stay in-app — no mass email to every user.
   const channelOverride = group?.is_system ? { email: false } : undefined;
   for (let i = 0; i < userIds.length; i += DELIVER_CHUNK) {

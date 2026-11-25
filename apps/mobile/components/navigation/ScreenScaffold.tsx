@@ -1,6 +1,6 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { type ReactElement, type ReactNode } from 'react';
+import { type ReactElement, type ReactNode, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -63,6 +63,12 @@ export function ScreenScaffold({
   // iPad with the title marooned between them, reading as three unrelated
   // controls rather than as one bar.
   const headerColumn = useContentColumn('grid');
+  // Breite der rechten Bedienelemente, gemessen. Beide Seiten bekommen sie als
+  // Mindestbreite: der Titel bleibt mittig und kürzt sich, statt unter die
+  // Knöpfe zu laufen (Projektseite 22.11.2026: „Live-Test OV Mus…“ unter
+  // „+“ und Personen-Knopf). `minWidth: 40` allein deckte nur EINEN Knopf.
+  const [sideWidth, setSideWidth] = useState(0);
+  const sideStyle = sideWidth > 0 ? { minWidth: Math.max(40, sideWidth) } : null;
 
   const body = (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -78,7 +84,7 @@ export function ScreenScaffold({
       />
       {backdrop}
       <View style={[headerColumn, styles.header]}>
-        <View style={styles.headerSide}>
+        <View style={[styles.headerSide, sideStyle]}>
           {onBack ? (
             <Pressable
               onPress={onBack}
@@ -100,7 +106,16 @@ export function ScreenScaffold({
             {title}
           </Text>
         )}
-        <View style={[styles.headerSide, styles.headerSideRight]}>{right}</View>
+        <View style={[styles.headerSide, styles.headerSideRight, sideStyle]}>
+          {right ? (
+            <View
+              style={styles.headerRightContent}
+              onLayout={(e) => setSideWidth(Math.ceil(e.nativeEvent.layout.width))}
+            >
+              {right}
+            </View>
+          ) : null}
+        </View>
       </View>
       {children}
     </SafeAreaView>
@@ -127,6 +142,7 @@ const styles = StyleSheet.create({
     gap: spacing.small,
   },
   headerSideRight: { justifyContent: 'flex-end' },
+  headerRightContent: { flexDirection: 'row', alignItems: 'center', flexShrink: 0 },
   // flexShrink lets the title give way to the sides instead of overrunning them.
   headerTitle: {
     fontFamily: HEADING_FONT_BOLD,

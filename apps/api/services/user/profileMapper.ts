@@ -37,6 +37,7 @@ export function toUserProfile(row: ProfileSelectModel): UserProfile {
     user_defaults: row.user_defaults,
     ...(row.locale != null && { locale: row.locale as 'de-DE' | 'de-AT' }),
     default_startpage: row.default_startpage as 'chat' | 'arbeiten',
+    start_layout: row.start_layout as 'tabs' | 'combined',
     feedback_button: row.feedback_button as 'text' | 'icon' | 'off',
     reduce_motion: row.reduce_motion,
     reduce_transparency: row.reduce_transparency,
@@ -69,6 +70,7 @@ export function toUserProfile(row: ProfileSelectModel): UserProfile {
     bundestag_api_enabled: row.bundestag_api_enabled,
     memory_enabled: row.memory_enabled,
     proactive_briefing_enabled: row.proactive_briefing_enabled,
+    scheduled_tasks_enabled: row.scheduled_tasks_enabled,
     panda_enabled: row.panda_enabled,
     sites_unlocked: row.sites_unlocked,
 

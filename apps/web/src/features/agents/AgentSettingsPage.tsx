@@ -39,7 +39,7 @@ function AgentSettingsPage() {
     );
   }
 
-  // A recurring agent has exactly one task (the builder creates them 1:1); take
+  // Old recurring agents have one task each (the former builder created them 1:1); take
   // the first match. Undefined while the list is still loading.
   const task = tasksLoading
     ? undefined
@@ -50,11 +50,11 @@ function AgentSettingsPage() {
       // Remount on identifier change, and once the task list resolves, so the
       // schedule seeds without blocking the editor on that fetch.
       key={`${agent.identifier}:${tasksLoading ? 'pending' : 'ready'}`}
-      mode="edit"
       identifier={agent.identifier}
       initialState={hydrateFormState(agent)}
       initialSchedule={task ? recurrenceToSchedule(task) : null}
       recurringTaskId={task?.id}
+      agent={agent}
     />
   );
 }

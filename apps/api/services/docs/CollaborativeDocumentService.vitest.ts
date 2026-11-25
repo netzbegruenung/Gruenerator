@@ -34,6 +34,8 @@ vi.mock('../canvas/canvasRepository.js', () => ({ deleteReplacedThumbnailShare }
 vi.mock('../../routes/chat/services/threadTrashService.js', () => ({ purgeDocThread }));
 vi.mock('../../utils/reportBackgroundError.js', () => ({ reportBackgroundError }));
 vi.mock('../collab/hocuspocusInternal.js', () => ({ closeCollabRooms }));
+const removeCollabIndex = vi.hoisted(() => vi.fn(async (_id: string) => undefined));
+vi.mock('./collabSearchIndex.js', () => ({ removeCollabIndex }));
 
 import {
   checkEditAccess,
@@ -227,6 +229,13 @@ describe('trashCollaborativeDocument and open collaboration connections', () => 
     expect(trashedWhenClosed).toBe(true);
   });
 
+  it('drops the document from the search index once it is trashed', async () => {
+    removeCollabIndex.mockClear();
+    const { run } = makeTrashTable({ created_by: OWNER });
+    await trashCollaborativeDocument(run, 'doc-1', OWNER, null);
+    await vi.waitFor(() => expect(removeCollabIndex).toHaveBeenCalledWith('doc-1'));
+  });
+
   it('closes nothing when the trash is refused', async () => {
     const { run } = makeRunner({ select: [{ created_by: STRANGER, permissions: null }] });
     expect(await trashCollaborativeDocument(run, 'doc-1', EDITOR, null)).toEqual({
@@ -346,6 +355,7 @@ describe('purgeCollaborativeDocument', () => {
     }) as QueryRunner;
 
     expect(await purgeCollaborativeDocument(run, 'doc-1', cutoff)).toBe(true);
+    expect(removeCollabIndex).toHaveBeenCalledWith('doc-1');
     expect(seen).toEqual([['doc-1', cutoff]]);
     expect(purgeDocThread).toHaveBeenCalledWith('thread-1', run);
     expect(effects).toEqual([

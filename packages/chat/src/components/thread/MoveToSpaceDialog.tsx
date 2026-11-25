@@ -19,8 +19,8 @@ interface MoveToSpaceDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-/** File a chat into one of the user's Spaces (groups), or remove it from its
- *  Space. Personal or team — a Space is just a group. Fetches via the ChatConfig
+/** File a chat into one of the user's Projekte, or remove it from its
+ *  Projekt. One kind of project, alone or with others. Fetches via the ChatConfig
  *  store's fetch fn and PATCHes chat_threads.group_id. */
 export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
   threadId,
@@ -32,9 +32,6 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [newName, setNewName] = useState('');
-  // New Spaces created from a chat default to personal (solo organizing); the
-  // user can opt into a team Space.
-  const [newIsTeam, setNewIsTeam] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -91,7 +88,7 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
       const res = await fetchFn('/api/auth/groups', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, groupType: newIsTeam ? 'standard' : 'personal' }),
+        body: JSON.stringify({ name }),
       });
       if (!res.ok) {
         console.error('[MoveToSpace] create rejected:', res.status);
@@ -174,15 +171,6 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
                 Anlegen
               </button>
             </div>
-            <label className="mt-1.5 flex cursor-pointer items-center gap-1.5 pl-6 text-xs text-grey-500">
-              <input
-                type="checkbox"
-                checked={newIsTeam}
-                onChange={(e) => setNewIsTeam(e.target.checked)}
-                className="h-3 w-3"
-              />
-              Als Gruppe (mit Team)
-            </label>
           </div>
 
           <p className="mt-3 text-xs text-grey-400">

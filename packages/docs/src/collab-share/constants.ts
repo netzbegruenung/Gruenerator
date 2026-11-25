@@ -4,7 +4,7 @@ export const SHARE_MODE_OPTIONS: { value: ShareMode; label: string; description:
   {
     value: 'private',
     label: 'Privat',
-    description: 'Nur eingeladene Personen und Gruppen haben Zugriff',
+    description: 'Nur eingeladene Personen und Projekte haben Zugriff',
   },
   {
     value: 'authenticated',

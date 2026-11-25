@@ -1,7 +1,9 @@
 import {
+  type GroupColor,
   type GroupContentType,
   type GroupPostCreatedResponse,
   type GroupShareComment,
+  type LandesverbandId,
 } from '@gruenerator/contracts';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
@@ -32,7 +34,7 @@ export const useUserGroups = (options: { enabled?: boolean } = {}) =>
     queryKey: GROUPS_QUERY_KEY,
     queryFn: async (): Promise<GroupSummary[]> => {
       const res = await getContractsClient().groups.listUserGroups();
-      if (res.status !== 200) throw apiErrorFromResponse(res, 'Fehler beim Laden der Gruppen.');
+      if (res.status !== 200) throw apiErrorFromResponse(res, 'Fehler beim Laden der Projekte.');
       return res.body.groups as GroupSummary[];
     },
     staleTime: 2 * 60 * 1000,
@@ -48,7 +50,7 @@ export const useGroupDetails = (groupId: string | null | undefined) =>
         params: { groupId: groupId ?? '' },
       });
       if (res.status !== 200)
-        throw apiErrorFromResponse(res, 'Fehler beim Laden der Gruppendetails.');
+        throw apiErrorFromResponse(res, 'Fehler beim Laden der Projektdetails.');
       return {
         group: res.body.group,
         membership: res.body.membership as GroupMembership,
@@ -72,7 +74,7 @@ export const useGroupMembers = (groupId: string | null | undefined) =>
         params: { groupId: groupId ?? '' },
       });
       if (res.status !== 200)
-        throw apiErrorFromResponse(res, 'Fehler beim Laden der Gruppenmitglieder.');
+        throw apiErrorFromResponse(res, 'Fehler beim Laden der Projektmitglieder.');
       return res.body.members as GroupMember[];
     },
     enabled: !!groupId,
@@ -117,19 +119,15 @@ export const useSetGroupInstructions = (groupId: string) => {
 export const useCreateGroup = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: {
-      name: string;
-      description?: string;
-      groupType?: 'standard' | 'personal';
-    }) => {
+    mutationFn: async (input: { name: string; description?: string }) => {
       const res = await getContractsClient().groups.createGroup({
         body: {
           name: input.name,
           description: input.description,
-          ...(input.groupType ? { groupType: input.groupType } : {}),
         },
       });
-      if (res.status !== 200) throw apiErrorFromResponse(res, 'Fehler beim Erstellen des Space.');
+      if (res.status !== 200)
+        throw apiErrorFromResponse(res, 'Fehler beim Erstellen des Projekts.');
       return res.body.group as GroupSummary;
     },
     onSuccess: () => {
@@ -161,6 +159,9 @@ export const useUpdateGroupInfo = (groupId: string) => {
       name?: string;
       description?: string | null;
       settings?: Record<string, unknown>;
+      landesverband?: LandesverbandId | null;
+      /** `null` clears the colour. */
+      color?: GroupColor | null;
     }) => {
       const res = await getContractsClient().groups.updateInfo({
         params: { groupId },
@@ -184,6 +185,40 @@ export const useUpdateGroupName = (groupId: string) => {
         body: { name },
       });
       if (res.status !== 200) throw apiErrorFromResponse(res);
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: GROUPS_QUERY_KEY });
+      void qc.invalidateQueries({ queryKey: groupDetailsKey(groupId) });
+    },
+  });
+};
+
+/** Admin archives or restores a project. */
+export const useSetGroupArchived = (groupId: string) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (archived: boolean) => {
+      const res = await getContractsClient().groups.setGroupArchived({
+        params: { groupId },
+        body: { archived },
+      });
+      if (res.status !== 200) throw apiErrorFromResponse(res);
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: GROUPS_QUERY_KEY });
+      void qc.invalidateQueries({ queryKey: groupDetailsKey(groupId) });
+    },
+  });
+};
+
+/** Replace the invite link; the old one stops working, also in sent e-mails. */
+export const useRegenerateJoinToken = (groupId: string) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<string> => {
+      const res = await getContractsClient().groups.regenerateJoinToken({ params: { groupId } });
+      if (res.status !== 200) throw apiErrorFromResponse(res);
+      return res.body.join_token;
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: GROUPS_QUERY_KEY });
@@ -250,6 +285,23 @@ export const useUpdateMemberRole = (groupId: string) => {
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: groupMembersKey(groupId) });
+    },
+  });
+};
+
+/** Admin removes another member (not themselves, not the creator, not the last admin). */
+export const useRemoveGroupMember = (groupId: string) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (memberId: string) => {
+      const res = await getContractsClient().groups.removeMember({
+        params: { groupId, memberId },
+      });
+      if (res.status !== 200) throw apiErrorFromResponse(res);
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: groupMembersKey(groupId) });
+      void qc.invalidateQueries({ queryKey: GROUPS_QUERY_KEY });
     },
   });
 };

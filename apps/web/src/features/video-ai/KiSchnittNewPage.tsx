@@ -8,9 +8,9 @@ import { VIDEO_AI_LIMITS, videoAiTreeUnits } from '@gruenerator/contracts';
 import { Badge, Button, UploadZone } from '@gruenerator/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Film, Image, Loader2, Music, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PiFilmSlate } from 'react-icons/pi';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import {
   createProject,
@@ -21,6 +21,8 @@ import {
   uploadMaterial,
   type UploadedMaterial,
 } from './videoAiApi';
+
+import { videoStartFiles } from '@/features/video/videoStartState';
 
 import PageContainer from '@/components/common/PageContainer';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -114,6 +116,17 @@ function KiSchnittNew() {
       }
     }
   };
+
+  // Files picked on /video arrive as router state: upload them right away, once.
+  const location = useLocation();
+  const [videoStart] = useState(() => videoStartFiles(location.state));
+  const videoStartHandled = useRef(false);
+  useEffect(() => {
+    if (!videoStart || videoStartHandled.current) return;
+    videoStartHandled.current = true;
+    void upload(videoStart.videoStartFiles);
+    void navigate(location.pathname, { replace: true, state: null });
+  });
 
   const videos = files.filter((f) => f.mediaType === 'video');
   const seconds = videos.reduce((sum, f) => sum + (f.durationSeconds ?? 0), 0);

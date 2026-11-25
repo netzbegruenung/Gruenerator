@@ -1912,6 +1912,23 @@ describe('makeCreateDocTool (compound presentation/sheet fat tool)', () => {
     expect(created?.payload).toEqual(DOC);
   });
 
+  it('gibt die Thread-Id nur im Projekt-Chat weiter — dort landet das Ergebnis im Projekt', async () => {
+    runDocGeneration.mockResolvedValue(DOC);
+    await exec(
+      makeTool(
+        'document',
+        withUser({
+          threadId: 't1',
+          project: { id: 'g1', documentIds: [] },
+        } as Partial<ChatGraphState>)
+      ),
+      { prompt: 'a' }
+    );
+    expect((runDocGeneration.mock.calls[0]![0] as { threadId: unknown }).threadId).toBe('t1');
+    await exec(makeTool('document', withUser({ threadId: 't2', project: null })), { prompt: 'a' });
+    expect((runDocGeneration.mock.calls[1]![0] as { threadId: unknown }).threadId).toBeNull();
+  });
+
   // Live-Test 06.11.2026: „schreib ein Dokument und füge das Bild ein" — die
   // Antwort behauptete ein eingefügtes Bild, das es nicht gab.
   it('says the thread image is not in the artifact when the turn meant it', async () => {

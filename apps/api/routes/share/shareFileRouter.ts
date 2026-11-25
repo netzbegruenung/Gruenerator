@@ -762,7 +762,7 @@ router.get(
         res.setHeader('Content-Length', fileSize);
         setContentDisposition(res, filename);
 
-        log.info(`Download started: ${shareToken} by user ${userId} (${userEmail})`);
+        log.info(`Download started by user ${userId}`);
 
         const fileStream = fs.createReadStream(mediaPath);
         fileStream.pipe(res);

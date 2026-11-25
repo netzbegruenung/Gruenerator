@@ -1,8 +1,13 @@
+import { type LandesverbandId } from '@gruenerator/contracts';
 import {
   type GroupFeedItem,
   addableKey,
   canManageShare,
+  hasAustauschContent,
   sharedContentKeys,
+  useRegenerateJoinToken,
+  useSetGroupArchived,
+  useUpdateGroupInfo,
 } from '@gruenerator/shared/groups';
 import {
   Button,
@@ -24,11 +29,13 @@ import {
   Sheet,
   SheetContent,
   SheetTitle,
+  StatusBanner,
   useIsMobile,
 } from '@gruenerator/ui';
 import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import {
   HiDotsVertical,
+  HiOutlineArchive,
   HiOutlineBell,
   HiOutlineLink,
   HiOutlineLogout,
@@ -42,7 +49,7 @@ import {
   HiX,
 } from 'react-icons/hi';
 import { HiOutlineBellSlash } from 'react-icons/hi2';
-import { PiPlus } from 'react-icons/pi';
+import { PiMagnifyingGlass, PiPlus } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -62,18 +69,22 @@ import {
 import { AddExistingPicker, type PickerItem } from './AddExistingPicker';
 import { AddLinkDialog } from './AddLinkDialog';
 import { GroupContentArea } from './feed/GroupContentArea';
+import { GroupColorPicker } from './GroupColorPicker';
 import GroupJoinRequestsSection from './GroupJoinRequestsSection';
 import GroupLinksSection from './GroupLinksSection';
 import GroupMembersList from './GroupMembersList';
 import GroupVisibilityDialog from './GroupVisibilityDialog';
 import { ProjectAddMenu } from './ProjectAddMenu';
 import { ProjectChatComposer } from './ProjectChatComposer';
+import { ProjectCloudSourcesCard } from './ProjectCloudSourcesCard';
 import { ProjectInstructionsCard } from './ProjectInstructionsCard';
 import { ProjectKnowledgeList } from './ProjectKnowledgeList';
+import { ProjectLandesverbandSelect } from './ProjectLandesverbandSelect';
 import { ProjectMembersCard } from './ProjectMembersCard';
+import { ProjectRecipesCard } from './ProjectRecipesCard';
+import { ProjectTasksCard } from './ProjectTasksCard';
 import { type ShareActions } from './shareActions';
 import { ShareNoteDialog } from './ShareNoteDialog';
-import { SpaceChatsSection } from './SpaceChatsSection';
 
 export interface GroupInfo {
   id?: string;
@@ -86,6 +97,9 @@ export interface GroupInfo {
   audience?: GroupAudience;
   group_type?: 'standard' | 'personal';
   is_system?: boolean;
+  landesverband?: LandesverbandId | null | undefined;
+  archived_at?: string | null;
+  color?: string | null;
 }
 
 export interface GroupData {
@@ -195,6 +209,19 @@ const GroupInfoSection = memo(
     // Invite-by-email dialog (team Gruppen only).
     const inviteToGroup = useInviteToGroup();
     const [showInviteDialog, setShowInviteDialog] = useState(false);
+    const regenerateJoinToken = useRegenerateJoinToken(groupId);
+    // Erster Klick fragt nach, zweiter erneuert: der alte Link wird ungültig.
+    const [confirmRenewLink, setConfirmRenewLink] = useState(false);
+    const renewJoinLink = useCallback(() => {
+      regenerateJoinToken.mutate(undefined, {
+        onSuccess: () => {
+          setConfirmRenewLink(false);
+          onSuccessMessage?.('Neuer Einladungslink erstellt');
+        },
+        onError: (err) =>
+          onErrorMessage?.(err.message || 'Einladungslink konnte nicht erneuert werden.'),
+      });
+    }, [regenerateJoinToken, onSuccessMessage, onErrorMessage]);
     const [inviteEmails, setInviteEmails] = useState<string[]>([]);
     const [inviteDraft, setInviteDraft] = useState('');
     const [inviteError, setInviteError] = useState('');
@@ -269,12 +296,13 @@ const GroupInfoSection = memo(
       },
       [cloneTemplate, navigate]
     );
-    // „Vorhandenes hinzufügen“: am Hinzufügen-Knopf verankert, aus dem Feed-Composer
-    // (der seine Notiz mitbringt) als Dialog.
+    // „Vorhandenes hinzufügen“: am Hinzufügen-Knopf verankert (teilt sofort), aus dem
+    // Feed-Composer als Dialog (wählt nur aus; der Composer teilt beim Posten).
     // Auf dem Handy kommen beide als Sheet von unten.
     const [picker, setPicker] = useState<'menu' | 'composer' | null>(null);
     const isMobile = useIsMobile();
-    const [composerNote, setComposerNote] = useState('');
+    // Wohin die Auswahl aus dem Composer-Dialog zurückgeht.
+    const composerPick = useRef<((items: PickerItem[]) => void) | null>(null);
     const [linkOpen, setLinkOpen] = useState(false);
     // Die gerade hinzugefügte Freigabe, zu der „Notiz schreiben“ eine Notiz setzt.
     const [noteKey, setNoteKey] = useState<string | null>(null);
@@ -302,19 +330,42 @@ const GroupInfoSection = memo(
     );
     const onlineCount = onlineMembers.length;
     const memberCount = members?.length ?? 0;
-    // Personal Space: a solo workspace — hide team collaboration chrome
-    // (invite link, visibility, join requests).
-    const isPersonal = data?.groupInfo?.group_type === 'personal';
     // System group: every user is a member, no member info, only instance
-    // admins (`isAdmin` there) share. Hides all team chrome, like personal.
+    // admins (`isAdmin` there) share. Hides all team chrome. Every other project
+    // offers it — a project is used alone or with others, whatever its stored
+    // `group_type`; members can be invited at any time.
     const isSystem = data?.groupInfo?.is_system === true;
-    const isTeam = !isPersonal && !isSystem;
-    const canShare = !isSystem || !!data?.isAdmin;
+    const isTeam = !isSystem;
+    // „Für das Team" only makes sense once somebody else is in; the Austausch tab also stays
+    // while posts exist (a project back to one member keeps its history).
+    const hasOthers = memberCount > 1;
+    // Archived projects stay readable but take no new content (the server enforces it too).
+    const isArchived = !!data?.groupInfo?.archived_at;
+    const canShare = (!isSystem || !!data?.isAdmin) && !isArchived;
+    const setArchived = useSetGroupArchived(groupId);
+    const updateInfo = useUpdateGroupInfo(groupId);
+    const toggleArchived = useCallback(() => {
+      const next = !isArchived;
+      setArchived.mutate(next, {
+        onSuccess: () =>
+          onSuccessMessage?.(next ? 'Projekt archiviert.' : 'Projekt wiederhergestellt.'),
+        onError: (err: Error) =>
+          onErrorMessage?.(err.message || 'Projekt konnte nicht geändert werden.'),
+      });
+    }, [isArchived, setArchived, onSuccessMessage, onErrorMessage]);
     const groupLinks = data?.groupInfo?.links ?? [];
     // Chats gibt es in Projekten und Gruppen, nicht im System-Projekt „Grünerator".
     const showChats = canShare && !isSystem;
+    const hasAustauschTab = isSystem || hasOthers || hasAustauschContent(feedItems);
+    // Die Suche im Austausch öffnet sich über das Projektmenü; jeder Klick zählt hoch.
+    const [austauschSearchSignal, setAustauschSearchSignal] = useState(0);
     // Beiträge gehören in den Austausch; alles andere ist Wissen und steht als Zeile da.
-    const knowledgeItems = useMemo(() => feedItems.filter((i) => i.kind !== 'post'), [feedItems]);
+    // Rezepte haben ihre eigene Karte; „Wissen" ist alles andere außer Beiträgen.
+    const recipeItems = useMemo(() => feedItems.filter((i) => i.kind === 'recipe'), [feedItems]);
+    const knowledgeItems = useMemo(
+      () => feedItems.filter((i) => i.kind !== 'post' && i.kind !== 'recipe'),
+      [feedItems]
+    );
     const sharedKeys = useMemo(() => sharedContentKeys(feedItems), [feedItems]);
     // Wer verwalten darf, entscheidet dieselbe Regel wie auf dem Server
     // (`updateContentPermissions`, `removeGroupContent`): Admin oder die Person,
@@ -338,11 +389,9 @@ const GroupInfoSection = memo(
       (items: PickerItem[], done: boolean) => {
         refetchSharedContent?.();
         if (!done) return;
-        // Wer aus dem Composer kommt, hat die Notiz schon geschrieben.
-        const withNote = picker === 'composer' && composerNote.trim() !== '';
         setPicker(null);
         const [only] = items;
-        if (items.length === 1 && only && !withNote) {
+        if (items.length === 1 && only) {
           // 8 s statt der 4 s von sonner: genug Zeit, die Aktion zu lesen und zu treffen.
           toast('Zum Projekt hinzugefügt', {
             duration: 8000,
@@ -354,7 +403,7 @@ const GroupInfoSection = memo(
           );
         }
       },
-      [refetchSharedContent, picker, composerNote]
+      [refetchSharedContent]
     );
 
     const pickerContent = (
@@ -362,9 +411,16 @@ const GroupInfoSection = memo(
         groupId={groupId}
         sharedKeys={sharedKeys}
         currentUserId={currentUserId ?? null}
-        note={picker === 'composer' ? composerNote : null}
         writeDocuments={isTeam}
         onAdded={handleAdded}
+        onPick={
+          picker === 'composer'
+            ? (items) => {
+                composerPick.current?.(items);
+                setPicker(null);
+              }
+            : undefined
+        }
       />
     );
 
@@ -378,11 +434,11 @@ const GroupInfoSection = memo(
       setShowLeaveConfirm(false);
       leaveGroup.mutate(groupId, {
         onSuccess: () => {
-          onSuccessMessage?.('Gruppe verlassen.');
+          onSuccessMessage?.('Projekt verlassen.');
           void navigate('/');
         },
         onError: (err: Error) =>
-          onErrorMessage?.(err.message || 'Gruppe konnte nicht verlassen werden.'),
+          onErrorMessage?.(err.message || 'Projekt konnte nicht verlassen werden.'),
       });
     }, [leaveGroup, groupId, navigate, onSuccessMessage, onErrorMessage]);
 
@@ -423,6 +479,13 @@ const GroupInfoSection = memo(
 
     return (
       <>
+        {isArchived && (
+          <StatusBanner variant="info" className="mb-md">
+            Dieses Projekt ist archiviert. Chats und Inhalte bleiben lesbar, neue Beiträge, Chats
+            und Freigaben sind nicht möglich.
+            {data?.isAdmin ? ' Über das Menü kannst du es wiederherstellen.' : ''}
+          </StatusBanner>
+        )}
         <div className="mb-lg flex flex-wrap items-center justify-between gap-md">
           <div className="flex min-w-0 flex-1 items-center gap-md">
             <div className="relative group/avatar shrink-0">
@@ -493,6 +556,35 @@ const GroupInfoSection = memo(
                     {editedGroupDescription.length}/500 Zeichen
                   </div>
                 )}
+                <ProjectLandesverbandSelect
+                  groupId={groupId}
+                  audience={data?.groupInfo?.audience}
+                  current={data?.groupInfo?.landesverband}
+                  {...(onSuccessMessage && { onSuccessMessage })}
+                  {...(onErrorMessage && { onErrorMessage })}
+                />
+                {!isSystem && (
+                  <div className="flex flex-col gap-xs">
+                    <span className="text-xs font-medium text-grey-600 dark:text-grey-300">
+                      Farbe der Kachel
+                    </span>
+                    <GroupColorPicker
+                      value={data?.groupInfo?.color}
+                      disabled={updateInfo.isPending}
+                      onChange={(color) =>
+                        updateInfo.mutate(
+                          { color },
+                          {
+                            onError: (err: Error) =>
+                              onErrorMessage?.(
+                                err.message || 'Farbe konnte nicht gespeichert werden.'
+                              ),
+                          }
+                        )
+                      }
+                    />
+                  </div>
+                )}
                 <div className="flex gap-xs">
                   <Button
                     variant="default"
@@ -522,11 +614,9 @@ const GroupInfoSection = memo(
                   </h1>
                 </div>
                 <p className="text-[15px] text-muted-foreground mt-xs m-0">
-                  {isPersonal
-                    ? data?.groupInfo?.description || 'Dein persönliches Projekt.'
-                    : isSystem
-                      ? 'Für alle im Grünerator'
-                      : `Gruppe · ${memberCount} ${memberCount === 1 ? 'Mitglied' : 'Mitglieder'}`}
+                  {isSystem
+                    ? 'Für alle im Grünerator'
+                    : `Projekt · ${memberCount} ${memberCount === 1 ? 'Mitglied' : 'Mitglieder'}`}
                 </p>
                 {isTeam && data?.groupInfo?.description && (
                   <p className="m-0 mt-xs line-clamp-2 whitespace-pre-wrap text-sm text-muted-foreground">
@@ -609,12 +699,21 @@ const GroupInfoSection = memo(
                   variant="outline"
                   size="icon"
                   className="rounded-full"
-                  aria-label={isPersonal ? 'Projektoptionen' : 'Gruppenoptionen'}
+                  aria-label="Projektoptionen"
                 >
                   <HiDotsVertical />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {hasAustauschTab && (
+                  <>
+                    <DropdownMenuItem onClick={() => setAustauschSearchSignal((n) => n + 1)}>
+                      <PiMagnifyingGlass className="size-4 mr-xs" />
+                      Im Austausch suchen
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 {isTeam && (
                   <>
                     <DropdownMenuItem onClick={() => setMembersDialogOpen(true)}>
@@ -660,13 +759,13 @@ const GroupInfoSection = memo(
                         Bild entfernen
                       </DropdownMenuItem>
                     )}
-                    {isTeam && (
+                    {isTeam && !isArchived && (
                       <DropdownMenuItem onClick={openInviteDialog}>
                         <HiOutlineMail className="size-4 mr-xs" />
                         Per E-Mail einladen
                       </DropdownMenuItem>
                     )}
-                    {isTeam && data?.joinToken && (
+                    {isTeam && !isArchived && data?.joinToken && (
                       <DropdownMenuItem onClick={copyJoinLink}>
                         <HiOutlineLink className="size-4 mr-xs" />
                         {joinLinkCopied ? 'Kopiert!' : 'Einladungslink kopieren'}
@@ -683,6 +782,10 @@ const GroupInfoSection = memo(
                     {!isSystem && (
                       <>
                         <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={toggleArchived} disabled={setArchived.isPending}>
+                          <HiOutlineArchive className="size-4 mr-xs" />
+                          {isArchived ? 'Wiederherstellen' : 'Archivieren'}
+                        </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => setShowDeleteConfirm(true)}
                           disabled={isDeletingGroup || isUpdatingGroupName}
@@ -704,7 +807,7 @@ const GroupInfoSection = memo(
                       className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
                     >
                       <HiOutlineLogout className="size-4 mr-xs" />
-                      Gruppe verlassen
+                      Projekt verlassen
                     </DropdownMenuItem>
                   </>
                 )}
@@ -728,15 +831,16 @@ const GroupInfoSection = memo(
           items={feedItems}
           isLoading={isLoadingSharedContent}
           isAdmin={!!data?.isAdmin}
-          isPersonal={isPersonal}
+          hasAustausch={hasAustauschTab}
+          searchSignal={austauschSearchSignal}
           isSystem={isSystem}
           currentUserId={currentUserId ?? null}
           currentUserName={currentUserName ?? null}
           members={members ?? []}
-          onOpenShare={
+          onPickExisting={
             canShare
-              ? (note) => {
-                  setComposerNote(note ?? '');
+              ? (onPicked) => {
+                  composerPick.current = onPicked;
                   setPicker('composer');
                 }
               : null
@@ -744,57 +848,68 @@ const GroupInfoSection = memo(
           actions={shareActions}
           onUseTemplate={handleCloneTemplate}
           cloningId={cloneTemplate.isPending ? (cloneTemplate.variables ?? null) : null}
-          overview={({ onDiscuss }) => (
-            <div className="flex flex-col gap-lg min-[900px]:flex-row min-[900px]:items-start min-[900px]:gap-xl">
-              {showChats && (
-                <div className="flex min-w-0 flex-1 flex-col gap-md">
-                  <ProjectChatComposer
-                    groupId={groupId}
-                    groupName={data?.groupInfo?.name ?? ''}
-                    isPersonal={isPersonal || isSystem}
-                  />
-                  <SpaceChatsSection groupId={groupId} />
-                </div>
+          overviewMain={
+            showChats ? (
+              <>
+                <ProjectChatComposer groupId={groupId} />
+              </>
+            ) : null
+          }
+          sidebar={({ onDiscuss }) => (
+            <>
+              {!isSystem && (
+                <ProjectInstructionsCard
+                  groupId={groupId}
+                  isAdmin={!!data?.isAdmin}
+                  onSuccessMessage={onSuccessMessage}
+                  onErrorMessage={onErrorMessage}
+                />
               )}
-              <div
-                className={cn(
-                  'flex min-w-0 flex-col gap-md',
-                  showChats ? 'min-[900px]:w-[340px] min-[900px]:shrink-0' : 'flex-1'
-                )}
-              >
-                {!isSystem && (
-                  <ProjectInstructionsCard
-                    groupId={groupId}
-                    isAdmin={!!data?.isAdmin}
-                    onSuccessMessage={onSuccessMessage}
-                    onErrorMessage={onErrorMessage}
-                  />
-                )}
-                <ProjectKnowledgeList
-                  items={knowledgeItems}
-                  onUseTemplate={handleCloneTemplate}
+              {!isSystem && (
+                <ProjectTasksCard groupId={groupId} archived={!!data?.groupInfo?.archived_at} />
+              )}
+              {/* Im System-Projekt nur, wenn es etwas zu zeigen oder anzulegen gibt. */}
+              {(!isSystem || canShare || recipeItems.length > 0) && (
+                <ProjectRecipesCard
+                  groupId={groupId}
+                  items={recipeItems}
+                  landesverband={data?.groupInfo?.landesverband}
+                  canAdd={canShare}
                   actions={shareActions}
                   onDiscuss={onDiscuss}
                 />
-                {onUpdateLink && onDeleteLink && groupLinks.length > 0 && (
-                  <div id="abschnitt-links" className="scroll-mt-lg">
-                    <GroupLinksSection
-                      links={groupLinks}
-                      isAdmin={!!data?.isAdmin}
-                      onUpdateLink={onUpdateLink}
-                      onDeleteLink={onDeleteLink}
-                      isUpdatingLink={!!isUpdatingLink}
-                    />
-                  </div>
-                )}
-                {isTeam && (
-                  <ProjectMembersCard
-                    members={members ?? []}
-                    onShowMembers={() => setMembersDialogOpen(true)}
+              )}
+              <ProjectKnowledgeList
+                items={knowledgeItems}
+                onUseTemplate={handleCloneTemplate}
+                actions={shareActions}
+                onDiscuss={onDiscuss}
+              />
+              {!isSystem && (
+                <ProjectCloudSourcesCard
+                  groupId={groupId}
+                  isAdmin={!!data?.isAdmin}
+                  archived={isArchived}
+                />
+              )}
+              {onUpdateLink && onDeleteLink && groupLinks.length > 0 && (
+                <div id="abschnitt-links" className="scroll-mt-lg">
+                  <GroupLinksSection
+                    links={groupLinks}
+                    isAdmin={!!data?.isAdmin}
+                    onUpdateLink={onUpdateLink}
+                    onDeleteLink={onDeleteLink}
+                    isUpdatingLink={!!isUpdatingLink}
                   />
-                )}
-              </div>
-            </div>
+                </div>
+              )}
+              {isTeam && (
+                <ProjectMembersCard
+                  members={members ?? []}
+                  onShowMembers={() => setMembersDialogOpen(true)}
+                />
+              )}
+            </>
           )}
         />
 
@@ -850,13 +965,13 @@ const GroupInfoSection = memo(
           />
         )}
 
-        {!isPersonal && (
+        {isTeam && (
           <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
             <DialogContent className="sm:max-w-[28rem]">
               <DialogHeader>
-                <DialogTitle>Per E-Mail einladen</DialogTitle>
+                <DialogTitle>Einladen</DialogTitle>
                 <DialogDescription>
-                  Eingeladene erhalten eine E-Mail mit einem Beitrittslink zu dieser Gruppe.
+                  Eingeladene erhalten eine E-Mail mit einem Beitrittslink zu diesem Projekt.
                 </DialogDescription>
               </DialogHeader>
               <div className="flex flex-col gap-xs">
@@ -901,6 +1016,39 @@ const GroupInfoSection = memo(
                   <span className="text-xs text-grey-500">Mit Enter oder Komma hinzufügen.</span>
                 )}
               </div>
+              {data?.joinToken && (
+                <div className="flex flex-col items-start gap-xs">
+                  <div className="flex flex-wrap gap-xs">
+                    <Button variant="outline" onClick={copyJoinLink}>
+                      <HiOutlineLink aria-hidden />
+                      {joinLinkCopied ? 'Kopiert!' : 'Einladungslink kopieren'}
+                    </Button>
+                    {confirmRenewLink ? (
+                      <>
+                        <Button
+                          variant="outline"
+                          onClick={renewJoinLink}
+                          disabled={regenerateJoinToken.isPending}
+                        >
+                          {regenerateJoinToken.isPending ? 'Wird erneuert...' : 'Erneuern'}
+                        </Button>
+                        <Button variant="ghost" onClick={() => setConfirmRenewLink(false)}>
+                          Abbrechen
+                        </Button>
+                      </>
+                    ) : (
+                      <Button variant="ghost" onClick={() => setConfirmRenewLink(true)}>
+                        Link erneuern
+                      </Button>
+                    )}
+                  </div>
+                  {confirmRenewLink && (
+                    <span role="status" className="text-xs text-grey-500">
+                      Der bisherige Link wird ungültig, auch in schon verschickten Einladungen.
+                    </span>
+                  )}
+                </div>
+              )}
               <DialogFooter className="gap-xs">
                 <Button variant="outline" onClick={() => setShowInviteDialog(false)}>
                   Abbrechen
@@ -924,7 +1072,7 @@ const GroupInfoSection = memo(
               <DialogTitle>Projekt löschen</DialogTitle>
               <DialogDescription>
                 {`${data?.groupInfo?.name ? `„${data.groupInfo.name}“` : 'Dieses Projekt'} wird ${
-                  isPersonal ? '' : 'für alle Mitglieder '
+                  hasOthers ? 'für alle Mitglieder ' : ''
                 }in den Papierkorb verschoben und kann 30 Tage lang wiederhergestellt werden.`}
               </DialogDescription>
             </DialogHeader>
@@ -949,10 +1097,10 @@ const GroupInfoSection = memo(
         <Dialog open={showLeaveConfirm} onOpenChange={setShowLeaveConfirm}>
           <DialogContent className="sm:max-w-[24rem]">
             <DialogHeader>
-              <DialogTitle>Gruppe verlassen</DialogTitle>
+              <DialogTitle>Projekt verlassen</DialogTitle>
               <DialogDescription>
-                Du verlierst den Zugriff auf alle Inhalte dieser Gruppe, auch auf Team-Chats, die du
-                begonnen hast: sie bleiben in der Gruppe. Die Gruppe selbst und deine privaten
+                Du verlierst den Zugriff auf alle Inhalte dieses Projekts, auch auf Team-Chats, die
+                du begonnen hast: sie bleiben in dem Projekt. Das Projekt selbst und deine privaten
                 Inhalte bleiben bestehen. Ein erneuter Beitritt ist nur über eine neue Einladung
                 möglich.
               </DialogDescription>

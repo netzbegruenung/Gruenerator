@@ -34,6 +34,12 @@ vi.mock('../../database/services/PostgresService/PostgresService.js', async (imp
   getPostgresInstance: () => adapter,
 }));
 
+const notifyGroupAdmins = vi.hoisted(() => vi.fn(async (_params: Record<string, unknown>) => {}));
+vi.mock('../notifications/index.js', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  notifyGroupAdmins,
+}));
+
 // The gallery module mounts routes; its auth middleware would boot Better Auth.
 vi.mock('../../middleware/authMiddleware.js', () => ({ default: { requireAuth: vi.fn() } }));
 
@@ -147,6 +153,37 @@ async function insertTemplate(o: { isPrivate?: boolean } = {}): Promise<string> 
     [owner, o.isPrivate ?? false]
   );
   return res.rows[0]!.id;
+}
+
+/** A project run by `admin`, with `owner` and the first reporter as members and a post by `owner`. */
+async function insertProjectPost(): Promise<{ groupId: string; postId: string; shareId: string }> {
+  const g = await pool.query<{ id: string }>(
+    "INSERT INTO groups (name, created_by) VALUES ('Klima-OV', $1) RETURNING id",
+    [admin]
+  );
+  const groupId = g.rows[0]!.id;
+  for (const [user, role] of [
+    [admin, 'admin'],
+    [owner, 'member'],
+    [reporters[0]!, 'member'],
+  ] as const) {
+    await pool.query(
+      'INSERT INTO group_memberships (group_id, user_id, role, is_active) VALUES ($1, $2, $3, TRUE)',
+      [groupId, user, role]
+    );
+  }
+  const post = await pool.query<{ id: string }>(
+    "INSERT INTO group_posts (group_id, author_id, body) VALUES ($1, $2, 'Hallo') RETURNING id",
+    [groupId, owner]
+  );
+  const postId = post.rows[0]!.id;
+  // As `createGroupPost` does: the post sits on its own share row, the feed card.
+  const share = await pool.query<{ id: string }>(
+    `INSERT INTO group_content_shares (content_type, content_id, group_id, shared_by_user_id)
+     VALUES ('group_post', $1, $2, $3) RETURNING id`,
+    [postId, groupId, owner]
+  );
+  return { groupId, postId, shareId: share.rows[0]!.id };
 }
 
 const TABLE_OF = {
@@ -275,8 +312,8 @@ describe.skipIf(!url)('Meldungen (contentReportsService)', () => {
 
   it('stores reports on other kinds without a target check', async () => {
     const res = await recordContentReport(reporters[0]!, {
-      kind: 'group_post',
-      targetId: 'post-1',
+      kind: 'chat_message',
+      targetId: 'msg-1',
       groupId: 'kein-uuid',
       threadId: 'thread-1',
       reason: 'harassment',
@@ -287,14 +324,73 @@ describe.skipIf(!url)('Meldungen (contentReportsService)', () => {
     expect(row.rows[0]).toEqual({ group_id: null, thread_id: 'thread-1', excerpt: 'Text' });
   });
 
+  it('project content: members only, own refused, admins told without author and reporter (#5948)', async () => {
+    notifyGroupAdmins.mockClear();
+    const { groupId, postId, shareId } = await insertProjectPost();
+    const asPost = (o: Partial<ContentReportCreate> = {}): ContentReportCreate => ({
+      kind: 'group_post',
+      targetId: postId,
+      reason: 'harassment',
+      groupId: randomUUID(),
+      ...o,
+    });
+
+    expect(await recordContentReport(owner, asPost())).toMatchObject({ ok: false, status: 400 });
+    // Not a member, an unknown row, a malformed id: all look the same.
+    for (const [who, body] of [
+      [reporters[1]!, asPost()],
+      [reporters[0]!, asPost({ targetId: randomUUID() })],
+      [reporters[0]!, asPost({ targetId: 'post-1' })],
+    ] as const) {
+      expect(await recordContentReport(who, body)).toMatchObject({ ok: false, status: 404 });
+    }
+    expect(notifyGroupAdmins).not.toHaveBeenCalled();
+
+    expect(await recordContentReport(reporters[0]!, asPost())).toEqual({
+      ok: true,
+      value: { stored: true, hidden: false },
+    });
+    // The project comes from the post, not from the request body.
+    const row = await pool.query('SELECT group_id FROM content_reports');
+    expect(row.rows[0]).toEqual({ group_id: groupId });
+    expect(notifyGroupAdmins).toHaveBeenCalledTimes(1);
+    expect(notifyGroupAdmins.mock.calls[0]![0]).toMatchObject({
+      groupId,
+      excludeUserId: reporters[0],
+      skipUserIds: [owner],
+      type: 'group_content_reported',
+      body: 'Ein Beitrag in „Klima-OV" wurde gemeldet: Belästigung',
+      // The feed's deep link: web and app scroll to that card.
+      actionUrl: `/projekte/${groupId}?beitrag=${shareId}`,
+    });
+
+    // A repeat is stored once and tells nobody again.
+    await recordContentReport(reporters[0]!, asPost());
+    expect(notifyGroupAdmins).toHaveBeenCalledTimes(1);
+
+    // A comment links to the card it hangs on.
+    const comment = await pool.query<{ id: string }>(
+      "INSERT INTO group_share_comments (share_id, group_id, user_id, body) VALUES ($1, $2, $3, 'Na ja') RETURNING id",
+      [shareId, groupId, owner]
+    );
+    await recordContentReport(
+      reporters[0]!,
+      asPost({ kind: 'group_comment', targetId: comment.rows[0]!.id })
+    );
+    expect(notifyGroupAdmins.mock.calls[1]![0]).toMatchObject({
+      body: 'Ein Kommentar in „Klima-OV" wurde gemeldet: Belästigung',
+      actionUrl: `/projekte/${groupId}?beitrag=${shareId}`,
+    });
+  });
+
   it('groups reports per target with reasons, newest notes and the asset', async () => {
     const asset = await insertAsset();
     await recordContentReport(reporters[0]!, report(asset, { note: 'alt' }));
     await recordContentReport(reporters[1]!, report(asset, { reason: 'illegal', note: 'neu' }));
-    const groupId = randomUUID();
+    const { groupId, postId } = await insertProjectPost();
     await recordContentReport(reporters[0]!, {
       kind: 'group_post',
-      targetId: 'post-9',
+      targetId: postId,
       groupId,
       reason: 'other',
       excerpt: 'Beitrag',

@@ -12,7 +12,7 @@ import { createLogger } from '../../../utils/logger.js';
 import { stockImageHandler } from '../../image/stockImage.js';
 
 import { siteFontUrl, type SiteAssets } from './siteAssets.js';
-import { SITE_BARE_CSP, siteCsp } from './siteSecurity.js';
+import { createSitesReadLimiter, SITE_BARE_CSP, siteCsp } from './siteSecurity.js';
 
 const log = createLogger('sitePages');
 
@@ -44,6 +44,8 @@ export function sendSiteNotFound(res: Response): void {
 export function createSitePagesRouter(options: SitePagesOptions): Router {
   const { assets, origin, reportEmail, robots, loadSnapshot } = options;
   const router = Router();
+  // Fonts and stock images read from disk; a page pulls several of them, so the cap sits above the page limit.
+  const fileLimiter = createSitesReadLimiter(10_000);
 
   router.use((_req, res, next) => {
     res.set('Content-Security-Policy', SITE_BARE_CSP);
@@ -54,8 +56,8 @@ export function createSitePagesRouter(options: SitePagesOptions): Router {
     res.set('Content-Type', 'text/plain; charset=utf-8').send('User-agent: *\nAllow: /\n');
   });
 
-  router.get('/_site/fonts/:file', (req, res) => {
-    const path = assets.fontPath(req.params.file);
+  router.get('/_site/fonts/:file', fileLimiter, (req, res) => {
+    const path = assets.fontPath(req.params.file as string);
     if (!path) {
       sendSiteNotFound(res);
       return;
@@ -83,7 +85,11 @@ export function createSitePagesRouter(options: SitePagesOptions): Router {
       .send(asset.body);
   });
 
-  router.get('/api/image-picker/stock-image/:filename', stockImageHandler({ allowLive: false }));
+  router.get(
+    '/api/image-picker/stock-image/:filename',
+    fileLimiter,
+    stockImageHandler({ allowLive: false })
+  );
 
   const page =
     (document: SiteDocument): RequestHandler =>

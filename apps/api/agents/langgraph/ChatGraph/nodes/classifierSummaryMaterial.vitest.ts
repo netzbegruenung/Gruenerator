@@ -159,3 +159,20 @@ describe('summary-Rückstufung — eigene Inhalte werden geholt, nicht gegoogelt
     expect(result.mentionPinnedTool ?? null).toBeNull();
   });
 });
+
+describe('summary-Rückstufung — im Projekt-Chat ist das Projekt das Material', () => {
+  it('geht in den Loop statt ins Web', async () => {
+    const state = buildState('Fasse das Protokoll zur Plakatierung zusammen');
+    (state as unknown as { project: unknown }).project = { id: 'g1', documentIds: ['d1'] };
+    const result = await classifierNode(state);
+
+    expect(result.intent).toBe('agentic');
+    expect(result.mentionPinnedTool ?? null).toBeNull();
+  });
+
+  it('ohne durchsuchbares Material im Projekt bleibt es bei der Websuche', async () => {
+    const state = buildState('Fass den aktuellen Stand der Debatte um das Klimageld zusammen');
+    (state as unknown as { project: unknown }).project = { id: 'g1', documentIds: [] };
+    expect((await classifierNode(state)).intent).toBe('web');
+  });
+});

@@ -324,7 +324,7 @@ function AssetVisibility({ item, onBack, onDone }: StepProps & { item: StudioAss
     <VisibilityStep
       current={item.visibility === 'public' ? 'public' : 'private'}
       currentGroupIds={[]}
-      projectUnavailable="Sticker und Hintergründe lassen sich noch nicht in Projekte und Gruppen teilen."
+      projectUnavailable="Sticker und Hintergründe lassen sich noch nicht in Projekte teilen."
       publicRequirement="rights"
       initialAudience={item.audience}
       onBack={onBack}
@@ -419,7 +419,8 @@ export const ADD_KINDS: readonly AddKind[] = [
     pluralLabel: 'Agents',
     hint: 'Eine KI-Persönlichkeit mit Rolle und Wissen',
     icon: <PiSparkle aria-hidden />,
-    create: { href: '/agents/new', label: 'Agent erstellen' },
+    // Neue Agents gibt es nicht mehr — wer keinen hat, legt ein Rezept an.
+    create: { href: '/agentura/rezept/neu', label: 'Rezept erstellen' },
     useItems: useOwnAgents,
     Visibility: AgentVisibility,
   }),

@@ -22,6 +22,8 @@ import {
 import { getImageModelForUser } from '../../../../services/user/imageModelPreference.js';
 import { createLogger } from '../../../../utils/logger.js';
 
+import { saveGeneratedImageToMediathek } from './imageMediathek.js';
+
 import type { ChatGraphState, ImageStyle, GeneratedImageResult } from '../types.js';
 
 const log = createLogger('ChatGraph:ImageNode');
@@ -217,6 +219,8 @@ export async function imageNode(state: ChatGraphState): Promise<Partial<ChatGrap
       style,
       generationTimeMs: imageTimeMs,
     };
+    const shareToken = await saveGeneratedImageToMediathek(userId, stored, userContent);
+    if (shareToken) result.shareToken = shareToken;
 
     return {
       generatedImage: result,

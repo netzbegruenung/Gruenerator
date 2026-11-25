@@ -93,7 +93,7 @@ afterEach(() => {
 describe('PopularVorlagenRow', () => {
   it('shows one row, two cards on phones, with a link to all Vorlagen', async () => {
     renderWithProviders(<PopularVorlagenRow />);
-    const section = await screen.findByRole('region', { name: 'Beliebte Vorlagen' });
+    const section = await screen.findByRole('region', { name: 'Beliebte Sharepic-Vorlagen' });
 
     const cards = ['Zitat k1', 'Zitat k2', 'Zitat k3'].map((name) =>
       within(section).getByRole('button', { name })

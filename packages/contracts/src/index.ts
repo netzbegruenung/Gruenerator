@@ -79,6 +79,7 @@ export {
   memoryContract,
   emailContract,
   feedbackContract,
+  newsletterContract,
   contentReportContract,
   adminReportsContract,
   modelPreferencesContract,
@@ -117,6 +118,7 @@ export {
   briefingContract,
   canvasContract,
   videoProjectsContract,
+  videoRenderContract,
   groupsContract,
   contentSyncContract,
   monitorContract,
@@ -207,6 +209,7 @@ export * from './schemas/notifications.js';
 export * from './schemas/memory.js';
 export * from './schemas/email.js';
 export * from './schemas/feedback.js';
+export * from './schemas/newsletter.js';
 export * from './schemas/contentReport.js';
 export * from './schemas/adminReports.js';
 export * from './schemas/translation.js';
@@ -233,6 +236,7 @@ export * from './schemas/briefing.js';
 export * from './schemas/canvasAi.js';
 export * from './schemas/canvas.js';
 export * from './schemas/videoProjects.js';
+export * from './schemas/videoRender.js';
 export * from './schemas/canvasTemplateDescriptors.js';
 export * from './schemas/canvasTemplateFields.js';
 export * from './schemas/sliderDeck.js';

@@ -113,6 +113,44 @@ describe('{{base:…}} composition', () => {
   });
 });
 
+describe('{{recipe:…}} composition', () => {
+  it('includes a whole other recipe, with its base blocks resolved', async () => {
+    mkdirSync(join(root, 'skills', '_base'));
+    writeFileSync(join(root, 'skills', '_base', 'wahlpruefstein.md'), 'Frage für Frage.\n');
+    writeFileSync(
+      join(root, 'skills', 'wahlpruefstein.md'),
+      'Ebene bestimmen.\n\n{{base:wahlpruefstein}}\n\nForm-Muster.\n'
+    );
+    writeFileSync(
+      join(root, 'skills', 'wahlpruefstein-berlin.md'),
+      'Du antwortest für Berlin.\n\n{{recipe:wahlpruefstein}}\n'
+    );
+    const { getInternalSkillPrompt } = await loadModule();
+
+    expect(getInternalSkillPrompt('wahlpruefstein-berlin')).toBe(
+      'Du antwortest für Berlin.\n\nEbene bestimmen.\n\nFrage für Frage.\n\nForm-Muster.'
+    );
+  });
+
+  it('drops a missing or self-referencing recipe marker', async () => {
+    writeFileSync(
+      join(root, 'skills', 'presse-nrw.md'),
+      'NRW.\n{{recipe:fehlt}}\n{{recipe:presse-nrw}}\nRest.\n'
+    );
+    const { getInternalSkillPrompt } = await loadModule();
+
+    expect(getInternalSkillPrompt('presse-nrw')).toBe('NRW.\nRest.');
+  });
+
+  it('includes only one level deep, so includes cannot loop', async () => {
+    writeFileSync(join(root, 'skills', 'a.md'), 'A.\n{{recipe:b}}\n');
+    writeFileSync(join(root, 'skills', 'b.md'), 'B.\n{{recipe:a}}\n');
+    const { getInternalSkillPrompt } = await loadModule();
+
+    expect(getInternalSkillPrompt('a')).toBe('A.\nB.');
+  });
+});
+
 describe('getInternalAgentPrompt', () => {
   it('returns the persona of an agent, keyed by identifier', async () => {
     writeFileSync(join(root, 'agents', 'gruenerator-antrag.md'), 'Du bist Antragsprofi.\n');

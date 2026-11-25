@@ -27,6 +27,7 @@ import {
   parseBoardStructure,
   postProcessBoardStructure,
 } from '../../services/boards/BoardService.js';
+import { listAssignableMembers } from '../../services/boards/cardAssignees.js';
 import {
   GRUENERATOR_BOT_USER_ID,
   GRUENERATOR_BOT_DISPLAY_NAME,
@@ -199,45 +200,7 @@ export const boardsContractRouter = s.router(boardsContract, {
         return { status: 403 as const, body: { error: 'Access denied' } };
       }
 
-      const members = await db.query<AssignableMember>(
-        `WITH assignable AS (
-             SELECT cd.created_by AS user_id, 'owner'::text AS source
-             FROM collaborative_documents cd
-             WHERE cd.id = $1 AND cd.document_subtype = $2 AND cd.is_deleted = false
-
-             UNION
-
-             SELECT perm_key::uuid AS user_id, 'direct'::text AS source
-             FROM collaborative_documents cd,
-                  LATERAL jsonb_object_keys(COALESCE(cd.permissions, '{}'::jsonb)) AS perm_key
-             WHERE cd.id = $1 AND cd.document_subtype = $2 AND cd.is_deleted = false
-               AND perm_key ~ '^[0-9a-f-]{36}$'
-
-             UNION
-
-             SELECT gm.user_id, 'group'::text AS source
-             FROM group_content_shares gcs
-             INNER JOIN group_memberships gm
-               ON gm.group_id = gcs.group_id
-              AND gm.is_active = TRUE
-             INNER JOIN groups g ON g.id = gcs.group_id AND g.deleted_at IS NULL
-             WHERE gcs.content_type = 'collaborative_documents'
-               AND gcs.content_id = $1::text
-               -- The system group holds every user; never expose them as assignees.
-               AND NOT g.is_system
-           )
-           SELECT DISTINCT ON (a.user_id)
-             a.user_id,
-             a.source,
-             p.first_name,
-             p.display_name,
-             COALESCE(p.avatar_robot_id, 1) AS avatar_robot_id
-           FROM assignable a
-           INNER JOIN profiles p ON p.id = a.user_id
-           ORDER BY a.user_id,
-                    CASE a.source WHEN 'owner' THEN 0 WHEN 'direct' THEN 1 ELSE 2 END`,
-        [id, BOARDS_SUBTYPE]
-      );
+      const members = await listAssignableMembers(id);
 
       // Surface the async agent first so it's easy to delegate a task to it.
       const withBot = [

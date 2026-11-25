@@ -243,6 +243,20 @@ export function closeRoomConnections(
   return closed;
 }
 
+const CHAT_THREAD_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** `{ kind: 'started' | 'message', by: string | null }` → normalized, or null if invalid. */
+export function parseChatTurnSignalInput(
+  v: unknown
+): { kind: 'started' | 'message'; by: string | null } | null {
+  if (!v || typeof v !== 'object') return null;
+  const r = v as Record<string, unknown>;
+  if (r.kind !== 'started' && r.kind !== 'message') return null;
+  if (r.by === undefined || r.by === null) return { kind: r.kind, by: null };
+  if (typeof r.by !== 'string' || !r.by) return null;
+  return { kind: r.kind, by: r.by };
+}
+
 /** `{ rooms: string[], userId?: string | null }` → normalized, or null if invalid. */
 export function parseRoomCloseInput(v: unknown): { rooms: string[]; userId: string | null } | null {
   if (!v || typeof v !== 'object') return null;
@@ -1165,6 +1179,42 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
       `Closed ${closed} connection(s) in ${input.rooms.length} room(s)${input.userId ? ` for user ${input.userId}` : ''}`
     );
     res.json({ ok: true, closed });
+  });
+
+  // Team-chat turn signal. The API calls this when a turn of a shared chat is
+  // persisted, so web members refetch no matter which client sent it (the
+  // sender's awareness nudge only exists for the web runtime). Written as a
+  // Y.Map entry on the live `chat-<threadId>` room; clients observe `turnSignal`.
+  // A room nobody has open needs no signal — clients load the thread on entry.
+  router.post('/chat/:threadId/turn-signal', async (req, res) => {
+    const { threadId } = req.params;
+    const input = parseChatTurnSignalInput(req.body as unknown);
+    if (!CHAT_THREAD_ID_RE.test(threadId) || !input) {
+      res
+        .status(400)
+        .json({ error: 'threadId (uuid), kind (started|message) and by are required' });
+      return;
+    }
+    const room = `chat-${threadId}`;
+    if ((deps.server.hocuspocus.documents.get(room)?.getConnectionsCount() ?? 0) === 0) {
+      res.json({ ok: true, live: false });
+      return;
+    }
+    try {
+      const connection = await deps.server.hocuspocus.openDirectConnection(room);
+      try {
+        await connection.transact((doc) => {
+          doc.getMap<unknown>('turnSignal').set('signal', { ...input, t: Date.now() });
+        });
+        res.json({ ok: true, live: true });
+      } finally {
+        await connection.disconnect();
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      log.error(`turn-signal failed for ${room}: ${msg}`);
+      res.status(500).json({ error: msg });
+    }
   });
 
   app.use('/internal', router);

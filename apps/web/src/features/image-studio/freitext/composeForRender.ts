@@ -1,3 +1,4 @@
+import '../canvasHost';
 import {
   composeSharepic,
   type ComposedSharepic,

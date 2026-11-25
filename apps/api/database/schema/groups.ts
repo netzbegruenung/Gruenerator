@@ -1,8 +1,11 @@
 import {
   type GroupAudience,
+  type GroupCloudProvider,
+  type GroupColor,
   type GroupLink,
   type GroupRole,
   type JoinRequestStatus,
+  type LandesverbandId,
 } from '@gruenerator/contracts';
 import { type InferSelectModel } from 'drizzle-orm';
 import {
@@ -46,6 +49,13 @@ export const groups = pgTable('groups', {
   // The one system group: every profile is a member, only instance admins
   // share, and member info is never exposed. See services/groups/systemGroup.ts.
   is_system: boolean('is_system').notNull().default(false),
+  // Explicit Landesverband of the project (id of `LANDESVERBAENDE`); beats the
+  // active role when picking LV recipe variants. Narrowed in contracts.
+  landesverband: text('landesverband').$type<LandesverbandId>(),
+  // Set by a project admin: leaves the main lists, stays readable, takes no new content.
+  archived_at: timestamp('archived_at', { withTimezone: true }),
+  // Optional tile colour from the fixed palette; null = the default blue.
+  color: text('color').$type<GroupColor>(),
 });
 
 export const group_memberships = pgTable('group_memberships', {
@@ -124,9 +134,50 @@ export const group_instructions = pgTable('group_instructions', {
   custom_prompt: text('custom_prompt').default(''),
   instructions_enabled: boolean('instructions_enabled').default(false),
   is_active: boolean('is_active').default(true),
+  // Projekt-Start (Begrüßung + Startfragen); getrennt von den Anweisungen, teilt nur die Zeile.
+  welcome_message: text('welcome_message').default(''),
+  start_questions: jsonb('start_questions').$type<string[]>().default([]),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
+
+// Laufzeit-DDL in schema.sql / zz_20261124_group_cloud_sources.sql.
+// Unique (group_id, user_id, provider, share_link_id, folder_path).
+export const group_cloud_sources = pgTable('group_cloud_sources', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  group_id: uuid('group_id').notNull(),
+  user_id: uuid('user_id').notNull(),
+  provider: text('provider').$type<GroupCloudProvider>().notNull(),
+  share_link_id: text('share_link_id').notNull().default(''),
+  folder_path: text('folder_path').notNull().default(''),
+  name: text('name').notNull(),
+  include_subfolders: boolean('include_subfolders').notNull().default(true),
+  /** Nur Google Drive: die im Picker gewählten Dateien. */
+  picked_files: jsonb('picked_files').$type<PickedCloudFile[]>().notNull().default([]),
+  /** Datei-Schlüssel (WebDAV-href bzw. Drive-Id) → Dokument und gesehene Version. */
+  synced_files: jsonb('synced_files')
+    .$type<Record<string, SyncedCloudFile>>()
+    .notNull()
+    .default({}),
+  file_count: integer('file_count').notNull().default(0),
+  pending_count: integer('pending_count').notNull().default(0),
+  last_synced_at: timestamp('last_synced_at', { withTimezone: true }),
+  last_error: text('last_error'),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export interface PickedCloudFile {
+  id: string;
+  name: string;
+  mimeType: string;
+}
+
+export interface SyncedCloudFile {
+  /** `documents.id` */
+  id: string;
+  /** Version beim letzten Einlesen (Drive: `modifiedTime`); Wolke prüft per ETag selbst. */
+  v?: string | null;
+}
 
 export type GroupRow = InferSelectModel<typeof groups>;
 export type GroupMembershipRow = InferSelectModel<typeof group_memberships>;
@@ -136,3 +187,4 @@ export type GroupShareCommentRow = InferSelectModel<typeof group_share_comments>
 export type GroupPostRow = InferSelectModel<typeof group_posts>;
 export type GroupPostFileRow = InferSelectModel<typeof group_post_files>;
 export type GroupInstructionsRow = InferSelectModel<typeof group_instructions>;
+export type GroupCloudSourceRow = InferSelectModel<typeof group_cloud_sources>;

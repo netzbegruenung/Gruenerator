@@ -404,8 +404,10 @@ export default defineConfig(({ command }) => ({
         // before first paint costs a request, a compression context and parse
         // overhead. Lazy-only modules are never tagged `$initial`, so nothing
         // heavy moves into the boot path; `scripts/check-entry-closure.mjs`
-        // guards that. src/index.jsx is excluded so the entry stays its own
-        // chunk (otherwise the manifest loses `isEntry`).
+        // guards that. `boot-app` takes the entry module too: Rolldown then
+        // emits one chunk named after the entry (`index-*.js`) that keeps
+        // `isEntry` in the manifest. Excluding src/index.tsx would add a fifth
+        // boot file for the same bytes (measured, #5891).
         //
         // The previous design ALSO used a catch-all `vendor` chunk + named heavy
         // leaf groups to tame the auto-splitter. That was only needed because
@@ -440,7 +442,6 @@ export default defineConfig(({ command }) => ({
                   {
                     name: 'boot-app',
                     tags: ['$initial'],
-                    test: (id) => !/[\\/]src[\\/]index\.jsx$/.test(id),
                     priority: 40,
                   },
                 ],

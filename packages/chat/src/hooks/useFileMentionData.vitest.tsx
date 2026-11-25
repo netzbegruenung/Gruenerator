@@ -100,6 +100,83 @@ describe('useCombinedContentQuery', () => {
     renderHook(() => useCombinedContentQuery(false), { wrapper });
     expect(spy).not.toHaveBeenCalled();
   });
+
+  it('adds files and texts shared via a Projekt, labelled with the project', async () => {
+    installFetch((url) =>
+      url.endsWith('/shared')
+        ? jsonResponse({
+            success: true,
+            data: {
+              documents: [
+                {
+                  id: 'd2',
+                  title: 'Protokoll',
+                  filename: 'protokoll.txt',
+                  source_type: 'manual',
+                  created_at: '2026-11-10T00:00:00.000Z',
+                  shared_via_groups: ['BGS Test'],
+                },
+                // Own file also shared into a project: listed once, as own.
+                {
+                  id: 'd1',
+                  title: 'Antrag',
+                  filename: 'antrag.pdf',
+                  source_type: null,
+                  created_at: '2026-08-01',
+                  shared_via_groups: ['BGS Test'],
+                },
+              ],
+              texts: [
+                {
+                  id: 't2',
+                  title: 'Pressemitteilung',
+                  document_type: 'press',
+                  created_at: '2026-11-11T00:00:00.000Z',
+                  shared_via_groups: ['BGS Test', 'Fraktion'],
+                },
+              ],
+            },
+          })
+        : jsonResponse({
+            success: true,
+            data: {
+              documents: [{ id: 'd1', filename: 'antrag.pdf', created_at: '2026-08-01' }],
+              texts: [],
+            },
+          })
+    );
+
+    const { result } = renderHook(() => useCombinedContentQuery(true), { wrapper });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(result.current.data?.documents.map((d) => [d.id, d.sharedViaGroups])).toEqual([
+      ['d1', undefined],
+      ['d2', ['BGS Test']],
+    ]);
+    expect(result.current.data?.texts).toEqual([
+      expect.objectContaining({
+        id: 't2',
+        documentType: 'press',
+        sharedViaGroups: ['BGS Test', 'Fraktion'],
+      }),
+    ]);
+  });
+
+  it('keeps the own content when the shared list fails', async () => {
+    installFetch((url) =>
+      url.endsWith('/shared')
+        ? new Response('nope', { status: 404 })
+        : jsonResponse({
+            success: true,
+            data: { documents: [{ id: 'd1', filename: 'antrag.pdf' }], texts: [] },
+          })
+    );
+
+    const { result } = renderHook(() => useCombinedContentQuery(true), { wrapper });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(result.current.data?.documents.map((d) => d.id)).toEqual(['d1']);
+  });
 });
 
 /** A list entry with every field `mentionCollectionSchema` requires. */

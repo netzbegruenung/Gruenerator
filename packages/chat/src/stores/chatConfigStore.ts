@@ -111,6 +111,11 @@ export interface ChatConfig {
   /** Opens a single sharepic variant in the canvas editor for editing. */
   onEditSharepic?: (variant: SharepicVariant, opts?: { threadId: string | null }) => void;
   /**
+   * Opens a chat-made KI-Bild in the canvas editor as the background of a new
+   * canvas (cut-outs and text happen there). Web only.
+   */
+  onEditImage?: (image: { src: string; title: string }) => void;
+  /**
    * Renders a sharepic to a base64 PNG using the canvas editor.
    *
    * `quality: 'preview'` (the default) renders at display size — what the
@@ -138,8 +143,22 @@ export interface ChatConfig {
     initialProps: Record<string, unknown>;
     review: SharepicChatReview;
   }) => Promise<Record<string, unknown> | null>;
+  /**
+   * Saves a sharepic the chat just made as a canvas (idempotent per thread and
+   * variant), so it lands in the Studio's Mediathek without being opened.
+   * Returns the canvas id, null when it could not be saved. Web only.
+   */
+  saveSharepic?: (variant: SharepicVariant, threadId: string) => Promise<string | null>;
   /** Runs Python in a browser Pyodide worker (in-chat code execution). */
   runPython?: RunPython;
+  /**
+   * The user's notebooks for the @mention list, from the host's own cache. Web
+   * hands in its `notebookCollections` query so `GET /api/auth/notebook-collections`
+   * runs once; omit it (mobile) and the mention hook fetches the endpoint itself.
+   * Should throw an unauthorized `ApiError` for anonymous users — the hook maps it
+   * to an empty list.
+   */
+  fetchUserNotebooks?: () => Promise<Array<{ id: string; name: string }>>;
   /** Current state of a chat-edited sharepic canvas (GET /api/canvas/:id/state). */
   fetchSharepicState?: (canvasId: string) => Promise<{
     state: Record<string, unknown>;
@@ -340,10 +359,13 @@ interface ChatConfigStore extends ResolvedChatConfig {
   onExportPdfLetterhead?: ChatConfig['onExportPdfLetterhead'];
   getPodcastUrl?: ChatConfig['getPodcastUrl'];
   onEditSharepic?: (variant: SharepicVariant, opts?: { threadId: string | null }) => void;
+  onEditImage?: ChatConfig['onEditImage'];
   renderSharepic?: ChatConfig['renderSharepic'];
   renderSharepicSheet?: ChatConfig['renderSharepicSheet'];
   reviewSharepic?: ChatConfig['reviewSharepic'];
+  saveSharepic?: ChatConfig['saveSharepic'];
   runPython?: RunPython;
+  fetchUserNotebooks?: ChatConfig['fetchUserNotebooks'];
   fetchSharepicState?: ChatConfig['fetchSharepicState'];
   fetchSharepicVersions?: ChatConfig['fetchSharepicVersions'];
   fetchSharepicVersionState?: ChatConfig['fetchSharepicVersionState'];
@@ -480,10 +502,13 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       onExportPdfLetterhead: config?.onExportPdfLetterhead,
       getPodcastUrl: config?.getPodcastUrl,
       onEditSharepic: config?.onEditSharepic,
+      onEditImage: config?.onEditImage,
       renderSharepic: config?.renderSharepic,
       renderSharepicSheet: config?.renderSharepicSheet,
       reviewSharepic: config?.reviewSharepic,
+      saveSharepic: config?.saveSharepic,
       runPython: config?.runPython,
+      fetchUserNotebooks: config?.fetchUserNotebooks,
       fetchSharepicState: config?.fetchSharepicState,
       fetchSharepicVersions: config?.fetchSharepicVersions,
       fetchSharepicVersionState: config?.fetchSharepicVersionState,

@@ -2,6 +2,7 @@
  * Die selbst gehostete Connect-UI fragt ohne `apiURL` im Link Nangos Cloud und
  * meldet jede Session als abgelaufen — so am 03.10.2026 auf prod passiert.
  */
+import { AxiosError, AxiosHeaders } from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const createConnectSession = vi.fn();
@@ -22,7 +23,8 @@ vi.mock('../../config/nango.js', () => ({
   },
 }));
 
-const { ConnectionNotAllowedError, ConnectionService } = await import('./ConnectionService.js');
+const { ConnectionNotAllowedError, ConnectionNotConfiguredError, ConnectionService } =
+  await import('./ConnectionService.js');
 
 beforeEach(() => {
   createConnectSession.mockReset().mockResolvedValue({
@@ -103,5 +105,35 @@ describe('createConnectLink', () => {
     const link = new URL(await ConnectionService.createConnectLink('u1', 'microsoft'));
 
     expect(link.searchParams.has('apiURL')).toBe(false);
+  });
+
+  function nango400(message: string) {
+    const config = { headers: new AxiosHeaders() };
+    return new AxiosError('Request failed with status code 400', 'ERR_BAD_REQUEST', config, null, {
+      status: 400,
+      statusText: 'Bad Request',
+      headers: {},
+      config,
+      data: {
+        error: {
+          code: 'invalid_body',
+          errors: [{ code: 'custom', message, path: ['allowed_integrations', '0'] }],
+        },
+      },
+    });
+  }
+
+  // So antwortete die Prod-Nango am 24.11.2026 für Teams, Gmail und Outlook.
+  it('meldet eine in Nango nicht angelegte Integration als nicht eingerichtet', async () => {
+    createConnectSession.mockRejectedValue(nango400('Integration does not exist'));
+    await expect(ConnectionService.createConnectLink('u1', 'microsoft')).rejects.toBeInstanceOf(
+      ConnectionNotConfiguredError
+    );
+  });
+
+  it('reicht andere Nango-Fehler unverändert durch', async () => {
+    const err = nango400('something else');
+    createConnectSession.mockRejectedValue(err);
+    await expect(ConnectionService.createConnectLink('u1', 'microsoft')).rejects.toBe(err);
   });
 });

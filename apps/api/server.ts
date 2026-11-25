@@ -56,6 +56,7 @@ import { startBoardScheduleWorker } from './services/boards/boardScheduleWorker.
 import { startCardDueReminderWorker } from './services/boards/cardDueReminderWorker.js';
 import { startNotebookLinkCleanup } from './services/cleanup/notebookLinkCleanupService.js';
 import { startUploadsCleanup } from './services/cleanup/uploadsCleanupService.js';
+import { startCollabSearchIndexWorker } from './services/docs/collabSearchIndex.js';
 import { startDocsIndexRefresh } from './services/docs/docsIndexRefresh.js';
 import { startDocumentIngestWorker } from './services/document-services/DocumentProcessingService/documentIngestWorker.js';
 import { startDocumentMetaWorker } from './services/documentMeta/documentMetaWorker.js';
@@ -358,6 +359,9 @@ async function startWorker(): Promise<void> {
   // reclaims rows whose processing died with a previous process, which used to
   // strand them on 'processing' forever.
   startDocumentIngestWorker();
+  // Keeps project-shared Docs/Sheets/Decks searchable in Qdrant after a quiet period
+  // (per-document Redis claim; idempotent via the content hash).
+  startCollabSearchIndexWorker();
   startDocumentMetaWorker();
   // Draws the illustrations of new explainables. Same cluster-safe claim.
   startExplainableImageWorker();

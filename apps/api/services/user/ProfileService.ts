@@ -171,6 +171,7 @@ class ProfileService {
         'bundestag_api_enabled',
         'memory_enabled',
         'proactive_briefing_enabled',
+        'scheduled_tasks_enabled',
         'reduce_motion',
         'reduce_transparency',
         'show_skip_link',
@@ -202,6 +203,7 @@ class ProfileService {
         'auth_source',
         'document_mode',
         'default_startpage',
+        'start_layout',
         'feedback_button',
         'tts_voice_id',
       ] as const;
@@ -546,23 +548,6 @@ class ProfileService {
   async deleteProfile(userId: string): Promise<DeleteResult> {
     try {
       console.log(`[ProfileService] Starting profile deletion for user ${userId}`);
-
-      // Look up basic info before deletion for logging purposes
-      const db = getDrizzleInstance();
-      const userInfoRows = await db
-        .select({ email: profiles.email, username: profiles.username })
-        .from(profiles)
-        .where(eq(profiles.id, userId))
-        .limit(1);
-
-      const userInfo = userInfoRows[0];
-      if (userInfo) {
-        console.log(
-          `[ProfileService] Deleting user profile: ${userInfo.email ?? 'N/A'} (${userInfo.username ?? 'N/A'})`
-        );
-      } else {
-        console.warn(`[ProfileService] User ${userId} not found in profiles table`);
-      }
 
       // Use the legacy PostgresService delete for DeleteResult compatibility
       const postgres = getPostgresInstance();

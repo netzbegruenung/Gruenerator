@@ -22,6 +22,7 @@ import {
   syncUserNotebooks,
   type MentionableFetch,
 } from './mentionableSync';
+import { getUserNotebookMentionables, resolveMentionable } from './mentionables';
 
 /** Records every requested path and answers with an empty payload of any shape. */
 function recordingFetch(paths: string[]): MentionableFetch {
@@ -65,6 +66,7 @@ describe('mentionableSync endpoints', () => {
     await syncCustomAgents(get);
     expect(paths).toEqual([
       '/api/auth/notebook-collections',
+      '/api/auth/notebook-collections/shared',
       '/api/auth/custom_prompts',
       '/api/auth/saved_prompts',
     ]);
@@ -123,6 +125,53 @@ describe('syncCustomAgents origin', () => {
       fetchWith([row], [{ ...row, owner_first_name: 'Alex', owner_last_name: 'Grün' }])
     );
     expect(merged).toEqual([row]);
+  });
+});
+
+/**
+ * The own list is owned-only by design, so a notebook shared into a Projekt
+ * only reaches the @ picker through `/shared` — the backend already resolves
+ * such a mention (`checkNotebookAccess`), it just could not be picked.
+ */
+describe('syncUserNotebooks shared notebooks', () => {
+  const fetchWith =
+    (own: unknown[], shared: unknown[]): MentionableFetch =>
+    <T>(path: string): Promise<T> =>
+      Promise.resolve({
+        collections: path === '/api/auth/notebook-collections/shared' ? shared : own,
+      } as unknown as T);
+
+  it('adds notebooks shared via a Projekt and labels them with it', async () => {
+    const list = await syncUserNotebooks(
+      fetchWith(
+        [{ id: 'own-1', name: 'Klima' }],
+        [{ id: 'sh-1', name: 'Beschlüsse Testing', shared_via_groups: ['BGS Test'] }]
+      )
+    );
+    expect(list.map((n) => n.id)).toEqual(['own-1', 'sh-1']);
+    const hit = getUserNotebookMentionables().find((m) => m.identifier === 'sh-1');
+    expect(hit?.description).toBe('Notebook aus BGS Test');
+    expect(hit?.sharedFromGroup).toBe('BGS Test');
+    expect(resolveMentionable('beschluesse-testing')?.identifier).toBe('sh-1');
+  });
+
+  it('keeps an own notebook that also comes back as shared on the own side', async () => {
+    const list = await syncUserNotebooks(
+      fetchWith(
+        [{ id: 'nb-1', name: 'Klima' }],
+        [{ id: 'nb-1', name: 'Klima', shared_via_groups: ['BGS Test'] }]
+      )
+    );
+    expect(list).toEqual([{ id: 'nb-1', name: 'Klima' }]);
+  });
+
+  it('keeps the own notebooks when the shared list fails', async () => {
+    const get: MentionableFetch = <T>(path: string): Promise<T> =>
+      path === '/api/auth/notebook-collections/shared'
+        ? Promise.reject(Object.assign(new Error('Server error'), { status: 500 }))
+        : Promise.resolve({ collections: [{ id: 'own-1', name: 'Klima' }] } as unknown as T);
+    await expect(syncUserNotebooks(get)).resolves.toEqual([{ id: 'own-1', name: 'Klima' }]);
+    expect(getUserNotebookMentionables().map((m) => m.identifier)).toEqual(['own-1']);
   });
 });
 

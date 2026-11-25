@@ -4,7 +4,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState, type ReactNode } from 'react';
-import { Alert, Platform, Share, Switch, View, Text, StyleSheet, ScrollView } from 'react-native';
+import { Alert, Switch, View, Text, StyleSheet, ScrollView } from 'react-native';
 
 import { MenuActionSheet } from '../../../../components/chat/MenuActionSheet';
 import { ListGroup, ListRow, SkeletonRows } from '../../../../components/common';
@@ -14,19 +14,23 @@ import { FEED_KIND_ICONS } from '../../../../components/projekte/feedIcons';
 import { useProjekteTone } from '../../../../components/projekte/projekteTone';
 import {
   MAKE_ADMIN_ID,
+  REMOVE_MEMBER_ID,
   buildMemberActions,
   canChangeMemberRole,
   canLeaveProject,
   canShareInviteLink,
 } from '../../../../components/projekte/settingsRules';
+import { shareProjectInvite } from '../../../../components/projekte/shareInvite';
 import { GroupAvatar } from '../../../../components/workplace/GroupAvatar';
 import { useGroupFeed } from '../../../../hooks/useGroupContent';
 import {
-  buildGroupInviteUrl,
   useGroupDetails,
   useGroupMembers,
   useLeaveGroup,
+  useRegenerateJoinToken,
   useSetGroupMute,
+  useRemoveGroupMember,
+  useSetGroupArchived,
   useUpdateMemberRole,
   type GroupMember,
 } from '../../../../hooks/useGroups';
@@ -60,15 +64,17 @@ export default function ProjektInfoScreen() {
 
   const group = detailsQuery.data?.group;
   const membership = detailsQuery.data?.membership;
-  const isPersonal = group?.group_type === 'personal';
   // The system group holds every user and never shows its members.
-  const showMembers = !isPersonal && !group?.is_system;
+  const showMembers = !group?.is_system;
   const members = membersQuery.data ?? [];
 
   const isAdmin = !!membership?.isAdmin;
   const muteMutation = useSetGroupMute(id ?? '');
   const roleMutation = useUpdateMemberRole(id ?? '');
+  const removeMutation = useRemoveGroupMember(id ?? '');
+  const archiveMutation = useSetGroupArchived(id ?? '');
   const leaveMutation = useLeaveGroup();
+  const renewLinkMutation = useRegenerateJoinToken(id ?? '');
   const muted = muteMutation.isPending
     ? (muteMutation.variables ?? false)
     : !!membership?.notifications_muted;
@@ -81,13 +87,25 @@ export default function ProjektInfoScreen() {
     muteMutation.mutate(value, { onSuccess: done, onError: fail });
 
   const shareInvite = () => {
-    if (!group?.join_token) return;
-    const url = buildGroupInviteUrl(group.join_token);
-    const title = group.name;
-    void Share.share(Platform.OS === 'ios' ? { url, title } : { message: url, title }).catch(
-      (error: Error) => fail(error)
-    );
+    if (group) shareProjectInvite(group, fail);
   };
+
+  const confirmRenewLink = () =>
+    Alert.alert(
+      'Einladungslink erneuern',
+      'Der bisherige Link wird ungültig, auch in schon verschickten Einladungen.',
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        {
+          text: 'Erneuern',
+          onPress: () =>
+            renewLinkMutation.mutate(undefined, {
+              onSuccess: done,
+              onError: fail,
+            }),
+        },
+      ]
+    );
 
   const confirmLeave = () => {
     if (!id) return;
@@ -114,6 +132,24 @@ export default function ProjektInfoScreen() {
 
   const selectMemberAction = (actionId: string) => {
     if (!menuMember) return;
+    if (actionId === REMOVE_MEMBER_ID) {
+      const target = menuMember;
+      const name = target.display_name ?? target.first_name ?? target.email ?? 'Das Mitglied';
+      Alert.alert(
+        'Mitglied entfernen',
+        `${name} verliert den Zugriff auf dieses Projekt. Team-Chats bleiben im Projekt.`,
+        [
+          { text: 'Abbrechen', style: 'cancel' },
+          {
+            text: 'Entfernen',
+            style: 'destructive',
+            onPress: () =>
+              removeMutation.mutate(target.user_id, { onSuccess: done, onError: fail }),
+          },
+        ]
+      );
+      return;
+    }
     roleMutation.mutate(
       { memberId: menuMember.user_id, role: actionId === MAKE_ADMIN_ID ? 'admin' : 'member' },
       { onSuccess: done, onError: fail }
@@ -199,7 +235,7 @@ export default function ProjektInfoScreen() {
                 <ListRow
                   icon="create-outline"
                   title="Name und Beschreibung bearbeiten"
-                  last={!canShareLink}
+                  last={group.is_system === true && !canShareLink}
                   onPress={() =>
                     router.push({
                       pathname: '/(focused)/projekte/[id]/bearbeiten',
@@ -208,20 +244,38 @@ export default function ProjektInfoScreen() {
                   }
                 />
                 {canShareLink ? (
-                  <ListRow
-                    icon="share-outline"
-                    title="Einladungslink teilen"
-                    last
-                    onPress={shareInvite}
-                  />
+                  <>
+                    <ListRow
+                      icon="share-outline"
+                      title="Einladungslink teilen"
+                      onPress={shareInvite}
+                    />
+                    <ListRow
+                      icon="refresh-outline"
+                      title="Einladungslink erneuern"
+                      last={group.is_system === true}
+                      onPress={confirmRenewLink}
+                    />
+                  </>
                 ) : null}
+                {group.is_system ? null : (
+                  <ListRow
+                    icon="archive-outline"
+                    title={group.archived_at ? 'Projekt wiederherstellen' : 'Projekt archivieren'}
+                    last
+                    disabled={archiveMutation.isPending}
+                    onPress={() =>
+                      archiveMutation.mutate(!group.archived_at, { onSuccess: done, onError: fail })
+                    }
+                  />
+                )}
               </ListGroup>
             )
           : null}
 
         {group?.description
           ? section(
-              showMembers ? 'Über die Gruppe' : 'Über das Projekt',
+              'Über das Projekt',
               <View style={[styles.card, { backgroundColor: theme.card }]}>
                 <Text style={[styles.description, { color: theme.text }]}>{group.description}</Text>
               </View>

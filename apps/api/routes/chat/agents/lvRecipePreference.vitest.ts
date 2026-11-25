@@ -24,6 +24,52 @@ const lgs = (bundesland: string) => ({
   bundesland,
 });
 
+describe('preferredLvRecipeMention — Projekt-Landesverband', () => {
+  it('schlägt die aktive Rolle (Berlin-Rolle, Bayern-Projekt → Bayern)', () => {
+    expect(
+      preferredLvRecipeMention({
+        mention: 'presse',
+        activeRole: lgs('Berlin'),
+        projectLandesverband: 'bayern',
+        userLocale: 'de-DE',
+      })
+    ).toBe('presse-bayern-partei');
+  });
+
+  it('greift auch ohne aktive Rolle', () => {
+    expect(
+      preferredLvRecipeMention({
+        mention: 'presse',
+        activeRole: null,
+        projectLandesverband: 'bayern',
+        userLocale: 'de-DE',
+      })
+    ).toBe('presse-bayern-partei');
+  });
+
+  it('weicht einem LV-Agenten (der bindet weiter an seinen Verband)', () => {
+    expect(
+      preferredLvRecipeMention({
+        mention: 'presse',
+        agentIdentifier: 'gruenerator-oeffentlichkeitsarbeit-hessen',
+        projectLandesverband: 'bayern',
+        userLocale: 'de-DE',
+      })
+    ).toBe('presse-hessen-partei');
+  });
+
+  it('ohne Projekt-Landesverband entscheidet weiter die Rolle', () => {
+    expect(
+      preferredLvRecipeMention({
+        mention: 'presse',
+        activeRole: lgs('Berlin'),
+        projectLandesverband: null,
+        userLocale: 'de-DE',
+      })
+    ).toBe('presse-berlin-partei');
+  });
+});
+
 describe('preferredLvRecipeMention — Rollen-Pfad (generischer Agent)', () => {
   it('führt presse zur Partei-Variante des eigenen Landesverbands', () => {
     expect(
@@ -77,11 +123,35 @@ describe('preferredLvRecipeMention — Rollen-Pfad (generischer Agent)', () => {
   });
 
   it('lässt Rezepte ohne LV-Varianten in Ruhe (facebook, reel, …)', () => {
-    for (const mention of ['facebook', 'twitter', 'linkedin', 'reel', 'wahlpruefstein']) {
+    for (const mention of ['facebook', 'twitter', 'linkedin', 'reel']) {
       expect(
         preferredLvRecipeMention({ mention, activeRole: lgs('Bayern'), userLocale: 'de-DE' })
       ).toBeNull();
     }
+  });
+
+  it('biegt Wahlprüfsteine auf die LV-Variante um (Rolle, Projekt, LV-Agent)', () => {
+    expect(
+      preferredLvRecipeMention({
+        mention: 'wahlpruefstein',
+        activeRole: lgs('Bayern'),
+        userLocale: 'de-DE',
+      })
+    ).toBe('wahlpruefstein-bayern');
+    expect(
+      preferredLvRecipeMention({
+        mention: 'wahlpruefstein',
+        projectLandesverband: 'nordrhein-westfalen',
+        userLocale: 'de-DE',
+      })
+    ).toBe('wahlpruefstein-nrw');
+    expect(
+      preferredLvRecipeMention({
+        mention: 'wahlpruefstein',
+        agentIdentifier: 'gruenerator-buergeranfragen-berlin',
+        userLocale: 'de-DE',
+      })
+    ).toBe('wahlpruefstein-berlin');
   });
 
   it('steht ohne Landesgeschäftsstellen-Rolle still', () => {
@@ -349,15 +419,13 @@ describe('ownedDefaultRecipeMention', () => {
     ).toBeNull();
   });
 
-  it('lädt das geliehene Rezept vor, wenn sein Besitzer nur dieses eine führt', () => {
-    // Die LV-Wahlprüfstein-Agenten besitzen kein Rezept; `wahlpruefstein`
-    // gehört dem bundesweiten Wahlprüfstein-Agenten, der nur dieses führt.
+  it('lädt das eigene Rezept eines Ein-Rezept-Agenten vor', () => {
     expect(
       ownedDefaultRecipeMention({
         identifier: 'gruenerator-wahlpruefsteine-berlin',
-        defaultRecipeMention: 'wahlpruefstein',
+        defaultRecipeMention: 'wahlpruefstein-berlin',
       })
-    ).toBe('wahlpruefstein');
+    ).toBe('wahlpruefstein-berlin');
     expect(
       ownedDefaultRecipeMention({
         identifier: 'gruenerator-wahlpruefsteine',

@@ -1032,7 +1032,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     />
   ) : null;
 
-  const modelPickerNode = showModelPicker ? <ModelPicker /> : null;
+  const modelPickerNode = <>{showModelPicker ? <ModelPicker /> : null}</>;
 
   const composerInput = (
     <ComposerPrimitive.Input

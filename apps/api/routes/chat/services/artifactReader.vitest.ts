@@ -40,7 +40,21 @@ vi.mock('../../../services/canvas/canvasContext.js', () => ({ loadCanvasAsContex
 vi.mock('../../docs/docProseReader.js', () => ({ loadDocumentProse }));
 vi.mock('../../../services/pdf/pdfText.js', () => ({ extractPdfText }));
 
-const { readArtifactContent, subtypeToReadKind } = await import('./artifactReader.js');
+const dbQuery = vi.fn();
+vi.mock('../../../database/services/PostgresService.js', () => ({
+  getPostgresInstance: () => ({ query: dbQuery }),
+}));
+const readSourceText = vi.fn();
+vi.mock('../../../services/notebook/notebookSources.js', () => ({ readSourceText }));
+vi.mock(
+  '../../../services/document-services/DocumentSearchService/DocumentSearchService.js',
+  () => ({
+    getQdrantDocumentService: () => ({}),
+  })
+);
+
+const { readArtifactContent, subtypeToReadKind, ArtifactNotReadableError } =
+  await import('./artifactReader.js');
 
 const USER = 'e27c1530-da34-4bd6-b0ac-adc17298d9f7';
 const PDF_NAME = '3f1c9d20-4b7e-4a11-9c8d-5e2a7b6f0d43.pdf';
@@ -141,5 +155,42 @@ describe('readArtifactContent', () => {
     await expect(
       readArtifactContent({ id: PDF_NAME, kind: 'pdf', userId: USER })
     ).resolves.toBeNull();
+  });
+});
+
+describe('readArtifactContent — kind "file" (hochgeladene Datei)', () => {
+  const read = () => readArtifactContent({ id: 'f-1', kind: 'file', userId: 'u-1' });
+  const row = (status: string) => [{ title: 'Protokoll', user_id: 'owner', status }];
+
+  it('liest den Text unter der Besitzer-ID, mit Titel', async () => {
+    dbQuery.mockResolvedValueOnce(row('completed'));
+    readSourceText.mockResolvedValueOnce({ text: 'Erster Satz.\nLetzter Satz.' });
+    expect(await read()).toBe('# Protokoll\n\nErster Satz.\nLetzter Satz.');
+    expect(readSourceText).toHaveBeenLastCalledWith(
+      { sourceId: 'f-1', ownerUserId: 'owner' },
+      expect.anything()
+    );
+  });
+
+  it('kein Zugriff oder nicht vorhanden → null', async () => {
+    dbQuery.mockResolvedValueOnce([]);
+    expect(await read()).toBeNull();
+  });
+
+  it.each([
+    ['processing', /noch eingelesen/],
+    ['pending', /noch eingelesen/],
+    ['failed', /nicht einlesen/],
+  ])('Status %s ist kein „leer", sondern ein eigener Hinweis', async (status, text) => {
+    dbQuery.mockResolvedValueOnce(row(status));
+    await expect(read()).rejects.toThrow(text);
+  });
+
+  it('ein Ausfall des Chunk-Speichers ist nie „leer"', async () => {
+    dbQuery.mockResolvedValueOnce(row('completed'));
+    readSourceText.mockRejectedValueOnce(new Error('getDocumentChunks failed: timeout'));
+    const err = await read().catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ArtifactNotReadableError);
+    expect((err as Error).message).toMatch(/nicht, dass sie leer ist/);
   });
 });

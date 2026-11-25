@@ -22,8 +22,13 @@ export type VideoProject = z.infer<typeof videoProjectSchema>;
 
 export const videoProjectListResponseSchema = z.array(videoProjectSchema);
 
-/** Where a project was seeded from: `ki:<videoAiProjectId>:<version>`. */
-export const videoProjectSourceRefSchema = z.string().regex(/^ki:[0-9a-f-]{36}:\d+$/);
+/**
+ * Where a project was seeded from: `ki:<videoAiProjectId>:<version>` (KI-Schnitt)
+ * or `sub:<subtitlerProjectId>` (Untertitel → „Bearbeiten“).
+ */
+export const videoProjectSourceRefSchema = z
+  .string()
+  .regex(/^(ki:[0-9a-f-]{36}:\d+|sub:[0-9a-f-]{36})$/);
 
 export const createVideoProjectBodySchema = z.object({
   title: z.string().min(1).max(200).nullish(),

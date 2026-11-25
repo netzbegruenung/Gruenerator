@@ -118,6 +118,7 @@ describe('searchOperations — document scoping vs. user scoping invariant', () 
       expect(hasUserIdClause(captured.filter)).toBe(false);
       expect(hasDocumentIdClause(captured.filter)).toBe(true);
       expect(skipsTrashedChunks(captured.filter)).toBe(false);
+      expect(captured.filter?.must_not).toBeUndefined();
     });
 
     it('includes user_id filter when no documentIds (personal-library scan)', async () => {
@@ -133,6 +134,10 @@ describe('searchOperations — document scoping vs. user scoping invariant', () 
       expect(hasUserIdClause(captured.filter)).toBe(true);
       expect(skipsTrashedChunks(captured.filter)).toBe(true);
       expect(hasDocumentIdClause(captured.filter)).toBe(false);
+      // Collab-document chunks are reached by document id only.
+      expect(captured.filter?.must_not).toEqual([
+        { key: 'source_type', match: { value: 'collab' } },
+      ]);
     });
 
     it('omits user_id filter for system collections regardless of documentIds', async () => {

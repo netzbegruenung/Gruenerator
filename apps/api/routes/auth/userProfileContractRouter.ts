@@ -145,6 +145,7 @@ export const userProfileContractRouter = s.router(userProfileContract, {
         avatar_robot_id,
         custom_prompt,
         default_startpage,
+        start_layout,
         feedback_button,
         reduce_motion,
         reduce_transparency,
@@ -152,6 +153,7 @@ export const userProfileContractRouter = s.router(userProfileContract, {
         tts_voice_id,
         memory_enabled,
         proactive_briefing_enabled,
+        scheduled_tasks_enabled,
         ai_consent,
       } = args.body;
 
@@ -166,6 +168,7 @@ export const userProfileContractRouter = s.router(userProfileContract, {
       // setting a known admin address. The IdP (Keycloak) is authoritative for email.
       if (custom_prompt !== undefined) updateData.custom_prompt = custom_prompt || null;
       if (default_startpage !== undefined) updateData.default_startpage = default_startpage;
+      if (start_layout !== undefined) updateData.start_layout = start_layout;
       if (feedback_button !== undefined) updateData.feedback_button = feedback_button;
       if (reduce_motion !== undefined) updateData.reduce_motion = reduce_motion;
       if (reduce_transparency !== undefined) updateData.reduce_transparency = reduce_transparency;
@@ -174,6 +177,8 @@ export const userProfileContractRouter = s.router(userProfileContract, {
       if (memory_enabled !== undefined) updateData.memory_enabled = memory_enabled;
       if (proactive_briefing_enabled !== undefined)
         updateData.proactive_briefing_enabled = proactive_briefing_enabled;
+      if (scheduled_tasks_enabled !== undefined)
+        updateData.scheduled_tasks_enabled = scheduled_tasks_enabled;
       // Der Zeitstempel kommt vom Server, nicht vom Client: er ist der Nachweis
       // der Einwilligung (Art. 7 Abs. 1 DSGVO). Widerruf löscht ihn, damit der
       // Dialog beim nächsten Aufruf wieder erscheint.

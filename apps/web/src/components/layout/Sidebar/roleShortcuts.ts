@@ -1,16 +1,16 @@
 import { resolveSkillIcon } from '@gruenerator/chat';
 import { type UserRole } from '@gruenerator/chat/stores';
 import {
-  SKILLS,
+  SKILL_SLIMS,
   getAgentSlug,
   getLandesverbandHubsByIds,
-  getSystemAgent,
+  getSlimAgent,
   isSkillOfferedIn,
   landesverbandIdsForRoles,
   type LvHub,
 } from '@gruenerator/shared/agents';
 import { type InstanceId } from '@gruenerator/shared/instances';
-import { marketplaceHref } from '@gruenerator/shared/marketplace';
+import { landesverbandHubHref, marketplaceHref } from '@gruenerator/shared/marketplace';
 import { NOTEBOOK_ICONS } from '@gruenerator/shared/notebook-icons';
 import { isNotebookOfferedIn, type NotebookId } from '@gruenerator/shared/notebooks';
 import { grueneJugendRoleLocale } from '@gruenerator/shared/roles';
@@ -25,8 +25,9 @@ import {
   PiBuildings,
   PiImage,
   PiInstagramLogo,
+  PiStorefront,
 } from '@/config/shellIcons.generated';
-import { landesverbandHubCards } from '@/features/chat/landesverbandHubCards';
+import { landesverbandRecipeLinks } from '@/features/chat/landesverbandHubLinks';
 import { getNotebookById } from '@/features/notebook/config/notebooksConfig';
 
 export interface RoleShortcutLink {
@@ -53,31 +54,61 @@ export interface RoleShortcut {
   links: RoleShortcutLink[];
 }
 
-/** Je Landesverband-Hub: seine Agents und sein Notebook. */
+/**
+ * Je Landesverband-Hub: seine Rezepte, sein Notebook und die Marktplatz-Seite.
+ * Ein Rezept-Eintrag öffnet den Chat mit `@<rezept>` — wie bei der
+ * Bundesgeschäftsstelle; die LV-Agenten stehen seit 11/2026 nicht mehr hier.
+ */
 export function landesverbandShortcut(
   hub: LvHub,
   roles: readonly UserRole[],
-  userLocale: string
+  userLocale: string,
+  instance: InstanceId
 ): RoleShortcut {
   const notebookPath = getNotebookById(hub.notebookId)?.path;
+  const recipes = landesverbandRecipeLinks(hub, instance);
   return {
     key: hub.slug,
     name: hub.name,
     Icon: NOTEBOOK_ICONS[hub.notebookId],
     role: roles.find((r) => landesverbandIdsForRoles([r], userLocale).includes(hub.lvId)) ?? null,
     starters: {
-      heading: 'Neuer Chat mit Agent',
-      links: landesverbandHubCards(hub, userLocale).map(({ agentId, role }) => ({
-        key: agentId,
-        label: role,
-        Icon: getAgentIcon(agentId),
-        path: `/agents/${getAgentSlug(agentId)}`,
-        title: role,
+      heading: 'Neuer Chat mit Rezept',
+      links: recipes.map((recipe) => ({
+        key: recipe.mention,
+        label: recipe.title,
+        // Siehe `bundesgeschaeftsstelleShortcut`: `SkillIcon` ist schmaler getippt.
+        Icon: resolveSkillIcon(recipe.iconKey) as IconType,
+        path: recipe.path,
+        title: recipe.title,
       })),
     },
-    links: notebookPath
-      ? [{ key: 'notebook', label: 'Notebook', Icon: PiBooks, path: notebookPath, title: hub.name }]
-      : [],
+    links: [
+      ...(notebookPath
+        ? [
+            {
+              key: 'notebook',
+              label: 'Notebook',
+              Icon: PiBooks,
+              path: notebookPath,
+              title: hub.name,
+            },
+          ]
+        : []),
+      // Die Marktplatz-Seite führt das Land wie der Marktplatz selbst (siehe
+      // `LandesverbandHub`) — nur, wo sie für diese Person auch aufgeht.
+      ...(hub.audience === userLocale
+        ? [
+            {
+              key: 'rezepte',
+              label: 'Alle Rezepte',
+              Icon: PiStorefront,
+              path: landesverbandHubHref(hub.slug),
+              title: 'Marktplatz',
+            },
+          ]
+        : []),
+    ],
   };
 }
 
@@ -108,7 +139,7 @@ export function grueneJugendShortcut(
   if (!role) return null;
 
   const brand = GJ_BRAND[grueneJugendRoleLocale(role) ?? 'de-DE'];
-  const recipe = SKILLS.find((skill) => skill.mention === brand.mention);
+  const recipe = SKILL_SLIMS.find((skill) => skill.mention === brand.mention);
   return {
     key: 'gruene-jugend',
     name: brand.name,
@@ -179,10 +210,10 @@ export function bundesgeschaeftsstelleShortcut(
   const role = roles.find((r) => r.ebene === 'bund' && r.rolle === BGST_ROLLE);
   if (!role) return null;
 
-  // Aus `SKILLS`, nicht aus `agentsList`: die Rezepte gehören dem Universal-
+  // Aus `SKILL_SLIMS`, nicht aus `agentsList`: die Rezepte gehören dem Universal-
   // Agenten, und der ist `hiddenFromInventory`.
   const recipes = BGST_RECIPES.flatMap((mention) => {
-    const recipe = SKILLS.find((skill) => skill.mention === mention);
+    const recipe = SKILL_SLIMS.find((skill) => skill.mention === mention);
     return recipe && isSkillOfferedIn(recipe, instance) ? [recipe] : [];
   });
   if (recipes.length === 0) return null;
@@ -238,7 +269,7 @@ export function mdbBueroShortcut(
     starters: {
       heading: 'Neuer Chat mit Agent',
       links: MDB_BUERO_AGENTS.flatMap((agentId) => {
-        const agent = getSystemAgent(agentId);
+        const agent = getSlimAgent(agentId);
         if (!agent) return [];
         return [
           {
@@ -268,7 +299,7 @@ export function buildRoleShortcuts(
   const visible = roles.filter((r) => r.showInSidebar !== false);
   const lvIds = landesverbandIdsForRoles(visible, userLocale);
   const shortcuts = getLandesverbandHubsByIds(lvIds, instance).map((hub) =>
-    landesverbandShortcut(hub, visible, userLocale)
+    landesverbandShortcut(hub, visible, userLocale, instance)
   );
   const extra = [
     bundesgeschaeftsstelleShortcut(visible, instance),

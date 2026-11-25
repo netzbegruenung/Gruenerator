@@ -122,7 +122,7 @@ export function renderNotebookAnswer(result: QAResponse, notebookName: string): 
   return `${result.answer}\n\nQuellen (${notebookName}):\n${lines.join('\n')}`;
 }
 
-const INSTRUCTIONS = `Grünerator MCP (angemeldet): Zugriff auf die eigenen Grünerator-Inhalte der angemeldeten Person (Dokumente, Boards/Aufgaben, Notebooks, Gruppen, Medien) plus die Programm- und Beschlusssuche von Bündnis 90/Die Grünen (DE) und den Grünen (AT).
+const INSTRUCTIONS = `Grünerator MCP (angemeldet): Zugriff auf die eigenen Grünerator-Inhalte der angemeldeten Person (Dokumente, Boards/Aufgaben, Notebooks, Projekte, Medien) plus die Programm- und Beschlusssuche von Bündnis 90/Die Grünen (DE) und den Grünen (AT).
 
 Für belegte Antworten aus mehreren Quellen gilt ein festes Vorgehen: die Resource gruenerator://methode beschreibt Ablauf und Zitierprotokoll, gruenerator://sammlungen listet die durchsuchbaren Sammlungen. Die Prompts "recherche" und "notebook-antwort" bringen beides fertig mit.
 
@@ -577,7 +577,7 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
 
     registerAiTool(server, 'documents', makeDocumentsTool(ctx), {
       description: contentWrite
-        ? `Zugriff auf die EIGENEN Dokumente, Tabellen und Präsentationen (nicht Boards — dafür 'boards_tasks'): auflisten (list), Titel, Art und Link per id holen (get), umbenennen (rename), löschen (delete), mit einer Gruppe teilen (share_to_group). delete und share_to_group verlangen das zweistufige confirm-Protokoll; die id stammt aus list.`
+        ? `Zugriff auf die EIGENEN Dokumente, Tabellen und Präsentationen (nicht Boards — dafür 'boards_tasks'): auflisten (list), Titel, Art und Link per id holen (get), umbenennen (rename), löschen (delete), mit einem Projekt teilen (share_to_group). delete und share_to_group verlangen das zweistufige confirm-Protokoll; die id stammt aus list.`
         : `Die EIGENEN Dokumente, Tabellen und Präsentationen auflisten (list) oder Titel, Art und Link eines Dokuments per id holen (get).`,
       actions: contentWrite
         ? ['list', 'get', 'rename', 'delete', 'share_to_group']
@@ -681,7 +681,7 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
   if (contentRead) {
     registerAiTool(server, 'user_agents', makeUserAgentsTool(ctx), {
       description: contentWrite
-        ? `Zugriff auf die eigenen Grünerator-Agenten der Person (Agentura): auflisten (list — der identifier steht im ref, geteilte Agenten sind markiert), Details mit Rolle, Werkzeugen, Rezepten, Notebooks und Sichtbarkeit (get), aus einer Beschreibung neu anlegen (create mit brief; optional title, systemRole, enabledTools, skillMentions, defaultNotebookIds — die Rolle wird entworfen), ändern (update), mit einem Projekt teilen (share_to_group mit groupName), löschen (delete). create, share_to_group und delete verlangen das zweistufige confirm-Protokoll. System-Grüneratoren (gruenerator-…) sind hier nicht erreichbar.`
+        ? `Zugriff auf die eigenen Grünerator-Agenten der Person (Agentura): auflisten (list — der identifier steht im ref, geteilte Agenten sind markiert), Details mit Rolle, Werkzeugen, Rezepten, Notebooks und Sichtbarkeit (get), ändern (update), mit einem Projekt teilen (share_to_group mit groupName), löschen (delete). Neue Agents lassen sich nicht mehr anlegen (create nennt den Grund) — dafür gibt es Rezepte (recipes). share_to_group und delete verlangen das zweistufige confirm-Protokoll. System-Grüneratoren (gruenerator-…) sind hier nicht erreichbar.`
         : `Die eigenen und die aus Projekten geteilten Grünerator-Agenten der Person auflisten (list — der identifier steht im ref) oder Details ansehen (get).`,
       actions: contentWrite
         ? ['list', 'get', 'create', 'update', 'share_to_group', 'delete']
@@ -689,7 +689,7 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
       ...(contentWrite
         ? {
             overrides: {
-              create: (args) => createUserAgentMcp(userId, args),
+              create: () => createUserAgentMcp(),
               share_to_group: (args) => shareUserAgentMcp(userId, args),
             },
           }
@@ -769,8 +769,8 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
     const groupsWrite = has('groups:write');
     registerAiTool(server, 'groups', makeGroupsTool(ctx), {
       description: groupsWrite
-        ? `Zugriff auf die Projekte (Gruppen) der Person: auflisten (list — die id steht im ref), per Name finden (find), Details ansehen (get), die geteilten Inhalte mit Links auflisten (content), neues Projekt anlegen (create), per Einladungstoken beitreten (join), Name/Beschreibung ändern (update, nur Admins), öffentlich listen oder privat stellen (set_visibility mit isPublic, nur Admins). join und set_visibility verlangen das zweistufige confirm-Protokoll. Mitglieder verwalten ist hier nicht möglich.`
-        : `Die Projekte (Gruppen) der Person auflisten (list — die id steht im ref), per Name finden (find), Details ansehen (get) oder die geteilten Inhalte mit Links auflisten (content).`,
+        ? `Zugriff auf die Projekte der Person: auflisten (list — die id steht im ref), per Name finden (find), Details ansehen (get), die geteilten Inhalte mit Links auflisten (content), neues Projekt anlegen (create), per Einladungstoken beitreten (join), Name/Beschreibung ändern (update, nur Admins), öffentlich listen oder privat stellen (set_visibility mit isPublic, nur Admins). join und set_visibility verlangen das zweistufige confirm-Protokoll. Mitglieder verwalten ist hier nicht möglich.`
+        : `Die Projekte der Person auflisten (list — die id steht im ref), per Name finden (find), Details ansehen (get) oder die geteilten Inhalte mit Links auflisten (content).`,
       actions: groupsWrite
         ? ['list', 'find', 'get', 'content', 'create', 'join', 'update', 'set_visibility']
         : ['list', 'find', 'get', 'content'],

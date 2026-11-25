@@ -9,19 +9,22 @@ import type { RecentItem } from '../hooks/useRecentActivity';
 
 const navigate = vi.fn();
 const items: RecentItem[] = [];
+let loading = false;
 
 vi.mock('react-router-dom', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   useNavigate: () => navigate,
 }));
 vi.mock('../hooks/useRecentActivity', () => ({
-  useRecentActivity: () => ({ data: items, isLoading: false, isError: false, refetch: vi.fn() }),
+  useRecentActivity: () => ({ data: items, isLoading: loading, isError: false, refetch: vi.fn() }),
 }));
 vi.mock('../../../hooks/useBoardsTyped', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   useBoardsTyped: () => ({ deleteBoard: vi.fn() }),
 }));
-vi.mock('../../image-studio/canvasQuery', () => ({ useCanvasEditorPrefetch: () => vi.fn() }));
+vi.mock('../../image-studio/canvasEditorPrefetch', () => ({
+  useCanvasEditorPrefetch: () => vi.fn(),
+}));
 vi.mock('../../../components/common/SharedMediaImage', () => ({ SharedMediaImage: () => null }));
 
 const image = (id: string, title: string, editor?: 'profilbild'): RecentItem => ({
@@ -72,5 +75,45 @@ describe('RecentlyCreatedSection canvas cards', () => {
     fireEvent.error(img);
     expect(screen.queryByRole('img', { name: 'Plakat' })).toBeNull();
     expect(screen.getByText('Bild-Vorschau')).toBeTruthy();
+  });
+});
+
+describe('RecentlyCreatedSection layout', () => {
+  it('reports the expanded state on the toggle button', async () => {
+    loading = false;
+    // jsdom has no grid layout: columns fall back to 2 (phone), so 5 items overflow two rows.
+    items.splice(
+      0,
+      items.length,
+      ...['a', 'b', 'c', 'd', 'e'].map((id) => image(id, id.toUpperCase()))
+    );
+    const { user } = renderWithProviders(<RecentlyCreatedSection />);
+
+    const toggle = screen.getByRole('button', { name: 'Mehr anzeigen' });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(document.getElementById(toggle.getAttribute('aria-controls') ?? '')).toBeTruthy();
+    await user.click(toggle);
+    expect(
+      screen.getByRole('button', { name: 'Weniger anzeigen' }).getAttribute('aria-expanded')
+    ).toBe('true');
+  });
+
+  it('shows two rows on a phone and doubles them with „Mehr anzeigen"', async () => {
+    loading = false;
+    const ids = Array.from({ length: 10 }, (_, i) => `i${i}`);
+    items.splice(0, items.length, ...ids.map((id) => image(id, id.toUpperCase())));
+    const { user } = renderWithProviders(<RecentlyCreatedSection />);
+
+    expect(screen.getAllByRole('button', { name: /^I\d$/ })).toHaveLength(4);
+    await user.click(screen.getByRole('button', { name: 'Mehr anzeigen' }));
+    expect(screen.getAllByRole('button', { name: /^I\d$/ })).toHaveLength(8);
+  });
+
+  it('renders two rows of skeletons (phone fallback of 2 columns when unmeasured)', () => {
+    loading = true;
+    const { container } = renderWithProviders(<RecentlyCreatedSection />);
+    loading = false;
+
+    expect(container.querySelectorAll('section > .grid > div')).toHaveLength(4);
   });
 });

@@ -1,11 +1,9 @@
-import { getDisabledNotebookIds } from '../notebooks/index.js';
-
 import { SYSTEM_AGENT_DEFINITIONS } from './definitions/index.generated.js';
-import { LV_HUBS } from './landesverbandHubs.js';
 import { LV_BUERGER_AGENTS, type LV_BUERGER_SPECS } from './lvBuergerAgents.js';
 import { LV_PR_AGENTS, type LV_PR_SPECS } from './lvPrAgents.js';
 import { LV_SOURCE_AGENTS, type LvSourceAgentId } from './lvSourceAgents.js';
 import { LV_WPS_AGENTS, type LV_WPS_SPECS } from './lvWahlpruefsteinAgents.js';
+import { AGENT_ALIASES, DISABLED_LV_AGENT_IDS } from './slim.js';
 
 import type { Agent } from './types.js';
 
@@ -31,21 +29,9 @@ const RAW_SYSTEM_AGENTS: readonly Agent[] = [
   ...LV_SOURCE_AGENTS,
 ];
 
-// A Landesverband's specialist agents (PR, Bürger*innenanfragen, Wahlprüfsteine,
-// and where present Beschlussanträge and Wahlprogramm)
-// are owned by its hub, which pins the LV notebook. When that notebook is turned
-// off (`enabled: false`), hide all of them from discovery — same single switch, no
-// per-agent flag. LV_HUBS (itself derived from the LV registry) is the
-// authoritative notebook→agents map, so we resolve the agent ids from it.
-// Exported for consumers that must distinguish "LV switched off" from the
-// static `hiddenFromInventory` on editor/default agents: the recipe catalogue
-// keeps a hidden-but-active agent's recipes (gruenerator-universal owns
-// `wahlpruefstein`/`aktion`) while dropping a disabled Landesverband's.
-export const DISABLED_LV_AGENT_IDS: ReadonlySet<string> = new Set<string>(
-  LV_HUBS.filter((hub) => getDisabledNotebookIds().has(hub.notebookId)).flatMap(
-    (hub) => hub.agentIds
-  )
-);
+// The set of Landesverband agents hidden by a disabled notebook is computed in
+// `slim.ts` (the boot-time registry shares it), see there for the rationale.
+export { DISABLED_LV_AGENT_IDS };
 const disabledLvAgentIds = DISABLED_LV_AGENT_IDS;
 
 // Identifiers stay live (legacy threads + backend fallbacks keep resolving via
@@ -73,11 +59,7 @@ const systemAgentMap = new Map<string, Agent>(
   SYSTEM_AGENTS.map((agent) => [agent.identifier, agent])
 );
 
-const SYSTEM_AGENT_ALIASES: Record<string, SystemAgentId> = {
-  'gruenerator-kommunal': 'gruenerator-antrag',
-};
-
 export function getSystemAgent(identifier: string): Agent | undefined {
-  const canonical = SYSTEM_AGENT_ALIASES[identifier] ?? identifier;
+  const canonical = AGENT_ALIASES[identifier] ?? identifier;
   return systemAgentMap.get(canonical);
 }

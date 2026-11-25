@@ -177,7 +177,7 @@ export function formatSpaceContentBlock(content: GroupContentBuckets | null): st
       return id ? [`- „${str(n, 'name') ?? 'Notebook'}" (id: ${id})`] : [];
     })
     .slice(0, SPACE_CONTENT_MAX);
-  const recipes = content.recipes
+  const recipes = [...content.recipes, ...content.system_recipes]
     .flatMap((r) => {
       const mention = str(r, 'mention');
       return mention ? [`- „${str(r, 'title') ?? mention}" (Kennung: ${mention})`] : [];

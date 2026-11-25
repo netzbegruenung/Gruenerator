@@ -8,7 +8,7 @@ import { ProjekteComposer } from './ProjekteComposer';
 import type { GroupSummary } from '@gruenerator/shared/groups';
 
 const projekte: GroupSummary[] = [
-  { id: 'projekt-1', name: 'Wahlkampf', role: 'admin', isAdmin: true, group_type: 'personal' },
+  { id: 'projekt-1', name: 'Wahlkampf', role: 'admin', isAdmin: true, group_type: 'standard' },
 ];
 
 function setup() {
@@ -30,14 +30,14 @@ describe('ProjekteComposer', () => {
   it('creates once a create row is chosen with the arrow key', async () => {
     const { user, onCreate, input } = setup();
     await user.type(input, 'OV Kommunikation{ArrowDown}{Enter}');
-    expect(onCreate).toHaveBeenCalledWith('OV Kommunikation', 'personal');
+    expect(onCreate).toHaveBeenCalledWith('OV Kommunikation');
   });
 
   it('creates from an explicit click on a create row', async () => {
     const { user, onCreate, input } = setup();
     await user.type(input, 'OV Kommunikation');
-    await user.click(screen.getByRole('button', { name: /als Gruppe erstellen/ }));
-    expect(onCreate).toHaveBeenCalledWith('OV Kommunikation', 'standard');
+    await user.click(screen.getByRole('button', { name: /als Projekt erstellen/ }));
+    expect(onCreate).toHaveBeenCalledWith('OV Kommunikation');
   });
 
   it('still preselects a matching Projekt, so Enter opens it instead of creating', async () => {

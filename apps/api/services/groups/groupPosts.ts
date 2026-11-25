@@ -25,6 +25,7 @@ import { createLogger } from '../../utils/logger.js';
 
 import { notifyGroupActivity } from './groupActivityNotifications.js';
 import { getViewer, type FeedOutcome } from './groupFeed.js';
+import { ARCHIVED_PROJECT_READ_ONLY } from './groupMembership.js';
 
 import type { PostgresService } from '../../database/services/PostgresService.js';
 
@@ -91,9 +92,7 @@ export async function createGroupPost(
   const outcome = await (async (): Promise<FeedOutcome<{ postId: string; shareId: string }>> => {
     const viewer = await getViewer(postgres, groupId, userId, deps.isInstanceAdmin);
     isSystem = viewer.isSystem;
-    if (viewer.isPersonal) {
-      return { status: 400, message: 'In Projekten gibt es keine Beiträge.' };
-    }
+    if (viewer.isArchived) return { status: 403, message: ARCHIVED_PROJECT_READ_ONLY };
     if (!viewer.canShare) {
       return { status: 403, message: 'In diesem Projekt können nur Admins Beiträge schreiben.' };
     }
@@ -199,7 +198,8 @@ async function getPost(
     `SELECT p.id, p.author_id, p.body, s.id AS share_id
        FROM group_posts p
        LEFT JOIN group_content_shares s
-         ON s.content_type = $3 AND s.content_id = p.id AND s.group_id = p.group_id
+         -- content_id ist TEXT, p.id UUID: ohne Cast scheitert der Join an text = uuid.
+         ON s.content_type = $3 AND s.content_id = p.id::text AND s.group_id = p.group_id
       WHERE p.id = $1 AND p.group_id = $2`,
     [postId, groupId, GROUP_POST_CONTENT_TYPE],
     { table: 'group_posts' }

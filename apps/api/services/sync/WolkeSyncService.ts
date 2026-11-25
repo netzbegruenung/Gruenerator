@@ -17,15 +17,11 @@ import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { NextcloudShareManager } from '../../utils/integrations/nextcloud/index.js';
 import NextcloudApiClient from '../api-clients/nextcloudApiClient.js';
-import {
-  DocumentSearchService,
-  getPostgresDocumentService,
-  smartChunkDocument,
-} from '../document-services/index.js';
-import { mistralEmbeddingService } from '../mistral/index.js';
+import { DocumentSearchService } from '../document-services/index.js';
 import { ocrService } from '../OcrService/index.js';
 
 import { walkWolkeFolder } from './folderWalk.js';
+import { storeExtractedDocument } from './storeExtractedDocument.js';
 import {
   isOcrWolkeExtension,
   isPlaintextWolkeExtension,
@@ -33,18 +29,16 @@ import {
   wolkeFileExtension,
 } from './supportedFileTypes.js';
 
-import type { NextcloudFile, FileProcessResult } from './types.js';
 import type { NextcloudShareLink } from '../../utils/integrations/nextcloud/types.js';
+import type { NextcloudFile, FileProcessResult } from './types.js';
 
 export class WolkeSyncService {
   private postgres: ReturnType<typeof getPostgresInstance>;
   private qdrantService: DocumentSearchService;
-  private documentService: ReturnType<typeof getPostgresDocumentService>;
 
   constructor() {
     this.postgres = getPostgresInstance();
     this.qdrantService = new DocumentSearchService();
-    this.documentService = getPostgresDocumentService();
   }
 
   /**
@@ -271,119 +265,53 @@ export class WolkeSyncService {
         throw new Error(`Unsupported file type for processing: ${fileExtension}`);
       }
 
-      if (!extractedText || extractedText.trim().length === 0) {
-        console.warn(`[WolkeSyncService] No text extracted from file: ${file.name}`);
-        return { skipped: true, reason: 'no_extractable_text' };
-      }
-
       console.log(
         `[WolkeSyncService] Extracted ${extractedText.length} characters from ${file.name}`
       );
 
-      // Chunk the text
-      const chunks = await smartChunkDocument(extractedText, {
-        preserveSentences: true,
-      });
-
-      if (chunks.length === 0) {
-        console.warn(`[WolkeSyncService] No chunks generated for file: ${file.name}`);
-        return { skipped: true, reason: 'no_content' };
-      }
-
-      // Generate embeddings
-      const texts = chunks.map((chunk) => chunk.text);
-      const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(
-        texts,
-        'search_document'
-      );
-
-      // Generate a short preview for UI lists
-      const generateContentPreview = (text: string, limit: number = 600): string => {
-        if (!text || typeof text !== 'string') return '';
-        if (text.length <= limit) return text;
-        const truncated = text.slice(0, limit);
-        const sentenceEnd = Math.max(
-          truncated.lastIndexOf('.'),
-          truncated.lastIndexOf('!'),
-          truncated.lastIndexOf('?')
-        );
-        if (sentenceEnd > limit * 0.5) return truncated.slice(0, sentenceEnd + 1);
-        const lastSpace = truncated.lastIndexOf(' ');
-        return lastSpace > limit * 0.6 ? `${truncated.slice(0, lastSpace)}...` : `${truncated}...`;
-      };
-      const contentPreview = generateContentPreview(extractedText);
-
-      // Store vectors in Qdrant
-      const metadata = {
-        sourceType: 'wolke',
-        wolkeShareLinkId: shareLinkId,
-        wolkeFilePath: file.href,
+      const lastModified = file.lastModified
+        ? file.lastModified instanceof Date
+          ? file.lastModified.toISOString()
+          : new Date(file.lastModified).toISOString()
+        : null;
+      const stored = await storeExtractedDocument({
+        userId,
+        existingDocumentId: existingDoc ? String(existingDoc.id) : null,
+        text: extractedText,
         title: file.name,
         filename: file.name,
-        additionalPayload: {
-          file_size: file.size,
-          last_modified: file.lastModified
-            ? file.lastModified instanceof Date
-              ? file.lastModified.toISOString()
-              : new Date(file.lastModified).toISOString()
-            : null,
-        },
-      };
-
-      // If document exists, delete old vectors first
-      if (existingDoc) {
-        await this.qdrantService.deleteDocumentVectors(String(existingDoc.id), userId);
-      }
-
-      // Create or update document metadata
-      let documentId: string;
-      if (existingDoc) {
-        await this.documentService.updateDocumentMetadata(String(existingDoc.id), userId, {
-          vectorCount: chunks.length,
-          wolkeEtag: file.etag,
-          lastSyncedAt: new Date().toISOString(),
-          status: 'completed',
-          additionalMetadata: {
-            content_preview: contentPreview,
-          },
-        });
-        documentId = String(existingDoc.id);
-      } else {
-        const newDoc = await this.documentService.saveDocumentMetadata(userId, {
-          title: file.name,
-          filename: file.name,
+        fileSize: file.size || 0,
+        create: {
           sourceType: 'wolke',
           wolkeShareLinkId: shareLinkId,
           wolkeFilePath: file.href,
           wolkeEtag: file.etag,
-          vectorCount: chunks.length,
-          fileSize: file.size || 0,
-          additionalMetadata: {
-            content_preview: contentPreview,
-          },
-          status: 'completed',
-        });
-        documentId = String(newDoc.id);
+        },
+        update: { wolkeEtag: file.etag },
+        vectorMetadata: {
+          sourceType: 'wolke',
+          wolkeShareLinkId: shareLinkId,
+          wolkeFilePath: file.href,
+          title: file.name,
+          filename: file.name,
+          additionalPayload: { file_size: file.size, last_modified: lastModified },
+        },
+      });
+
+      if (!stored.stored) {
+        console.warn(`[WolkeSyncService] ${stored.reason} for file: ${file.name}`);
+        return { skipped: true, reason: stored.reason };
       }
 
-      // Store vectors
-      await this.qdrantService.storeDocumentVectors(
-        userId,
-        documentId,
-        chunks,
-        embeddings,
-        metadata
-      );
-
       console.log(
-        `[WolkeSyncService] Successfully ${existingDoc ? 'updated' : 'processed new'} file: ${file.name} (${chunks.length} vectors)`
+        `[WolkeSyncService] Successfully ${existingDoc ? 'updated' : 'processed new'} file: ${file.name} (${stored.vectorsCreated} vectors)`
       );
 
       return {
         success: true,
-        documentId,
+        documentId: stored.documentId,
         filename: file.name,
-        vectorsCreated: chunks.length,
+        vectorsCreated: stored.vectorsCreated,
         isUpdate: !!existingDoc,
       };
     } catch (error: unknown) {

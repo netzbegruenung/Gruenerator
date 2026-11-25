@@ -57,7 +57,7 @@ const ShareWolkeLinkDialog = ({
     if (!selectedGroupId) return;
     try {
       await shareMutation.mutateAsync(selectedGroupId);
-      const groupName = userGroups.find((g) => g.id === selectedGroupId)?.name ?? 'Gruppe';
+      const groupName = userGroups.find((g) => g.id === selectedGroupId)?.name ?? 'Projekt';
       setSelectedGroupId('');
       onSuccess?.(`Wolke-Verbindung wurde mit „${groupName}" geteilt.`);
     } catch (error) {
@@ -85,9 +85,8 @@ const ShareWolkeLinkDialog = ({
             Wolke-Verbindung teilen
           </DialogTitle>
           <DialogDescription>
-            Mitglieder des gewählten Projekts oder der Gruppe können „{displayName}" anschließend
-            lesend nutzen. Der Link bleibt ein öffentlicher Nextcloud-Share — jede*r mit dem Link
-            hat Zugriff.
+            Mitglieder des gewählten Projekts können „{displayName}" anschließend lesend nutzen. Der
+            Link bleibt ein öffentlicher Nextcloud-Share — jede*r mit dem Link hat Zugriff.
           </DialogDescription>
         </DialogHeader>
 
@@ -97,11 +96,9 @@ const ShareWolkeLinkDialog = ({
               Bereits geteilt mit
             </h3>
             {isLoading ? (
-              <p className="text-sm text-grey-400">Lade Projekte und Gruppen...</p>
+              <p className="text-sm text-grey-400">Lade Projekte...</p>
             ) : linkGroupShares.length === 0 ? (
-              <p className="text-sm text-grey-400">
-                Noch in keinem Projekt und keiner Gruppe geteilt.
-              </p>
+              <p className="text-sm text-grey-400">Noch in keinem Projekt geteilt.</p>
             ) : (
               <ul className="flex flex-col gap-xs">
                 {linkGroupShares.map((share) => (
@@ -120,7 +117,7 @@ const ShareWolkeLinkDialog = ({
                         className="h-7 w-7"
                         onClick={() => handleUnshare(share.groupId, share.groupName)}
                         disabled={unshareMutation.isPending}
-                        title="Aus Projekt oder Gruppe entfernen"
+                        title="Aus Projekt entfernen"
                       >
                         <FiX className="w-4 h-4" />
                       </Button>
@@ -133,13 +130,13 @@ const ShareWolkeLinkDialog = ({
 
           <section className="flex flex-col gap-sm">
             <h3 className="text-sm font-medium text-grey-600 dark:text-grey-300">
-              Mit weiterem Projekt oder weiterer Gruppe teilen
+              Mit weiterem Projekt teilen
             </h3>
             {availableGroups.length === 0 ? (
               <p className="text-sm text-grey-400">
                 {userGroups.length === 0
-                  ? 'Du bist noch in keinem Projekt und keiner Gruppe.'
-                  : 'Mit all deinen Projekten und Gruppen bereits geteilt.'}
+                  ? 'Du bist noch in keinem Projekt.'
+                  : 'Mit all deinen Projekten bereits geteilt.'}
               </p>
             ) : (
               <div className="flex items-center gap-sm">
@@ -149,7 +146,7 @@ const ShareWolkeLinkDialog = ({
                   onChange={(e) => setSelectedGroupId(e.target.value)}
                   disabled={shareMutation.isPending}
                 >
-                  <option value="">Projekt oder Gruppe wählen...</option>
+                  <option value="">Projekt wählen...</option>
                   {availableGroups.map((g) => (
                     <option key={g.id} value={g.id}>
                       {g.name}

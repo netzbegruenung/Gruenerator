@@ -1,6 +1,5 @@
-import { type RecurringTask, type TextForm } from '@gruenerator/contracts';
+import { type RecurringTask } from '@gruenerator/contracts';
 import { agentKey, agentRef, matchesAgenturaType } from '@gruenerator/shared/agents';
-import { useDeleteRecipe } from '@gruenerator/shared/grueneratoren';
 import {
   Button,
   ConfirmDialogProvider,
@@ -9,7 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  useConfirm,
+  StatusBanner,
 } from '@gruenerator/ui';
 import { useMemo, useState } from 'react';
 import {
@@ -17,39 +16,36 @@ import {
   PiFileText,
   PiPlus,
   PiRepeat,
-  PiSparkle,
   PiStorefront,
 } from 'react-icons/pi';
 import { Link, useNavigate } from 'react-router-dom';
 
+import { OwnAgentsConversionNotice } from '../agents/AgentDeprecationNotice';
 import { MarketplaceDialog } from '../marketplace/MarketplaceDialog';
 import { SubscribedCollectionSection } from '../marketplace/SubscribedCollectionSection';
 import { useRecurringTasks } from '../recurring-tasks/api';
-import { useTrashUndoToast } from '../trash/trashUndoToast';
+import { useScheduledTasksEnabled } from '../recurring-tasks/useScheduledTasksEnabled';
 
 import { MarketSection } from './components/MarketSection';
 import { useAgentIndex } from './hooks/useAgentIndex';
 import { useAgenturaPools } from './hooks/useAgenturaPools';
 import { useMarketCards } from './hooks/useMarketCards';
 import { useMarketFilters } from './hooks/useMarketFilters';
+import { useMyRecipes } from './hooks/useMyRecipes';
 import { useStarImport } from './hooks/useStarImport';
 import { useSystemCatalog } from './hooks/useSystemCatalog';
 import { useUserLibrary } from './hooks/useUserLibrary';
 import { AGENTURA_TYPE_LABELS, SORT_LABELS } from './lib/categories';
-import { isLandesverbandIdentifier } from './lib/lookups';
 import {
   foreignEntry,
   marketItemText,
   matchesQuery,
   ownEntry,
-  recipeFromForm,
-  recipeFromSkill,
   sortBy,
   type AgentEntry,
   type MarketItem,
   type RecipeEntry,
 } from './lib/marketItems';
-import { recipeOriginLine } from './recipes/recipeMeta';
 
 import {
   FilterChip,
@@ -89,7 +85,7 @@ function GrueneratorenPage() {
   const [gridSize, toggleGridSize] = useGridSize('grueneratoren-grid-size', 'large');
 
   const pools = useAgenturaPools();
-  const { userAgents, sharedAgents, sharedForeignAgents, ownRecipes, sharedRecipes } = pools;
+  const { userAgents, sharedAgents, sharedForeignAgents } = pools;
   const catalog = useSystemCatalog(sharedAgents);
   const { sortAgentEntries } = useAgentIndex({
     ...pools,
@@ -100,51 +96,16 @@ function GrueneratorenPage() {
     isSuccess: tasksLoaded,
     isError: tasksFailed,
   } = useRecurringTasks();
+  const tasksEnabled = useScheduledTasksEnabled();
 
-  const deleteRecipe = useDeleteRecipe();
-  const confirmDialog = useConfirm();
-  const showTrashUndo = useTrashUndoToast();
   const library = useUserLibrary();
+  const myRecipes = useMyRecipes();
   const { toAgentItems, toRecipeItems, renderItem, asLibrary, shareDialog } = useMarketCards();
 
-  const handleDeleteRecipe = async (form: TextForm) => {
-    const confirmed = await confirmDialog({
-      title: 'Rezept löschen?',
-      description: `„${form.title}“ wird in den Papierkorb verschoben und kann 30 Tage lang wiederhergestellt werden.`,
-    });
-    if (!confirmed) return;
-    // DELETE takes the mention; the trash addresses the row id.
-    deleteRecipe.mutate(form.mention, {
-      onSuccess: () => showTrashUndo({ kind: 'user_text_form', id: form.id, title: form.title }),
-    });
-  };
-
-  const ownRecipeEntries = useMemo<RecipeEntry[]>(
-    () =>
-      ownRecipes.map((f) =>
-        recipeFromForm(f, {
-          editable: true,
-          shareLabel: null,
-          onDelete: () => {
-            void handleDeleteRecipe(f);
-          },
-        })
-      ),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `handleDeleteRecipe` is recreated every render but only closes over `confirmDialog`/`deleteRecipe.mutate`/`showTrashUndo`, all stable, so omitting it changes nothing
-    [ownRecipes]
-  );
-  const sharedRecipeEntries = useMemo<RecipeEntry[]>(
-    () =>
-      sharedRecipes.map((f) =>
-        recipeFromForm(f, { editable: false, shareLabel: recipeOriginLine(f, 'shared') })
-      ),
-    [sharedRecipes]
-  );
-
-  // Was die Agentura anbietet, nach Verweis — dieselbe Sichtbarkeit wie dort:
-  // Landesverbands-Inhalte nur mit Rolle (und erst nach deren Hydratation), damit
-  // ein direkt über die Detailseite hinzugefügter oder nach Rollenverlust
-  // verwaister LV-Eintrag hier nicht am Rollen-Gatter vorbei erscheint.
+  // Was der Marktplatz an Agents anbietet, nach Verweis — dieselbe Sichtbarkeit
+  // wie dort: Landesverbands-Agents nur mit Rolle (und erst nach deren
+  // Hydratation), damit ein verwaister LV-Eintrag hier nicht am Rollen-Gatter
+  // vorbei erscheint.
   const shopAgents = useMemo(() => {
     const lv = catalog.rolesLoaded ? catalog.lvSystemAgents : [];
     const map = new Map<string, AgentEntry>();
@@ -157,55 +118,27 @@ function GrueneratorenPage() {
     catalog.rolesLoaded,
     pools.communityAgents,
   ]);
-  const shopRecipes = useMemo(() => {
-    const lv = catalog.rolesLoaded ? catalog.lvSkills : [];
-    const general = catalog.allSkills.filter((s) => !isLandesverbandIdentifier(s.identifier));
-    const map = new Map<string, RecipeEntry>();
-    for (const skill of [...general, ...lv]) map.set(skill.mention, recipeFromSkill(skill));
-    // Nutzer-Rezepte über die Zeilen-id: ihre Mention ist nur pro Besitzer eindeutig.
-    for (const entry of pools.communityRecipeEntries) if (entry.id) map.set(entry.id, entry);
-    return map;
-  }, [catalog.allSkills, catalog.lvSkills, catalog.rolesLoaded, pools.communityRecipeEntries]);
 
-  // Aus der Agentura geholt, aber nicht ohnehin schon eigen oder geteilt. Ein
-  // Verweis, der auf nichts Sichtbares mehr zeigt (Agent gelöscht, nicht mehr
-  // öffentlich, Rolle weg), fällt still heraus und bleibt in der Liste liegen —
-  // wird er wieder sichtbar, ist er wieder da.
-  const { addedAgents, addedRecipes } = useMemo(() => {
-    const shownAgentKeys = new Set(
+  // Aus dem Marktplatz geholte Agents, die nicht ohnehin eigen oder geteilt sind.
+  const addedAgents = useMemo(() => {
+    const shown = new Set(
       [...userAgents, ...sharedForeignAgents.map((e) => e.agent)].map(agentKey)
     );
-    const shownMentions = new Set(
-      [...ownRecipeEntries, ...sharedRecipeEntries].map((e) => e.mention.toLowerCase())
-    );
     const agents: AgentEntry[] = [];
-    const recipes: RecipeEntry[] = [];
     for (const item of library.items) {
-      if (item.kind === 'agent') {
-        const entry = shopAgents.get(item.ref);
-        if (entry && !shownAgentKeys.has(agentKey(entry.agent))) agents.push(entry);
-      } else {
-        const entry = shopRecipes.get(item.ref);
-        if (entry && !shownMentions.has(entry.mention.toLowerCase())) recipes.push(entry);
-      }
+      if (item.kind !== 'agent') continue;
+      const entry = shopAgents.get(item.ref);
+      if (entry && !shown.has(agentKey(entry.agent))) agents.push(entry);
     }
-    return { addedAgents: agents, addedRecipes: recipes };
-  }, [
-    library.items,
-    shopAgents,
-    shopRecipes,
-    userAgents,
-    sharedForeignAgents,
-    ownRecipeEntries,
-    sharedRecipeEntries,
-  ]);
+    return agents;
+  }, [library.items, shopAgents, userAgents, sharedForeignAgents]);
 
   const ownAgentKeys = useMemo(() => new Set(userAgents.map(agentKey)), [userAgents]);
   useStarImport({
     ready: library.loaded && pools.ownLoaded && pools.publicLoaded && catalog.rolesLoaded,
     library,
     shopAgents,
-    shopRecipes,
+    shopRecipes: myRecipes.shopRecipes,
     ownAgentKeys,
   });
 
@@ -213,8 +146,8 @@ function GrueneratorenPage() {
 
   const allItems: MarketItem[] = [
     ...toAgentItems(sortAgentEntries(userAgents.map(ownEntry), sort)),
-    ...toRecipeItems(sortRecipeEntries(ownRecipeEntries)),
-    ...recurringTasks.map(toTaskItem),
+    ...toRecipeItems(sortRecipeEntries(myRecipes.own)),
+    ...(tasksEnabled ? recurringTasks.map(toTaskItem) : []),
     // Geteiltes und Hinzugefügtes steht ohne eigene Überschrift mitten drin:
     // für die Person ist es Teil dessen, womit sie arbeitet. Woher es kommt,
     // sagt die Meta-Zeile der Kachel.
@@ -224,9 +157,9 @@ function GrueneratorenPage() {
         sort
       )
     ),
-    ...toRecipeItems(sortRecipeEntries(sharedRecipeEntries)),
+    ...toRecipeItems(sortRecipeEntries(myRecipes.shared)),
     ...asLibrary(toAgentItems(sortAgentEntries(addedAgents, sort))),
-    ...asLibrary(toRecipeItems(sortRecipeEntries(addedRecipes))),
+    ...asLibrary(toRecipeItems(sortRecipeEntries(myRecipes.added))),
   ];
 
   const q = search.trim().toLowerCase();
@@ -280,30 +213,50 @@ function GrueneratorenPage() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => navigate('/agents/new')}>
-                  <PiSparkle />
-                  <span>Agent</span>
-                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate('/agentura/rezept/neu')}>
                   <PiFileText />
                   <span>Rezept</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate('/agents/new?mode=recurring')}>
-                  <PiRepeat />
-                  <span>Wiederkehrende Aufgabe</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                {/* Die Kachel zeigt den Takt, nicht den Betrieb — Verlauf,
-                    Fehlertexte und Ergebnisse stehen auf /wiederkehrend. */}
-                <DropdownMenuItem onClick={() => navigate('/wiederkehrend')}>
-                  <PiClockCounterClockwise />
-                  <span>Verlauf &amp; Steuerung</span>
-                </DropdownMenuItem>
+                {tasksEnabled && (
+                  <>
+                    <DropdownMenuItem onClick={() => navigate('/wiederkehrend/neu')}>
+                      <PiRepeat />
+                      <span>Wiederkehrende Aufgabe</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {/* Die Kachel zeigt den Takt, nicht den Betrieb — Verlauf,
+                        Fehlertexte und Ergebnisse stehen auf /wiederkehrend. */}
+                    <DropdownMenuItem onClick={() => navigate('/wiederkehrend')}>
+                      <PiClockCounterClockwise />
+                      <span>Verlauf &amp; Steuerung</span>
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </>
         }
       />
+
+      {/* Die Seite läuft aus: Rezepte stehen jetzt unter /projekte und auf den
+          Projektseiten. Bis alles umgezogen ist, bleibt sie erreichbar. */}
+      <StatusBanner
+        variant="warning"
+        // Ein fester Hinweis, keine Statusmeldung: die Seite hat schon eine Live-Region.
+        role="note"
+        className="mb-md flex flex-wrap items-center justify-between gap-sm"
+      >
+        <span className="min-w-0 flex-1">
+          <strong>Alles zieht zu den Projekten um.</strong> Deine Rezepte findest du jetzt unter
+          „Projekte“, die Rezepte eines Projekts direkt auf seiner Seite. Diese Übersicht bleibt
+          vorerst erreichbar.
+        </span>
+        <Button asChild size="sm" variant="outline">
+          <Link to="/projekte">Zu den Projekten</Link>
+        </Button>
+      </StatusBanner>
+
+      <OwnAgentsConversionNotice agents={userAgents} className="mb-md" />
 
       {/* Die Zahl steht nicht mehr sichtbar da, bleibt aber hörbar: ohne sie
           wechselt bei Suche oder Filter lautlos der Inhalt. */}
@@ -358,16 +311,10 @@ function GrueneratorenPage() {
       ) : nothingYet ? (
         <GalleryEmptyState
           title="Noch nichts angelegt"
-          hint="Du hast noch keine eigenen Agents oder Rezepte erstellt. Leg los oder stöbere im Marktplatz."
+          hint="Du hast noch keine eigenen Rezepte erstellt. Leg los oder stöbere im Marktplatz."
           action={
             <div className="flex flex-wrap items-center justify-center gap-sm">
               <Button asChild variant="brand" size="brand-sm">
-                <Link to="/agents/new">
-                  <PiPlus />
-                  Agent erstellen
-                </Link>
-              </Button>
-              <Button asChild variant="outline" size="brand-sm">
                 <Link to="/agentura/rezept/neu">
                   <PiFileText />
                   Rezept erstellen

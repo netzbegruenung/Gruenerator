@@ -25,7 +25,12 @@ import {
   executeDirectWahlpruefsteinExamples,
   executeDirectWebSearch,
 } from './directSearch.js';
-import { lvEbeneForMentions, narrowLvScopeToEbene, resolveExamplesLvScope } from './lvScope.js';
+import {
+  lvEbeneForMentions,
+  lvScopeForRecipeMentions,
+  narrowLvScopeToEbene,
+  resolveExamplesLvScope,
+} from './lvScope.js';
 import { searchCollectionAsNotebook } from './notebookCollectionSearch.js';
 import { type FehlerArt, leeresErgebnis, werkzeugFehler } from './toolFailure.js';
 
@@ -451,18 +456,24 @@ export function createSearchTools(
   // agent only grounds in its own LV's social/press examples. Without this the
   // press tool pulls PMs from all LVs and mimics the wrong one (e.g. a
   // Brandenburg agent producing a Hessen press release).
-  const examplesLvScope = resolveExamplesLvScope(agentConfig);
+  // Mit dem Notebook-Rückfall wie im Suchknoten: ein Rezept- oder Projekt-Turn
+  // auf dem Universal-Agenten trägt den Landesverband nur über sein Notebook.
+  const examplesLvScope = resolveExamplesLvScope(agentConfig, {
+    defaultNotebookCollectionIds: options.scopedCollections ?? [],
+  });
   /**
    * Derselbe Ausschnitt, zugeschnitten auf die Ebene des aktiven Rezepts —
    * erst beim Aufruf ausgewertet, weil das Rezept mitten im Turn dazukommen
    * kann. Nur die PM-Suche nutzt ihn: Social-Beispiele liegen in einer
    * Sammlung ohne `landesverband`-Feld.
    */
-  const pressLvScope = (): string | readonly string[] | undefined =>
-    narrowLvScopeToEbene(
-      examplesLvScope,
-      lvEbeneForMentions(options.activeRecipeMentions?.() ?? [])
+  const pressLvScope = (): string | readonly string[] | undefined => {
+    const mentions = options.activeRecipeMentions?.() ?? [];
+    return narrowLvScopeToEbene(
+      examplesLvScope ?? lvScopeForRecipeMentions(mentions),
+      lvEbeneForMentions(mentions)
     );
+  };
 
   log.debug(
     `[Tools] Creating tools for ${agentConfig.identifier}: collections=${allowedCollections.join(',')}, default=${defaultCollection}, personSearch=disabled, examplesCountry=${examplesCountry || 'all'}`

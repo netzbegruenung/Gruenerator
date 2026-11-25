@@ -18,8 +18,17 @@ vi.mock('../../utils/adminAuthz.js', () => ({
 const { assertCanShareToGroup, getPostgresAndCheckMembership, listShareTargetGroups } =
   await import('./groupMembership.js');
 
-function membership(row: { role: string; created_by?: string | null; is_system?: boolean } | null) {
-  queryOne.mockResolvedValue(row && { created_by: null, is_system: false, ...row });
+function membership(
+  row: {
+    role: string;
+    created_by?: string | null;
+    is_system?: boolean;
+    archived_at?: string | null;
+  } | null
+) {
+  queryOne.mockResolvedValue(
+    row && { created_by: null, is_system: false, archived_at: null, ...row }
+  );
 }
 
 beforeEach(() => {
@@ -66,6 +75,26 @@ describe('assertCanShareToGroup', () => {
   });
 });
 
+describe('archived projects are read-only', () => {
+  it('rejects shares and filing into an archived project, even for admins', async () => {
+    membership({ role: 'admin', archived_at: '2026-11-22T10:00:00Z' });
+    await expect(assertCanShareToGroup('g', 'u')).rejects.toThrow('archiviert');
+  });
+
+  it('still lets members read it (the membership check passes, flagged archived)', async () => {
+    membership({ role: 'member', archived_at: '2026-11-22T10:00:00Z' });
+    await expect(getPostgresAndCheckMembership('g', 'u')).resolves.toMatchObject({
+      isArchived: true,
+    });
+  });
+
+  it('leaves archived projects out of the share-target list', async () => {
+    query.mockResolvedValue([]);
+    await listShareTargetGroups('u');
+    expect(query.mock.calls[0][0]).toContain('g.archived_at IS NULL');
+  });
+});
+
 describe('listShareTargetGroups', () => {
   const rows = [
     { id: 'sys', name: 'Grünerator', role: 'member', is_system: true },
@@ -85,13 +114,13 @@ describe('listShareTargetGroups', () => {
     expect((await listShareTargetGroups('u')).map((g) => g.id)).toEqual(['sys', 'g1']);
   });
 
-  it('marks team projects, not personal ones or the system project', async () => {
+  it('marks every project as team, except the system project', async () => {
     query.mockResolvedValue([
       ...rows,
       { id: 'me', name: 'Meins', role: 'admin', is_system: false, group_type: 'personal' },
     ]);
     isInstanceAdmin.mockResolvedValue(true);
     const team = Object.fromEntries((await listShareTargetGroups('u')).map((g) => [g.id, g.team]));
-    expect(team).toEqual({ sys: false, g1: true, me: false });
+    expect(team).toEqual({ sys: false, g1: true, me: true });
   });
 });

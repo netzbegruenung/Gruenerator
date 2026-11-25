@@ -3,8 +3,8 @@ import { getProfileService } from '../user/ProfileService.js';
 
 import { ALL_NOTIFICATION_TYPES } from './types.js';
 
-import type { NotificationType, NotificationChannel, ChannelPreferences } from './types.js';
 import type { UserProfile } from '../user/types.js';
+import type { NotificationType, NotificationChannel, ChannelPreferences } from './types.js';
 
 const log = createLogger('notification-preferences');
 
@@ -55,6 +55,8 @@ const TYPE_IMPORTANCE: Record<NotificationType, 1 | 2 | 3> = {
   group_join_requested: 3,
   group_join_approved: 1,
   group_join_denied: 1,
+  // Tier 1: a member reported project content — the admins are the ones to act (#5948).
+  group_content_reported: 1,
   transfer_downloaded: 3,
   notebook_liked: 3,
   template_liked: 3,

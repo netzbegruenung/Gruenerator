@@ -17,6 +17,7 @@ import {
   AtSign,
   CloudDownload,
   FileText,
+  Flag,
   Heart,
   LayoutDashboard,
   Megaphone,
@@ -142,30 +143,30 @@ export const RAW_TYPE_META: Record<NotificationType, RawTypeMeta> = {
   // Gruppen
   group_member_joined: {
     label: 'Mitglied tritt bei',
-    description: 'Wenn ein Mitglied einer deiner Gruppen beitritt',
+    description: 'Wenn ein Mitglied einem deiner Projekte beitritt',
     icon: Users,
     group: 'groups',
   },
   group_member_left: {
     label: 'Mitglied tritt aus',
-    description: 'Wenn ein Mitglied eine deiner Gruppen verlässt',
+    description: 'Wenn ein Mitglied eines deiner Projekte verlässt',
     icon: Users,
     group: 'groups',
   },
   group_role_changed: {
     label: 'Rollenänderung',
-    description: 'Wenn sich eine Rolle in der Gruppe ändert',
+    description: 'Wenn sich eine Rolle in dem Projekt ändert',
     icon: Users,
     group: 'groups',
   },
   group_content_shared: {
     label: 'Geteilte Inhalte',
-    description: 'Wenn Inhalte in einer deiner Gruppen geteilt werden',
+    description: 'Wenn Inhalte in einem deiner Projekte geteilt werden',
     icon: Share2,
     group: 'groups',
   },
   group_comment_added: {
-    label: 'Kommentare in Gruppen',
+    label: 'Kommentare in Projekten',
     description:
       'Wenn jemand deinen geteilten Inhalt oder einen Beitrag kommentiert, den du kommentiert hast',
     icon: MessageSquare,
@@ -196,14 +197,14 @@ export const RAW_TYPE_META: Record<NotificationType, RawTypeMeta> = {
     group: 'groups',
   },
   group_deleted: {
-    label: 'Gruppe aufgelöst',
-    description: 'Wenn eine deiner Gruppen aufgelöst wird',
+    label: 'Projekt aufgelöst',
+    description: 'Wenn eines deiner Projekte aufgelöst wird',
     icon: Users,
     group: 'groups',
   },
   group_join_requested: {
     label: 'Beitrittsanfragen',
-    description: 'Wenn jemand deiner öffentlichen Gruppe beitreten möchte',
+    description: 'Wenn jemand deinem öffentlichen Projekt beitreten möchte',
     icon: UserPlus,
     group: 'groups',
   },
@@ -217,6 +218,12 @@ export const RAW_TYPE_META: Record<NotificationType, RawTypeMeta> = {
     label: 'Beitritt abgelehnt',
     description: 'Wenn deine Beitrittsanfrage abgelehnt wird',
     icon: UserPlus,
+    group: 'groups',
+  },
+  group_content_reported: {
+    label: 'Gemeldete Inhalte',
+    description: 'Wenn jemand einen Inhalt in einem Projekt meldet, das du verwaltest',
+    icon: Flag,
     group: 'groups',
   },
 

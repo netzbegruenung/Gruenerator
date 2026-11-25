@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   austauschItems,
+  hasAustauschContent,
   filterGroupFeed,
   groupFeedByKind,
   postTitle,
@@ -272,6 +273,29 @@ describe('toGroupFeedItems — recipes', () => {
     ]);
     expect(groupFeedByKind(items).map((s) => s.plural)).toEqual(['Rezepte']);
   });
+
+  it('lists a shared system recipe as a recipe, keyed by its mention', () => {
+    const items = toGroupFeedItems({
+      system_recipes: [
+        {
+          id: 'wahlpruefstein-berlin',
+          mention: 'wahlpruefstein-berlin',
+          title: 'Wahlprüfsteine Berlin',
+          description: 'Fragenkataloge für die Grünen Berlin',
+          system: true,
+          shared_at: '2026-11-24T10:00:00Z',
+        },
+      ],
+    });
+    expect(items).toEqual([
+      expect.objectContaining({
+        key: 'system_recipes:wahlpruefstein-berlin',
+        contentType: 'system_recipes',
+        kind: 'recipe',
+        slug: 'wahlpruefstein-berlin',
+      }),
+    ]);
+  });
 });
 
 describe('austauschItems', () => {
@@ -346,6 +370,33 @@ describe('austauschItems', () => {
     const titles = austauschItems(items, new Set(['s-disc']), 's-foc').map((i) => i.title);
     expect(titles).toEqual(expect.arrayContaining(['Besprochen', 'Fokus']));
     expect(titles).not.toContain('Still');
+  });
+});
+
+describe('hasAustauschContent', () => {
+  const plain = toGroupFeedItems({
+    collaborative_documents: [
+      { id: 'd', title: 'Still', document_subtype: 'docs', share: share({ shareId: 's1' }) },
+    ],
+  });
+  const talked = toGroupFeedItems({
+    collaborative_documents: [
+      {
+        id: 'd',
+        title: 'Notiz',
+        document_subtype: 'docs',
+        share: share({ shareId: 's2', note: 'Hi' }),
+      },
+    ],
+  });
+
+  it('is true once a talked-about item exists', () => {
+    expect(hasAustauschContent(talked)).toBe(true);
+  });
+
+  it('is false for an empty feed or plain knowledge only', () => {
+    expect(hasAustauschContent([])).toBe(false);
+    expect(hasAustauschContent(plain)).toBe(false);
   });
 });
 

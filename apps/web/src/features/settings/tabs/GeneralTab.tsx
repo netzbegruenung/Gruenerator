@@ -1,7 +1,8 @@
-import { type FeedbackButtonMode, type StartPage } from '@gruenerator/contracts';
+import { type FeedbackButtonMode, type StartLayout, type StartPage } from '@gruenerator/contracts';
 import { getPinnedLocale } from '@gruenerator/shared/instances';
 import { DEFAULT_TTS_VOICE_ID } from '@gruenerator/shared/settings';
 import { Button, Switch, toast } from '@gruenerator/ui';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Rocket, RotateCcw } from 'lucide-react';
 import { type IconType } from 'react-icons';
 import {
@@ -12,6 +13,8 @@ import {
   PiEyeSlash,
   PiMoon,
   PiSun,
+  PiRows,
+  PiTabs,
   PiTextT,
 } from 'react-icons/pi';
 
@@ -24,6 +27,8 @@ import { useSettingsDialogStore } from '../settingsDialogStore';
 import { useOnboarding } from '../useOnboarding';
 
 import useDarkMode, { type ThemePreference } from '@/components/hooks/useDarkMode';
+import { QUERY_KEYS, useProfile } from '@/features/auth/hooks/useProfileData';
+import { profileApiService, type Profile } from '@/features/auth/services/profileApiService';
 import { resetAllTours } from '@/features/tours/tourState';
 import { useAuthStore, type SupportedLocale } from '@/stores/authStore';
 
@@ -43,6 +48,11 @@ const START_PAGE_OPTIONS: { value: StartPage; label: string; icon: IconType }[] 
   { value: 'arbeiten', label: 'Arbeiten', icon: PiBriefcase },
 ];
 
+const START_LAYOUT_OPTIONS: { value: StartLayout; label: string; icon: IconType }[] = [
+  { value: 'combined', label: 'Alles auf einer Seite', icon: PiRows },
+  { value: 'tabs', label: 'Tabs', icon: PiTabs },
+];
+
 const FEEDBACK_BUTTON_OPTIONS: { value: FeedbackButtonMode; label: string; icon: IconType }[] = [
   { value: 'text', label: 'Text', icon: PiTextT },
   { value: 'icon', label: 'Icon', icon: PiChatTeardropText },
@@ -56,6 +66,8 @@ const GeneralTab = () => {
   const pinnedLocale = getPinnedLocale(CURRENT_INSTANCE);
   const startPage = useAuthStore((s) => s.user?.default_startpage ?? 'chat');
   const updateStartPage = useAuthStore((s) => s.updateStartPage);
+  const startLayout = useAuthStore((s) => s.user?.start_layout ?? 'combined');
+  const updateStartLayout = useAuthStore((s) => s.updateStartLayout);
   const ttsVoice = useAuthStore((s) => s.user?.tts_voice_id ?? DEFAULT_TTS_VOICE_ID);
   const updateTtsVoice = useAuthStore((s) => s.updateTtsVoice);
   const feedbackButton = useAuthStore((s) => s.user?.feedback_button ?? 'text');
@@ -65,6 +77,21 @@ const GeneralTab = () => {
   const updateA11yPreference = useAuthStore((s) => s.updateA11yPreference);
   const setTab = useSettingsDialogStore((s) => s.setTab);
   const { isActive: isOnboarding, restart: restartOnboarding } = useOnboarding();
+  const userId = useAuthStore((s) => s.user?.id);
+  const queryClient = useQueryClient();
+  const { data: profile } = useProfile(userId);
+  const scheduledTasksEnabled = profile?.scheduled_tasks_enabled === true;
+  const scheduledTasks = useMutation({
+    mutationFn: (next: boolean) =>
+      profileApiService.updateProfile({ scheduled_tasks_enabled: next }),
+    onSuccess: (updated: Profile) => {
+      queryClient.setQueryData(QUERY_KEYS.profile(userId), (old: Profile | undefined) => ({
+        ...old,
+        ...updated,
+      }));
+    },
+    onError: () => toast.error('Einstellung konnte nicht gespeichert werden.'),
+  });
 
   return (
     <div className="flex flex-col gap-8">
@@ -82,12 +109,12 @@ const GeneralTab = () => {
           />
         </SettingsRow>
 
-        <SettingsRow id="allgemein.startseite">
+        <SettingsRow id="allgemein.startlayout">
           <SegmentedControl
-            aria-label="Startseite"
-            value={startPage}
-            onChange={(value) => void updateStartPage(value)}
-            options={START_PAGE_OPTIONS.map(({ value, label, icon: Icon }) => ({
+            aria-label="Aufbau der Startseite"
+            value={startLayout}
+            onChange={(value) => void updateStartLayout(value)}
+            options={START_LAYOUT_OPTIONS.map(({ value, label, icon: Icon }) => ({
               value,
               label,
               icon: <Icon aria-hidden className="size-4" />,
@@ -95,9 +122,25 @@ const GeneralTab = () => {
           />
         </SettingsRow>
 
+        {/* Only tabs have a first tab to choose; the combined page has one view. */}
+        {startLayout === 'tabs' && (
+          <SettingsRow id="allgemein.startseite">
+            <SegmentedControl
+              aria-label="Startseite"
+              value={startPage}
+              onChange={(value) => void updateStartPage(value)}
+              options={START_PAGE_OPTIONS.map(({ value, label, icon: Icon }) => ({
+                value,
+                label,
+                icon: <Icon aria-hidden className="size-4" />,
+              }))}
+            />
+          </SettingsRow>
+        )}
+
         <SettingsRow id="allgemein.feedbackButton">
           <SegmentedControl
-            aria-label="Feedback-Button"
+            aria-label="Support-Button"
             value={feedbackButton}
             onChange={(value) => void updateFeedbackButton(value)}
             options={FEEDBACK_BUTTON_OPTIONS.map(({ value, label, icon: Icon }) => ({
@@ -147,6 +190,22 @@ const GeneralTab = () => {
             onCheckedChange={(checked) => void updateA11yPreference('reduce_transparency', checked)}
             aria-label="Transparenz und Unschärfe reduzieren"
           />
+        </SettingsRow>
+      </SettingsSection>
+
+      <SettingsSection title="Funktionen">
+        <SettingsRow id="allgemein.geplanteAufgaben">
+          <div className="flex items-center gap-sm">
+            <span className="rounded-full bg-primary-100 px-2 py-0.5 text-[11px] font-semibold text-primary-700 dark:bg-primary-950 dark:text-primary-200">
+              Experimentell
+            </span>
+            <Switch
+              checked={scheduledTasksEnabled}
+              onCheckedChange={(checked) => scheduledTasks.mutate(checked)}
+              disabled={scheduledTasks.isPending || !profile}
+              aria-label="Geplante Aufgaben einschalten"
+            />
+          </div>
         </SettingsRow>
       </SettingsSection>
 

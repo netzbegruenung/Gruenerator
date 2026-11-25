@@ -60,7 +60,7 @@ const SUMMARY = [{ emoji: '👍', count: 1, reacted: true }];
 beforeEach(() => {
   vi.clearAllMocks();
   m.queryOne.mockResolvedValue({ group_id: 'g1', board_id: 'b1', card_id: 'c1' });
-  m.findViewer.mockResolvedValue({ isPersonal: false });
+  m.findViewer.mockResolvedValue({ isAdmin: false });
   m.checkBoardAccess.mockResolvedValue({ hasAccess: true, createdBy: 'owner' });
   m.getReactionSummaries.mockResolvedValue(new Map([[ID, SUMMARY]]));
   m.getItemReactionSummaries.mockResolvedValue(new Map([['presse-bot', SUMMARY]]));

@@ -2,9 +2,9 @@ import {
   austauschItems,
   canShareIntoGroup,
   filterGroupFeed,
+  hasAustauschContent,
   type GroupFeedItem,
 } from '@gruenerator/shared/groups';
-import { useAuthStore } from '@gruenerator/shared/stores';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -19,23 +19,18 @@ import {
   TextInput,
   type ScrollViewInstance,
 } from 'react-native';
-import { KeyboardStickyView } from 'react-native-keyboard-controller';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MenuActionSheet } from '../../../../components/chat/MenuActionSheet';
 import { SkeletonBar, SkeletonGroup, SkeletonRows } from '../../../../components/common';
-import { Fab } from '../../../../components/common/Fab';
 import { NeutralBackdrop } from '../../../../components/common/NeutralBackdrop';
-import { SegmentedControl } from '../../../../components/common/SegmentedControl';
 import { ScreenScaffold } from '../../../../components/navigation/ScreenScaffold';
 import { buildAddActions } from '../../../../components/projekte/addMenu';
 import { GroupCommentsSheet } from '../../../../components/projekte/GroupCommentsSheet';
 import { GroupFeedCard } from '../../../../components/projekte/GroupFeedCard';
 import { knowledgeItems } from '../../../../components/projekte/knowledgeMenu';
-import { PostComposerRow } from '../../../../components/projekte/PostComposerRow';
 import { canWritePost } from '../../../../components/projekte/postRules';
 import { ProjectChatComposer } from '../../../../components/projekte/ProjectChatComposer';
-import { ProjectChatList } from '../../../../components/projekte/ProjectChatList';
+import { ProjectCloudSourcesCard } from '../../../../components/projekte/ProjectCloudSourcesCard';
 import { ProjectInstructionsCard } from '../../../../components/projekte/ProjectInstructionsCard';
 import { ProjectKnowledgeList } from '../../../../components/projekte/ProjectKnowledgeList';
 import { ProjectLinks } from '../../../../components/projekte/ProjectLinks';
@@ -44,6 +39,7 @@ import { useProjekteTone } from '../../../../components/projekte/projekteTone';
 import { openGroupFeedItem, useBearerToken, useGroupFeed } from '../../../../hooks/useGroupContent';
 import { useGroupDetails, useGroupMembers } from '../../../../hooks/useGroups';
 import { useHiddenMemberIds } from '../../../../hooks/useHiddenMembers';
+import { useRecordItemUsage } from '../../../../hooks/useItemUsage';
 import { useProjectAddActions } from '../../../../hooks/useProjectAddActions';
 import { useProjectChats } from '../../../../hooks/useProjectChats';
 import { useShareItemActions } from '../../../../hooks/useShareItemActions';
@@ -53,16 +49,14 @@ import { CONTENT_MAX_WIDTH } from '../../../../theme/layout';
 import { filterHiddenFeed } from '../../../../utils/hiddenMembers';
 import { goBackOr } from '../../../../utils/navigation';
 
-type ViewMode = 'uebersicht' | 'austausch';
-
 /**
- * Ein Projekt bzw. eine Gruppe. „Übersicht“: neuer Chat, die Chats des Projekts,
- * Anweisungen, Wissen, Links und Mitglieder. „Austausch“ (nur Gruppen): Beiträge
- * und Freigaben, über die gesprochen wird — Angeheftetes oben. Über „+“ legt man
- * eigene Inhalte hinein. Wer geteilt hat (oder Admin ist), ändert über „…“ bzw.
- * langes Drücken die Rolle, die Notiz oder die Freigabe; Admins heften an.
- * Eigene Beiträge schreibt man über die Zeile oben im Austausch bzw. „+“; die
- * übrige Verwaltung bleibt dem Web.
+ * Ein Projekt, eine Seite ohne Reiter (wie im Web): oben der neue Chat und die
+ * bisherigen Chats, darunter der Austausch (Beiträge und Freigaben, über die
+ * gesprochen wird — Angeheftetes oben), dann Anweisungen, Wissen, Links und
+ * Mitglieder. Über „+“ im Kopf legt man Inhalte hinein, über „+“ im Austausch
+ * schreibt man einen Beitrag. Wer geteilt hat (oder Admin ist), ändert über
+ * „…“ bzw. langes Drücken die Rolle, die Notiz oder die Freigabe; Admins heften
+ * an. Die übrige Verwaltung bleibt dem Web.
  */
 export default function ProjektDetailScreen() {
   // `beitrag`: aus einer Benachrichtigung — zu diesem Beitrag scrollen.
@@ -70,35 +64,42 @@ export default function ProjektDetailScreen() {
   const router = useRouter();
   const theme = useTheme();
   const tone = useProjekteTone();
-  const insets = useSafeAreaInsets();
 
   const detailsQuery = useGroupDetails(id);
+  // Öffnen zählt als Nutzung für „Zuletzt“ und „Empfohlen“ (Chats im Projekt zählt der Server).
+  useRecordItemUsage('project', detailsQuery.data?.group.id ?? null);
   const feedQuery = useGroupFeed(id);
   const membersQuery = useGroupMembers(id);
   const token = useBearerToken();
   const group = detailsQuery.data?.group;
-  const isPersonal = group?.group_type === 'personal';
   const isSystem = group?.is_system === true;
-  // „Gruppe“ gibt es nur als Team-Projekt; persönlich und System heißen Projekt.
-  const isTeam = !!group && !isPersonal && !isSystem;
+  // Ein Projekt ist allein oder mit anderen nutzbar, unabhängig vom gespeicherten
+  // `group_type`: Austausch und „Für das Team“ erscheinen erst, wenn jemand dabei ist.
+  const hasOthers = isSystem || (membersQuery.data?.length ?? 0) > 1;
+  // Der Austausch bleibt sichtbar, solange es Beiträge gibt — auch wenn nur noch eine Person im Projekt ist.
+  const hasAustausch = hasOthers || hasAustauschContent(feedQuery.data ?? []);
+  const isTeam = !!group && !isSystem;
   // Wie im Web: ins System-Projekt teilen nur Instanz-Admins.
   const isAdmin = !!detailsQuery.data?.membership.isAdmin;
-  const canAdd = !!group && canShareIntoGroup({ is_system: group.is_system, isAdmin });
-  const shareActions = useShareItemActions(id ?? null, isAdmin, !isPersonal);
+  const canAdd =
+    !!group &&
+    canShareIntoGroup({
+      is_system: group.is_system,
+      isAdmin,
+      archived_at: group.archived_at ?? null,
+    });
+  const shareActions = useShareItemActions(id ?? null, isAdmin, hasOthers);
   const addActions = useProjectAddActions(id ?? null);
-  const userName = useAuthStore((s) => s.user?.display_name ?? null);
   const canPost = !!group && canWritePost(group, isAdmin);
   const addMenu = useMemo(() => buildAddActions(canPost), [canPost]);
   const writePost = () =>
     router.push({ pathname: '/(focused)/projekte/[id]/beitrag', params: { id: id ?? '' } });
 
-  // Wie im Web: ein Link auf einen Beitrag und das System-Projekt öffnen im Austausch.
-  const [chosenView, setChosenView] = useState<ViewMode | null>(null);
   // Wissen-Einträge, die jemand aus der Liste in den Austausch geholt hat.
   const [discussed, setDiscussed] = useState<ReadonlySet<string>>(new Set());
   const [focusShareId, setFocusShareId] = useState<string | null>(beitrag ?? null);
   const [query, setQuery] = useState('');
-  // Die Suche wartet hinter einem FAB statt als feste Zeile über dem Austausch.
+  // Die Suche öffnet die Lupe im Kopf des Austauschs, kein stehendes Feld.
   const [searchOpen, setSearchOpen] = useState(false);
   const closeSearch = () => {
     setQuery('');
@@ -123,9 +124,6 @@ export default function ProjektDetailScreen() {
     });
   };
 
-  const activeView: ViewMode = isPersonal
-    ? 'uebersicht'
-    : (chosenView ?? (beitrag || isSystem ? 'austausch' : 'uebersicht'));
   const hiddenIds = useHiddenMemberIds();
   const items = useMemo(
     () => filterHiddenFeed(feedQuery.data ?? [], hiddenIds),
@@ -139,7 +137,7 @@ export default function ProjektDetailScreen() {
   const members = membersQuery.data ?? [];
   const showChats = canAdd && !isSystem;
   const chatsQuery = useProjectChats(id, showChats);
-  const onDiscuss = isPersonal
+  const onDiscuss = !hasAustausch
     ? null
     : (item: GroupFeedItem) => {
         const shareId = item.share?.shareId;
@@ -147,8 +145,8 @@ export default function ProjektDetailScreen() {
         setDiscussed((prev) => new Set(prev).add(shareId));
         setFocusShareId(shareId);
         closeSearch();
-        focus.current = { listY: null, cardY: null, done: false };
-        setChosenView('austausch');
+        // Die Liste steht schon; nur die Karte meldet ihre Lage neu.
+        focus.current = { ...focus.current, cardY: null, done: false };
       };
   const open = useCallback((item: GroupFeedItem) => openGroupFeedItem(router, item), [router]);
 
@@ -181,7 +179,7 @@ export default function ProjektDetailScreen() {
             }
             hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel={isTeam ? 'Gruppen-Info anzeigen' : 'Projekt-Info anzeigen'}
+            accessibilityLabel="Projekt-Info anzeigen"
             style={[styles.headerButton, { backgroundColor: theme.card }]}
           >
             <Ionicons name="people-outline" size={20} color={theme.text} />
@@ -229,7 +227,7 @@ export default function ProjektDetailScreen() {
   const emptyText = query.trim()
     ? `Kein Beitrag passt zu „${query.trim()}“.`
     : canAdd
-      ? `Noch nichts im Austausch. Schreib etwas${isTeam ? ' an die Gruppe' : ''} oder teile einen Inhalt mit einer Notiz.`
+      ? `Noch nichts im Austausch. Schreib etwas an das Projekt oder teile einen Inhalt mit einer Notiz.`
       : 'Noch keine Beiträge.';
 
   return scaffold(
@@ -252,78 +250,61 @@ export default function ProjektDetailScreen() {
           />
         }
       >
-        {!isPersonal && (
+        {showChats && id ? (
           <View style={styles.padded}>
-            <SegmentedControl
-              accessibilityLabel="Ansicht"
-              activeColor={tone.accent}
-              value={activeView}
-              onChange={(v) => setChosenView(v as ViewMode)}
-              options={[
-                {
-                  value: 'uebersicht',
-                  label: 'Übersicht',
-                  short: 'Übersicht',
-                  disabled: false,
-                },
-                {
-                  value: 'austausch',
-                  label: 'Austausch',
-                  short: 'Austausch',
-                  disabled: false,
-                },
-              ]}
-            />
+            <ProjectChatComposer groupId={id} groupName={group.name} />
           </View>
-        )}
+        ) : null}
 
-        {activeView === 'uebersicht' ? (
-          <View style={styles.padded}>
-            {showChats && id ? (
-              <>
-                <ProjectChatComposer groupId={id} groupName={group.name} solo={isPersonal} />
-                <ProjectChatList groupId={id} />
-              </>
-            ) : null}
-            {!isSystem && id ? <ProjectInstructionsCard groupId={id} /> : null}
-            {feedQuery.isPending ? (
-              <SkeletonRows count={3} leading={44} />
-            ) : feedQuery.isError ? (
-              <Pressable onPress={() => void feedQuery.refetch()} accessibilityRole="button">
-                <Text style={[styles.emptyLine, { color: colors.semantic.error }]}>
-                  Inhalte konnten nicht geladen werden. Tippen zum Wiederholen.
-                </Text>
-              </Pressable>
-            ) : (
-              <ProjectKnowledgeList
-                items={knowledge}
-                onOpen={open}
-                shareActions={shareActions}
-                onDiscuss={onDiscuss}
-              />
-            )}
-            <ProjectLinks links={group.links ?? []} />
-            {isTeam ? (
-              <ProjectMembersPreview
-                members={members}
-                onShowAll={() =>
-                  router.push({
-                    pathname: '/(focused)/projekte/[id]/info',
-                    params: { id: id ?? '' },
-                  })
-                }
-              />
-            ) : null}
-          </View>
-        ) : (
+        {hasAustausch ? (
           <>
             <View style={styles.padded}>
-              {canPost ? (
-                <PostComposerRow
-                  userName={userName}
-                  onPress={writePost}
-                  placeholder={isTeam ? 'Schreib etwas an die Gruppe …' : 'Schreib einen Beitrag …'}
-                />
+              <View style={styles.sectionHead}>
+                <Text
+                  style={[styles.sectionTitle, { color: theme.text }]}
+                  accessibilityRole="header"
+                >
+                  Austausch
+                </Text>
+                <Pressable
+                  onPress={() => (searchOpen ? closeSearch() : setSearchOpen(true))}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={searchOpen ? 'Suche schließen' : 'Im Austausch suchen'}
+                  style={styles.sectionButton}
+                >
+                  <Ionicons
+                    name={searchOpen ? 'close' : 'search'}
+                    size={20}
+                    color={theme.textSecondary}
+                  />
+                </Pressable>
+                {canPost ? (
+                  <Pressable
+                    onPress={writePost}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Neuer Beitrag"
+                    style={styles.sectionButton}
+                  >
+                    <Ionicons name="add" size={24} color={theme.text} />
+                  </Pressable>
+                ) : null}
+              </View>
+              {searchOpen ? (
+                <View style={[styles.search, { backgroundColor: theme.card }]}>
+                  <Ionicons name="search" size={18} color={theme.textSecondary} />
+                  <TextInput
+                    value={query}
+                    onChangeText={setQuery}
+                    autoFocus
+                    placeholder="Im Austausch suchen"
+                    placeholderTextColor={theme.textSecondary}
+                    accessibilityLabel="Im Austausch suchen"
+                    style={[styles.searchInput, { color: theme.text }]}
+                    returnKeyType="search"
+                  />
+                </View>
               ) : null}
             </View>
 
@@ -358,7 +339,7 @@ export default function ProjektDetailScreen() {
                       item={item}
                       groupId={id ?? ''}
                       token={token}
-                      canComment={!isPersonal}
+                      canComment
                       shareActions={shareActions}
                       onOpen={open}
                       onShowComments={setCommentsFor}
@@ -368,49 +349,47 @@ export default function ProjektDetailScreen() {
               </View>
             )}
           </>
-        )}
-      </ScrollView>
+        ) : null}
 
-      {activeView === 'austausch' ? (
-        searchOpen ? (
-          <KeyboardStickyView
-            offset={{ closed: 0, opened: Math.max(insets.bottom, spacing.medium) - spacing.small }}
-            style={[styles.searchDock, { bottom: Math.max(insets.bottom, spacing.medium) }]}
-          >
-            <View style={[styles.search, { backgroundColor: theme.card }]}>
-              <Ionicons name="search" size={18} color={theme.textSecondary} />
-              <TextInput
-                value={query}
-                onChangeText={setQuery}
-                autoFocus
-                placeholder="Im Austausch suchen"
-                placeholderTextColor={theme.textSecondary}
-                accessibilityLabel="Im Austausch suchen"
-                style={[styles.searchInput, { color: theme.text }]}
-                returnKeyType="search"
-              />
-              <Pressable
-                onPress={closeSearch}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel="Suche schließen"
-              >
-                <Ionicons name="close" size={20} color={theme.textSecondary} />
-              </Pressable>
-            </View>
-          </KeyboardStickyView>
-        ) : (
-          <Fab
-            icon="search"
-            accessibilityLabel="Im Austausch suchen"
-            onPress={() => setSearchOpen(true)}
-            style={{
-              backgroundColor: tone.accent,
-              bottom: Math.max(insets.bottom, spacing.medium),
-            }}
-          />
-        )
-      ) : null}
+        <View style={styles.padded}>
+          {!isSystem && id ? <ProjectInstructionsCard groupId={id} /> : null}
+          {feedQuery.isPending ? (
+            <SkeletonRows count={3} leading={44} />
+          ) : feedQuery.isError ? (
+            <Pressable onPress={() => void feedQuery.refetch()} accessibilityRole="button">
+              <Text style={[styles.emptyLine, { color: colors.semantic.error }]}>
+                Inhalte konnten nicht geladen werden. Tippen zum Wiederholen.
+              </Text>
+            </Pressable>
+          ) : (
+            <ProjectKnowledgeList
+              items={knowledge}
+              onOpen={open}
+              shareActions={shareActions}
+              onDiscuss={onDiscuss}
+            />
+          )}
+          {!isSystem && id ? (
+            <ProjectCloudSourcesCard
+              groupId={id}
+              isAdmin={isAdmin}
+              archived={!!group.archived_at}
+            />
+          ) : null}
+          <ProjectLinks links={group.links ?? []} />
+          {isTeam ? (
+            <ProjectMembersPreview
+              members={members}
+              onShowAll={() =>
+                router.push({
+                  pathname: '/(focused)/projekte/[id]/info',
+                  params: { id: id ?? '' },
+                })
+              }
+            />
+          ) : null}
+        </View>
+      </ScrollView>
 
       <MenuActionSheet
         visible={addOpen}
@@ -447,28 +426,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  searchDock: {
-    position: 'absolute',
-    left: spacing.medium,
-    right: spacing.medium,
-    alignItems: 'center',
-  },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.xsmall },
+  sectionTitle: { flex: 1, fontFamily: BODY_FONT, fontSize: 17, fontWeight: '700' },
+  sectionButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   search: {
-    width: '100%',
-    maxWidth: CONTENT_MAX_WIDTH,
-    height: 48,
-    borderRadius: 24,
+    height: 44,
+    borderRadius: 22,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     paddingHorizontal: 16,
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
   },
-  searchInput: { flex: 1, fontFamily: BODY_FONT, fontSize: 15, height: 48 },
+  searchInput: { flex: 1, fontFamily: BODY_FONT, fontSize: 15, height: 44 },
   emptyLine: {
     fontFamily: BODY_FONT,
     fontSize: 15,

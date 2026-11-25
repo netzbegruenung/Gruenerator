@@ -389,6 +389,7 @@ describe('formatSpaceContentBlock', () => {
     canvas_templates: [],
     group_posts: [],
     recipes: [],
+    system_recipes: [],
   };
 
   it('names project notebooks with the id `notebooks` expects', () => {

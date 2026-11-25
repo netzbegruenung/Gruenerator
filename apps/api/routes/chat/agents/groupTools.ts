@@ -29,6 +29,8 @@ import { buildGroupSlug, buildNotebookSlug } from '@gruenerator/shared/utils';
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
+import { searchScopedDocuments } from '../../../agents/langgraph/ChatGraph/nodes/agentNotebookScope.js';
+import { mayShareIntoGroup } from '../../../services/groups/createInGroup.js';
 import { hydrateGroupContent } from '../../../services/groups/groupContent.js';
 import { getGroupByToken, updateGroupInfo } from '../../../services/groups/groupMutations.js';
 import {
@@ -38,6 +40,7 @@ import {
   listUserGroups,
 } from '../../../services/groups/groupQueries.js';
 import { officeKindLabel, officeUrl } from '../../docs/docsSearch.js';
+import { subtypeToReadKind } from '../services/artifactReader.js';
 import { emitToolConfirmAction, newActionId } from '../services/confirmActionService.js';
 
 import {
@@ -64,6 +67,8 @@ export interface GroupToolDeps {
   countGroupContent: typeof countGroupContent;
   hydrateGroupContent: (groupId: string, viewerId: string) => Promise<GroupContentBuckets>;
   updateGroupInfo: typeof updateGroupInfo;
+  searchScopedDocuments: typeof searchScopedDocuments;
+  mayShareIntoGroup: typeof mayShareIntoGroup;
 }
 
 /** `PersonalToolCtx` plus optionale Fakes — der Katalog reicht den Ctx ohne `deps`. */
@@ -79,6 +84,8 @@ function resolveDeps(partial: Partial<GroupToolDeps> | undefined): GroupToolDeps
     hydrateGroupContent:
       partial?.hydrateGroupContent ?? ((id, viewerId) => hydrateGroupContent(id, viewerId)),
     updateGroupInfo: partial?.updateGroupInfo ?? updateGroupInfo,
+    searchScopedDocuments: partial?.searchScopedDocuments ?? searchScopedDocuments,
+    mayShareIntoGroup: partial?.mayShareIntoGroup ?? mayShareIntoGroup,
   };
 }
 
@@ -90,6 +97,12 @@ const AUDIENCE_LABEL: Record<GroupAudience, string> = {
 
 const NOT_MEMBER = 'Projekt nicht gefunden, oder du bist kein Mitglied.';
 const ADMIN_ONLY = 'Das kann nur ein Admin des Projekts.';
+const NO_PROJECT_CHAT =
+  'Gezielt suchen geht nur in einem Chat, der in einem Projekt liegt — sonst groups action="content" und read_artifact.';
+/** Was eine Karte vom Text vorab zeigt. */
+const ADD_TEXT_PREVIEW_CHARS = 240;
+/** Obergrenze für einen Text, den der Chat ins Projekt legt. */
+const ADD_TEXT_MAX_CHARS = 100_000;
 
 export function groupUrl(g: { id: string; name: string; slug_suffix: string | null }): string {
   return `/gruppen/${g.slug_suffix ? buildGroupSlug(g.name, g.slug_suffix) : g.id}`;
@@ -123,14 +136,17 @@ export function groupContentRows(buckets: GroupContentBuckets, projectUrl: strin
     const id = str(item, 'id');
     if (!id) continue;
     const subtype = str(item, 'document_subtype');
-    rows.push(
-      makeRow(
+    rows.push({
+      ...makeRow(
         str(item, 'title') ?? '',
         subtype === 'canvas' ? `/studio/canvas/${id}` : officeUrl(subtype, id),
         officeKindLabel(subtype),
         sharedBy(item)
-      )
-    );
+      ),
+      // Was `read_artifact` braucht, um die Zeile zu öffnen.
+      id,
+      kind: subtypeToReadKind(subtype),
+    });
   }
   for (const item of buckets.notebooks) {
     const id = str(item, 'id');
@@ -152,14 +168,16 @@ export function groupContentRows(buckets: GroupContentBuckets, projectUrl: strin
   for (const item of buckets.documents) {
     const id = str(item, 'id');
     if (!id) continue;
-    rows.push(
-      makeRow(
+    rows.push({
+      ...makeRow(
         str(item, 'title') ?? str(item, 'filename') ?? '',
         `/documents/${id}`,
         'Datei',
         sharedBy(item)
-      )
-    );
+      ),
+      id,
+      kind: 'file',
+    });
   }
   for (const item of buckets.user_agents) {
     const identifier = str(item, 'identifier') ?? str(item, 'id');
@@ -174,6 +192,18 @@ export function groupContentRows(buckets: GroupContentBuckets, projectUrl: strin
     );
   }
   for (const item of buckets.recipes) {
+    const mention = str(item, 'mention');
+    if (!mention) continue;
+    rows.push(
+      makeRow(
+        str(item, 'title') ?? mention,
+        `/agentura/rezept/${encodeURIComponent(mention)}`,
+        'Rezept',
+        str(item, 'description') ?? sharedBy(item)
+      )
+    );
+  }
+  for (const item of buckets.system_recipes) {
     const mention = str(item, 'mention');
     if (!mention) continue;
     rows.push(
@@ -243,13 +273,13 @@ export function makeGroupsTool(ctx: GroupToolCtx): Tool {
   const deps = resolveDeps(ctx.deps);
 
   return tool({
-    description: `Zugriff auf die Projekte (Gruppen) der Person — gemeinsame Arbeitsbereiche im Team, in denen Dokumente, Notebooks und Agenten geteilt werden.
+    description: `Zugriff auf die Projekte der Person — Arbeitsbereiche, allein oder gemeinsam mit anderen, in denen Chats, Dokumente, Notebooks und Agents gebündelt und geteilt werden. Es gibt nur eine Art Projekt; Mitglieder lassen sich jederzeit einladen.
 
-NUTZE FÜR: eigene Projekte auflisten (list), ein Projekt per Name finden (find mit query), Details eines Projekts — Beschreibung, Rolle, Mitgliederzahl, Sichtbarkeit, Anzahl geteilter Inhalte — ansehen (get), die geteilten Inhalte eines Projekts mit Links auflisten (content — „was liegt im Projekt X?"), ein neues Projekt anlegen (create, braucht name), per Einladungslink/-token beitreten (join, braucht joinToken), Name oder Beschreibung ändern (update, nur Admins), ein Projekt öffentlich listen oder privat stellen (set_visibility mit isPublic, nur Admins).
+NUTZE FÜR: eigene Projekte auflisten (list), ein Projekt per Name finden (find mit query), Details eines Projekts — Beschreibung, Rolle, Mitgliederzahl, Sichtbarkeit, Anzahl geteilter Inhalte — ansehen (get), die geteilten Inhalte eines Projekts mit Links auflisten (content — „was liegt im Projekt X?"), ein neues Projekt anlegen (create, braucht name), per Einladungslink/-token beitreten (join, braucht joinToken), Name oder Beschreibung ändern (update, nur Admins), ein Projekt öffentlich listen oder privat stellen (set_visibility mit isPublic, nur Admins), in den Dateien und Docs des Projekts DIESES Chats gezielt nach einem Begriff oder einer Frage suchen (search mit query — wenn die vorab gefundenen Stellen nicht reichen), einen Text als Datei in ein Projekt legen (add_text mit title und text — nur wenn die Person das ausdrücklich will, z. B. „speichere das im Projekt").
 
-NICHT für: Inhalte MIT einem Projekt teilen (dafür 'documents' action=share_to_group bzw. 'notebooks' action=share_to_group), den Inhalt eines geteilten Dokuments lesen (dafür 'read_artifact' oder 'documents' action=get mit der id aus content), ein geteiltes Notebook befragen (dafür 'notebooks' action=search). Mitglieder einladen, entfernen oder Rollen ändern ist im Chat nicht möglich — dafür auf die Projektseite verweisen.
+NICHT für: Inhalte MIT einem Projekt teilen (dafür 'documents' action=share_to_group bzw. 'notebooks' action=share_to_group), den Inhalt eines geteilten Dokuments oder einer Datei lesen (dafür 'read_artifact' mit kind und id aus content bzw. search), ein geteiltes Notebook befragen (dafür 'notebooks' action=search). Mitglieder einladen, entfernen oder Rollen ändern ist im Chat nicht möglich — dafür auf die Projektseite verweisen.
 
-Ein Projekt wird über groupId (aus list/find, Feld ref) oder groupName benannt. Erstellen, Beitreten und Sichtbarkeit werden der Person als Karte zur Bestätigung angezeigt — kündige nichts als erledigt an, was nur angefordert ist.`,
+Ein Projekt wird über groupId (aus list/find, Feld ref) oder groupName benannt. Ohne groupId/groupName meinen get, content, search und add_text das Projekt dieses Chats. Erstellen, Beitreten, Sichtbarkeit und add_text werden der Person als Karte zur Bestätigung angezeigt — kündige nichts als erledigt an, was nur angefordert ist.`,
     inputSchema: z.object({
       action: z.enum([
         'list',
@@ -260,8 +290,13 @@ Ein Projekt wird über groupId (aus list/find, Feld ref) oder groupName benannt.
         'join',
         'update',
         'set_visibility',
+        'search',
+        'add_text',
       ]),
-      query: z.string().optional().describe('Projektname (nur bei action="find")'),
+      query: z
+        .string()
+        .optional()
+        .describe('Projektname (find) bzw. Suchbegriff oder Frage (search)'),
       groupId: z
         .string()
         .optional()
@@ -290,6 +325,11 @@ Ein Projekt wird über groupId (aus list/find, Feld ref) oder groupName benannt.
         .enum(['de-DE', 'de-AT', 'all'])
         .optional()
         .describe('set_visibility: wem das Projekt gelistet wird (Standard: unverändert)'),
+      title: z.string().optional().describe('Titel des Texts (nur bei action="add_text")'),
+      text: z
+        .string()
+        .optional()
+        .describe('Der Text, der als Datei ins Projekt kommt (nur bei action="add_text")'),
       limit: z.number().int().min(1).max(30).default(15),
     }),
     execute: async (args) => {
@@ -309,15 +349,15 @@ Ein Projekt wird über groupId (aus list/find, Feld ref) oder groupName benannt.
           actionId: newActionId(),
           threadId,
           userId,
-          title: 'Gruppe erstellen',
+          title: 'Projekt erstellen',
           preview: `„${groupName}" anlegen`,
           createdAt: Date.now(),
           type: 'create_group',
           payload: { name: groupName, description: args.description?.trim() || null },
         };
-        await emitToolConfirmAction(sse, pending, [{ key: 'Gruppe', value: groupName }]);
-        const note = `Bestätigung zum Erstellen der Gruppe „${groupName}" angefordert.`;
-        groundNote(sourceRegistry, 'Gruppe erstellen', note);
+        await emitToolConfirmAction(sse, pending, [{ key: 'Projekt', value: groupName }]);
+        const note = `Bestätigung zum Erstellen des Projekts „${groupName}" angefordert.`;
+        groundNote(sourceRegistry, 'Projekt erstellen', note);
         return { ok: true, note };
       }
 
@@ -331,15 +371,15 @@ Ein Projekt wird über groupId (aus list/find, Feld ref) oder groupName benannt.
           actionId: newActionId(),
           threadId,
           userId,
-          title: 'Gruppe beitreten',
+          title: 'Projekt beitreten',
           preview: `„${group.name}" beitreten`,
           createdAt: Date.now(),
           type: 'join_group',
           payload: { joinToken: token, groupName: group.name },
         };
-        await emitToolConfirmAction(sse, pending, [{ key: 'Gruppe', value: group.name }]);
-        const note = `Bestätigung zum Beitritt zur Gruppe „${group.name}" angefordert.`;
-        groundNote(sourceRegistry, 'Gruppe beitreten', note);
+        await emitToolConfirmAction(sse, pending, [{ key: 'Projekt', value: group.name }]);
+        const note = `Bestätigung zum Beitritt zum Projekt „${group.name}" angefordert.`;
+        groundNote(sourceRegistry, 'Projekt beitreten', note);
         return { ok: true, note };
       }
 
@@ -369,8 +409,28 @@ Ein Projekt wird über groupId (aus list/find, Feld ref) oder groupName benannt.
         return { resultCount: results.length, results };
       }
 
-      // Alle weiteren Aktionen zielen auf EIN Projekt.
-      const resolved = await resolveGroup(userId, args.groupId, args.groupName);
+      if (action === 'search') return searchProject(userId, args.query, args.groupId);
+
+      if (action === 'add_text' && !args.groupId && !args.groupName) {
+        if (!state.project) {
+          return {
+            error: 'add_text braucht groupId oder groupName — dieser Chat liegt in keinem Projekt.',
+          };
+        }
+        const group = await deps.getGroupForMember(state.project.id, userId);
+        if (!group) return { error: NOT_MEMBER };
+        return addTextCard(userId, group, args.title, args.text);
+      }
+
+      // Alle weiteren Aktionen zielen auf EIN Projekt. Lesen (get, content) ohne
+      // Angabe meint das Projekt dieses Chats; Ändern verlangt die ausdrückliche Nennung.
+      const readsChatProject =
+        (action === 'get' || action === 'content') && !args.groupId && !args.groupName;
+      const resolved = await resolveGroup(
+        userId,
+        readsChatProject ? state.project?.id : args.groupId,
+        args.groupName
+      );
       if ('error' in resolved) return resolved;
       const group = resolved.group;
 
@@ -418,6 +478,8 @@ Ein Projekt wird über groupId (aus list/find, Feld ref) oder groupName benannt.
         return { ok: true, note };
       }
 
+      if (action === 'add_text') return addTextCard(userId, group, args.title, args.text);
+
       // set_visibility
       return setVisibilityCard(userId, group, args.isPublic, args.audience);
     },
@@ -459,9 +521,7 @@ Ein Projekt wird über groupId (aus list/find, Feld ref) oder groupName benannt.
     const lines = [
       `Projekt „${group.name}" — ${url}`,
       group.description ? `Beschreibung: ${group.description}` : null,
-      group.group_type === 'personal'
-        ? 'Persönlicher Space (nur du)'
-        : `${group.member_count} Mitglied(er); deine Rolle: ${group.isAdmin ? 'Admin' : 'Mitglied'}`,
+      `${group.member_count} Mitglied(er); deine Rolle: ${group.isAdmin ? 'Admin' : 'Mitglied'}`,
       `Sichtbarkeit: ${visibilityLabel(group.is_public, group.audience)}`,
       contentCount
         ? `${contentCount} geteilte(r) Inhalt(e) — action="content" listet sie mit Links`
@@ -488,6 +548,104 @@ Ein Projekt wird über groupId (aus list/find, Feld ref) oder groupName benannt.
   }
 
   // -------------------------------------------------------------------------
+  // search — gezielt im Suchbereich des Projekts dieses Chats
+  // -------------------------------------------------------------------------
+
+  /**
+   * Derselbe Suchbereich wie die passive Vorab-Suche jedes Projekt-Turns
+   * (`ChatGraphState.project.documentIds`, nach Zugriff geprüft) — nur mit
+   * eigener Anfrage. Ein anderes Projekt durchsucht das Werkzeug nicht: die
+   * Dokument-ID-Suche läuft ohne `user_id`-Filter, und nur dieser Bereich ist
+   * für die Person geprüft.
+   */
+  async function searchProject(
+    userId: string,
+    query: string | undefined,
+    groupId: string | undefined
+  ): Promise<Record<string, unknown>> {
+    const project = state.project;
+    if (!project) return { error: NO_PROJECT_CHAT };
+    if (groupId?.trim() && groupId.trim() !== project.id) return { error: NO_PROJECT_CHAT };
+    const q = query?.trim();
+    if (!q) return { error: 'search braucht query (Begriff oder Frage).' };
+    if (project.documentIds.length === 0) {
+      const note = 'Im Projekt liegen noch keine durchsuchbaren Dateien oder Docs.';
+      groundNote(sourceRegistry, 'Projektsuche', note);
+      return { resultCount: 0, results: [], note };
+    }
+    const hits = await deps.searchScopedDocuments({
+      query: q,
+      userId,
+      documentIds: project.documentIds,
+    });
+    if (hits.length === 0) {
+      const note = `Nichts zu „${q}" in den Dateien und Docs des Projekts.`;
+      groundNote(sourceRegistry, 'Projektsuche', note);
+      return { resultCount: 0, results: [], note };
+    }
+    sourceRegistry.register(hits);
+    const docKind = new Map((state.projectDocs ?? []).map((d) => [d.id, d.kind]));
+    return {
+      resultCount: hits.length,
+      results: hits.map((h) => ({
+        title: h.title,
+        excerpt: h.content,
+        ...(h.documentId ? { id: h.documentId, kind: docKind.get(h.documentId) ?? 'file' } : {}),
+      })),
+      hinweis:
+        'Ganzen Text einer Fundstelle: read_artifact mit kind und id. Nenne die Titel als Quelle.',
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // add_text — Karte
+  // -------------------------------------------------------------------------
+
+  async function addTextCard(
+    userId: string,
+    group: GroupDetailRow,
+    titleArg: string | undefined,
+    textArg: string | undefined
+  ): Promise<Record<string, unknown>> {
+    if (!threadId) return { error: 'Speichern ist in diesem Kontext nicht möglich.' };
+    const forbidden = refuseForbiddenAction(state);
+    if (forbidden) return forbidden;
+    const title = titleArg?.trim();
+    const text = textArg?.trim();
+    if (!title || !text) return { error: 'add_text braucht title und text.' };
+    if (text.length > ADD_TEXT_MAX_CHARS) {
+      return {
+        error: `Der Text ist zu lang (höchstens ${ADD_TEXT_MAX_CHARS.toLocaleString('de-DE')} Zeichen).`,
+      };
+    }
+    // Vorab, damit keine Karte erscheint, deren Klick nur scheitern kann
+    // (archiviert, System-Projekt ohne Admin). Beim Klick prüft der Dienst erneut.
+    if (!(await deps.mayShareIntoGroup(group.id, userId))) {
+      return { error: `Im Projekt „${group.name}" kannst du nichts anlegen.` };
+    }
+    const pending: PendingAction = {
+      actionId: newActionId(),
+      threadId,
+      userId,
+      title: 'Im Projekt speichern',
+      preview: `„${title}" in „${group.name}"`,
+      createdAt: Date.now(),
+      type: 'add_project_text',
+      payload: { groupId: group.id, groupName: group.name, title, content: text },
+    };
+    const excerpt =
+      text.length > ADD_TEXT_PREVIEW_CHARS ? `${text.slice(0, ADD_TEXT_PREVIEW_CHARS)} …` : text;
+    await emitToolConfirmAction(sse, pending, [
+      { key: 'Projekt', value: group.name },
+      { key: 'Titel', value: title },
+      { key: 'Anfang', value: excerpt },
+    ]);
+    const note = `Bestätigung angefordert: „${title}" als Datei ins Projekt „${group.name}" legen.`;
+    groundNote(sourceRegistry, 'Im Projekt speichern', note);
+    return { ok: true, needsConfirmation: true, note };
+  }
+
+  // -------------------------------------------------------------------------
   // set_visibility — Karte
   // -------------------------------------------------------------------------
 
@@ -502,11 +660,6 @@ Ein Projekt wird über groupId (aus list/find, Feld ref) oder groupName benannt.
     if (forbidden) return forbidden;
     if (isPublic === undefined) return { error: 'set_visibility braucht isPublic (true/false).' };
     if (!group.isAdmin) return { error: ADMIN_ONLY };
-    // „Projekte entdecken" blendet persönliche Spaces aus — eine Karte, die
-    // nichts Sichtbares bewirkt, wäre eine Lüge.
-    if (isPublic && group.group_type === 'personal') {
-      return { error: 'Ein persönlicher Space kann nicht öffentlich gelistet werden.' };
-    }
     const audience = audienceArg ?? group.audience;
     if (isPublic === group.is_public && audience === group.audience) {
       const note = `Projekt „${group.name}" ist schon ${visibilityLabel(isPublic, audience)}.`;

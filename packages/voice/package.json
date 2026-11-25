@@ -13,10 +13,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.36",
+    "@assistant-ui/core": "^0.3.37",
     "@gruenerator/shared": "workspace:*",
     "@mistralai/mistralai": "^3.5.0",
-    "livekit-client": "^2.24.0",
+    "livekit-client": "^2.24.1",
     "zustand": "5.1.0"
   },
   "peerDependencies": {

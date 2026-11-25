@@ -27,6 +27,13 @@ const log = createLogger('brevoNewsletter');
  */
 const NEWSLETTER_LIST_ID = 5;
 
+/**
+ * Brevo-Vorlage mit dem Bestätigungslink für das Double-Opt-In (Vorlage 1,
+ * Standardtext „Bestätigen Sie Ihre Anmeldung"). Eine Konstante aus demselben
+ * Grund wie die Listen-ID: Produktentscheidung, keine Betriebsgröße.
+ */
+const NEWSLETTER_DOI_TEMPLATE_ID = 1;
+
 const CACHE_TTL_SECONDS = 12 * 60 * 60;
 const REQUEST_TIMEOUT_MS = 5_000;
 
@@ -89,4 +96,76 @@ export async function isNewsletterSubscriber(userId: string): Promise<boolean> {
 
   await setCachedJson(cacheKey, { subscribed }, CACHE_TTL_SECONDS);
   return subscribed;
+}
+
+export type SubscribeResult =
+  | { status: 'already_subscribed' }
+  | { status: 'confirmation_sent' }
+  | { status: 'error'; code: 'no_email' | 'not_configured' | 'brevo_failed' };
+
+/**
+ * Startet das Double-Opt-In für die Kontoadresse: Brevo schickt die
+ * Bestätigungs-Mail, erst der Klick darin trägt die Person in Liste 5 ein.
+ * Ein Fehlschlag wird nie als Erfolg gemeldet.
+ *
+ * @param redirectionUrl Ziel nach dem Klick auf den Bestätigungslink.
+ */
+export async function subscribeToNewsletter(
+  userId: string,
+  redirectionUrl: string,
+  /** The address the person typed in the dialog; without it the account address. */
+  requestedEmail?: string | null
+): Promise<SubscribeResult> {
+  if (!env.BREVO_API_KEY) return { status: 'error', code: 'not_configured' };
+
+  const profile = await getProfileService().getProfileById(userId);
+  const accountEmail = profile?.email?.trim() || null;
+  const email = requestedEmail?.trim() || accountEmail;
+  if (!email) return { status: 'error', code: 'no_email' };
+
+  // The cached check only knows the account address; another address is asked directly.
+  const alreadySubscribed =
+    email.toLowerCase() === accountEmail?.toLowerCase()
+      ? await isNewsletterSubscriber(userId)
+      : (await fetchSubscription(email, env.BREVO_API_KEY)) === true;
+  if (alreadySubscribed) return { status: 'already_subscribed' };
+
+  // Dieselben Attributnamen wie im gehosteten Brevo-Formular; leere weglassen,
+  // damit ein vorhandener Kontakt keinen Namen mit Leerstring überschreibt.
+  const attributes: Record<string, string> = {};
+  const firstName = profile?.first_name?.trim();
+  const lastName = profile?.last_name?.trim();
+  if (firstName) attributes.VORNAME = firstName;
+  if (lastName) attributes.NACHNAME = lastName;
+
+  let response: Response;
+  try {
+    response = await fetch('https://api.brevo.com/v3/contacts/doubleOptinConfirmation', {
+      method: 'POST',
+      headers: {
+        'api-key': env.BREVO_API_KEY,
+        accept: 'application/json',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        email,
+        attributes,
+        includeListIds: [NEWSLETTER_LIST_ID],
+        templateId: NEWSLETTER_DOI_TEMPLATE_ID,
+        redirectionUrl,
+      }),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+  } catch (error) {
+    log.warn(`Brevo nicht erreichbar: ${String(error)}`);
+    return { status: 'error', code: 'brevo_failed' };
+  }
+
+  // 2xx = Bestätigungs-Mail ist raus (Brevo antwortet mit 201).
+  if (!response.ok) {
+    log.warn(`Brevo-Double-Opt-In antwortete mit ${response.status}`);
+    return { status: 'error', code: 'brevo_failed' };
+  }
+
+  return { status: 'confirmation_sent' };
 }

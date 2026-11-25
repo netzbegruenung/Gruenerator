@@ -20,7 +20,7 @@ describe('FeedbackWidget', () => {
   it('zeigt die Textpille auf breiten Schirmen', () => {
     setViewportWidth(1280);
     renderWithProviders(<FeedbackWidget variant="text" />);
-    expect(screen.getByRole('button', { name: /^Feedback$/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Support$/ })).toBeInTheDocument();
   });
 
   // Tablets und Handys: die Pille überdeckt dort Bedienelemente am Rand — etwa
@@ -28,14 +28,14 @@ describe('FeedbackWidget', () => {
   it('schrumpft die Textpille auf Tablet-Breite zum Icon', () => {
     setViewportWidth(820);
     renderWithProviders(<FeedbackWidget variant="text" />);
-    expect(screen.getByRole('button', { name: 'Feedback geben' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^Feedback$/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Support öffnen' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Support$/ })).not.toBeInTheDocument();
   });
 
   it('lässt die ausdrückliche Icon-Wahl unangetastet', () => {
     setViewportWidth(1280);
     renderWithProviders(<FeedbackWidget variant="icon" />);
-    expect(screen.getByRole('button', { name: 'Feedback geben' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Support öffnen' })).toBeInTheDocument();
   });
 
   // Der Knopf schwebt auch über dem Chat — ohne diesen Satz tippen Leute ihn
@@ -44,7 +44,7 @@ describe('FeedbackWidget', () => {
     setViewportWidth(1280);
     const { user } = renderWithProviders(<FeedbackWidget variant="text" />);
 
-    await user.click(screen.getByRole('button', { name: /^Feedback$/ }));
+    await user.click(screen.getByRole('button', { name: /^Support$/ }));
 
     const dialog = await screen.findByRole('dialog');
     expect(dialog).toHaveTextContent('Feedback an die Entwicklung');

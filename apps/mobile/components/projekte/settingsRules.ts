@@ -2,12 +2,13 @@ import { type MenuAction } from '@expo/ui/community/menu';
 
 export const MAKE_ADMIN_ID = 'make-admin';
 export const REMOVE_ADMIN_ID = 'remove-admin';
+export const REMOVE_MEMBER_ID = 'remove-member';
 
 type GroupKind = { group_type?: string | null; is_system?: boolean | null };
 
-/** Team-Projekt = weder persönlich noch das System-Projekt (wie `isTeam` im Web). */
+/** Team-Funktionen (Mitglieder, Einladen, Verlassen) in jedem Projekt außer dem System-Projekt (wie `isTeam` im Web). */
 export function isTeamProject(group: GroupKind): boolean {
-  return group.group_type !== 'personal' && !group.is_system;
+  return !group.is_system;
 }
 
 /** Rollen ändert nur, wer Admin ist — nie bei sich selbst und nie beim Ersteller (wie im Web). */
@@ -35,16 +36,25 @@ export function canLeaveProject(
   );
 }
 
-/** Den Einladungslink teilen Admins in Team-Projekten, solange es einen Token gibt. */
+/** Den Einladungslink teilen Admins in jedem Projekt, solange es einen Token gibt und es nicht archiviert ist. */
 export function canShareInviteLink(
-  group: GroupKind & { join_token?: string | null },
+  group: GroupKind & { join_token?: string | null; archived_at?: string | null },
   isAdmin: boolean
 ): boolean {
-  return isAdmin && group.group_type === 'standard' && !group.is_system && !!group.join_token;
+  return isAdmin && !group.is_system && !!group.join_token && !group.archived_at;
 }
 
 export function buildMemberActions(memberRole: string): MenuAction[] {
-  return memberRole === 'admin'
-    ? [{ id: REMOVE_ADMIN_ID, title: 'Admin-Rechte entfernen' }]
-    : [{ id: MAKE_ADMIN_ID, title: 'Zum Admin machen' }];
+  const roleAction: MenuAction =
+    memberRole === 'admin'
+      ? { id: REMOVE_ADMIN_ID, title: 'Admin-Rechte entfernen' }
+      : { id: MAKE_ADMIN_ID, title: 'Zum Admin machen' };
+  return [
+    roleAction,
+    {
+      id: REMOVE_MEMBER_ID,
+      title: 'Aus dem Projekt entfernen',
+      attributes: { destructive: true },
+    },
+  ];
 }

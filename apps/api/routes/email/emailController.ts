@@ -78,7 +78,7 @@ router.post(
         return res.status(503).json({ error: 'Email service unavailable' });
       }
 
-      log.info('[Email] Content delivered', { userId, recipientEmail, contentTitle });
+      log.info('[Email] Content delivered', { userId });
       return res.json({ success: true, message: 'Email sent successfully' });
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));

@@ -1,4 +1,7 @@
+import { useUserLandesverbaende } from '@gruenerator/chat';
+import { useUserProfileStore } from '@gruenerator/chat/stores';
 import { type GroupContentType } from '@gruenerator/contracts';
+import { selectOfficialCatalog } from '@gruenerator/shared/agents';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { type AddableItem, addItemsToGroup, addableKey } from '@gruenerator/shared/groups';
 import {
@@ -23,6 +26,7 @@ import { profileApiService } from '../../auth/services/profileApiService';
 import { subtypeToKind } from '../../docs/docTypeMeta';
 import { SYSTEM_NOTEBOOKS } from '../../notebook/config/notebooksConfig';
 
+import { CURRENT_INSTANCE } from '@/config/instance';
 import { cn } from '@/utils/cn';
 
 type Kind = 'doc' | 'sheet' | 'pres' | 'board' | 'agent' | 'recipe' | 'notebook' | 'file';
@@ -99,8 +103,6 @@ interface AddExistingPickerProps {
   sharedKeys: ReadonlySet<string>;
   /** Der Server teilt nur Eigenes; fremde Docs, Boards und Notebooks gar nicht erst anbieten. */
   currentUserId: string | null;
-  /** Notiz für den Feed, etwa der Text aus dem Composer. */
-  note?: string | null;
   /**
    * Docs, Sheets, Präsentationen und Boards mit Schreibrecht teilen — in Team-Projekten
    * der Standard. Ändern lässt es sich danach im Zeilenmenü der Projektliste.
@@ -111,19 +113,25 @@ interface AddExistingPickerProps {
    * die Fehler an ihren Zeilen, und der Picker bleibt offen.
    */
   onAdded: (items: PickerItem[], done: boolean) => void;
+  /**
+   * Nur auswählen, nicht teilen: der Composer hängt die Inhalte an seinen Entwurf,
+   * und erst „Posten“ teilt sie mit dem Text als Notiz. Ohne: Klick teilt sofort.
+   */
+  onPick?: (items: PickerItem[]) => void;
 }
 
 /**
- * „Vorhandenes hinzufügen“: ein Klick fügt einen Inhalt hinzu. Mehrere gehen mit
- * ⌘/Strg- oder Shift-Klick (bzw. Shift+Enter); erst dann erscheint ein Knopf.
+ * „Vorhandenes hinzufügen“: ein Klick fügt einen Inhalt hinzu (bzw. wählt ihn mit
+ * `onPick` aus). Mehrere gehen mit ⌘/Strg- oder Shift-Klick (bzw. Shift+Enter);
+ * erst dann erscheint ein Knopf.
  */
 export function AddExistingPicker({
   groupId,
   sharedKeys,
   currentUserId,
-  note = null,
   writeDocuments = false,
   onAdded,
+  onPick,
 }: AddExistingPickerProps) {
   const [query, setQuery] = useState('');
   const [marked, setMarked] = useState<ReadonlySet<string>>(new Set());
@@ -133,6 +141,8 @@ export function AddExistingPicker({
   const withModifier = useRef(false);
 
   const own = (owner: unknown) => !currentUserId || owner === currentUserId;
+  const locale = useUserProfileStore((s) => s.locale);
+  const { lvIds } = useUserLandesverbaende();
 
   const queries = useQueries({
     queries: [
@@ -156,6 +166,22 @@ export function AddExistingPicker({
             .filter((f) => f.kind === 'custom' && f.sharedFromGroup === null)
             .map((f) => item('user_text_forms', 'recipe', f.id, f.title, changedAtOf(f)));
         },
+      },
+      {
+        // Mitgelieferte Rezepte, auch die des eigenen Landesverbands — was die
+        // Person im Marktplatz sieht. Ein LV-Rezept im Projekt steht dort allen
+        // Mitgliedern zur Verfügung, auch ohne Landesgeschäftsstellen-Rolle.
+        // Ohne geladene Rollen keine LV-Rezepte, statt kurz die aller Verbände.
+        queryKey: ['add-to-group', 'system-recipes', locale, lvIds ?? []],
+        queryFn: (): PickerItem[] =>
+          selectOfficialCatalog({
+            locale,
+            instanceId: CURRENT_INSTANCE,
+            platform: 'web',
+            hiddenAgentIds: [],
+            hiddenSkillMentions: [],
+            lvIds: lvIds ?? [],
+          }).skills.map((s) => item('system_recipes', 'recipe', s.mention, s.title, null)),
       },
       {
         queryKey: ['add-to-group', 'collabDocs'],
@@ -234,8 +260,12 @@ export function AddExistingPicker({
 
   async function add(items: PickerItem[]) {
     if (items.length === 0 || busy) return;
+    if (onPick) {
+      onPick(items);
+      return;
+    }
     setBusy(true);
-    const result = await addItemsToGroup(groupId, items, note, { writeDocuments });
+    const result = await addItemsToGroup(groupId, items, null, { writeDocuments });
     setBusy(false);
     const failed = new Set(result.failures.map((f) => f.key));
     const added = items.filter((i) => !failed.has(addableKey(i)));
@@ -338,7 +368,7 @@ export function AddExistingPicker({
           <div className="flex items-center gap-3 border-t px-3.5 py-3">
             <span className="flex-1 text-xs text-muted-foreground">{marked.size} markiert</span>
             <Button variant="brand" size="sm" disabled={busy} onClick={() => void add(markedItems)}>
-              {marked.size} hinzufügen
+              {marked.size} {onPick ? 'anhängen' : 'hinzufügen'}
             </Button>
           </div>
         )}

@@ -12,12 +12,12 @@
     "lint:fix": "eslint . --fix"
   },
   "dependencies": {
-    "@assistant-ui/react": "^0.15.36",
+    "@assistant-ui/react": "^0.15.37",
     "@gruenerator/chat": "workspace:*",
-    "lucide-react": "^1.72.0",
+    "lucide-react": "^1.76.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "react-router-dom": "^7.18.5",
+    "react-router-dom": "^7.18.6",
     "zustand": "5.1.0"
   },
   "devDependencies": {

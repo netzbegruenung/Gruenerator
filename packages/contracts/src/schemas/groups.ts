@@ -23,6 +23,31 @@ export type GroupRole = z.infer<typeof groupRoleSchema>;
 export const groupAudienceSchema = z.enum(['de-DE', 'de-AT', 'all']);
 export type GroupAudience = z.infer<typeof groupAudienceSchema>;
 
+/**
+ * Landesverband eines Projekts (Ids der Registry `LANDESVERBAENDE` in
+ * `@gruenerator/shared/agents`; `landesverbandIds.vitest.ts` in der API hält
+ * beide gleich). Contracts hängt nicht an shared, deshalb steht die Liste hier.
+ */
+export const landesverbandIdSchema = z.enum([
+  'berlin',
+  'hamburg',
+  'mecklenburg-vorpommern',
+  'thueringen',
+  'brandenburg',
+  'bayern',
+  'sachsen-anhalt',
+  'hessen',
+  'nordrhein-westfalen',
+  'saarland',
+  'schleswig-holstein',
+  'oesterreich',
+]);
+export type LandesverbandId = z.infer<typeof landesverbandIdSchema>;
+/** Fixed tile palette for projects (no colour = the default blue tile); the colour values live with the renderers (shared `groupColors`). */
+export const GROUP_COLORS = ['gruen', 'tanne', 'sonne', 'magenta', 'flieder'] as const;
+export const groupColorSchema = z.enum(GROUP_COLORS);
+export type GroupColor = z.infer<typeof groupColorSchema>;
+
 export const joinRequestStatusSchema = z.enum(['pending', 'approved', 'denied']);
 export type JoinRequestStatus = z.infer<typeof joinRequestStatusSchema>;
 
@@ -155,7 +180,7 @@ export const groupSummarySchema = z.object({
   role: z.string(),
   joined_at: z.string().nullish(),
   isAdmin: z.boolean(),
-  // 'personal' = solo Space (lean UI, hidden from discovery); else team Space.
+  // F0 stored value; behaviour follows membership, not this type.
   group_type: z.enum(['standard', 'personal']).nullish(),
   // The one system group every user belongs to: no member info, only instance
   // admins share. member_count is 0 there.
@@ -164,6 +189,11 @@ export const groupSummarySchema = z.object({
   content_count: z.number().nullish(),
   // Stable 6-char tail for the Notion-style URL `/gruppen/<name>-<suffix>`.
   slug_suffix: z.string().nullish(),
+  // ISO time the project was archived; null/absent = active.
+  archived_at: z.string().nullish(),
+  color: groupColorSchema.nullish(),
+  // Latest post, share, comment or visible chat in the project (ISO); absent on old servers.
+  last_activity_at: z.string().nullish(),
 });
 export type GroupSummaryDto = z.infer<typeof groupSummarySchema>;
 
@@ -179,11 +209,15 @@ export const groupDetailSchema = z.object({
   links: z.array(groupLinkSchema).nullish(),
   is_public: z.boolean().nullish(),
   audience: groupAudienceSchema.nullish(),
-  // 'personal' = solo Space (lean UI, hidden from discovery); else team Space.
+  // F0 stored value; behaviour follows membership, not this type.
   group_type: z.enum(['standard', 'personal']).nullish(),
   is_system: z.boolean().nullish(),
   // Stable 6-char tail for the Notion-style URL `/gruppen/<name>-<suffix>`.
   slug_suffix: z.string().nullish(),
+  // Explicit Landesverband: its recipe variants win over the person's active role.
+  landesverband: landesverbandIdSchema.nullish(),
+  archived_at: z.string().nullish(),
+  color: groupColorSchema.nullish(),
 });
 export type GroupDetailDto = z.infer<typeof groupDetailSchema>;
 
@@ -211,10 +245,10 @@ export const groupTokenRefSchema = z.object({ id: z.string(), name: z.string() }
 // ── Request bodies ─────────────────────────────────────────────────────────────
 
 export const createGroupBodySchema = z.object({
-  name: z.string().min(1, 'Space-Name ist erforderlich.'),
+  name: z.string().min(1, 'Projektname ist erforderlich.'),
   description: z.string().nullish(),
-  // 'personal' = a solo Space (hidden from team discovery, lean UI). Omitted =
-  // a normal team Space.
+  // F0: shipped mobile builds still send it. The server ignores it — every new
+  // project is stored as 'standard' (one kind of project, members can join any time).
   groupType: z.enum(['standard', 'personal']).optional(),
 });
 export type CreateGroupBody = z.infer<typeof createGroupBodySchema>;
@@ -225,6 +259,10 @@ export const updateGroupInfoBodySchema = z.object({
   // Free-form group settings (e.g. `templateTags`). Kept as a generic record so
   // the typed client accepts the frontend's `Record<string, unknown>` value.
   settings: z.record(z.string(), z.unknown()).nullish(),
+  // `null` clears the Landesverband, omitted leaves it alone.
+  landesverband: landesverbandIdSchema.nullish(),
+  // null clears the colour (back to the default); absent leaves it alone.
+  color: groupColorSchema.nullish(),
 });
 export type UpdateGroupInfoBody = z.infer<typeof updateGroupInfoBodySchema>;
 
@@ -255,10 +293,19 @@ export const inviteToGroupResponseSchema = z.object({
 });
 export type InviteToGroupResponse = z.infer<typeof inviteToGroupResponseSchema>;
 
+export const regenerateJoinTokenResponseSchema = z.object({
+  success: z.literal(true),
+  join_token: z.string(),
+});
+export type RegenerateJoinTokenResponse = z.infer<typeof regenerateJoinTokenResponseSchema>;
+
 export const memberRoleBodySchema = z.object({
   role: groupRoleSchema,
 });
 export type MemberRoleBody = z.infer<typeof memberRoleBodySchema>;
+
+export const setGroupArchivedBodySchema = z.object({ archived: z.boolean() });
+export type SetGroupArchivedBody = z.infer<typeof setGroupArchivedBodySchema>;
 
 /** Body for muting/unmuting the caller's own notifications for a group. */
 export const setGroupMuteBodySchema = z.object({
@@ -350,6 +397,8 @@ export const groupContentTypeSchema = z.enum([
   'canvas_template',
   'nextcloud_share_link',
   'user_text_forms',
+  /** Ein mitgeliefertes Rezept (auch eines Landesverbands); `contentId` ist die Mention. */
+  'system_recipes',
 ]);
 export type GroupContentType = z.infer<typeof groupContentTypeSchema>;
 
@@ -508,6 +557,17 @@ const groupContentBucketSchema = z.array(z.record(z.string(), z.unknown()));
  * subtype enum. `.passthrough()` keeps the extra hydrated fields the frontend
  * reads (name/slug/thumbnail_url/…) without enumerating every one.
  */
+export const projectSearchStateSchema = z.enum([
+  'ready',
+  'indexing',
+  'failed',
+  'not_searchable',
+  'stale',
+  'pending',
+  'over_cap',
+]);
+export type ProjectSearchState = z.infer<typeof projectSearchStateSchema>;
+
 export const groupCollabDocItemSchema = z
   .object({
     id: z.union([z.string(), z.number()]),
@@ -518,6 +578,8 @@ export const groupCollabDocItemSchema = z
     shared_by_id: z.string().nullish(),
     thumbnail_url: z.string().nullish(),
     share: groupShareMetaSchema.nullish(),
+    /** Ob das Dokument im Suchbereich des Projekts liegt; `null`: Art wird nicht indexiert. */
+    search_state: projectSearchStateSchema.nullish(),
   })
   .passthrough();
 
@@ -550,6 +612,8 @@ export const groupContentResponseSchema = z.object({
     group_posts: z.array(groupPostItemSchema).optional(),
     /** Rezepte (`user_text_forms`). Optional: ältere Server liefern den Bucket nicht. */
     recipes: groupContentBucketSchema.optional(),
+    /** Mitgelieferte Rezepte (`system_recipes`). Optional: ältere Server liefern den Bucket nicht. */
+    system_recipes: groupContentBucketSchema.optional(),
   }),
 });
 export type GroupContentResponse = z.infer<typeof groupContentResponseSchema>;
@@ -575,3 +639,82 @@ export const groupInstructionsResponseSchema = z.object({
   updatedAt: z.string().nullable(),
 });
 export type GroupInstructionsResponse = z.infer<typeof groupInstructionsResponseSchema>;
+
+// ── Synchronisierte Ablagen als Projektwissen (#5945, experimentell) ───────
+
+/** Woher eine Projektquelle ihre Dateien holt. */
+export const groupCloudProviderSchema = z.enum(['wolke', 'google-drive']);
+export type GroupCloudProvider = z.infer<typeof groupCloudProviderSchema>;
+
+/** Ein Wolke-Ordner oder eine Google-Drive-Auswahl im Projekt. Lesen Mitglieder, ändern Admins. */
+export const groupCloudSourceSchema = z.object({
+  id: z.string(),
+  provider: groupCloudProviderSchema,
+  name: z.string(),
+  includeSubfolders: z.boolean(),
+  /** Dateien aus der Quelle, die gerade im Projektwissen liegen. */
+  fileCount: z.number(),
+  /** Noch nicht eingelesen — der stündliche Abgleich holt sie nach. */
+  pendingCount: z.number(),
+  lastSyncedAt: z.string().nullable(),
+  lastError: z.string().nullable(),
+  attachedById: z.string(),
+  attachedByName: z.string().nullable(),
+});
+export type GroupCloudSource = z.infer<typeof groupCloudSourceSchema>;
+
+export const groupCloudSourcesResponseSchema = z.object({
+  success: z.literal(true),
+  sources: z.array(groupCloudSourceSchema),
+});
+export type GroupCloudSourcesResponse = z.infer<typeof groupCloudSourcesResponseSchema>;
+
+export const attachGroupWolkeFolderBodySchema = z.object({
+  url: z.string().trim().min(1).max(2000),
+  includeSubfolders: z.boolean(),
+  /** Anzeigename im Projekt; leer → Label des Freigabelinks bzw. „Wolke-Ordner". */
+  name: z.string().trim().max(120).optional(),
+});
+export type AttachGroupWolkeFolderBody = z.infer<typeof attachGroupWolkeFolderBodySchema>;
+
+/** Höchstens so viele Dateien je Picker-Auswahl. */
+export const GROUP_DRIVE_PICK_MAX = 50;
+
+/** Im Google-Picker gewählte Dateien (Scope `drive.file`: nur diese sind lesbar). */
+export const attachGroupDriveFilesBodySchema = z.object({
+  files: z
+    .array(
+      z.object({
+        id: z
+          .string()
+          .regex(/^[a-zA-Z0-9_-]+$/)
+          .max(200),
+        name: z.string().max(500),
+        mimeType: z.string().max(200),
+      })
+    )
+    .min(1)
+    .max(GROUP_DRIVE_PICK_MAX),
+});
+export type AttachGroupDriveFilesBody = z.infer<typeof attachGroupDriveFilesBodySchema>;
+
+/** Was ein Abgleich getan hat. */
+export const groupCloudSyncSummarySchema = z.object({
+  /** Neu oder geändert eingelesen. */
+  imported: z.number(),
+  /** Aus der Quelle verschwunden und aus dem Projekt genommen. */
+  removed: z.number(),
+  /** Aufgeschoben (Zeitbudget) — kommt beim nächsten Abgleich. */
+  pending: z.number(),
+  /** Ohne lesbaren Text, zu groß oder über der Grenze. */
+  skipped: z.number(),
+  failed: z.number(),
+});
+export type GroupCloudSyncSummary = z.infer<typeof groupCloudSyncSummarySchema>;
+
+export const groupCloudSourceSyncResponseSchema = z.object({
+  success: z.literal(true),
+  source: groupCloudSourceSchema,
+  summary: groupCloudSyncSummarySchema,
+});
+export type GroupCloudSourceSyncResponse = z.infer<typeof groupCloudSourceSyncResponseSchema>;

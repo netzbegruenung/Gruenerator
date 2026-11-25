@@ -7,9 +7,11 @@
 import {
   groupPostItemSchema,
   groupShareMetaSchema,
+  projectSearchStateSchema,
   type GroupContentResponse,
   type GroupContentType,
   type GroupShareMeta,
+  type ProjectSearchState,
 } from '@gruenerator/contracts';
 
 import { SYSTEM_AGENTS } from '../agents/index.js';
@@ -84,6 +86,8 @@ export interface GroupFeedItem {
    */
   projectWrite: boolean | null;
   post: GroupPostContent | null;
+  /** Dateien und Dokumente: liegt der Eintrag im Suchbereich des Projekts? `null`/fehlt: nicht zutreffend. */
+  searchState?: ProjectSearchState | null;
 }
 
 /** API-Pfad einer Beitragsdatei; nur für Mitglieder lesbar (Cookie bzw. Bearer). */
@@ -131,6 +135,11 @@ function base(row: Row, contentType: GroupFeedContentType, kind: GroupFeedKind, 
   } satisfies GroupFeedItem;
 }
 
+function searchStateOf(row: Row): ProjectSearchState | null {
+  const parsed = projectSearchStateSchema.safeParse(row.search_state);
+  return parsed.success ? parsed.data : null;
+}
+
 function collabKind(subtype: unknown): GroupFeedKind {
   if (subtype === 'boards') return 'board';
   if (subtype === 'canvas') return 'sharepic';
@@ -170,7 +179,10 @@ export function toGroupFeedItems(
   }
   for (const r of rows('collaborative_documents')) {
     const kind = collabKind(r.document_subtype);
-    items.push(base(r, 'collaborative_documents', kind, str(r.title) ?? 'Ohne Titel'));
+    items.push({
+      ...base(r, 'collaborative_documents', kind, str(r.title) ?? 'Ohne Titel'),
+      searchState: searchStateOf(r),
+    });
   }
   for (const r of rows('canvas_templates')) {
     items.push(base(r, 'canvas_template', 'sharepic-template', str(r.title) ?? 'Sharepic-Vorlage'));
@@ -212,6 +224,13 @@ export function toGroupFeedItems(
       slug: str(r.mention),
     });
   }
+  for (const r of rows('system_recipes')) {
+    items.push({
+      ...base(r, 'system_recipes', 'recipe', str(r.title) ?? 'Rezept'),
+      excerpt: str(r.description),
+      slug: str(r.mention),
+    });
+  }
   for (const r of rows('system_agents')) {
     const id = String(r.id);
     const sys = SYSTEM_AGENTS.find((a) => a.identifier === id);
@@ -230,7 +249,10 @@ export function toGroupFeedItems(
     });
   }
   for (const r of rows('documents')) {
-    items.push(base(r, 'documents', 'document', str(r.title) ?? str(r.filename) ?? 'Dokument'));
+    items.push({
+      ...base(r, 'documents', 'document', str(r.title) ?? str(r.filename) ?? 'Dokument'),
+      searchState: searchStateOf(r),
+    });
   }
 
   return sortGroupFeed(items);
@@ -271,6 +293,11 @@ export function austauschItems(
       (i.share?.reactions.length ?? 0) > 0 ||
       (!!i.share && (discussed.has(i.share.shareId) || i.share.shareId === focusShareId))
   );
+}
+
+/** Gibt es schon Austausch-Inhalt (Beiträge, Notizen, Kommentare …)? Dann bleibt der Reiter auch bei einem einzelnen Mitglied. */
+export function hasAustauschContent(items: GroupFeedItem[]): boolean {
+  return austauschItems(items, new Set(), null).length > 0;
 }
 
 /** „Alle": je Art ein Abschnitt, leere weggelassen, Reihenfolge wie `GROUP_FEED_KINDS`. */

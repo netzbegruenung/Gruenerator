@@ -168,6 +168,29 @@ export async function executeAction(
 
       const { addRowsToBoard } = await import('../../services/boards/BoardService.js');
       await addRowsToBoard(boardId, rows, action.userId);
+      // Eine im Chat aufgelöste Person (`boards_tasks` add_card) bekommt, was eine
+      // Zuweisung im Web auslöst: Verlaufseintrag und Benachrichtigung.
+      const assigned = rows.flatMap((row) => {
+        const a = row.assignee as { id?: unknown; name?: unknown } | null | undefined;
+        return typeof row.id === 'string' && a && typeof a.id === 'string' && a.id
+          ? [{ cardId: row.id, id: a.id, name: typeof a.name === 'string' ? a.name : '' }]
+          : [];
+      });
+      if (assigned.length) {
+        const { recordAssignment } =
+          await import('../../services/boards/cardAssignmentNotifications.js');
+        for (const a of assigned) {
+          const title = rows.find((r) => r.id === a.cardId)?.title;
+          await recordAssignment({
+            boardId,
+            cardId: a.cardId,
+            userId: action.userId,
+            names: [a.name],
+            addedAssigneeIds: [a.id],
+            cardTitle: typeof title === 'string' ? title : null,
+          });
+        }
+      }
       return {
         message: `Board wurde aktualisiert (${rows.length} Änderung${rows.length !== 1 ? 'en' : ''}).`,
         url: `/boards/${boardId}`,
@@ -194,7 +217,7 @@ export async function executeAction(
       const group = await createGroupForUser(action.userId, action.payload);
       const slug = group.slug_suffix ? buildGroupSlug(group.name, group.slug_suffix) : group.id;
       return {
-        message: `Gruppe **„${group.name}"** wurde erstellt.`,
+        message: `Projekt **„${group.name}"** wurde erstellt.`,
         url: `/gruppen/${slug}`,
       };
     }
@@ -216,7 +239,7 @@ export async function executeAction(
       return {
         message: outcome.alreadyMember
           ? `Du bist bereits Mitglied von **„${outcome.group.name}"**.`
-          : `Du bist der Gruppe **„${outcome.group.name}"** beigetreten.`,
+          : `Du bist dem Projekt **„${outcome.group.name}"** beigetreten.`,
         url: `/gruppen/${outcome.group.id}`,
       };
     }
@@ -344,11 +367,32 @@ export async function executeAction(
       } catch (err) {
         throw new ConfirmActionRefusal(err instanceof Error ? err.message : String(err));
       }
-      if (!updated) throw new ConfirmActionRefusal('Gruppe nicht gefunden.');
+      if (!updated) throw new ConfirmActionRefusal('Projekt nicht gefunden.');
       return {
         message: updated.is_public
           ? `Projekt **„${groupName}"** ist jetzt öffentlich gelistet.`
           : `Projekt **„${groupName}"** ist jetzt privat.`,
+        url: `/gruppen/${groupId}`,
+      };
+    }
+
+    case 'add_project_text': {
+      const { addTextToGroup } = await import('../../services/groups/createInGroup.js');
+      const { GroupShareForbiddenError } =
+        await import('../../services/groups/groupShareWriter.js');
+      const { groupId, groupName, title, content } = action.payload;
+      // Das Teilrecht wird beim Klick noch einmal geprüft: zwischen Karte und
+      // Klick kann das Projekt archiviert oder die Person ausgetreten sein.
+      try {
+        await addTextToGroup({ userId: action.userId, groupId, title, content });
+      } catch (err) {
+        if (err instanceof GroupShareForbiddenError) {
+          throw new ConfirmActionRefusal('Du kannst in diesem Projekt nichts anlegen.');
+        }
+        throw err;
+      }
+      return {
+        message: `**„${title}"** liegt jetzt im Projekt **„${groupName}"**.`,
         url: `/gruppen/${groupId}`,
       };
     }
@@ -376,16 +420,10 @@ export async function executeAction(
     }
 
     case 'create_user_agent': {
-      const { createUserAgentSafely, userAgentUrl } = await import('./agents/userAgentTools.js');
-      const agent = await createUserAgentSafely(action.userId, action.payload.input);
-      log.info(
-        `[ConfirmController] User agent created: "${agent.title}" (${agent.identifier}) — ` +
-          `tools=[${(agent.enabledTools ?? []).join(',')}] notebooks=${agent.defaultNotebookIds?.length ?? 0}`
-      );
-      return {
-        message: `Grünerator-Agent **„${agent.title}"** angelegt — die Rolle lässt sich jederzeit in den Einstellungen des Agenten oder im Chat verfeinern.`,
-        url: userAgentUrl(agent.identifier),
-      };
+      // Agents laufen aus: eine Karte, die vor dem Stopp entstand und noch offen
+      // im Chat steht, legt keinen Agent mehr an.
+      const { AGENT_CREATION_CLOSED } = await import('./agents/userAgentTools.js');
+      throw new ConfirmActionRefusal(AGENT_CREATION_CLOSED);
     }
 
     case 'share_user_agent': {

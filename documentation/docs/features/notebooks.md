@@ -53,12 +53,12 @@ Websites, die du einmal hinterlegt hast, merkt sich dein Konto — du kannst sie
 
 Sichtbarkeit und Veröffentlichung sind aus der Erstellung herausgelöst. Der Einstieg ist der **„Teilen"**-Button: Öffne dein Notebook über **Bearbeiten**, dann findest du oben rechts — neben **„Alle Quellen aktualisieren"** — den Button **„Teilen"**. Er ist nur für die Eigentümer\*in sichtbar und öffnet den Dialog **„Notebook teilen"**, in dem du die gesamte Sichtbarkeit steuerst.
 
-(Das **„Teilen"**-Untermenü im Drei-Punkte-Menü der Notebook-Übersicht ist davon getrennt: Es bietet nur **„Link kopieren"** und das direkte Teilen mit einer Gruppe, aber nicht die Sichtbarkeits- und Veröffentlichungseinstellungen.)
+(Das **„Teilen"**-Untermenü im Drei-Punkte-Menü der Notebook-Übersicht ist davon getrennt: Es bietet nur **„Link kopieren"** und das direkte Hinzufügen zu einem Projekt, aber nicht die Sichtbarkeits- und Veröffentlichungseinstellungen.)
 
 Im Dialog **„Notebook teilen"** stellst du die **Sichtbarkeit** ein:
 
 - **„Privat — nur ich"** — Standard. Nur du siehst das Notebook.
-- **„Mit Gruppen geteilt"** — sichtbar für ausgewählte Gruppen. Du fügst Gruppen hinzu und legst unter **„Wer darf bearbeiten?"** fest, wer Änderungen vornehmen darf (nur ich / Gruppen-Admins / alle Mitglieder).
+- **„Mit Projekten geteilt"** — sichtbar für ausgewählte Projekte. Du fügst Projekte hinzu und legst unter **„Wer darf bearbeiten?"** fest, wer Änderungen vornehmen darf (**„Nur ich"** / **„Admins der geteilten Projekte"** / **„Alle Mitglieder der geteilten Projekte"**).
 - **„Mit Anmeldung — alle eingeloggten Nutzer\*innen"** — sichtbar für alle eingeloggten Nutzer\*innen aus deinem Land.
 
 ### Auf „Öffentlich" listen
@@ -79,7 +79,7 @@ Wenn du dir bei den Rechten unsicher bist, lass das Notebook privat — du kanns
 Hinter der Kachel **„Meine Notebooks"** auf der Wissen-Seite erscheint jedes deiner Notebooks als Karte, zusammen mit den Notebooks, die andere über ein Projekt mit dir teilen, und denen, die du im Marktplatz gemerkt hast. Ein **Klick** auf die Karte öffnet die Notebook-Detailseite, von der aus du chatten und durchsuchen kannst. Über das **Drei-Punkte-Menü** der Karte erreichst du weitere Aktionen:
 
 - **Bearbeiten** — öffnet wieder den Editor (Quellen, Details, Labels, Wolke, Docs). Auf der Bearbeiten-Seite kannst du Name und Beschreibung auch direkt im Kopfbereich ändern und alle Quellen per **„Alle Quellen aktualisieren"** neu synchronisieren.
-- **Teilen** — Untermenü mit **„Link kopieren"** und — falls du in Gruppen bist — Optionen zum direkten Teilen mit einer Gruppe. Die volle Sichtbarkeitssteuerung liegt dagegen im **„Teilen"**-Button auf der Bearbeiten-Seite (siehe oben).
+- **Teilen** — Untermenü mit **„Link kopieren"** und — falls du in Projekten bist — Optionen, das Notebook direkt zu einem Projekt hinzuzufügen. Die volle Sichtbarkeitssteuerung liegt dagegen im **„Teilen"**-Button auf der Bearbeiten-Seite (siehe oben).
 - **Löschen** — entfernt das Notebook unwiderruflich. **Wichtig:** Die enthaltenen Dokumente bleiben in deiner persönlichen Bibliothek erhalten und können in andere Notebooks aufgenommen werden.
 
 ## Häufige Fragen

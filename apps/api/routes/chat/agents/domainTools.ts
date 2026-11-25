@@ -1666,6 +1666,8 @@ NUTZE WENN der*die Nutzer*in ${label === 'Präsentation' ? 'eine Präsentation/F
         req,
         userId,
         image,
+        // Im Team-Chat eines Projekts landet das Ergebnis im Projekt.
+        threadId: state.project ? state.threadId : null,
         // The loop's per-call timeout abandons but does not cancel — without
         // this the write happens anyway, into a turn that already gave up.
         ...(options?.abortSignal && { abandoned: options.abortSignal }),
@@ -1962,6 +1964,7 @@ NUTZE WENN der*die Nutzer*in ein Board/Kanban zum Thema möchte. ${briefInstruct
         userContent: briefWithContext(prompt, state),
         req,
         userId,
+        threadId: state.project ? state.threadId : null,
         // See makeCreateDocTool — abandoned ≠ cancelled.
         ...(options?.abortSignal && { abandoned: options.abortSignal }),
       });

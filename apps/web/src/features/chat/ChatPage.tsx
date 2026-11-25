@@ -6,6 +6,7 @@ import {
   setMentionInstance,
   setMentionLandesverbaende,
   setMentionLocale,
+  setScheduledTasksEnabled,
   useAgentStore,
   useChatRuntimeReady,
   useDockedPanelActive,
@@ -19,6 +20,7 @@ import {
   getLandesverbandHubBySlug,
   getSystemAgent,
   resolveAgentSlug,
+  isLandesverbandIdentifier,
   resolveSkillMention,
 } from '@gruenerator/shared/agents';
 import { getContractsClient } from '@gruenerator/shared/api';
@@ -44,6 +46,7 @@ import ChatHero from '@/features/chat/ChatHero';
 import { LandesverbandHub } from '@/features/chat/LandesverbandHub';
 import { readRecipeDeepLink, useRecipeDeepLink } from '@/features/chat/useRecipeDeepLink';
 import { useGroupDetails } from '@/features/groups/hooks/useGroups';
+import { useScheduledTasksEnabled } from '@/features/recurring-tasks/useScheduledTasksEnabled';
 import { resolveChatBackground } from '@/features/workplace/chatBackgrounds';
 import { useFirstName } from '@/hooks/useFirstName';
 import { useAuthStore } from '@/stores/authStore';
@@ -251,6 +254,11 @@ function ChatPage() {
   useEffect(() => {
     setMentionLandesverbaende(lvIds);
   }, [lvIds]);
+  // „Geplante Aufgaben" (experimental): `@wiederkehrend` only with the switch on.
+  const scheduledTasksEnabled = useScheduledTasksEnabled();
+  useEffect(() => {
+    setScheduledTasksEnabled(scheduledTasksEnabled);
+  }, [scheduledTasksEnabled]);
   // The agent we've already auto-applied a default notebook for. Prevents the
   // effect from re-applying (and clobbering a manual notebook pick) when the
   // `userAgents` query reference changes on an unrelated cache invalidation.
@@ -272,7 +280,13 @@ function ChatPage() {
   const recipeLink = hub ? { mention: null, recipeId: null } : readRecipeDeepLink(searchParams);
   const rezeptParam = recipeLink.mention;
   const rezeptIdParam = recipeLink.recipeId;
-  const resolvedFromSkill = rezeptParam ? resolveSkillMention(rezeptParam) : null;
+  // Ausnahme: ein Landesverbands-Rezept bleibt auf dem Universal-Agenten — der
+  // Link ist dasselbe wie `@<rezept>` tippen, und Notebook und Filter des
+  // Landesverbands bringt das Rezept serverseitig mit (`ChatGraph.ts`). Seit
+  // 11/2026 stehen die LV-Rezepte vor den LV-Agenten (Hub, Seitenleiste).
+  const skillOwner = rezeptParam ? resolveSkillMention(rezeptParam) : null;
+  const resolvedFromSkill =
+    skillOwner && !isLandesverbandIdentifier(skillOwner) ? skillOwner : null;
   // Path-based /agents/:slug is the canonical form; ?agent= is legacy but
   // still wins when explicitly set so old deep links keep their behavior.
   const agentParam = hub
@@ -382,6 +396,11 @@ function ChatPage() {
   const projektName = projektDetails?.group.name ?? null;
   const projektBaselineThreadRef = useRef<string | null>(null);
   const projektFiledThreadRef = useRef<string | null>(null);
+  // ?projekt= creates the next new thread in that project; the PATCH below
+  // stays as the fallback.
+  useEffect(() => {
+    if (projektParam) useAgentStore.getState().setPendingGroup(projektParam, false, 10 * 60_000);
+  }, [projektParam]);
   useEffect(() => {
     if (!projektParam) return;
     projektBaselineThreadRef.current = useAgentStore.getState().currentThreadId;

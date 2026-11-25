@@ -38,6 +38,7 @@ export function toApiTask(row: RecurringTask): ApiRecurringTask {
     title: row.title,
     instruction: row.instruction,
     agentIdentifier: row.agent_identifier,
+    groupId: row.group_id ?? null,
     delivery: row.delivery,
     emailNotify: row.email_notify,
     recurrence: rruleStringToRecurrence(row.rrule),
@@ -120,8 +121,8 @@ export async function createRecurringTask(
   const { rrule, nextRunAt } = resolveSchedule(body.recurrence, body.timezone);
   const rows = await db.query<RecurringTask>(
     `INSERT INTO recurring_tasks
-       (user_id, agent_identifier, title, instruction, delivery, email_notify, rrule, timezone, enabled, locale, next_run_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       (user_id, agent_identifier, title, instruction, delivery, email_notify, rrule, timezone, enabled, locale, next_run_at, group_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
      RETURNING *`,
     [
       userId,
@@ -135,6 +136,7 @@ export async function createRecurringTask(
       body.enabled,
       body.locale,
       nextRunAt,
+      body.groupId ?? null,
     ]
   );
   return toApiTask(rows[0]);
@@ -185,6 +187,7 @@ export async function updateRecurringTask(
             rrule = $10,
             next_run_at = $11,
             email_notify = $12,
+            group_id = $13,
             updated_at = now()
       WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
       RETURNING *`,
@@ -201,6 +204,7 @@ export async function updateRecurringTask(
       rrule,
       nextRunAt,
       body.emailNotify ?? existing.email_notify,
+      body.groupId !== undefined ? body.groupId : existing.group_id,
     ]
   );
   return rows[0] ? toApiTask(rows[0]) : undefined;
@@ -267,6 +271,13 @@ export async function claimDueRecurringTasks(
       client,
       `SELECT * FROM recurring_tasks
         WHERE enabled = TRUE AND next_run_at <= now() AND deleted_at IS NULL
+          -- Archiviertes Projekt = Aufgabe pausiert (#5951). Nicht vorgerückt:
+          -- nach „Wiederherstellen" läuft eine überfällige Aufgabe einmal nach.
+          AND NOT EXISTS (
+            SELECT 1 FROM groups ag
+             WHERE ag.id = recurring_tasks.group_id
+               AND ag.archived_at IS NOT NULL AND ag.deleted_at IS NULL
+          )
         ORDER BY next_run_at
         FOR UPDATE SKIP LOCKED
         LIMIT $1`,

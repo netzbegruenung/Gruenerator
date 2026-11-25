@@ -33,6 +33,9 @@ interface FeedbackWidgetProps {
   visible?: boolean;
   /** Launcher appearance — text pill (default) or compact icon button. */
   variant?: 'text' | 'icon';
+  /** False hides only the floating launcher; the dialog stays reachable through
+   * `requestFeedback()` (menus, beta dialogs). */
+  showLauncher?: boolean;
 }
 
 function collectPageContext(): FeedbackPageContext {
@@ -88,6 +91,7 @@ export default function FeedbackWidget({
   position = 'bottom-right',
   visible = true,
   variant = 'text',
+  showLauncher = true,
 }: FeedbackWidgetProps): JSX.Element | null {
   const compactLauncher = useMediaQuery(COMPACT_LAUNCHER_QUERY);
   const [open, setOpen] = useState(false);
@@ -151,11 +155,13 @@ export default function FeedbackWidget({
 
   return (
     <>
-      <DraggableFeedbackLauncher
-        onOpen={handleLauncherClick}
-        defaultCorner={position}
-        variant={compactLauncher ? 'icon' : variant}
-      />
+      {showLauncher && (
+        <DraggableFeedbackLauncher
+          onOpen={handleLauncherClick}
+          defaultCorner={position}
+          variant={compactLauncher ? 'icon' : variant}
+        />
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent

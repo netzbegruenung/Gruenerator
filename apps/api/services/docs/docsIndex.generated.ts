@@ -156,9 +156,9 @@ export const DOCS_PAGES: readonly DocPage[] = [
   },
   {
     "url": "/docs/features/landesverbaende",
-    "title": "Landesverband-Agents",
+    "title": "Landesverband-Rezepte",
     "category": "Features",
-    "lead": "Der Grünerator hat für mehrere Landesverbände eigene, regional getunte Agents. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sprecher…"
+    "lead": "Der Grünerator hat für mehrere Landesverbände eigene, regional getunte Rezepte. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Spreche…"
   },
   {
     "url": "/docs/features/marktplatz",
@@ -236,7 +236,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/guides/einsteigerinnen/eigenes-notebook-erstellen",
     "title": "Wie erstelle ich ein eigenes Notebook?",
     "category": "Guides",
-    "lead": "In etwa zehn Minuten erstellst du ein Notebook, das eure Dokumente bündelt und ihren Inhalt im Grünerator durchsuchbar macht — für Anträge, Beschlüsse, Programme oder Pressemitteilungen. Du brauchst…"
+    "lead": "In etwa zehn Minuten legst du ein eigenes Notebook an, das eure Dokumente bündelt und ihren Inhalt im Grünerator durchsuchbar macht — für Anträge, Beschlüsse, Programme oder Pressemitteilungen. Du br…"
   },
   {
     "url": "/docs/guides/einsteigerinnen/erinnerungen-erstellen",
@@ -246,9 +246,9 @@ export const DOCS_PAGES: readonly DocPage[] = [
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "title": "Wie erstelle ich ein gemeinsames Projekt?",
+    "title": "Wie erstelle ich ein Projekt und lade andere ein?",
     "category": "Guides",
-    "lead": "Am Ende hast du einen gemeinsamen Bereich, in den du andere Menschen einladen und Inhalte wie Notebooks aufnehmen kannst. Die Team-Variante eines Projekts heißt in der aktuellen Oberfläche noch „Grup…"
+    "lead": "Am Ende hast du ein Projekt, in dem du Wissen wie Dateien und Notebooks ablegst, mit Chats darauf zugreifst und bei Bedarf andere Menschen einlädst. Es gibt nur eine Art von Projekt: Du legst es imme…"
   },
   {
     "url": "/docs/guides/einsteigerinnen/gruenerator-personalisieren",
@@ -615,7 +615,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Unsere europäischen Partner",
     "anchor": "#unsere-europäischen-partner",
     "category": "Basics",
-    "text": "Mistral AI (Frankreich) — Mistral Large 4 (mistral-large-4) für die Stufe Ultra, Sharepic-Texte, Rechenschritte und als Ausweichweg (seit Oktober 2026 anstelle von Mistral Medium 3.5), Suche und Notebooks mit mistral-embed, Transkription mit Voxtral (wenn Sprecherinnen erkannt werden sollen, sonst als Ausweichweg) KugelAudio (Berlin, Deutschland) — Sprachausgabe mit kugel-3: das Vorlesen von Antworten und die Stimme im Sprachdialog, ausschließlich über den EU-Endpunkt api.eu.kugelaudio.com. Seit September 2026 anstelle von Mistral Speech. Keine dauerhafte Speicherung der Inhalte, kein Training; jede erzeugte Audiodatei trägt ein Wasserzeichen nach Art. 50 KI-VO Black Forest Labs (Freiburg, Deutschland) — Bilderzeugung und -bearbeitung mit FLUX 3 (flux-3-image, seit Oktober 2026 anstelle von FLUX 2 Pro/Max) und FLUX 2 Klein, über den EU-Endpunkt api.eu.bfl.ai — nur wenn dieser gar nicht erreichbar ist, über den globalen Endpunkt api.bfl.ai, der auch in den USA rechnet; die Websuche des Modells (grounding) ist abgeschaltet Cortecs (Vermittler, EU) — vermittelt Gemma 4 (gemma-4-31b-it) an Infercom SCS (Luxemburg, Verarbeitung in Deutschland)."
+    "text": "Mistral AI (Frankreich) — Mistral Large 4 (mistral-large-4) für die Stufe Ultra, Sharepic-Texte, Rechenschritte und als Ausweichweg (seit Oktober 2026 anstelle von Mistral Medium 3.5), Suche und Notebooks mit mistral-embed, Transkription mit Voxtral (wenn Sprecherinnen erkannt werden sollen, sonst als Ausweichweg) KugelAudio (Berlin, Deutschland) — Sprachausgabe mit kugel-3.5 (seit November 2026, davor kugel-3): das Vorlesen von Antworten und die Stimme im Sprachdialog, ausschließlich über den EU-Endpunkt api.eu.kugelaudio.com. Seit September 2026 anstelle von Mistral Speech. Keine dauerhafte Speicherung der Inhalte, kein Training; jede erzeugte Audiodatei trägt ein Wasserzeichen nach Art. 50 KI-VO Black Forest Labs (Freiburg, Deutschland) — Bilderzeugung und -bearbeitung mit FLUX 3 (flux-3-image, seit Oktober 2026 anstelle von FLUX 2 Pro/Max) und FLUX 2 Klein, über den EU-Endpunkt api.eu.bfl.ai — nur wenn dieser gar nicht erreichbar ist, über den globalen Endpunkt api.bfl.ai, der auch in den USA rechnet; die Websuche des Modells (grounding) ist abgeschaltet Cortecs (Vermittler, EU) — vermittelt Gemma 4 (gemma-4-31b-it) an Infercom SCS (Luxemburg, Verarbeitung in Deutschland)."
   },
   {
     "url": "/docs/basics/gruenerator-pro-eu",
@@ -1159,7 +1159,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Drei Bereiche, dann die Einzelwerkzeuge",
     "anchor": "#drei-bereiche-dann-die-einzelwerkzeuge",
     "category": "Basics",
-    "text": "Der Arbeiten-Tab gliedert sich in drei große Bereiche — Office für Text und Zahlen, Studio für Bilder und Videos, Wissen für Recherche. Jeder öffnet eine eigene Seite mit den zugehörigen Werkzeugen. Daneben liegen die Werkzeuge zum Organisieren und ein Menü mit dem Rest. Insgesamt sind es 31 Werkzeuge: Die drei Bereiche. Office: Der Sammelpunkt für alles, woran man schreibt und plant: Dokumente, Boards, Tabellen und Präsentationen. Alle vier liegen im selben System, teilen sich Ordner und Freigaben und lassen sich gemeinsam bearbeiten. Studio: Alles Visuelle: KI-Bilder, Sharepics aus Vorlagen und untertitelte Reels. Nimm den Bereich, wenn am Ende ein Bild oder ein Video herauskommen soll — für Text und Zahlen ist Office richtig. Wissen: Recherche und Notebooks: eigene Quellensammlungen anlegen, durchsuchen und im Chat als Grundlage verwenden. Von hier aus geht es zum Briefing mit der Lage des Tages und zu den Umfragen. Office — Dokumente, Boards, Tabellen, Folien. Vorlagen: Startet ein neues Dokument aus einer fertigen Vorlage statt aus einem leeren Blatt — etwa ein Antrag oder eine Pressemitteilung mit passender Gliederung."
+    "text": "Der Arbeiten-Tab gliedert sich in drei große Bereiche — Office für Text und Zahlen, Studio für Bilder und Videos, Wissen für Recherche. Jeder öffnet eine eigene Seite mit den zugehörigen Werkzeugen. Daneben liegen die Werkzeuge zum Organisieren und ein Menü mit dem Rest. Insgesamt sind es 21 Werkzeuge: Die drei Bereiche. Office: Der Sammelpunkt für alles, woran man schreibt und plant: Dokumente, Boards, Tabellen und Präsentationen. Alle vier liegen im selben System, teilen sich Ordner und Freigaben und lassen sich gemeinsam bearbeiten. Studio: Alles Visuelle auf einer Seite: oben die Werkzeuge, darunter deine Mediathek mit allen Videos, Sharepics, KI-Bildern, Uploads und Audios — per Ziehen hochladen, filtern, durchsuchen, Titel und Alt-Text pflegen, teilen oder in den Papierkorb legen. Sharepics und KI-Bilder entstehen im Chat und landen von selbst hier. Wissen: Recherche und Notebooks: eigene Quellensammlungen anlegen, durchsuchen und im Chat als Grundlage verwenden. Von hier aus geht es zum Briefing mit der Lage des Tages und zu den Umfragen. Office — Dokumente, Boards, Tabellen, Folien."
   },
   {
     "url": "/docs/basics/tools",
@@ -1167,7 +1167,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Drei Bereiche, dann die Einzelwerkzeuge",
     "anchor": "#drei-bereiche-dann-die-einzelwerkzeuge",
     "category": "Basics",
-    "text": "Leeres Dokument: Ein Textdokument für Anträge, Pressemitteilungen, Protokolle und Notizen. Mehrere Personen können gleichzeitig schreiben. Leeres Board: Ein Kanban-Board für Aufgaben und Redaktionsplanung. Der Grünerator kann in Karten mitarbeiten und ganze Spalten automatisch befüllen. Leere Tabelle: Eine Kalkulationstabelle mit Formeln, Filtern und bedingter Formatierung. Bestehende Excel- und CSV-Dateien lassen sich importieren. Leere Präsentation: Eine Foliensammlung mit Präsentationsmodus. Aus einem Rechercheauftrag im Chat kann direkt ein fertiger Foliensatz entstehen. Studio — Bilder, Sharepics, Reels. Vorlagen: Fertige Design-Vorlagen im grünen Erscheinungsbild — Ausgangspunkt für Sharepics, wenn du nicht bei null anfangen willst. KI-Bilder: Bilder mit KI erzeugen und bearbeiten. Gut für Motive, für die es kein passendes Foto gibt. Untertitel: Untertitelt Videoclips automatisch und brennt die Untertitel ein. Gedacht für kurze Social-Clips. Video-Editor: Schneidet Clips auf einer Zeitleiste, setzt Texte ins Bild und legt Musik darunter. Nimm ihn, wenn ein Clip mehr braucht als Untertitel. Noch in der Beta."
+    "text": "Vorlagen: Startet ein neues Dokument aus einer fertigen Vorlage statt aus einem leeren Blatt — etwa ein Antrag oder eine Pressemitteilung mit passender Gliederung. Leeres Dokument: Ein Textdokument für Anträge, Pressemitteilungen, Protokolle und Notizen. Mehrere Personen können gleichzeitig schreiben. Leeres Board: Ein Kanban-Board für Aufgaben und Redaktionsplanung. Der Grünerator kann in Karten mitarbeiten und ganze Spalten automatisch befüllen. Leere Tabelle: Eine Kalkulationstabelle mit Formeln, Filtern und bedingter Formatierung. Bestehende Excel- und CSV-Dateien lassen sich importieren. Leere Präsentation: Eine Foliensammlung mit Präsentationsmodus. Aus einem Rechercheauftrag im Chat kann direkt ein fertiger Foliensatz entstehen. Studio — Bilder, Sharepics, Reels. Sharepic im Chat erstellen: Öffnet den Chat mit einem angefangenen Auftrag für ein Sharepic: Thema ergänzen, abschicken, und der Chat baut Entwürfe. Der erste Entwurf landet von selbst im Studio unter „Deine Inhalte“. Video-Editor: Schneidet Clips auf einer Zeitleiste, setzt Texte ins Bild und legt Musik darunter. Nimm ihn, wenn ein Clip mehr braucht als Untertitel. Noch in der Beta."
   },
   {
     "url": "/docs/basics/tools",
@@ -1175,7 +1175,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Drei Bereiche, dann die Einzelwerkzeuge",
     "anchor": "#drei-bereiche-dann-die-einzelwerkzeuge",
     "category": "Basics",
-    "text": "KI-Schnitt: Du lädst Rohvideos hoch, dazu auf Wunsch Bilder, Logo und Musik, und die KI schneidet daraus einen ersten Entwurf. Den verbesserst du in Korrekturrunden oder übergibst ihn in den Video Editor. Nimm ihn, wenn du noch keinen fertigen Clip hast, sondern nur Material. Parteitage: Die Reden eines Parteitags als fertige 9:16-Reels: je Rede in den Video Editor laden oder die ganze Rede nur untertiteln lassen. Vorerst nur für Instanz-Admins sichtbar, die einzelnen Parteitage sind zunächst passwortgeschützt. Voice: Grünerator Voice verwandelt Text in gesprochene Sprache — als Sprechertext für ein Reel, Ansage für den Anrufbeantworter, Vorlesefassung eines Textes oder Audiodeskription. Die Datei landet in der Mediathek. Studio — Weitere Tools. Profilbild: Macht aus einem Foto ein Profilbild: Person freistellen und den Hintergrund per Klick wechseln — als Farbe, Verlauf, Vorlage oder eigenes Bild. Im Editor setzt du Sticker und verschiebst Person und Sticker direkt im Bild. Sticker & Hintergründe: Sticker und Hintergründe für dein Profilbild: unter „Entdecken“ öffnet sich der Marktplatz mit dem, was andere geteilt haben: liken, merken oder melden."
+    "text": "Auto-Untertitel: Untertitelt Videoclips automatisch und brennt die Untertitel ein. Gedacht für kurze Social-Clips. Organisieren. Marktplatz: Offizielle, Landesverbands- und öffentliche Agents, Rezepte, Vorlagen, Sticker und Hintergründe: stöbern, ausprobieren, zu deinen Grüneratoren holen und Eigenes teilen. Projekte: Projekte bündeln Chats, Dokumente und Mitglieder zu einem Arbeitszusammenhang — etwa für eine Kampagne oder einen Ortsverband. Sites: Eine eigene Website für deine Kandidatur, dein Mandat oder dein Amt: die KI schlägt aus einer kurzen Beschreibung eine fertige Seite vor, im Editor passt du sie an. Pro Konto gibt es eine Website. In der Testphase nur nach Freischaltung. Weitere Werkzeuge. Übersetzer: Übersetzt Texte und ganze Dokumente (DOCX, PPTX, PDF …) mit DeepL — das gepflegte Grünen-Glossar wird automatisch angewendet. Apps & MCP: Verbindet den Grünerator mit ChatGPT, Claude oder Le Chat, sodass du dort auf grüne Programme und Beschlüsse zugreifen kannst. Transkription: Verschriftlicht Audioaufnahmen — für Interviews, Sitzungen und Sprachnotizen. Scanner: Wandelt Fotos und Scans in bearbeitbaren Text um — praktisch für abfotografierte Anträge oder Handzettel."
   },
   {
     "url": "/docs/basics/tools",
@@ -1183,23 +1183,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Drei Bereiche, dann die Einzelwerkzeuge",
     "anchor": "#drei-bereiche-dann-die-einzelwerkzeuge",
     "category": "Basics",
-    "text": "Eigene Sticker bleiben privat, bis du sie mit Bestätigung der Bildrechte öffentlich machst. Bild erweitern: Erweitert ein Bild per KI auf ein anderes Format, zum Beispiel von Quer- auf Hochformat. Eine Vorschau zeigt vorab, welche Flächen die KI ergänzt. Hintergrund entfernen: Entfernt den Hintergrund eines Bildes und liefert die Person oder das Motiv als PNG mit transparentem Hintergrund. Mediathek: Alle deine Bilder, Sharepics, KI-Bilder, Videos und Audios an einem Ort: hochladen (auch per Drag & Drop), nach Art filtern, durchsuchen, Titel und Alt-Text pflegen, herunterladen, teilen oder in den Papierkorb legen — ohne Obergrenze. Bildgenerator: Nur für Österreich: ein Link zum Sharepic-Bildgenerator der Grünen Österreich auf bildgenerator.gruene.at. Er läuft außerhalb des Grünerators — was du dort erstellst, landet nicht in deiner Mediathek. Organisieren. Marktplatz: Offizielle, Landesverbands- und öffentliche Agents, Rezepte, Vorlagen, Sticker und Hintergründe: stöbern, ausprobieren, zu deinen Grüneratoren holen und Eigenes teilen. Projekte: Projekte bündeln Chats, Dokumente und Mitglieder zu einem Arbeitszusammenhang — etwa für eine Kampagne oder einen Ortsverband."
-  },
-  {
-    "url": "/docs/basics/tools",
-    "pageTitle": "Alle Werkzeuge",
-    "heading": "Drei Bereiche, dann die Einzelwerkzeuge",
-    "anchor": "#drei-bereiche-dann-die-einzelwerkzeuge",
-    "category": "Basics",
-    "text": "Sites: Eine eigene Website für deine Kandidatur, dein Mandat oder dein Amt: die KI schlägt aus einer kurzen Beschreibung eine fertige Seite vor, im Editor passt du sie an. Pro Konto gibt es eine Website. In der Testphase nur nach Freischaltung. Weitere Werkzeuge. Übersetzer: Übersetzt Texte und ganze Dokumente (DOCX, PPTX, PDF …) mit DeepL — das gepflegte Grünen-Glossar wird automatisch angewendet. Apps & MCP: Verbindet den Grünerator mit ChatGPT, Claude oder Le Chat, sodass du dort auf grüne Programme und Beschlüsse zugreifen kannst. Transkription: Verschriftlicht Audioaufnahmen — für Interviews, Sitzungen und Sprachnotizen. Scanner: Wandelt Fotos und Scans in bearbeitbaren Text um — praktisch für abfotografierte Anträge oder Handzettel. Zeichenzähler: Zählt Zeichen und Wörter, mit den Grenzwerten der gängigen Social-Media-Plattformen. Newsletter: Der Grünerator-Newsletter mit neuen Funktionen und Beispielen. Führt auf ein externes Anmeldeformular. Transparenz: Zeigt, was der Grünerator insgesamt an KI verbraucht — Tokens, Energie und CO₂, mit den Konstanten, mit denen gerechnet wurde."
-  },
-  {
-    "url": "/docs/basics/tools",
-    "pageTitle": "Alle Werkzeuge",
-    "heading": "Drei Bereiche, dann die Einzelwerkzeuge",
-    "anchor": "#drei-bereiche-dann-die-einzelwerkzeuge",
-    "category": "Basics",
-    "text": "In der Expertinnenübersicht lässt sich nach Bereich (etwa Chat oder Monitor) und nach Eingabe- und Ausgabe-Tokens aufschlüsseln."
+    "text": "Zeichenzähler: Zählt Zeichen und Wörter, mit den Grenzwerten der gängigen Social-Media-Plattformen. Newsletter: Der Grünerator-Newsletter mit neuen Funktionen und Beispielen. Führt auf ein externes Anmeldeformular. Transparenz: Zeigt, was der Grünerator insgesamt an KI verbraucht — Tokens, Energie und CO₂, mit den Konstanten, mit denen gerechnet wurde. In der Expertinnenübersicht lässt sich nach Bereich (etwa Chat oder Monitor) und nach Eingabe- und Ausgabe-Tokens aufschlüsseln."
   },
   {
     "url": "/docs/basics/tools",
@@ -1415,7 +1399,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Gespräch starten",
     "anchor": "#gespräch-starten",
     "category": "Chat",
-    "text": "Den Chat erreichst du über den Menüpunkt Chat in der Seitenleiste oder direkt unter /chat. Dort siehst du: Eingabefeld unten zum Schreiben deiner Nachricht Seitenleiste links mit deinem Gesprächsverlauf — Gespräche kannst du dort auch in Projekten bündeln (eigene Projekte und Gruppen, mit Übersicht unter /projekte) „+\"-Menü links im Eingabefeld — Dateien anhängen, Websuche und Dokumentensuche ein- und ausschalten, Rezepte, Rollen, Konnektoren und die Erstellen-Werkzeuge Modell-Auswahl rechts unten im Eingabefeld Jedes Gespräch wird als eigener Thread mit eigener Adresse (/chat/…) gespeichert. Du kannst jederzeit ein neues Gespräch beginnen oder in der Seitenleiste zu einem früheren Gespräch zurückkehren."
+    "text": "Den Chat erreichst du über den Menüpunkt Chat in der Seitenleiste oder direkt unter /chat. Dort siehst du: Eingabefeld unten zum Schreiben deiner Nachricht Seitenleiste links mit deinem Gesprächsverlauf — Gespräche kannst du dort auch in Projekten bündeln (auch gemeinsam mit anderen, mit Übersicht unter /projekte) „+\"-Menü links im Eingabefeld — Dateien anhängen, Websuche und Dokumentensuche ein- und ausschalten, Rezepte, Rollen, Konnektoren und die Erstellen-Werkzeuge Modell-Auswahl rechts unten im Eingabefeld Jedes Gespräch wird als eigener Thread mit eigener Adresse (/chat/…) gespeichert. Du kannst jederzeit ein neues Gespräch beginnen oder in der Seitenleiste zu einem früheren Gespräch zurückkehren."
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -1439,7 +1423,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Rezepte auswählen",
     "anchor": "#rezepte-auswählen",
     "category": "Chat",
-    "text": "Rezepte sind spezialisierte Schreib-Modi, die auf bestimmte Textarten optimiert sind — sie kennen den richtigen Ton, die Struktur und die Längenvorgaben der jeweiligen Plattform. So wählst du ein Rezept: Tippe @ im Eingabefeld und wähle aus der Liste — Rezepte stehen dort ganz oben, oder öffne das „+\"-Menü im Eingabefeld — dort findest du auch die Rezept-Bibliothek mit allen Rezepten @presse Pressemitteilung @instagram Instagram @facebook Facebook @twitter Twitter / X @linkedin LinkedIn @reel Reel / TikTok @aktion Aktionsideen @wahlpruefstein Wahlprüfsteine @buergermail Bürgerinnen-Mail @antrag Antrag für Stadt- oder Gemeinderat @bundestagsrecherche Bundestag-Recherche @visuelle-bausteine Visuelle Bausteine @presse-berlin-fraktion PM Berlin (Fraktion) @presse-berlin-partei PM Berlin (Partei) @insta-berlin Insta Berlin @presse-mv-fraktion PM MV (Fraktion) @presse-mv-partei PM MV (Partei) @insta-mv Insta MV @presse-thueringen PM Thüringen @insta-thueringen Insta Thüringen @presse-brandenburg PM Brandenburg @insta-brandenburg Insta Brandenburg @presse-bayern-fraktion PM Bayern (Fraktion) @presse-bayern-partei PM Bayern (Partei) @presse-hessen-fraktion PM Hessen (Fraktion)"
+    "text": "Rezepte sind spezialisierte Schreib-Modi, die auf bestimmte Textarten optimiert sind — sie kennen den richtigen Ton, die Struktur und die Längenvorgaben der jeweiligen Plattform. So wählst du ein Rezept: Tippe @ im Eingabefeld und wähle aus der Liste — Rezepte stehen dort ganz oben, oder öffne das „+\"-Menü im Eingabefeld — dort findest du auch die Rezept-Bibliothek mit allen Rezepten @presse Pressemitteilung @instagram Instagram @facebook Facebook @twitter Twitter / X @linkedin LinkedIn @reel Reel / TikTok @aktion Aktionsideen @wahlpruefstein Wahlprüfsteine @buergermail Bürgerinnen-Mail @antrag Antrag für Stadt- oder Gemeinderat @bundestagsrecherche Bundestag-Recherche @visuelle-bausteine Visuelle Bausteine @presse-berlin-partei PM Berlin (Partei) @presse-berlin-fraktion PM Berlin (Fraktion) @insta-berlin Insta Berlin @presse-mv-partei PM MV (Partei) @presse-mv-fraktion PM MV (Fraktion) @insta-mv Insta MV @presse-thueringen PM Thüringen @insta-thueringen Insta Thüringen @presse-brandenburg PM Brandenburg @insta-brandenburg Insta Brandenburg @presse-bayern-partei PM Bayern (Partei) @presse-bayern-fraktion PM Bayern (Fraktion) @presse-hessen-partei PM Hessen (Partei)"
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -1447,7 +1431,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Rezepte auswählen",
     "anchor": "#rezepte-auswählen",
     "category": "Chat",
-    "text": "@presse-hessen-partei PM Hessen (Partei) @presse-at Aussendung (AT) @presse-saarland PM Saarland @presse-sachsen-anhalt-fraktion PM Sachsen-Anhalt (Fraktion) @presse-sachsen-anhalt-partei PM Sachsen-Anhalt (Partei) @insta-saarland Insta Saarland @insta-bayern Insta Bayern @insta-hessen Insta Hessen @insta-sachsen-anhalt Insta Sachsen-Anhalt @insta-at Insta Österreich @buerger-at Bürgerinnen-Mail Österreich @buerger-bayern Bürgerinnen-Mail Bayern @buerger-berlin Bürgerinnen-Mail Berlin @buerger-brandenburg Bürgerinnen-Mail Brandenburg @buerger-hamburg Bürgerinnen-Mail Hamburg @buerger-hessen Bürgerinnen-Mail Hessen @buerger-mv Bürgerinnen-Mail Mecklenburg-Vorpommern @buerger-nrw Bürgerinnen-Mail NRW @buerger-saarland Bürgerinnen-Mail Saarland @buerger-sachsen-anhalt Bürgerinnen-Mail Sachsen-Anhalt @buerger-schleswig-holstein Bürgerinnen-Mail Schleswig-Holstein @buerger-thueringen Bürgerinnen-Mail Thüringen @gj-insta Insta GRÜNE JUGEND @gj-insta-at Insta Grüne Jugend @beschluss-bayern Beschlussantrag Bayern @beschluss-berlin Beschlussantrag Berlin @beschluss-brandenburg Beschlussantrag Brandenburg @beschluss-hessen Beschlussantrag Hessen @beschluss-mv Beschlussantrag"
+    "text": "@presse-hessen-fraktion PM Hessen (Fraktion) @presse-at Aussendung (AT) @presse-nrw PM NRW @presse-saarland PM Saarland @presse-sachsen-anhalt-partei PM Sachsen-Anhalt (Partei) @presse-sachsen-anhalt-fraktion PM Sachsen-Anhalt (Fraktion) @insta-nrw Insta NRW @insta-saarland Insta Saarland @insta-bayern Insta Bayern @insta-hessen Insta Hessen @insta-sachsen-anhalt Insta Sachsen-Anhalt @insta-at Insta Österreich @buerger-at Bürgerinnen-Mail Österreich @buerger-bayern Bürgerinnen-Mail Bayern @buerger-berlin Bürgerinnen-Mail Berlin @buerger-brandenburg Bürgerinnen-Mail Brandenburg @buerger-hamburg Bürgerinnen-Mail Hamburg @buerger-hessen Bürgerinnen-Mail Hessen @buerger-mv Bürgerinnen-Mail Mecklenburg-Vorpommern @buerger-nrw Bürgerinnen-Mail NRW @buerger-saarland Bürgerinnen-Mail Saarland @buerger-sachsen-anhalt Bürgerinnen-Mail Sachsen-Anhalt @buerger-schleswig-holstein Bürgerinnen-Mail Schleswig-Holstein @buerger-thueringen Bürgerinnen-Mail Thüringen @gj-insta Insta GRÜNE JUGEND @gj-insta-at Insta Grüne Jugend @wahlpruefstein-at Wahlprüfsteine Österreich @wahlpruefstein-bayern Wahlprüfsteine Bayern @wahlpruefstein-berlin Wahlprüfsteine Berlin @wahlpruefstein-brandenburg"
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -1455,7 +1439,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Rezepte auswählen",
     "anchor": "#rezepte-auswählen",
     "category": "Chat",
-    "text": "Mecklenburg-Vorpommern @beschluss-nrw Beschlussantrag NRW @beschluss-saarland Beschlussantrag Saarland @beschluss-sachsen-anhalt Beschlussantrag Sachsen-Anhalt @beschluss-thueringen Beschlussantrag Thüringen @wahlprogramm-bayern Wahlprogramm Bayern @wahlprogramm-berlin Wahlprogramm Berlin @wahlprogramm-brandenburg Wahlprogramm Brandenburg @wahlprogramm-sachsen-anhalt Wahlprogramm Sachsen-Anhalt @wahlprogramm-thueringen Wahlprogramm Thüringen @reisekosten-nrw Reisekosten NRW (Beta) @reisekosten-nrw-vorbereiten Reise vorbereiten NRW (Beta) @antragsgruen-seite Antragsgrün-Seite anlegen (Experimentell) @nuudel Terminumfrage mit nuudel (Experimentell) Neben den mitgelieferten Rezepten oben zeigt die @-Liste auch deine eigenen Rezepte, mit deinen Projekten geteilte und öffentliche Rezepte anderer aus dem Marktplatz. Sie stehen in eigenen Abschnitten: „aus deinen Projekten\" und „von anderen\" (in der App: „Rezepte aus deinen Projekten\", „Rezepte von anderen\"). Auf der Detailseite eines Rezepts aus dem Marktplatz öffnet Im Chat verwenden den Chat direkt mit diesem Rezept aktiviert. Du kannst ein Rezept mit Quellen und Werkzeugen kombinieren."
+    "text": "Wahlprüfsteine Brandenburg @wahlpruefstein-hamburg Wahlprüfsteine Hamburg @wahlpruefstein-hessen Wahlprüfsteine Hessen @wahlpruefstein-mv Wahlprüfsteine Mecklenburg-Vorpommern @wahlpruefstein-nrw Wahlprüfsteine NRW @wahlpruefstein-saarland Wahlprüfsteine Saarland @wahlpruefstein-sachsen-anhalt Wahlprüfsteine Sachsen-Anhalt @wahlpruefstein-schleswig-holstein Wahlprüfsteine Schleswig-Holstein @wahlpruefstein-thueringen Wahlprüfsteine Thüringen @beschluss-bayern Beschlussantrag Bayern @beschluss-berlin Beschlussantrag Berlin @beschluss-brandenburg Beschlussantrag Brandenburg @beschluss-hessen Beschlussantrag Hessen @beschluss-mv Beschlussantrag Mecklenburg-Vorpommern @beschluss-nrw Beschlussantrag NRW @beschluss-saarland Beschlussantrag Saarland @beschluss-sachsen-anhalt Beschlussantrag Sachsen-Anhalt @beschluss-thueringen Beschlussantrag Thüringen @wahlprogramm-bayern Wahlprogramm Bayern @wahlprogramm-berlin Wahlprogramm Berlin @wahlprogramm-brandenburg Wahlprogramm Brandenburg @wahlprogramm-sachsen-anhalt Wahlprogramm Sachsen-Anhalt @wahlprogramm-thueringen Wahlprogramm Thüringen @reisekosten-nrw Reisekosten NRW (Beta) @reisekosten-nrw-vorbereiten Reise vorbereiten NRW (Beta)"
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -1463,7 +1447,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Rezepte auswählen",
     "anchor": "#rezepte-auswählen",
     "category": "Chat",
-    "text": "Zum Beispiel: @presse @grundsatz Klimaschutz in Kommunen schreibt eine Pressemitteilung auf Basis des Grundsatzprogramms."
+    "text": "@antragsgruen-seite Antragsgrün-Seite anlegen (Experimentell) @nuudel Terminumfrage mit nuudel (Experimentell) Neben den mitgelieferten Rezepten oben zeigt die @-Liste auch deine eigenen Rezepte, mit deinen Projekten geteilte und öffentliche Rezepte anderer aus dem Marktplatz. Sie stehen in eigenen Abschnitten: „aus deinen Projekten\" und „von anderen\" (in der App: „Rezepte aus deinen Projekten\", „Rezepte von anderen\"). Auf der Detailseite eines Rezepts aus dem Marktplatz öffnet Im Chat verwenden den Chat direkt mit diesem Rezept aktiviert. Du kannst ein Rezept mit Quellen und Werkzeugen kombinieren. Zum Beispiel: @presse @grundsatz Klimaschutz in Kommunen schreibt eine Pressemitteilung auf Basis des Grundsatzprogramms."
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -1795,55 +1779,55 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/features/landesverbaende",
-    "pageTitle": "Landesverband-Agents",
-    "heading": "Landesverband-Agents",
+    "pageTitle": "Landesverband-Rezepte",
+    "heading": "Landesverband-Rezepte",
     "anchor": "",
     "category": "Features",
-    "text": "Der Grünerator hat für mehrere Landesverbände eigene, regional getunte Agents. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sprecher*innen, den lokalen Themen und der typischen Tonalität. Im Hintergrund recherchieren sie automatisch in der Wissensdatenbank des Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme); eine Websuche haben nur die Öffentlichkeitsarbeit- und die Beschluss-Agents. Es gibt bis zu fünf Sorten von Landesverband-Agents: Öffentlichkeitsarbeit — schreibt Pressemitteilungen und Social-Media-Posts im Stil des Landesverbands. Bürger*innenanfragen — formuliert versandfertige, recherchebasierte Antwort-E-Mails auf Anfragen von Bürger*innen. Wahlprüfsteine — beantwortet Fragenkataloge von Verbänden und Initiativen, im Format des Katalogs und im Stil des Landesverbands. Beschlussanträge — schreibt Beschlussanträge in der Beschlusssprache des Landesverbands, im Anschluss an seine bestehenden Beschlüsse. Nur wo die Beschlüsse des Landesverbands in der Wissensdatenbank liegen. Wahlprogramm — schlägt im Wahlprogramm des Landesverbands nach und prüft Aussagen dagegen."
+    "text": "Der Grünerator hat für mehrere Landesverbände eigene, regional getunte Rezepte. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sprecher*innen, den lokalen Themen und der typischen Tonalität. Ein LV-Rezept bringt die Wissensdatenbank seines Landesverbands mit (Pressemitteilungen, Beschlüsse, Wahlprogramme): Der Chat recherchiert dort automatisch, du musst nichts einstellen. Es gibt bis zu fünf Sorten von Landesverband-Rezepten: Öffentlichkeitsarbeit — schreibt Pressemitteilungen und Social-Media-Posts im Stil des Landesverbands. Bürger*innenanfragen — formuliert versandfertige, recherchebasierte Antwort-E-Mails auf Anfragen von Bürger*innen. Wahlprüfsteine — beantwortet Fragenkataloge von Verbänden und Initiativen, im Format des Katalogs und im Stil des Landesverbands. Beschlussanträge — schreibt Beschlussanträge in der Beschlusssprache des Landesverbands, im Anschluss an seine bestehenden Beschlüsse. Nur wo die Beschlüsse des Landesverbands in der Wissensdatenbank liegen. Wahlprogramm — schlägt im Wahlprogramm des Landesverbands nach und prüft Aussagen dagegen. Nur wo das Wahlprogramm in der Wissensdatenbank liegt."
   },
   {
     "url": "/docs/features/landesverbaende",
-    "pageTitle": "Landesverband-Agents",
-    "heading": "Landesverband-Agents",
+    "pageTitle": "Landesverband-Rezepte",
+    "heading": "Landesverband-Rezepte",
     "anchor": "",
     "category": "Features",
-    "text": "Nur wo das Wahlprogramm in der Wissensdatenbank liegt. Die Agents, Rezepte und Notebooks eines Landesverbands sind seinen Leuten zugeteilt: Sie erscheinen, sobald du in deinem Profil die Rolle Mitarbeiter*in Landesgeschäftsstelle (Österreich: Landesorganisation) mit deinem Bundesland hinterlegt hast. Wie das geht, steht unter Für deinen Landesverband einrichten."
+    "text": "Die Rezepte und Notebooks eines Landesverbands sind seinen Leuten zugeteilt: Sie erscheinen, sobald du in deinem Profil die Rolle Mitarbeiter*in Landesgeschäftsstelle (Österreich: Landesorganisation) mit deinem Bundesland hinterlegt hast. Wie das geht, steht unter Für deinen Landesverband einrichten."
   },
   {
     "url": "/docs/features/landesverbaende",
-    "pageTitle": "Landesverband-Agents",
+    "pageTitle": "Landesverband-Rezepte",
     "heading": "Abgedeckte Landesverbände",
     "anchor": "#abgedeckte-landesverbände",
     "category": "Features",
-    "text": "Jede Kachel verlinkt auf die Landesverband-Seite — sie bietet die Agents des Landesverbands zur Auswahl an: Öffentlichkeitsarbeit, Bürger*innenservice, Wahlprüfsteine und, wo vorhanden, Beschlussanträge und Wahlprogramm (alle siehe unten). Darunter stehen die Rezept-Abkürzungen und ein Link zur Wissensdatenbank (Notebook). Die Grünen Österreich sind kein Landesverband, sondern die Bundespartei — sie haben aber dieselben drei Agent-Typen (erreichbar unter /agents/gruene-oesterreich, Wissensdatenbank /notebooks/oesterreich · @at). Diese Agents verwenden österreichisches Vokabular (Nationalrat, Klubobfrau*Klubobmann, Klimaticket) und erscheinen nur für Nutzer*innen mit österreichischer Einstellung."
+    "text": "Jede Kachel verlinkt auf die Landesverband-Seite — sie bietet die Rezepte des Landesverbands zur Auswahl an, geordnet nach Öffentlichkeitsarbeit, Bürger*innenservice, Wahlprüfsteine und, wo vorhanden, Beschlussanträge und Wahlprogramm (alle siehe unten). Ein Klick öffnet den Chat mit dem Rezept — genau so, als hättest du die Abkürzung selbst getippt. Darunter stehen der Link zum Marktplatz und zur Wissensdatenbank (Notebook). Dieselben Rezepte stehen in der Seitenleiste im Eintrag deines Landesverbands. Bis November 2026 gab es dafür eigene Landesverband-Agents. Jeder von ihnen hat jetzt ein vollständiges Rezept; alte Links, Chats und Verknüpfungen auf einen LV-Agenten funktionieren weiter. Die Grünen Österreich sind kein Landesverband, sondern die Bundespartei — sie haben aber dieselben drei Rezept-Sorten (erreichbar unter /agents/gruene-oesterreich, Wissensdatenbank /notebooks/oesterreich · @at). Diese Rezepte verwenden österreichisches Vokabular (Nationalrat, Klubobfrau*Klubobmann, Klimaticket) und erscheinen nur für Nutzer*innen mit österreichischer Einstellung."
   },
   {
     "url": "/docs/features/landesverbaende",
-    "pageTitle": "Landesverband-Agents",
+    "pageTitle": "Landesverband-Rezepte",
     "heading": "Beschlussanträge schreiben und Wahlprogramm nachschlagen",
     "anchor": "#beschlussanträge-schreiben-und-wahlprogramm-nachschlagen",
     "category": "Features",
-    "text": "Der Beschlussanträge-Agent schreibt Anträge so, wie der Landesverband beschließt: mit seiner Einleitungsformel, seinem Aufbau (Antragstext, Begründung), seinen Forderungsformeln und seiner Schreibweise. Vorher sucht er in den Beschlüssen des Landesverbands, was dazu schon beschlossen ist, und knüpft daran an; Zahlen und Rechtsstand holt er aus der Websuche. Was vor der Antragstellung noch zu klären ist, markiert er am Ende unter Offene Punkte. Der Wahlprogramm-Agent sucht ausschließlich im Wahlprogramm und nennt zu jeder Aussage Kapitel und Wortlaut. Gibst du ihm eine Aussage, prüft er, ob das Programm sie deckt."
+    "text": "Das Beschlussanträge-Rezept schreibt Anträge so, wie der Landesverband beschließt: mit seiner Einleitungsformel, seinem Aufbau (Antragstext, Begründung), seinen Forderungsformeln und seiner Schreibweise. Vorher sucht er in den Beschlüssen des Landesverbands, was dazu schon beschlossen ist, und knüpft daran an; Zahlen und Rechtsstand holt er aus der Websuche. Was vor der Antragstellung noch zu klären ist, markiert er am Ende unter Offene Punkte. Das Wahlprogramm-Rezept sucht ausschließlich im Wahlprogramm und nennt zu jeder Aussage Kapitel und Wortlaut. Gibst du ihm eine Aussage, prüft er, ob das Programm sie deckt."
   },
   {
     "url": "/docs/features/landesverbaende",
-    "pageTitle": "Landesverband-Agents",
+    "pageTitle": "Landesverband-Rezepte",
     "heading": "Beschlussanträge schreiben und Wahlprogramm nachschlagen",
     "anchor": "#beschlussanträge-schreiben-und-wahlprogramm-nachschlagen",
     "category": "Features",
-    "text": "Landesverband | Beschlussanträge | Wahlprogramm | ---------------------- | --------------------------- | ------------------------------ | Berlin | @beschluss-berlin | @wahlprogramm-berlin | Mecklenburg-Vorpommern | @beschluss-mv | — | Thüringen | @beschluss-thueringen | @wahlprogramm-thueringen | Brandenburg | @beschluss-brandenburg | @wahlprogramm-brandenburg | Bayern | @beschluss-bayern | @wahlprogramm-bayern | Hessen | @beschluss-hessen | — | Sachsen-Anhalt | @beschluss-sachsen-anhalt | @wahlprogramm-sachsen-anhalt | Saarland | @beschluss-saarland | — | Nordrhein-Westfalen | @beschluss-nrw | — | Tippst du die Abkürzung im normalen Chat, arbeitet der Chat wie der Agent: er schreibt den Antrag bzw. sucht für diese Anfrage nur im Programm des Landesverbands."
+    "text": "Landesverband | Beschlussanträge | Wahlprogramm | ---------------------- | --------------------------- | ------------------------------ | Berlin | @beschluss-berlin | @wahlprogramm-berlin | Mecklenburg-Vorpommern | @beschluss-mv | — | Thüringen | @beschluss-thueringen | @wahlprogramm-thueringen | Brandenburg | @beschluss-brandenburg | @wahlprogramm-brandenburg | Bayern | @beschluss-bayern | @wahlprogramm-bayern | Hessen | @beschluss-hessen | — | Sachsen-Anhalt | @beschluss-sachsen-anhalt | @wahlprogramm-sachsen-anhalt | Saarland | @beschluss-saarland | — | Nordrhein-Westfalen | @beschluss-nrw | — | Mit der Abkürzung schreibt der Chat den Antrag bzw. sucht für diese Anfrage nur im Programm des Landesverbands."
   },
   {
     "url": "/docs/features/landesverbaende",
-    "pageTitle": "Landesverband-Agents",
+    "pageTitle": "Landesverband-Rezepte",
     "heading": "Bürger*innenanfragen beantworten",
     "anchor": "#bürgerinnenanfragen-beantworten",
     "category": "Features",
-    "text": "Die Bürger*innenanfragen-Agents helfen dir, eingehende E-Mails von Bürger*innen zu beantworten. Du fügst die Anfrage ein, der Agent recherchiert die Positionen des Landesverbands (die Treffer erscheinen als Recherche-Karten im Chat) und formuliert eine versandfertige Antwort-E-Mail nach festem Aufbau: Anrede → Dank → inhaltliche Antwort → weiterführende Links. Du erreichst sie über die Landesverband-Seite (z. B. /agents/gruene-berlin) — dort wählst du den Bürger*innenservice statt der Öffentlichkeitsarbeit. Der Agent schreibt immer mit dem Rezept seines Landesverbands: Absender, Selbstbezeichnung, Genderschreibweise und Signatur folgen dem Verband. Im normalen Chat geht es auch ohne Agent: tippe die Rezept-Abkürzung deines Landesverbands und füge die Anfrage dahinter ein."
+    "text": "Die Bürger*innenanfragen-Rezepte helfen dir, eingehende E-Mails von Bürger*innen zu beantworten. Du fügst die Anfrage ein, der Chat recherchiert die Positionen des Landesverbands (die Treffer erscheinen als Recherche-Karten im Chat) und formuliert eine versandfertige Antwort-E-Mail nach festem Aufbau: Anrede → Dank → inhaltliche Antwort → weiterführende Links. Du erreichst sie über die Landesverband-Seite (z. B. /agents/gruene-berlin) unter Bürger*innenservice, über die Seitenleiste oder über die Abkürzung deines Landesverbands, hinter die du die Anfrage einfügst. Absender, Selbstbezeichnung, Genderschreibweise und Signatur folgen dem Verband."
   },
   {
     "url": "/docs/features/landesverbaende",
-    "pageTitle": "Landesverband-Agents",
+    "pageTitle": "Landesverband-Rezepte",
     "heading": "Bürger*innenanfragen beantworten",
     "anchor": "#bürgerinnenanfragen-beantworten",
     "category": "Features",
@@ -1851,23 +1835,31 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/features/landesverbaende",
-    "pageTitle": "Landesverband-Agents",
+    "pageTitle": "Landesverband-Rezepte",
     "heading": "Die Wissensdatenbank dahinter",
     "anchor": "#die-wissensdatenbank-dahinter",
     "category": "Features",
-    "text": "Jeder Landesverband hat ein Notebook — eine durchsuchbare Sammlung seiner offiziellen Inhalte (Pressemitteilungen, Beschlüsse, Wahlprogramme). Die LV-Agents durchsuchen es automatisch und auf den richtigen Landesverband gefiltert, du musst nichts einstellen. Du kannst dasselbe Notebook auch direkt nutzen: Aufrufen & durchstöbern: über seine Adresse, z. B. /notebooks/berlin. Im Chat als Quelle einbinden: tippe die @-Erwähnung, z. B. @berlin, @mv, @thüringen, @brandenburg, @bayern, @sachsen-anhalt, @hessen oder @saar. Der Chat zieht dann seine Antworten aus diesem Notebook. Mehr zu Notebooks allgemein findest du unter Notebooks."
+    "text": "Jeder Landesverband hat ein Notebook — eine durchsuchbare Sammlung seiner offiziellen Inhalte (Pressemitteilungen, Beschlüsse, Wahlprogramme). Die LV-Rezepte durchsuchen es automatisch und auf den richtigen Landesverband gefiltert, du musst nichts einstellen. Du kannst dasselbe Notebook auch direkt nutzen: Aufrufen & durchstöbern: über seine Adresse, z. B. /notebooks/berlin. Im Chat als Quelle einbinden: tippe die @-Erwähnung, z. B. @berlin, @mv, @thüringen, @brandenburg, @bayern, @sachsen-anhalt, @hessen oder @saar. Der Chat zieht dann seine Antworten aus diesem Notebook. Mehr zu Notebooks allgemein findest du unter Notebooks."
   },
   {
     "url": "/docs/features/landesverbaende",
-    "pageTitle": "Landesverband-Agents",
+    "pageTitle": "Landesverband-Rezepte",
+    "heading": "Im Projekt",
+    "anchor": "#im-projekt",
+    "category": "Features",
+    "text": "Arbeitet ihr als Team für einen Landesverband, stell in den Einstellungen des Projekts den Landesverband ein (das dürfen Projekt-Admins). Dann gilt in allen Chats des Projekts: Die Rezepte des Landesverbands stehen als Projekt-Rezepte bereit, die Pressemitteilung kommt im Stil dieses Verbands, und die Wissensdatenbank des Landesverbands wird ohne @ durchsucht — für alle Mitglieder, auch ohne die Rolle der Landesgeschäftsstelle. Einzelne Rezepte — auch allgemeine wie @wahlpruefstein — legst du im Projekt über Hinzufügen → Vorhandenes hinzufügen dazu. Die Rezepte des Landesverbands stehen auf der Projektseite unter Rezepte."
+  },
+  {
+    "url": "/docs/features/landesverbaende",
+    "pageTitle": "Landesverband-Rezepte",
     "heading": "LV-Rezepte im Überblick",
     "anchor": "#lv-rezepte-im-überblick",
     "category": "Features",
-    "text": "Für diese Landesverbände gibt es eigene Rezept-Abkürzungen für Pressemitteilung und Instagram: Landesverband | Pressemitteilung | Instagram | ---------------------- | ------------------------------------------------------------------- | ----------------------- | Berlin | @presse-berlin-partei · @presse-berlin-fraktion | @insta-berlin | Mecklenburg-Vorpommern | @presse-mv-partei · @presse-mv-fraktion | @insta-mv | Thüringen | @presse-thueringen | @insta-thueringen | Brandenburg | @presse-brandenburg | @insta-brandenburg | Bayern | @presse-bayern-partei · @presse-bayern-fraktion | @insta-bayern | Hessen | @presse-hessen-partei · @presse-hessen-fraktion | @insta-hessen | Sachsen-Anhalt | @presse-sachsen-anhalt-partei · @presse-sachsen-anhalt-fraktion | @insta-sachsen-anhalt | Saarland | @presse-saarland | @insta-saarland | Wo zwei Presse-Rezepte stehen, schreibt das eine für den Landesverband und das andere für die Landtagsfraktion. Die Ebene entscheidet, an welchen Beispiel-Pressemitteilungen sich der Text ausrichtet — nimm die, für die du schreibst. Verbände mit nur einer Abkürzung führen im Korpus keine getrennten Ebenen."
+    "text": "Für diese Landesverbände gibt es eigene Rezept-Abkürzungen für Pressemitteilung und Instagram: Landesverband | Pressemitteilung | Instagram | ---------------------- | ------------------------------------------------------------------- | ----------------------- | Berlin | @presse-berlin-partei · @presse-berlin-fraktion | @insta-berlin | Mecklenburg-Vorpommern | @presse-mv-partei · @presse-mv-fraktion | @insta-mv | Thüringen | @presse-thueringen | @insta-thueringen | Brandenburg | @presse-brandenburg | @insta-brandenburg | Bayern | @presse-bayern-partei · @presse-bayern-fraktion | @insta-bayern | Hessen | @presse-hessen-partei · @presse-hessen-fraktion | @insta-hessen | Sachsen-Anhalt | @presse-sachsen-anhalt-partei · @presse-sachsen-anhalt-fraktion | @insta-sachsen-anhalt | Saarland | @presse-saarland | @insta-saarland | Nordrhein-Westfalen | @presse-nrw | @insta-nrw | Wo zwei Presse-Rezepte stehen, schreibt das eine für den Landesverband und das andere für die Landtagsfraktion. Die Ebene entscheidet, an welchen Beispiel-Pressemitteilungen sich der Text ausrichtet — nimm die, für die du schreibst. Verbände mit nur einer Abkürzung führen im Korpus keine getrennten Ebenen."
   },
   {
     "url": "/docs/features/landesverbaende",
-    "pageTitle": "Landesverband-Agents",
+    "pageTitle": "Landesverband-Rezepte",
     "heading": "LV-Rezepte im Überblick",
     "anchor": "#lv-rezepte-im-überblick",
     "category": "Features",
@@ -1875,19 +1867,19 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/features/landesverbaende",
-    "pageTitle": "Landesverband-Agents",
+    "pageTitle": "Landesverband-Rezepte",
     "heading": "Pressemitteilungen & Social Media schreiben",
     "anchor": "#pressemitteilungen--social-media-schreiben",
     "category": "Features",
-    "text": "Du erreichst den Öffentlichkeitsarbeit-Agenten auf zwei Wegen: 1. Über die Landesverband-Seite — öffne die LV-Adresse (z. B. /agents/gruene-berlin) und wähle dort Öffentlichkeitsarbeit; oder wähle den Agenten direkt in der Auswahl im Chat aus. Er bleibt für das ganze Gespräch im LV-Stil. 2. Über eine Rezept-Abkürzung — tippe im Chat @presse-berlin-partei und direkt dahinter dein Thema. Das Rezept schickt deine Anfrage an den passenden LV-Agenten und gibt ihm gleich die richtige Aufgabe mit (Pressemitteilung bzw. Instagram-Post)."
+    "text": "Du erreichst die Rezepte der Öffentlichkeitsarbeit auf zwei Wegen: 1. Über die Landesverband-Seite oder die Seitenleiste — öffne die LV-Adresse (z. B. /agents/gruene-berlin) oder den Eintrag deines Landesverbands in der Seitenleiste und wähle das Rezept, etwa PM Berlin (Partei). 2. Über eine Rezept-Abkürzung — tippe im Chat @presse-berlin-partei und direkt dahinter dein Thema. Das Rezept bringt Stil und Wissensdatenbank des Landesverbands mit."
   },
   {
     "url": "/docs/features/landesverbaende",
-    "pageTitle": "Landesverband-Agents",
+    "pageTitle": "Landesverband-Rezepte",
     "heading": "Wahlprüfsteine beantworten",
     "anchor": "#wahlprüfsteine-beantworten",
     "category": "Features",
-    "text": "Die Wahlprüfstein-Agents beantworten Fragenkataloge von Verbänden und Initiativen (Wahlprüfsteine): Du fügst den Katalog ein, der Agent recherchiert die Positionen des Landesverbands und antwortet im Format des Katalogs und im Stil des Landesverbands. Auch sie erreichst du über die Landesverband-Seite — dort wählst du Wahlprüfsteine."
+    "text": "Die Wahlprüfstein-Rezepte beantworten Fragenkataloge von Verbänden und Initiativen (Wahlprüfsteine): Du fügst den Katalog ein, der Chat recherchiert die Positionen des Landesverbands und antwortet im Format des Katalogs und im Stil des Landesverbands. Jeder Landesverband hat sein eigenes: @wahlpruefstein-berlin, @wahlpruefstein-mv, @wahlpruefstein-thueringen, @wahlpruefstein-brandenburg, @wahlpruefstein-bayern, @wahlpruefstein-hessen, @wahlpruefstein-sachsen-anhalt, @wahlpruefstein-saarland, @wahlpruefstein-nrw und @wahlpruefstein-at. Auf der Landesverband-Seite stehen sie unter Wahlprüfsteine."
   },
   {
     "url": "/docs/features/marktplatz",
@@ -1895,7 +1887,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Grüneratoren und Marktplatz",
     "anchor": "",
     "category": "Features",
-    "text": "Deine Agents, Rezepte und wiederkehrenden Aufgaben findest du unter Grüneratoren. Das ist der gleichnamige Eintrag in der Seitenleiste, die Adresse ist /grueneratoren. Alles Offizielle und alles, was andere öffentlich teilen, liegt im Marktplatz unter /marktplatz. Du erreichst ihn über die gleichnamige Kachel auf der Startseite unter Arbeiten. Dort gibt es nicht nur Agents und Rezepte, sondern auch Vorlagen, Sticker und Hintergründe. Früher gab es drei getrennte Schaufenster: die Agentura für Agents und Rezepte, die öffentlichen Vorlagen auf der Vorlagen-Seite und Entdecken bei Sticker & Hintergründe. Heute liegt das alles zusammen im Marktplatz. Aus Skills sind Rezepte geworden, aus Von der Basis wurde Öffentlich. Alte Links und Lesezeichen (/agentura, /studio/sticker/entdecken, /agents) führen automatisch an die richtige Stelle."
+    "text": "Deine Agents, Rezepte und wiederkehrenden Aufgaben findest du unter Grüneratoren. Das ist der gleichnamige Eintrag in der Seitenleiste, die Adresse ist /grueneratoren. Alles Offizielle und alles, was andere öffentlich teilen, liegt im Marktplatz unter /marktplatz. Du erreichst ihn über das Laden-Symbol (Marktplatz) oben auf der Seite Grüneratoren. Dort gibt es nicht nur Agents und Rezepte, sondern auch Vorlagen, Sticker und Hintergründe. Früher gab es drei getrennte Schaufenster: die Agentura für Agents und Rezepte, die öffentlichen Vorlagen auf der Vorlagen-Seite und Entdecken bei Sticker & Hintergründe. Heute liegt das alles zusammen im Marktplatz. Aus Skills sind Rezepte geworden, aus Von der Basis wurde Öffentlich. Alte Links und Lesezeichen (/agentura, /studio/sticker/entdecken, /agents) führen automatisch an die richtige Stelle."
   },
   {
     "url": "/docs/features/marktplatz",
@@ -2119,7 +2111,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Teilen und veröffentlichen",
     "anchor": "#teilen-und-veröffentlichen",
     "category": "Features",
-    "text": "Sichtbarkeit und Veröffentlichung sind aus der Erstellung herausgelöst. Der Einstieg ist der „Teilen\"-Button: Öffne dein Notebook über Bearbeiten, dann findest du oben rechts — neben „Alle Quellen aktualisieren\" — den Button „Teilen\". Er ist nur für die Eigentümer*in sichtbar und öffnet den Dialog „Notebook teilen\", in dem du die gesamte Sichtbarkeit steuerst. (Das „Teilen\"-Untermenü im Drei-Punkte-Menü der Notebook-Übersicht ist davon getrennt: Es bietet nur „Link kopieren\" und das direkte Teilen mit einer Gruppe, aber nicht die Sichtbarkeits- und Veröffentlichungseinstellungen.) Im Dialog „Notebook teilen\" stellst du die Sichtbarkeit ein: „Privat — nur ich\" — Standard. Nur du siehst das Notebook. „Mit Gruppen geteilt\" — sichtbar für ausgewählte Gruppen. Du fügst Gruppen hinzu und legst unter „Wer darf bearbeiten?\" fest, wer Änderungen vornehmen darf (nur ich / Gruppen-Admins / alle Mitglieder). „Mit Anmeldung — alle eingeloggten Nutzer*innen\" — sichtbar für alle eingeloggten Nutzer*innen aus deinem Land."
+    "text": "Sichtbarkeit und Veröffentlichung sind aus der Erstellung herausgelöst. Der Einstieg ist der „Teilen\"-Button: Öffne dein Notebook über Bearbeiten, dann findest du oben rechts — neben „Alle Quellen aktualisieren\" — den Button „Teilen\". Er ist nur für die Eigentümer*in sichtbar und öffnet den Dialog „Notebook teilen\", in dem du die gesamte Sichtbarkeit steuerst. (Das „Teilen\"-Untermenü im Drei-Punkte-Menü der Notebook-Übersicht ist davon getrennt: Es bietet nur „Link kopieren\" und das direkte Hinzufügen zu einem Projekt, aber nicht die Sichtbarkeits- und Veröffentlichungseinstellungen.) Im Dialog „Notebook teilen\" stellst du die Sichtbarkeit ein: „Privat — nur ich\" — Standard. Nur du siehst das Notebook. „Mit Projekten geteilt\" — sichtbar für ausgewählte Projekte. Du fügst Projekte hinzu und legst unter „Wer darf bearbeiten?\" fest, wer Änderungen vornehmen darf („Nur ich\" / „Admins der geteilten Projekte\" / „Alle Mitglieder der geteilten Projekte\"). „Mit Anmeldung — alle eingeloggten Nutzer*innen\" — sichtbar für alle eingeloggten Nutzer*innen aus deinem Land."
   },
   {
     "url": "/docs/features/notebooks",
@@ -2127,7 +2119,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Verwalten",
     "anchor": "#verwalten",
     "category": "Features",
-    "text": "Hinter der Kachel „Meine Notebooks\" auf der Wissen-Seite erscheint jedes deiner Notebooks als Karte, zusammen mit den Notebooks, die andere über ein Projekt mit dir teilen, und denen, die du im Marktplatz gemerkt hast. Ein Klick auf die Karte öffnet die Notebook-Detailseite, von der aus du chatten und durchsuchen kannst. Über das Drei-Punkte-Menü der Karte erreichst du weitere Aktionen: Bearbeiten — öffnet wieder den Editor (Quellen, Details, Labels, Wolke, Docs). Auf der Bearbeiten-Seite kannst du Name und Beschreibung auch direkt im Kopfbereich ändern und alle Quellen per „Alle Quellen aktualisieren\" neu synchronisieren. Teilen — Untermenü mit „Link kopieren\" und — falls du in Gruppen bist — Optionen zum direkten Teilen mit einer Gruppe. Die volle Sichtbarkeitssteuerung liegt dagegen im „Teilen\"-Button auf der Bearbeiten-Seite (siehe oben). Löschen — entfernt das Notebook unwiderruflich. Wichtig: Die enthaltenen Dokumente bleiben in deiner persönlichen Bibliothek erhalten und können in andere Notebooks aufgenommen werden."
+    "text": "Hinter der Kachel „Meine Notebooks\" auf der Wissen-Seite erscheint jedes deiner Notebooks als Karte, zusammen mit den Notebooks, die andere über ein Projekt mit dir teilen, und denen, die du im Marktplatz gemerkt hast. Ein Klick auf die Karte öffnet die Notebook-Detailseite, von der aus du chatten und durchsuchen kannst. Über das Drei-Punkte-Menü der Karte erreichst du weitere Aktionen: Bearbeiten — öffnet wieder den Editor (Quellen, Details, Labels, Wolke, Docs). Auf der Bearbeiten-Seite kannst du Name und Beschreibung auch direkt im Kopfbereich ändern und alle Quellen per „Alle Quellen aktualisieren\" neu synchronisieren. Teilen — Untermenü mit „Link kopieren\" und — falls du in Projekten bist — Optionen, das Notebook direkt zu einem Projekt hinzuzufügen. Die volle Sichtbarkeitssteuerung liegt dagegen im „Teilen\"-Button auf der Bearbeiten-Seite (siehe oben). Löschen — entfernt das Notebook unwiderruflich. Wichtig: Die enthaltenen Dokumente bleiben in deiner persönlichen Bibliothek erhalten und können in andere Notebooks aufgenommen werden."
   },
   {
     "url": "/docs/features/notebooks",
@@ -2671,7 +2663,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wie erstelle ich ein eigenes Notebook?",
     "anchor": "",
     "category": "Guides",
-    "text": "In etwa zehn Minuten erstellst du ein Notebook, das eure Dokumente bündelt und ihren Inhalt im Grünerator durchsuchbar macht — für Anträge, Beschlüsse, Programme oder Pressemitteilungen. Du brauchst dafür ein paar Dateien."
+    "text": "In etwa zehn Minuten legst du ein eigenes Notebook an, das eure Dokumente bündelt und ihren Inhalt im Grünerator durchsuchbar macht — für Anträge, Beschlüsse, Programme oder Pressemitteilungen. Du brauchst dafür ein paar Dateien."
   },
   {
     "url": "/docs/guides/einsteigerinnen/eigenes-notebook-erstellen",
@@ -2731,91 +2723,99 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
-    "heading": "Wie erstelle ich ein gemeinsames Projekt?",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
+    "heading": "Wie erstelle ich ein Projekt und lade andere ein?",
     "anchor": "",
     "category": "Guides",
-    "text": "Am Ende hast du einen gemeinsamen Bereich, in den du andere Menschen einladen und Inhalte wie Notebooks aufnehmen kannst. Die Team-Variante eines Projekts heißt in der aktuellen Oberfläche noch „Gruppe“."
+    "text": "Am Ende hast du ein Projekt, in dem du Wissen wie Dateien und Notebooks ablegst, mit Chats darauf zugreifst und bei Bedarf andere Menschen einlädst. Es gibt nur eine Art von Projekt: Du legst es immer auf demselben Weg an, nutzt es allein oder mit anderen und kannst jederzeit Mitglieder einladen."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
-    "heading": "Beiträge, Erwähnungen und Benachrichtigungen",
-    "anchor": "#beiträge-erwähnungen-und-benachrichtigungen",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
+    "heading": "Austausch: Beiträge, Kommentare und Erwähnungen",
+    "anchor": "#austausch-beiträge-kommentare-und-erwähnungen",
     "category": "Guides",
-    "text": "Im Feed einer Gruppe öffnet „Schreib etwas an die Gruppe …“ den Beitragseditor. Schreibe deinen Text, hänge bei Bedarf über „Dateien“ Anhänge an und klicke auf „Posten“. Ein Beitrag darf bis zu 5.000 Zeichen und zehn Dateien mit jeweils höchstens 25 MiB enthalten; auch ein Beitrag nur mit Dateien ist möglich. Über die Sprechblase unter einem Beitrag oder geteilten Inhalt öffnest du die Kommentare. Schreibe ins Kommentarfeld und klicke auf „Senden“. Auf vorhandene Kommentare kannst du antworten; Antworten werden als Thread zusammengefasst. Kommentare dürfen bis zu 2.000 Zeichen enthalten. Über das Stecknadel-Symbol können Admins bis zu drei Einträge anheften. Eine weitere Anheftung löst die älteste. Die anderen Mitglieder bekommen eine Benachrichtigung, wenn jemand einen Beitrag schreibt oder einen Inhalt teilt. Tippe @ und wähle eine Person aus der Liste, um sie gezielt anzusprechen. Sie bekommt eine eigene Benachrichtigung. Mit @alle benachrichtigst du alle Mitglieder der Gruppe. Antwortest du auf einen Kommentar, ist die Person, der du antwortest, schon erwähnt."
+    "text": "Sobald außer dir noch andere im Projekt sind oder es schon Beiträge gibt, erscheint unter den Chats der Abschnitt Austausch. Dort schreibst du über + Beiträge, teilst Inhalte mit einer Notiz und kommentierst. Suchen kannst du im Austausch über „…“ → „Im Austausch suchen“. Klicke auf „Schreib etwas an das Projekt …“. Der Beitragseditor öffnet sich. Schreibe deinen Text, hänge bei Bedarf über „Dateien“ Anhänge an und klicke auf „Posten“. Ein Beitrag darf bis zu 5.000 Zeichen und zehn Dateien mit jeweils höchstens 25 MiB enthalten; auch ein Beitrag nur mit Dateien ist möglich. Über „Aus meinen Inhalten“ teilst du stattdessen einen vorhandenen Inhalt mit einer Notiz. Bei einem Eintrag im Wissen holt „Im Austausch besprechen“ ihn in den Austausch, damit ihr darüber schreiben könnt. Über die Sprechblase unter einem Beitrag öffnest du die Kommentare. Schreibe ins Feld „Kommentieren …“ und klicke auf „Senden“. Auf vorhandene Kommentare kannst du antworten; Antworten werden als Thread zusammengefasst. Kommentare dürfen bis zu 2.000 Zeichen enthalten. Über das Stecknadel-Symbol können Admins bis zu drei Einträge anheften. Eine weitere Anheftung löst die älteste."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
-    "heading": "Beiträge, Erwähnungen und Benachrichtigungen",
-    "anchor": "#beiträge-erwähnungen-und-benachrichtigungen",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
+    "heading": "Austausch: Beiträge, Kommentare und Erwähnungen",
+    "anchor": "#austausch-beiträge-kommentare-und-erwähnungen",
     "category": "Guides",
-    "text": "Wie viele Benachrichtigungen du bekommst und welche auch per E-Mail kommen, stellst du in den Einstellungen unter Benachrichtigungen ein. „Benachrichtigungen stummschalten“ im Drei-Punkte-Menü der Gruppe stoppt die E-Mails dieser Gruppe; in der Glocke erscheinen sie weiterhin."
+    "text": "Angeheftete Einträge stehen im Austausch oben. Die anderen Mitglieder bekommen eine Benachrichtigung, wenn jemand einen Beitrag schreibt oder einen Inhalt teilt. Tippe @ und wähle eine Person aus der Liste, um sie gezielt anzusprechen. Sie bekommt eine eigene Benachrichtigung. Mit @alle benachrichtigst du alle Mitglieder des Projekts. Antwortest du auf einen Kommentar, ist die Person, der du antwortest, schon erwähnt. Wie viele Benachrichtigungen du bekommst und welche auch per E-Mail kommen, stellst du in den Einstellungen unter Benachrichtigungen ein. „Benachrichtigungen stummschalten“ im Menü „Projektoptionen“ stoppt die E-Mails dieses Projekts; in der Glocke erscheinen sie weiterhin."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
-    "heading": "Ein Notebook hinzufügen",
-    "anchor": "#ein-notebook-hinzufügen",
-    "category": "Guides",
-    "text": "Klicke oben rechts auf „Inhalte teilen“. Im geöffneten Beitragseditor erreichst du dieselbe Auswahl über „Aus meinen Inhalten“. Wähle „Notebooks“. Klicke auf das Notebook, das du freigeben möchtest. Ein Häkchen zeigt die Auswahl an. Du kannst auch mehrere Notebooks auswählen. Optional kannst du eine Notiz für die Gruppe ergänzen. Klicke unten rechts auf „1 hinzufügen“. Bei mehreren ausgewählten Inhalten passt sich die Zahl automatisch an. Das Notebook erscheint danach im Feed und unter „Alle“ im Abschnitt „Notebooks“. Mitglieder des Projekts können es dort öffnen und lesen; durch das Hinzufügen erhalten sie keine Schreibrechte am Notebook."
-  },
-  {
-    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
-    "heading": "Einladungslink kopieren",
-    "anchor": "#einladungslink-kopieren",
-    "category": "Guides",
-    "text": "Öffne oben rechts das Drei-Punkte-Menü „Gruppenoptionen“. Klicke auf „Einladungslink kopieren“. Der Link wird direkt in die Zwischenablage kopiert. Füge den Link in eine Nachricht an die Personen ein, die beitreten sollen. Der Link ist eine Einladung zu deinem Projekt. Teile ihn nur mit den vorgesehenen Personen. Nur Admins sehen diese Aktion. Alternativ kannst du im selben Menü „Per E-Mail einladen“ wählen."
-  },
-  {
-    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
-    "heading": "Feed und Inhaltsübersicht",
-    "anchor": "#feed-und-inhaltsübersicht",
-    "category": "Guides",
-    "text": "Gemeinsame Projekte haben zwei Ansichten: „Feed“ zeigt Beiträge und geteilte Inhalte, „Alle“ sortiert die Inhalte nach Art. Angeheftete Einträge stehen im Feed oben. Über das Suchfeld findest du Inhalte anhand von Titel, Notiz, Beitragstext oder Dateinamen."
-  },
-  {
-    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
-    "heading": "Gemeinsames Projekt anlegen",
-    "anchor": "#gemeinsames-projekt-anlegen",
-    "category": "Guides",
-    "text": "Öffne im Bereich Arbeiten die Seite Projekte. Direkt erreichbar ist sie auch unter /projekte. Klicke auf „Gruppe erstellen“. Nimm nicht „Projekt erstellen“: Damit legst du ein persönliches Projekt ohne Mitglieder und Einladungslink an. Gib einen Namen ein. Er darf höchstens 100 Zeichen lang sein. Optional kannst du schon jetzt E-Mail-Adressen eingeben. Bestätige jede Adresse mit Enter oder einem Komma. Diese Personen erhalten nach dem Erstellen eine E-Mail mit einem Beitrittslink. Klicke auf „Gruppe erstellen“ beziehungsweise, wenn du Adressen hinzugefügt hast, auf „Erstellen & einladen“. Das neue gemeinsame Projekt öffnet sich automatisch. Du bist Admin und kannst Mitglieder sowie geteilte Inhalte verwalten."
-  },
-  {
-    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
     "heading": "Inhalte wieder entfernen",
     "anchor": "#inhalte-wieder-entfernen",
     "category": "Guides",
-    "text": "Als Admin kannst du einen geteilten Inhalt über das Aktionsmenü seiner Karte im Feed wieder aus dem Projekt nehmen. Das löscht das ursprüngliche Notebook nicht — nur seine Freigabe im Projekt wird entfernt."
+    "text": "Jede Zeile im Wissen hat ein Menü „Weitere Aktionen für …“. Dort nimmst du den Inhalt mit „Aus dem Projekt entfernen“ wieder heraus, wenn du dazu berechtigt bist. Das löscht das ursprüngliche Notebook nicht, nur seine Freigabe im Projekt wird entfernt. Dasselbe Menü legt auch fest, ob Mitglieder den Inhalt „Bearbeiten“ oder „Nur lesen“ dürfen."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
-    "heading": "Projekt oder Gruppe?",
-    "anchor": "#projekt-oder-gruppe",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
+    "heading": "Menschen einladen",
+    "anchor": "#menschen-einladen",
     "category": "Guides",
-    "text": "Ein Projekt ist dein persönlicher Bereich. Es hat keine Mitglieder und keinen Einladungslink. Eine Gruppe ist für die Zusammenarbeit gedacht: Mitglieder können die dort freigegebenen Inhalte öffnen, Admins verwalten zusätzlich Mitglieder, Einladungen und geteilte Inhalte. Für diesen Guide brauchst du deshalb eine Gruppe."
+    "text": "Du kannst jederzeit einladen, auch wenn du das Projekt zunächst allein genutzt hast. Öffne oben rechts auf der Projektseite das Drei-Punkte-Menü „Projektoptionen“ und wähle „Per E-Mail einladen“. Den Eintrag sehen nur Admins. Gib im Dialog „Einladen“ E-Mail-Adressen ein (Platzhalter: name@beispiel.de) und bestätige jede mit Enter oder einem Komma. Eingeladene erhalten eine E-Mail mit einem Beitrittslink zu diesem Projekt. Oder klicke auf „Einladungslink kopieren“ und schicke den Link selbst, etwa per Messenger. Teile ihn nur mit den vorgesehenen Personen. Klicke auf „Einladen“, um die E-Mails zu verschicken. Im selben Menü findest du auch „Einladungslink kopieren“ und „Mitglieder verwalten“. In einem archivierten Projekt kannst du nicht einladen."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
+    "heading": "Projekt anlegen",
+    "anchor": "#projekt-anlegen",
+    "category": "Guides",
+    "text": "Öffne im Bereich Arbeiten die Seite Projekte. Direkt erreichbar ist sie auch unter /projekte. Klicke unter dem Eingabefeld auf „Projekt erstellen“. Alternativ tippst du im Feld oben einen Namen ein und wählst „… als Projekt erstellen“. Es öffnet sich der Dialog „Neues Projekt“. Gib unter Name den Namen des Projekts ein. Er darf höchstens 100 Zeichen lang sein. Optional beschreibst du unter „Worum geht es in diesem Projekt?“ das Thema in ein bis zwei Sätzen. Optional hängst du über „Dateien auswählen“ gleich Dateien an. Optional gibst du E-Mail-Adressen ein, um Menschen einzuladen. Bestätige jede Adresse mit Enter oder einem Komma. Klicke auf „Projekt erstellen“. Hast du Adressen eingetragen, heißt der Knopf „Erstellen & einladen“. Das neue Projekt öffnet sich automatisch. Du bist Admin und kannst Mitglieder und Inhalte verwalten."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
+    "heading": "Projekt archivieren oder verlassen",
+    "anchor": "#projekt-archivieren-oder-verlassen",
+    "category": "Guides",
+    "text": "Im Menü „Projektoptionen“ findest du „Archivieren“ (und später „Wiederherstellen“) sowie „Projekt verlassen“. Archivierte Projekte stehen auf der Seite Projekte unter Archiviert."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
     "heading": "Weiterlesen",
     "anchor": "#weiterlesen",
     "category": "Guides",
-    "text": "Wie erstelle ich ein eigenes Notebook? — ein eigenes Notebook anlegen und mit Quellen füllen"
+    "text": "Wie erstelle ich ein eigenes Notebook? — Quellen sammeln und ein Notebook aufbauen"
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
-    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
     "heading": "Wenn etwas fehlt",
     "anchor": "#wenn-etwas-fehlt",
     "category": "Guides",
-    "text": "Kein Einladungslink im Menü? Dann handelt es sich wahrscheinlich um ein persönliches Projekt oder du bist kein Admin. Einladungen gibt es nur bei gemeinsamen Projekten. „Notebooks“ wird nicht angeboten? Die Auswahl zeigt nur Kategorien, in denen dir Inhalte zur Verfügung stehen. Erstelle zunächst eines oder prüfe, ob du Zugriff auf ein Notebook hast. „Inhalte teilen“ fehlt? Im System-Projekt „Grünerator“ dürfen nur Instanz-Admins Inhalte teilen und Beiträge schreiben. In normalen gemeinsamen Projekten dürfen Mitglieder teilen; Entfernen geteilter Inhalte bleibt eine Admin-Aktion."
+    "text": "Kein „Einladen“-Knopf? Dann bist du kein Admin des Projekts, das Projekt ist archiviert, oder es ist das System-Projekt „Grünerator“. Kein Abschnitt „Austausch“? Er erscheint erst, wenn außer dir jemand im Projekt ist oder es Beiträge gibt. Lade zuerst jemanden ein. Notebooks fehlen im Auswahlfenster? Es zeigt nur Inhalte, die dir gehören. Erstelle dafür zuerst ein Notebook. „Hinzufügen“ fehlt? Im System-Projekt „Grünerator“ dürfen nur Instanz-Admins Inhalte teilen und Beiträge schreiben. In allen anderen Projekten dürfen Mitglieder Inhalte hinzufügen; Entfernen bleibt eine Admin-Aktion."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
+    "heading": "Wissen und Notebooks hinzufügen",
+    "anchor": "#wissen-und-notebooks-hinzufügen",
+    "category": "Guides",
+    "text": "Alles, was du ins Projekt legst, steht rechts im Abschnitt Wissen. Chats in diesem Projekt nutzen es als Grundlage. Klicke oben rechts auf „Hinzufügen“. Wähle „Vorhandenes hinzufügen …“, um etwas aus deinen eigenen Inhalten zu übernehmen, zum Beispiel ein Notebook. Mit „Neues Doc“, „Neues Sheet“, „Neue Präsentation“ oder „Neues Board“ legst du direkt im Projekt etwas Neues an. „Datei hochladen“, „Text“ und „Link“ (nur für Admins) bringen weiteres Material ein. Wähle im Auswahlfenster das Notebook aus, das du freigeben möchtest. Mitglieder des Projekts können das Notebook danach öffnen und lesen; durch das Hinzufügen erhalten sie keine Schreibrechte. Über dem Wissen steht, wie viel davon Chats tatsächlich durchsuchen können, zum Beispiel „3 von 4 durchsuchbar“. Bei Dateien, die noch eingelesen werden oder sich nicht auslesen ließen, ist die Zahl niedriger. Nach sechs Einträgen zeigt „Alle anzeigen“ den Rest, und die Lupe neben der Überschrift öffnet die Suche."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
+    "heading": "Wolke & Drive verbinden (experimentell)",
+    "anchor": "#wolke--drive-verbinden-experimentell",
+    "category": "Guides",
+    "text": "Als Admin eines Projekts kannst du Dateien aus einer Ablage mit dem Projekt verbinden. Sie erscheinen im Wissen und bleiben aktuell. Das geht in der Karte Wolke & Drive unter dem Wissen über „+ Quelle“: Wolke-Ordner: Füge den Freigabelink eines Nextcloud-Ordners ein. Den Link bekommst du in der Wolke über „Teilen“ und „Link kopieren“. Neue Dateien im Ordner kommen von selbst dazu, gelöschte verschwinden aus dem Projekt. Pro Ordner werden höchstens 200 Dateien übernommen; bei einem großen Ordner kommen sie über mehrere Abgleiche herein. In der App heißt der Knopf „+ Ordner“. Dateien aus Google Drive: Wähle im Google-Dateiwähler eine oder mehrere Dateien aus. Dafür muss Google Drive in den Einstellungen unter Konnektoren verbunden sein. Der Grünerator darf in Google Drive nur ausgewählte Dateien lesen, keine ganzen Ordner. Neue Dateien musst du deshalb selbst nachwählen. Geänderte Dateien liest er neu ein. Gelöschte Dateien und solche, die du ihm entziehst, verschwinden aus dem Projekt. Dieser Weg geht nur im Browser, nicht in der App. Der Grünerator gleicht jede Quelle einmal pro Stunde ab. Gelesen wird mit dem Zugang der Person, die die Quelle verbunden hat."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "pageTitle": "Wie erstelle ich ein Projekt und lade andere ein?",
+    "heading": "Wolke & Drive verbinden (experimentell)",
+    "anchor": "#wolke--drive-verbinden-experimentell",
+    "category": "Guides",
+    "text": "Verlässt sie das Projekt, pausiert der Abgleich, und die schon eingelesenen Dateien bleiben. Über das Menü an der Zeile kannst du „Jetzt abgleichen“ oder die Quelle „Trennen“. In der Wolke oder in Google Drive ändert keiner der beiden Schritte etwas."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gruenerator-personalisieren",
@@ -3407,7 +3407,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wenn die Installation nicht klappt",
     "anchor": "#wenn-die-installation-nicht-klappt",
     "category": "Guides",
-    "text": "„Installieren“ fehlt: Prüfe, ob du im Play Store mit einem Google-Account angemeldet bist und ob die Seite dein Gerät als kompatibel anzeigt. Das falsche Gerät wird ausgewählt: Öffne die Store-Seite direkt auf dem gewünschten Android-Gerät oder wähle es am Computer unter Auf weiteren Geräten installieren aus. Die App startet nicht oder verhält sich unerwartet: Installiere zuerst das neueste Update. Bleibt der Fehler bestehen, nutze den Feedback-Button im Grünerator und nenne Gerätetyp, Android-Version und die Schritte bis zum Fehler. Weitere Hinweise zur Installation enthält Google Play-Hilfe: Apps und digitale Inhalte herunterladen."
+    "text": "„Installieren“ fehlt: Prüfe, ob du im Play Store mit einem Google-Account angemeldet bist und ob die Seite dein Gerät als kompatibel anzeigt. Das falsche Gerät wird ausgewählt: Öffne die Store-Seite direkt auf dem gewünschten Android-Gerät oder wähle es am Computer unter Auf weiteren Geräten installieren aus. Die App startet nicht oder verhält sich unerwartet: Installiere zuerst das neueste Update. Bleibt der Fehler bestehen, nutze den Support-Button im Grünerator und nenne Gerätetyp, Android-Version und die Schritte bis zum Fehler. Weitere Hinweise zur Installation enthält Google Play-Hilfe: Apps und digitale Inhalte herunterladen."
   },
   {
     "url": "/docs/guides/experimentell/iphone-ipad-app-installieren",
@@ -4711,7 +4711,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Aussehen: Farbschema der Oberfläche Sprache & Region: Wortwahl und Inhalte für Deutschland oder Österreich Startseite: Welcher Bereich sich auf der Startseite zuerst zeigt Stimme: Mit welcher Stimme dir der Grünerator Texte vorliest Feedback-Button: Darstellung des schwebenden Feedback-Buttons: mit Text, nur als Icon oder ganz ausgeblendet — er lässt sich in jede Bildschirmecke ziehen Animationen reduzieren: Schaltet dekorative Animationen und Übergänge ab — folgt sonst automatisch der Einstellung deines Betriebssystems Transparenz reduzieren: Entfernt durchscheinende Flächen und Unschärfe-Effekte — folgt sonst automatisch der Einstellung deines Betriebssystems Einführungs-Touren zurücksetzen: Zeigt die Touren durch Workplace, Dokumente, Tabellen, Präsentationen und das Sharepic-Studio beim nächsten Öffnen wieder an. Einrichtung erneut starten: Holt den Bereich „Onboarding\" zurück und führt noch einmal durch Rolle, Friend und Hintergrund. Aussehen: Hell, Dunkel, System Sprache & Region: Deutsch (Deutschland), Deutsch (Österreich) Startseite: Chat, Arbeiten Dein Profilbild ist ein Grünerator Friend — ausgewählt wird er im Bereich „Friends\"."
+    "text": "Aussehen: Farbschema der Oberfläche Sprache & Region: Wortwahl und Inhalte für Deutschland oder Österreich Aufbau der Startseite: Alles auf einer Seite oder Chat und Arbeiten als Tabs Startseite: Welcher Bereich sich auf der Startseite zuerst zeigt Stimme: Mit welcher Stimme dir der Grünerator Texte vorliest Support-Button: Darstellung des schwebenden Support-Buttons: mit Text, nur als Icon oder ganz ausgeblendet — er lässt sich in jede Bildschirmecke ziehen Animationen reduzieren: Schaltet dekorative Animationen und Übergänge ab — folgt sonst automatisch der Einstellung deines Betriebssystems Transparenz reduzieren: Entfernt durchscheinende Flächen und Unschärfe-Effekte — folgt sonst automatisch der Einstellung deines Betriebssystems Einführungs-Touren zurücksetzen: Zeigt die Touren durch Workplace, Dokumente, Tabellen, Präsentationen und das Sharepic-Studio beim nächsten Öffnen wieder an. Geplante Aufgaben: Der Grünerator führt eine Aufgabe regelmäßig von selbst aus, etwa jeden Montag. Experimentell. Aus: keine neuen Aufgaben, weder im Chat noch in den Grüneratoren oder Projekten. Bestehende Aufgaben laufen weiter und lassen sich unter /wiederkehrend verwalten."
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4719,7 +4719,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Die Sprachwahl entscheidet nicht nur über Wortwahl, sondern auch über Inhalte: Mit „Deutsch (Österreich)\" bekommst du österreichische Quellen und Begriffe statt deutscher. Animationen reduzieren und Transparenz reduzieren (Gruppe „Bedienungshilfen\") schalten dekorative Bewegung bzw. durchscheinende Flächen und Unschärfe ab — hilfreich bei Reizempfindlichkeit oder auf schwächerer Hardware. Sie folgen zunächst den Vorgaben deines Betriebssystems, gelten auf allen Geräten, an denen du angemeldet bist, und greifen sofort. Der Link /settings/barrierefreiheit führt weiterhin hierher — bis zum 28.08.2026 war das ein eigener Bereich, danach die untere Hälfte von „Datenschutz\". Konto. Wer du bist und was am Konto hängt. Hier steht nichts, was du einstellen müsstest — es ist der Ort für den Papierkorb und fürs endgültige Löschen. Konto: Name, Benutzername und E-Mail stammen aus deinem Grünen Login und werden dort geändert Papierkorb: Gelöschte Inhalte 30 Tage lang wiederherstellen oder vorher endgültig löschen Die Gruppe Grüner Login zeigt Anzeigename, Benutzername und E-Mail. Die drei kommen aus deinem Grünen Login und lassen sich nur dort ändern, wo du dich anmeldest."
+    "text": "Einrichtung erneut starten: Holt den Bereich „Onboarding\" zurück und führt noch einmal durch Rolle, Friend und Hintergrund. Aussehen: Hell, Dunkel, System Sprache & Region: Deutsch (Deutschland), Deutsch (Österreich) Startseite: Chat, Arbeiten Dein Profilbild ist ein Grünerator Friend — ausgewählt wird er im Bereich „Friends\". Die Sprachwahl entscheidet nicht nur über Wortwahl, sondern auch über Inhalte: Mit „Deutsch (Österreich)\" bekommst du österreichische Quellen und Begriffe statt deutscher. Animationen reduzieren und Transparenz reduzieren (Gruppe „Bedienungshilfen\") schalten dekorative Bewegung bzw. durchscheinende Flächen und Unschärfe ab — hilfreich bei Reizempfindlichkeit oder auf schwächerer Hardware. Sie folgen zunächst den Vorgaben deines Betriebssystems, gelten auf allen Geräten, an denen du angemeldet bist, und greifen sofort. Der Link /settings/barrierefreiheit führt weiterhin hierher — bis zum 28.08.2026 war das ein eigener Bereich, danach die untere Hälfte von „Datenschutz\". Konto. Wer du bist und was am Konto hängt. Hier steht nichts, was du einstellen müsstest — es ist der Ort für den Papierkorb und fürs endgültige Löschen."
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4727,7 +4727,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Die Zeile Papierkorb öffnet die Seite mit allem, was du gelöscht hast. Dort bleibt es 30 Tage, lässt sich wiederherstellen oder vorher endgültig löschen. Erreichbar ist sie auch über das Kontomenü in der Seitenleiste und über „Zuletzt\" im Workplace. Ganz unten kannst du dein Konto endgültig löschen. Das entfernt deine Inhalte und lässt sich nicht rückgängig machen. Hintergrund. Der farbige Schimmer auf deiner Startseite — der Fläche, auf der du nach dem Anmelden stehst. Jede Kachel zeigt den Verlauf, den sie einstellt; ein Klick übernimmt ihn sofort. Startseiten-Hintergrund: Färbt den Schimmer hinter dem Chat-Start und den Senden-Button darauf Die Auswahl ist zweigeteilt: Bunt verteilt mehrere Farben über die Fläche, Einfarbig legt einen Ton darüber. Innerhalb von „Bunt\" unterscheiden sich Nebel, Klarer Kern und Dunst von unten nicht in der Farbe — sie nutzen dieselben vier Töne hinter unterschiedlich viel weißem Schleier. Der Senden-Button unter dem Composer übernimmt die Farbe des gewählten Hintergrunds — die Kachel zeigt ihn als Punkt mit an. Neutral schaltet den Verlauf ganz ab; dann steht dort die normale Seitenfläche."
+    "text": "Konto: Name, Benutzername und E-Mail stammen aus deinem Grünen Login und werden dort geändert Papierkorb: Gelöschte Inhalte 30 Tage lang wiederherstellen oder vorher endgültig löschen Die Gruppe Grüner Login zeigt Anzeigename, Benutzername und E-Mail. Die drei kommen aus deinem Grünen Login und lassen sich nur dort ändern, wo du dich anmeldest. Die Zeile Papierkorb öffnet die Seite mit allem, was du gelöscht hast. Dort bleibt es 30 Tage, lässt sich wiederherstellen oder vorher endgültig löschen. Erreichbar ist sie auch über das Kontomenü in der Seitenleiste und über „Zuletzt\" im Workplace. Ganz unten kannst du dein Konto endgültig löschen. Das entfernt deine Inhalte und lässt sich nicht rückgängig machen. Hintergrund. Der farbige Schimmer auf deiner Startseite — der Fläche, auf der du nach dem Anmelden stehst. Jede Kachel zeigt den Verlauf, den sie einstellt; ein Klick übernimmt ihn sofort. Startseiten-Hintergrund: Färbt den Schimmer hinter dem Chat-Start und den Senden-Button darauf Die Auswahl ist zweigeteilt: Bunt verteilt mehrere Farben über die Fläche, Einfarbig legt einen Ton darüber."
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4735,7 +4735,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Im Dunkelmodus bleiben dieselben Presets, nur gedämpft — die Kacheln zeigen die Fassung, die zu deinem Farbschema gehört. Friends. Dein Profilbild: eine Galerie gezeichneter Grünerator-Figuren, aus der du deinen „Friend\" wählst. Er erscheint überall dort, wo du auftauchst — in Chats, Projekten und Kommentaren. Dein Friend: Das Profilbild, das dich in Chats, Projekten und Kommentaren vertritt Solange die Einrichtung läuft, stehen drei zur Wahl — Feuri, Robosam und Schildi. Die übrige Truppe kommt dazu, sobald du sie abgeschlossen hast. Ein Klick auf eine Figur übernimmt sie sofort; ein Foto-Upload ist nicht vorgesehen. Wolki ist zunächst gesperrt und wird freigeschaltet, sobald du deine Grüne Wolke verbunden hast. Benachrichtigungen. Worüber und wie du informiert wirst. Am einfachsten wählst du eine der drei Stufen; wer es genauer mag, schaltet jede Meldungsart einzeln pro Kanal. Wie viel wir melden: Wenig meldet nur Kritisches und Persönliches, Mittel die wichtigen Ereignisse, Viele alles. E-Mail-Zustellung testen: Sendet dir sofort eine Test-E-Mail an deine Profil-Adresse, um die Zustellung zu prüfen."
+    "text": "Innerhalb von „Bunt\" unterscheiden sich Nebel, Klarer Kern und Dunst von unten nicht in der Farbe — sie nutzen dieselben vier Töne hinter unterschiedlich viel weißem Schleier. Der Senden-Button unter dem Composer übernimmt die Farbe des gewählten Hintergrunds — die Kachel zeigt ihn als Punkt mit an. Neutral schaltet den Verlauf ganz ab; dann steht dort die normale Seitenfläche. Im Dunkelmodus bleiben dieselben Presets, nur gedämpft — die Kacheln zeigen die Fassung, die zu deinem Farbschema gehört. Friends. Dein Profilbild: eine Galerie gezeichneter Grünerator-Figuren, aus der du deinen „Friend\" wählst. Er erscheint überall dort, wo du auftauchst — in Chats, Projekten und Kommentaren. Dein Friend: Das Profilbild, das dich in Chats, Projekten und Kommentaren vertritt Solange die Einrichtung läuft, stehen drei zur Wahl — Feuri, Robosam und Schildi. Die übrige Truppe kommt dazu, sobald du sie abgeschlossen hast. Ein Klick auf eine Figur übernimmt sie sofort; ein Foto-Upload ist nicht vorgesehen. Wolki ist zunächst gesperrt und wird freigeschaltet, sobald du deine Grüne Wolke verbunden hast. Benachrichtigungen. Worüber und wie du informiert wirst."
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4743,7 +4743,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Wenig: Nur kritische & persönliche Benachrichtigungen Mittel: Empfohlen – wichtige Ereignisse Viele: Alle Benachrichtigungen Dokument geteilt: Wenn ein Dokument mit dir geteilt wird Berechtigung geändert: Wenn deine Berechtigung an einem Dokument geändert wird Zugriff entzogen: Wenn dein Zugriff auf ein Dokument entzogen wird Aufgaben-Updates: Updates zu deinen Board-Aufgaben Neue Kommentare: Neue Kommentare auf Karten Antworten: Antworten auf deine Kommentare Erwähnungen: Wenn du in einem Kommentar erwähnt wirst Zuweisungen: Wenn dir eine Karte zugewiesen wird Statusänderungen: Wenn sich der Status einer beobachteten Karte ändert Neue Anhänge: Wenn eine Datei an eine beobachtete Karte angehängt wird Fälligkeits-Erinnerung: Erinnerung, wenn eine Karte demnächst fällig ist Beobachtete Karten: Aktivität auf Karten, die du beobachtest Lauf erledigt: Wenn eine wiederkehrende Aufgabe oder ein Board-Zeitplan fertig ist Lauf fehlgeschlagen: Wenn ein geplanter Lauf nicht ausgeführt werden konnte Lauf wartet auf Freigabe: Wenn ein geplanter Lauf auf deine Freigabe wartet Mitglied tritt bei: Wenn ein Mitglied einer deiner Gruppen beitritt Mitglied tritt aus: Wenn ein Mitglied eine deiner"
+    "text": "Am einfachsten wählst du eine der drei Stufen; wer es genauer mag, schaltet jede Meldungsart einzeln pro Kanal. Wie viel wir melden: Wenig meldet nur Kritisches und Persönliches, Mittel die wichtigen Ereignisse, Viele alles. E-Mail-Zustellung testen: Sendet dir sofort eine Test-E-Mail an deine Profil-Adresse, um die Zustellung zu prüfen. Wenig: Nur kritische & persönliche Benachrichtigungen Mittel: Empfohlen – wichtige Ereignisse Viele: Alle Benachrichtigungen Dokument geteilt: Wenn ein Dokument mit dir geteilt wird Berechtigung geändert: Wenn deine Berechtigung an einem Dokument geändert wird Zugriff entzogen: Wenn dein Zugriff auf ein Dokument entzogen wird Aufgaben-Updates: Updates zu deinen Board-Aufgaben Neue Kommentare: Neue Kommentare auf Karten Antworten: Antworten auf deine Kommentare Erwähnungen: Wenn du in einem Kommentar erwähnt wirst Zuweisungen: Wenn dir eine Karte zugewiesen wird Statusänderungen: Wenn sich der Status einer beobachteten Karte ändert Neue Anhänge: Wenn eine Datei an eine beobachtete Karte angehängt wird Fälligkeits-Erinnerung: Erinnerung, wenn eine Karte demnächst fällig ist Beobachtete Karten: Aktivität auf Karten, die du beobachtest Lauf erledigt:"
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4751,7 +4751,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Gruppen verlässt Rollenänderung: Wenn sich eine Rolle in der Gruppe ändert Geteilte Inhalte: Wenn Inhalte in einer deiner Gruppen geteilt werden Kommentare in Gruppen: Wenn jemand deinen geteilten Inhalt oder einen Beitrag kommentiert, den du kommentiert hast Neue Beiträge: Wenn jemand in einem deiner Projekte einen Beitrag schreibt Team-Chats: Wenn jemand in einem Team-Chat schreibt, an dem du beteiligt bist Erwähnungen: Wenn dich jemand in einem Projekt mit @Name erwähnt @alle: Wenn jemand in einem deiner Projekte alle mit @alle anspricht Gruppe aufgelöst: Wenn eine deiner Gruppen aufgelöst wird Beitrittsanfragen: Wenn jemand deiner öffentlichen Gruppe beitreten möchte Beitritt angenommen: Wenn deine Beitrittsanfrage angenommen wird Beitritt abgelehnt: Wenn deine Beitrittsanfrage abgelehnt wird Transfer-Download: Wenn jemand deine geteilte Datei herunterlädt Notebook-Likes: Wenn jemand dein öffentliches Notebook mag Vorlagen-Likes: Wenn jemand deine veröffentlichte Vorlage mag Vorlage freigegeben: Wenn deine eingereichte Vorlage freigegeben wird Vorlage abgelehnt: Wenn deine eingereichte Vorlage abgelehnt wird Neue Wolke-Dateien: Neue Dateien in den Wolke-Ordnern deiner"
+    "text": "Wenn eine wiederkehrende Aufgabe oder ein Board-Zeitplan fertig ist Lauf fehlgeschlagen: Wenn ein geplanter Lauf nicht ausgeführt werden konnte Lauf wartet auf Freigabe: Wenn ein geplanter Lauf auf deine Freigabe wartet Mitglied tritt bei: Wenn ein Mitglied einem deiner Projekte beitritt Mitglied tritt aus: Wenn ein Mitglied eines deiner Projekte verlässt Rollenänderung: Wenn sich eine Rolle in dem Projekt ändert Geteilte Inhalte: Wenn Inhalte in einem deiner Projekte geteilt werden Kommentare in Projekten: Wenn jemand deinen geteilten Inhalt oder einen Beitrag kommentiert, den du kommentiert hast Neue Beiträge: Wenn jemand in einem deiner Projekte einen Beitrag schreibt Team-Chats: Wenn jemand in einem Team-Chat schreibt, an dem du beteiligt bist Erwähnungen: Wenn dich jemand in einem Projekt mit @Name erwähnt @alle: Wenn jemand in einem deiner Projekte alle mit @alle anspricht Projekt aufgelöst: Wenn eines deiner Projekte aufgelöst wird Beitrittsanfragen: Wenn jemand deinem öffentlichen Projekt beitreten möchte Beitritt angenommen: Wenn deine Beitrittsanfrage angenommen wird Beitritt abgelehnt: Wenn deine Beitrittsanfrage abgelehnt wird Gemeldete Inhalte: Wenn jemand einen"
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4759,7 +4759,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Notebooks Tagesbriefing: Deine Übersicht beim ersten Besuch des Tages KI-Schnitt fertig: Wenn dein KI-Schnitt zur Vorschau bereitsteht KI-Schnitt fehlgeschlagen: Wenn ein KI-Schnitt nicht erstellt werden konnte Neue Avatare: Wenn neue Profil-Avatare verfügbar sind Datenschutz. Die beiden Einwilligungen, die der Grünerator von dir einholt: Beide gelten mit Wirkung für die Zukunft und lassen sich jederzeit zurücknehmen — was bereits verarbeitet wurde, bleibt davon unberührt. Reichweitenmessung: Anonyme Statistik mit Umami (eigene Server, EU). Nur nach Einwilligung — jederzeit widerrufbar Einwilligung in die KI-Verarbeitung: Ausdrückliche Einwilligung nach Art. 9 DSGVO, weil sich aus deinen Eingaben politische Meinungen ergeben können Reichweitenmessung steuert die anonyme Statistik mit Umami, die wir auf eigenen Servern in der EU betreiben. Ohne deine Zustimmung wird das Skript gar nicht erst geladen; der Schalter gilt für den Browser, in dem du ihn umlegst. Einwilligung in die KI-Verarbeitung ist die ausdrückliche Einwilligung nach Art. 9 DSGVO: Weil über den Grünerator politische Inhalte entstehen, können sich aus deinen Eingaben politische Meinungen ergeben."
+    "text": "Inhalt in einem Projekt meldet, das du verwaltest Transfer-Download: Wenn jemand deine geteilte Datei herunterlädt Notebook-Likes: Wenn jemand dein öffentliches Notebook mag Vorlagen-Likes: Wenn jemand deine veröffentlichte Vorlage mag Vorlage freigegeben: Wenn deine eingereichte Vorlage freigegeben wird Vorlage abgelehnt: Wenn deine eingereichte Vorlage abgelehnt wird Neue Wolke-Dateien: Neue Dateien in den Wolke-Ordnern deiner Notebooks Tagesbriefing: Deine Übersicht beim ersten Besuch des Tages KI-Schnitt fertig: Wenn dein KI-Schnitt zur Vorschau bereitsteht KI-Schnitt fehlgeschlagen: Wenn ein KI-Schnitt nicht erstellt werden konnte Neue Avatare: Wenn neue Profil-Avatare verfügbar sind Datenschutz. Die beiden Einwilligungen, die der Grünerator von dir einholt: Beide gelten mit Wirkung für die Zukunft und lassen sich jederzeit zurücknehmen — was bereits verarbeitet wurde, bleibt davon unberührt. Reichweitenmessung: Anonyme Statistik mit Umami (eigene Server, EU). Nur nach Einwilligung — jederzeit widerrufbar Einwilligung in die KI-Verarbeitung: Ausdrückliche Einwilligung nach Art."
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4767,7 +4767,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Nimmst du sie zurück, fragen wir beim nächsten Aufruf der KI-Funktionen erneut. Personalisierung. Dauerhafte Hinweise, die der Grünerator bei jeder Antwort mitdenkt — ohne dass du sie jedes Mal neu schreiben musst. Rollen: Deine Ämter und Ebenen — der Grünerator richtet Ansprache und Inhalte danach aus. Anlegen und Ändern am Rechner. Anweisungen: ein freies Textfeld für Vorlieben wie „Duze die Leserinnen und schreibe knapp.\" Deine Rollen: Ebene (Bund, Land, Kommune), Bundesland und Funktion. Daraus weiß der Grünerator, aus welcher Perspektive du schreibst, und schlägt passende Quellen und Formulierungen vor. Erinnerungen. Was sich der Grünerator aus euren Gesprächen dauerhaft gemerkt hat. Du siehst jeden Eintrag, kannst suchen, einzelne löschen oder eigene hinzufügen. Gedächtnis: Der Grünerator merkt sich nur, was du ihm ausdrücklich sagst („merk dir …\") — und berücksichtigt es in jedem Chat. Aus: nichts wird gespeichert oder verwendet. Erinnerungen entstehen im Gespräch von selbst — dieser Bereich ist die Kontrolle darüber, nicht die einzige Quelle. Alles auf einmal löschen ist möglich und wird vorher abgefragt. Tagesbriefing."
+    "text": "9 DSGVO, weil sich aus deinen Eingaben politische Meinungen ergeben können Reichweitenmessung steuert die anonyme Statistik mit Umami, die wir auf eigenen Servern in der EU betreiben. Ohne deine Zustimmung wird das Skript gar nicht erst geladen; der Schalter gilt für den Browser, in dem du ihn umlegst. Einwilligung in die KI-Verarbeitung ist die ausdrückliche Einwilligung nach Art. 9 DSGVO: Weil über den Grünerator politische Inhalte entstehen, können sich aus deinen Eingaben politische Meinungen ergeben. Nimmst du sie zurück, fragen wir beim nächsten Aufruf der KI-Funktionen erneut. Personalisierung. Dauerhafte Hinweise, die der Grünerator bei jeder Antwort mitdenkt — ohne dass du sie jedes Mal neu schreiben musst. Rollen: Deine Ämter und Ebenen — der Grünerator richtet Ansprache und Inhalte danach aus. Anlegen und Ändern am Rechner. Anweisungen: ein freies Textfeld für Vorlieben wie „Duze die Leserinnen und schreibe knapp.\" Deine Rollen: Ebene (Bund, Land, Kommune), Bundesland und Funktion. Daraus weiß der Grünerator, aus welcher Perspektive du schreibst, und schlägt passende Quellen und Formulierungen vor. Erinnerungen."
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4775,7 +4775,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Ob dir der Grünerator beim ersten Besuch des Tages zuerst schreibt. Das Tagesbriefing ist aus, bis du es einschaltest, und braucht deine Einwilligung in die KI-Verarbeitung. Tagesbriefing im Chat: Wenn du es einschaltest, schreibt dir der Grünerator beim ersten Besuch des Tages eine kurze Übersicht: deine offenen Aufgaben, was los ist, und eine Idee für heute. Es erscheint als neuer Chat in der Seitenleiste: deine offenen Aufgaben aus den Boards, Schlagzeilen aus Partei und Welt mit Quelle, ein Rückblick auf deine Arbeit und zwei bis vier Ideen für heute. Ein Briefing, auf das du nicht geantwortet hast, wird am nächsten Tag durch das neue ersetzt. Briefe. Absenderangaben für den PDF-Export von Briefen. Du kannst mehrere Briefköpfe anlegen — etwa einen für den Kreisverband und einen für die Fraktion — und beim Export auswählen, welcher oben links erscheint. Genau ein Briefkopf ist der Standard; der Export schlägt ihn vor. Löschst du den Standard, rückt automatisch ein anderer nach. Konnektoren. Externe Dienste, die der Chat mitbenutzen darf. Ist einer verbunden, kannst du ihn im Gespräch ansprechen — wie das im Detail geht, steht unter Konnektoren."
+    "text": "Was sich der Grünerator aus euren Gesprächen dauerhaft gemerkt hat. Du siehst jeden Eintrag, kannst suchen, einzelne löschen oder eigene hinzufügen. Gedächtnis: Der Grünerator merkt sich nur, was du ihm ausdrücklich sagst („merk dir …\") — und berücksichtigt es in jedem Chat. Aus: nichts wird gespeichert oder verwendet. Erinnerungen entstehen im Gespräch von selbst — dieser Bereich ist die Kontrolle darüber, nicht die einzige Quelle. Alles auf einmal löschen ist möglich und wird vorher abgefragt. Tagesbriefing. Ob dir der Grünerator beim ersten Besuch des Tages zuerst schreibt. Das Tagesbriefing ist aus, bis du es einschaltest, und braucht deine Einwilligung in die KI-Verarbeitung. Tagesbriefing im Chat: Wenn du es einschaltest, schreibt dir der Grünerator beim ersten Besuch des Tages eine kurze Übersicht: deine offenen Aufgaben, was los ist, und eine Idee für heute. Es erscheint als neuer Chat in der Seitenleiste: deine offenen Aufgaben aus den Boards, Schlagzeilen aus Partei und Welt mit Quelle, ein Rückblick auf deine Arbeit und zwei bis vier Ideen für heute. Ein Briefing, auf das du nicht geantwortet hast, wird am nächsten Tag durch das neue ersetzt. Briefe."
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4783,7 +4783,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Konnektoren: Verbundene Dienste, die im Chat als eigene Quelle ansprechbar sind Microsoft 365 (experimentell) verbindet dein OneDrive; danach wählst du Dateien im Chat über die Erwähnung aus. Google Workspace (experimentell) verbindet dein Google Drive. Im Chat öffnet sich dafür die Dateiauswahl von Google; der Grünerator liest nur die Dateien, die du dort auswählst. Immer erlaubte Werkzeuge listet, was du im Chat mit „Immer erlauben\" freigegeben hast — diese Werkzeuge laufen ohne Rückfrage. Entfernst du eines, fragt der Chat vor der nächsten Ausführung wieder nach. Die Liste erscheint erst, wenn es eine solche Freigabe gibt. Wolke. Die Verbindung zur Grünen Wolke (Nextcloud). Über einen Freigabe-Link liest der Grünerator die Dateien eines Ordners — im Chat per Erwähnung, in Notebooks und im Docs-Editor. Er liest nur, er schreibt nichts zurück. Ein Assistent führt durch die Einrichtung. Meine Websites. Eigene Websites verbinden, damit ihre Beiträge in Notebooks zur Verfügung stehen — etwa die Seite deines Kreisverbands als Quelle für Recherche und Textentwürfe. Funktioniert mit WordPress-Websites, deren REST-Schnittstelle öffentlich erreichbar ist."
+    "text": "Absenderangaben für den PDF-Export von Briefen. Du kannst mehrere Briefköpfe anlegen — etwa einen für den Kreisverband und einen für die Fraktion — und beim Export auswählen, welcher oben links erscheint. Genau ein Briefkopf ist der Standard; der Export schlägt ihn vor. Löschst du den Standard, rückt automatisch ein anderer nach. Konnektoren. Externe Dienste, die der Chat mitbenutzen darf. Ist einer verbunden, kannst du ihn im Gespräch ansprechen — wie das im Detail geht, steht unter Konnektoren. Konnektoren: Verbundene Dienste, die im Chat als eigene Quelle ansprechbar sind Microsoft 365 (experimentell) verbindet dein OneDrive; danach wählst du Dateien im Chat über die Erwähnung aus. Google Workspace (experimentell) verbindet dein Google Drive. Im Chat öffnet sich dafür die Dateiauswahl von Google; der Grünerator liest nur die Dateien, die du dort auswählst. Immer erlaubte Werkzeuge listet, was du im Chat mit „Immer erlauben\" freigegeben hast — diese Werkzeuge laufen ohne Rückfrage. Entfernst du eines, fragt der Chat vor der nächsten Ausführung wieder nach. Die Liste erscheint erst, wenn es eine solche Freigabe gibt. Wolke. Die Verbindung zur Grünen Wolke (Nextcloud)."
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4791,7 +4791,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Die Kategorien der Website werden einmal abgefragt und stehen danach überall zur Auswahl. Antragsgrün. Die Antragsgrün-Seiten, die der Grünerator für dich auf antragsgruen.de angelegt hat (experimentell). Solange er dort Admin ist, kann er im Chat Anträge einreichen und die Tagesordnung pflegen — jeweils erst, wenn du bestätigst. Der Bereich erscheint nur, wo der Grünerator Antragsgrün-Seiten anlegen kann oder du schon eine hast. Antragsgrün lässt den Grünerator sich nicht selbst austragen. Zugriff entziehen zeigt, welches Konto du in der Personenverwaltung deiner Seite entfernst, und prüft danach, ob der Zugriff weg ist. Aus der Liste entfernen löscht nur unseren Eintrag: Der Grünerator speichert danach nichts mehr über die Seite, die Seite selbst bleibt bestehen. Umfragen. Die Umfragen und Terminfindungen, die der Grünerator für dich auf nuudel.digitalcourage.de angelegt hat (experimentell). Im Chat kann er ihr Ergebnis lesen, zum Beispiel welcher Termin am besten passt, und sie nach deiner Freigabe ändern oder löschen. Öffnen führt zur Umfrage, wie die Teilnehmenden sie sehen; Verwalten zur Admin-Seite bei nuudel, auf der du die Umfrage bearbeitest, exportierst oder löschst."
+    "text": "Über einen Freigabe-Link liest der Grünerator die Dateien eines Ordners — im Chat per Erwähnung, in Notebooks und im Docs-Editor. Er liest nur, er schreibt nichts zurück. Ein Assistent führt durch die Einrichtung. Meine Websites. Eigene Websites verbinden, damit ihre Beiträge in Notebooks zur Verfügung stehen — etwa die Seite deines Kreisverbands als Quelle für Recherche und Textentwürfe. Funktioniert mit WordPress-Websites, deren REST-Schnittstelle öffentlich erreichbar ist. Die Kategorien der Website werden einmal abgefragt und stehen danach überall zur Auswahl. Antragsgrün. Die Antragsgrün-Seiten, die der Grünerator für dich auf antragsgruen.de angelegt hat (experimentell). Solange er dort Admin ist, kann er im Chat Anträge einreichen und die Tagesordnung pflegen — jeweils erst, wenn du bestätigst. Der Bereich erscheint nur, wo der Grünerator Antragsgrün-Seiten anlegen kann oder du schon eine hast. Antragsgrün lässt den Grünerator sich nicht selbst austragen. Zugriff entziehen zeigt, welches Konto du in der Personenverwaltung deiner Seite entfernst, und prüft danach, ob der Zugriff weg ist."
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4799,7 +4799,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Aus der Liste entfernen löscht nur unseren Eintrag: Der Grünerator vergisst den Admin-Link, die Umfrage bleibt bei nuudel bestehen, bis sie abläuft. Nutzung. Dein Stand heute und was du mit dem Grünerator gemacht hast: oben die Bäume, darunter deine Werke über die gesamte Zeit und der KI-Verbrauch der letzten 7, 30 oder 90 Tage — Anfragen, Bilder, Transkriptionen, Web-Recherchen und Sprachausgabe. Bäume: Dein tägliches Kontingent für Bilder, Sprachausgabe, Übersetzungen und Tiefenrecherche Nutzung: Was du erstellt hast und wie viele Anfragen, Bilder und Recherchen auf dein Konto gehen Bäume sind dein tägliches Guthaben für alles, was spürbar Rechenleistung braucht: KI-Bilder, Grünerator Voice, den Übersetzer und die Tiefenrecherche. Jedes Konto hat 10 Bäume am Tag; sie werden um Mitternacht (UTC) zurückgesetzt, angezeigt in deiner Ortszeit. Wer den Grünerator-Newsletter abonniert hat, bekommt 5 Bäume mehr — 15 statt 10. Das zählt nur, wenn die abonnierte Adresse dieselbe ist wie die deines Grünerator-Kontos."
+    "text": "Aus der Liste entfernen löscht nur unseren Eintrag: Der Grünerator speichert danach nichts mehr über die Seite, die Seite selbst bleibt bestehen. Umfragen. Die Umfragen und Terminfindungen, die der Grünerator für dich auf nuudel.digitalcourage.de angelegt hat (experimentell). Im Chat kann er ihr Ergebnis lesen, zum Beispiel welcher Termin am besten passt, und sie nach deiner Freigabe ändern oder löschen. Öffnen führt zur Umfrage, wie die Teilnehmenden sie sehen; Verwalten zur Admin-Seite bei nuudel, auf der du die Umfrage bearbeitest, exportierst oder löschst. Aus der Liste entfernen löscht nur unseren Eintrag: Der Grünerator vergisst den Admin-Link, die Umfrage bleibt bei nuudel bestehen, bis sie abläuft. Nutzung. Dein Stand heute und was du mit dem Grünerator gemacht hast: oben die Bäume, darunter deine Werke über die gesamte Zeit und der KI-Verbrauch der letzten 7, 30 oder 90 Tage — Anfragen, Bilder, Transkriptionen, Web-Recherchen und Sprachausgabe."
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -4807,7 +4807,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Die Bereiche im Einzelnen",
     "anchor": "#die-bereiche-im-einzelnen",
     "category": "Sonstiges",
-    "text": "Ein Baum entspricht einem KI-Bild mit dem Standardmodell (0,5 beim kleinen, 2 beim großen), 3 Minuten Sprachausgabe, 20.000 Zeichen Übersetzung (2,5 für ein ganzes Dokument) oder einer Tiefenrecherche. Auf manchen Instanzen (etwa bgst) ist das Kontingent unbegrenzt. Der Vergleich mit ChatGPT zeigt, wie viel CO₂ und Strom dieselbe Textarbeit dort gekostet hätte; „So rechnen wir\" klappt die Herleitung auf. Welche Modelle und Anbieter dahinter arbeiten, steht auf der Transparenz-Seite, nicht hier. Hier gibt es nichts einzustellen — der Bereich zeigt nur an. Automatische Hintergrundprozesse zählen nicht mit. Der Link /settings/baeume führt weiterhin hierher. Support. Kontaktwege, wenn etwas klemmt oder dir etwas fehlt: der Chat-Kanal der Community und eine E-Mail-Adresse. Hier gibt es nichts einzustellen. Support: Wo du Hilfe bekommst und Rückmeldung loswirst"
+    "text": "Bäume: Dein tägliches Kontingent für Bilder, Sprachausgabe, Übersetzungen und Tiefenrecherche Nutzung: Was du erstellt hast und wie viele Anfragen, Bilder und Recherchen auf dein Konto gehen Bäume sind dein tägliches Guthaben für alles, was spürbar Rechenleistung braucht: KI-Bilder, Grünerator Voice, den Übersetzer und die Tiefenrecherche. Jedes Konto hat 10 Bäume am Tag; sie werden um Mitternacht (UTC) zurückgesetzt, angezeigt in deiner Ortszeit. Wer den Grünerator-Newsletter abonniert hat, bekommt 5 Bäume mehr — 15 statt 10. Das zählt nur, wenn die abonnierte Adresse dieselbe ist wie die deines Grünerator-Kontos. Ein Baum entspricht einem KI-Bild mit dem Standardmodell (0,5 beim kleinen, 2 beim großen), 3 Minuten Sprachausgabe, 20.000 Zeichen Übersetzung (2,5 für ein ganzes Dokument) oder einer Tiefenrecherche. Auf manchen Instanzen (etwa bgst) ist das Kontingent unbegrenzt. Der Vergleich mit ChatGPT zeigt, wie viel CO₂ und Strom dieselbe Textarbeit dort gekostet hätte; „So rechnen wir\" klappt die Herleitung auf. Welche Modelle und Anbieter dahinter arbeiten, steht auf der Transparenz-Seite, nicht hier. Hier gibt es nichts einzustellen — der Bereich zeigt nur an."
+  },
+  {
+    "url": "/docs/sonstiges/einstellungen",
+    "pageTitle": "Einstellungen",
+    "heading": "Die Bereiche im Einzelnen",
+    "anchor": "#die-bereiche-im-einzelnen",
+    "category": "Sonstiges",
+    "text": "Automatische Hintergrundprozesse zählen nicht mit. Der Link /settings/baeume führt weiterhin hierher. Support. Kontaktwege, wenn etwas klemmt oder dir etwas fehlt: der Chat-Kanal der Community und eine E-Mail-Adresse. Hier gibt es nichts einzustellen. Support: Wo du Hilfe bekommst und Rückmeldung loswirst"
   },
   {
     "url": "/docs/sonstiges/einstellungen",

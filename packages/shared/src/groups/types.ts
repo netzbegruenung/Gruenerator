@@ -2,6 +2,7 @@ import { type GroupDetailDto } from '@gruenerator/contracts';
 
 import { PRODUCTION_WEB_ORIGIN } from '../instances/index.js';
 import { buildGroupSlug } from '../utils/slug.js';
+import { rankByUsage, type UsageMap } from '../utils/usageRanking.js';
 
 export const ALLOWED_LINK_ICONS = [
   'globe',
@@ -56,7 +57,7 @@ export interface GroupSummary {
   content_count?: number;
   role: string;
   isAdmin?: boolean;
-  /** 'personal' = solo Space (lean UI); else team Space. */
+  /** F0 stored value; the UI no longer branches on it (one kind of project, behaviour follows membership). */
   group_type?: 'standard' | 'personal' | null;
   /** The one group every user belongs to: no member info, only instance admins share. */
   is_system?: boolean | null;
@@ -67,6 +68,12 @@ export interface GroupSummary {
   settings?: Record<string, unknown> | null;
   /** Stable 6-char tail for the Notion-style URL `/gruppen/<name>-<suffix>`. */
   slug_suffix?: string | null;
+  /** ISO time an admin archived the project; null/absent = active. */
+  archived_at?: string | null;
+  /** Optional tile colour (key of the fixed palette); null/absent = default. */
+  color?: string | null;
+  /** ISO time of the latest post, share, comment or chat in the project (server-computed). */
+  last_activity_at?: string | null;
   [key: string]: unknown;
 }
 
@@ -122,7 +129,53 @@ export const getGroupInitials = (name: string | null | undefined): string => {
 export const canShareIntoGroup = (group: {
   is_system?: boolean | null;
   isAdmin?: boolean | null;
-}): boolean => !group.is_system || !!group.isAdmin;
+  archived_at?: string | null;
+}): boolean => (!group.is_system || !!group.isAdmin) && !group.archived_at;
+
+/** Archived projects leave the main lists, stay readable and take no new content. */
+export const isGroupArchived = (group: { archived_at?: string | null }): boolean =>
+  !!group.archived_at;
+
+/** Splits a project list into the active ones and the archived ones, keeping order. */
+export const splitArchivedGroups = <T extends { archived_at?: string | null }>(
+  groups: readonly T[]
+): { active: T[]; archived: T[] } => ({
+  active: groups.filter((g) => !isGroupArchived(g)),
+  archived: groups.filter(isGroupArchived),
+});
+
+export type GroupSort = 'recommended' | 'activity' | 'name' | 'newest';
+
+const timeOf = (value: string | null | undefined): number => {
+  const t = value ? Date.parse(value) : NaN;
+  return Number.isNaN(t) ? 0 : t;
+};
+
+const byActivity = (
+  a: { created_at?: string; last_activity_at?: string | null },
+  b: { created_at?: string; last_activity_at?: string | null }
+): number =>
+  timeOf(b.last_activity_at ?? b.created_at) - timeOf(a.last_activity_at ?? a.created_at);
+
+/**
+ * Sorts a project list without mutating it: by usage ('recommended', falling back to
+ * last activity for never-used projects), last activity, name (de) or creation date,
+ * newest first. Without a usage map 'recommended' is plain activity order.
+ */
+export const sortGroups = <
+  T extends { id: string; name: string; created_at?: string; last_activity_at?: string | null },
+>(
+  groups: readonly T[],
+  sort: GroupSort,
+  usage: UsageMap = {}
+): T[] =>
+  sort === 'recommended'
+    ? rankByUsage(groups, (g) => g.id, usage, byActivity)
+    : [...groups].sort((a, b) => {
+        if (sort === 'name') return a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
+        if (sort === 'newest') return timeOf(b.created_at) - timeOf(a.created_at);
+        return byActivity(a, b);
+      });
 
 /**
  * Wer eine Freigabe verwalten (Rolle ändern, entfernen) darf — dieselbe Regel wie auf dem

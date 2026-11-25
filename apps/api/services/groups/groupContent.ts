@@ -17,7 +17,13 @@
  * — beide Aufrufer tun das davor (der Handler über
  * `getPostgresAndCheckMembership`, das Werkzeug über `getGroupForMember`).
  */
-import { getSystemAgent } from '@gruenerator/shared/agents';
+import {
+  SKILLS,
+  canonicalSkillMention,
+  getSystemAgent,
+  isUserFacingSkill,
+  type Skill,
+} from '@gruenerator/shared/agents';
 import { getNotebookDefinition } from '@gruenerator/shared/notebooks';
 
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
@@ -32,6 +38,12 @@ import { listUserAgentsByIds } from '../userAgents/userAgentsRepository.js';
 
 import { assertCanShareToGroup } from './groupMembership.js';
 import { addGroupShare, type GroupShareWriterDeps } from './groupShareWriter.js';
+import {
+  type CollabSearchInput,
+  type DocumentSearchInput,
+  collabSearchStates,
+  documentSearchStates,
+} from './projectSearchState.js';
 
 import type { PostgresService } from '../../database/services/PostgresService.js';
 import type {
@@ -52,6 +64,17 @@ export const CONTENT_TABLE_NAME_MAP: Record<string, string> = {
   canvas_template: 'collaborative_documents',
 };
 
+/**
+ * Ein mitgeliefertes Rezept zu einer geteilten Mention (alte Mentions über
+ * `canonicalSkillMention`). Nur, was eine Person auch sieht: ein Rezept, das
+ * allein das Modell lädt (`modelOnly`), lässt sich nicht teilen.
+ */
+function findSystemRecipe(mention: string): Skill | null {
+  const wanted = canonicalSkillMention(mention).toLowerCase();
+  const allSkills: readonly Skill[] = SKILLS;
+  return allSkills.find((s) => s.mention.toLowerCase() === wanted && isUserFacingSkill(s)) ?? null;
+}
+
 /** Was in der Benachrichtigung „… hat <Label> geteilt" steht. */
 export const CONTENT_LABELS: Record<string, string> = {
   documents: 'ein Dokument',
@@ -62,6 +85,7 @@ export const CONTENT_LABELS: Record<string, string> = {
   database: 'einen Datenbank-Eintrag',
   system_notebooks: 'ein Notebook',
   system_agents: 'einen Agenten',
+  system_recipes: 'ein Rezept',
   user_agents: 'einen Agenten',
   canvas_template: 'eine Sharepic-Vorlage',
   chat_threads: 'einen Chat',
@@ -161,6 +185,11 @@ export async function shareContentToGroup(
     // Store the canonical id: the feed resolves titles without alias lookup.
     contentId = agent.identifier;
   }
+  if (contentType === 'system_recipes') {
+    const recipe = findSystemRecipe(contentId);
+    if (!recipe) return NOT_FOUND;
+    contentId = recipe.mention;
+  }
 
   if (contentType === 'notebook_collections') {
     const collection = await deps.getNotebookCollection(contentId);
@@ -171,6 +200,7 @@ export async function shareContentToGroup(
   if (
     contentType !== 'system_notebooks' &&
     contentType !== 'system_agents' &&
+    contentType !== 'system_recipes' &&
     contentType !== 'nextcloud_share_link' &&
     contentType !== 'notebook_collections'
   ) {
@@ -246,7 +276,7 @@ export async function shareContentToGroup(
     };
   }
 
-  return { status: 200, success: true, message: 'Inhalt erfolgreich mit der Gruppe geteilt.' };
+  return { status: 200, success: true, message: 'Inhalt erfolgreich mit dem Projekt geteilt.' };
 }
 
 /**
@@ -349,6 +379,7 @@ export interface GroupContentBuckets {
   canvas_templates: Record<string, unknown>[];
   group_posts: Record<string, unknown>[];
   recipes: Record<string, unknown>[];
+  system_recipes: Record<string, unknown>[];
 }
 
 /** Injizierbar, damit der Test ohne Postgres, Qdrant und Drizzle läuft. */
@@ -411,6 +442,7 @@ export async function hydrateGroupContent(
     canvas_template: [],
     group_post: [],
     user_text_forms: [],
+    system_recipes: [],
   };
   sharedContent.forEach((share) => {
     if (contentByType[share.content_type]) contentByType[share.content_type].push(share);
@@ -428,7 +460,7 @@ export async function hydrateGroupContent(
     fetchPromises.push(
       postgres
         .query(
-          'SELECT id, title, filename, file_size, status, created_at, updated_at, user_id FROM documents WHERE id = ANY($1) AND deleted_at IS NULL',
+          'SELECT id, title, filename, file_size, status, vector_count, created_at, updated_at, user_id FROM documents WHERE id = ANY($1) AND deleted_at IS NULL',
           [ids],
           { table: 'documents' }
         )
@@ -499,6 +531,32 @@ export async function hydrateGroupContent(
       })
     );
   }
+  if (contentByType.system_recipes.length > 0) {
+    fetchPromises.push(
+      Promise.resolve({
+        type: 'system_recipes',
+        // The registry is the record: a recipe dropped from it since the share
+        // simply disappears from the project, as a deleted row would.
+        result: {
+          data: contentByType.system_recipes.flatMap((s) => {
+            const recipe = findSystemRecipe(s.content_id);
+            return recipe
+              ? [
+                  {
+                    id: recipe.mention,
+                    mention: recipe.mention,
+                    title: recipe.title,
+                    description: recipe.description,
+                    system: true,
+                  },
+                ]
+              : [];
+          }),
+        },
+        shares: contentByType.system_recipes,
+      })
+    );
+  }
   if (contentByType.user_agents.length > 0) {
     const ids = contentByType.user_agents.map((s) => s.content_id);
     fetchPromises.push(
@@ -565,9 +623,11 @@ export async function hydrateGroupContent(
       postgres
         .query(
           `SELECT cd.id, cd.title, cd.document_subtype, cd.created_by, cd.created_at, cd.updated_at,
-                  cdoc.thumbnail_url
+                  cdoc.thumbnail_url,
+                  csi.checked_at AS index_checked_at, csi.chunk_count AS index_chunk_count
              FROM collaborative_documents cd
              LEFT JOIN canvas_documents cdoc ON cdoc.document_id = cd.id
+             LEFT JOIN collab_search_index csi ON csi.document_id = cd.id
             WHERE cd.id = ANY($1::uuid[]) AND cd.is_deleted = false`,
           [ids],
           { table: 'collaborative_documents' }
@@ -671,6 +731,7 @@ export async function hydrateGroupContent(
     canvas_templates: [],
     group_posts: [],
     recipes: [],
+    system_recipes: [],
   };
 
   const keyMap: Record<string, keyof GroupContentBuckets> = {
@@ -686,9 +747,26 @@ export async function hydrateGroupContent(
     canvas_template: 'canvas_templates',
     group_post: 'group_posts',
     user_text_forms: 'recipes',
+    system_recipes: 'system_recipes',
   };
 
   contentResults.forEach(({ type, result, shares }) => {
+    // Suchzustand je Eintrag: braucht den ganzen Bucket (Deckel = neueste N).
+    const sharedAtOf = (id: unknown) => shares.find((s) => s.content_id === id)?.shared_at ?? null;
+    const searchStates =
+      type === 'documents'
+        ? documentSearchStates(
+            (result.data || []).map(
+              (d) => ({ ...d, shared_at: sharedAtOf(d.id) }) as unknown as DocumentSearchInput
+            )
+          )
+        : type === 'collaborative_documents'
+          ? collabSearchStates(
+              (result.data || []).map(
+                (d) => ({ ...d, shared_at: sharedAtOf(d.id) }) as unknown as CollabSearchInput
+              )
+            )
+          : null;
     const items = (result.data || []).map((item) => {
       const shareInfo = shares.find((s) => s.content_id === item.id);
       const parsedPermissions: Record<string, unknown> =
@@ -701,14 +779,17 @@ export async function hydrateGroupContent(
             ? (JSON.parse(item.metadata) as Record<string, unknown>)
             : (item.metadata as Record<string, unknown>)
           : {};
+      // Die Index-Spalten sind nur Eingabe für `search_state`, nicht Teil der Antwort.
+      const { index_checked_at: _checked, index_chunk_count: _chunks, ...rest } = item;
       return {
-        ...item,
+        ...rest,
         contentType: type,
         shared_at: shareInfo?.shared_at,
         group_permissions: parsedPermissions,
         shared_by_name: shareInfo?.display_name || shareInfo?.first_name || 'Unknown User',
         shared_by_id: shareInfo?.shared_by_user_id ?? null,
         share: shareInfo ? toShareMeta(shareInfo, reactions.get(shareInfo.share_id) ?? []) : null,
+        ...(searchStates && { search_state: searchStates.get(item.id as string) ?? null }),
         ...(type === 'database' && {
           template_type: (parsedMetadata.template_type as string) || 'template',
           external_url: item.external_url,

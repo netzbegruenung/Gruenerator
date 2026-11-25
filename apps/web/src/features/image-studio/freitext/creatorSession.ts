@@ -6,11 +6,9 @@ import {
 } from '@gruenerator/contracts';
 import { z } from 'zod';
 
-/**
- * One slot for the whole browser: the next account's session overwrites it,
- * and a session is only handed to the account that wrote it.
- */
-const STORAGE_KEY = 'gruenerator-sharepic-creator-v1';
+import { CREATOR_SESSION_STORAGE_KEY as STORAGE_KEY } from './creatorSessionStorage';
+
+export { clearCreatorSession } from './creatorSessionStorage';
 
 const sessionSchema = z.object({
   userId: z.string().min(1),
@@ -55,13 +53,5 @@ export function saveCreatorSession(session: CreatorSession): void {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
   } catch {
     /* quota or blocked storage — the session stays in memory */
-  }
-}
-
-export function clearCreatorSession(): void {
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    /* blocked storage */
   }
 }

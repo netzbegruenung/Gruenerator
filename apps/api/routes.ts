@@ -92,6 +92,7 @@ import mcpServerRouter from './routes/mcp-server/index.js';
 import { mountMediaImportContractRouter } from './routes/media/mediaImportContractRouter.js';
 import { mountMemoryContractRouter } from './routes/memory/memoryContractRouter.js';
 import { mountMonitorContractRouter } from './routes/monitor/monitorContractRouter.js';
+import { mountNewsletterContractRouter } from './routes/newsletter/newsletterContractRouter.js';
 import { mountNotebookCollectionsContractRouter } from './routes/notebook/notebookCollectionsContractRouter.js';
 import { mountNotebookContractRouter } from './routes/notebook/notebookContractRouter.js';
 import { mountNotebookSharingContractRouter } from './routes/notebook/notebookSharingContractRouter.js';
@@ -171,6 +172,7 @@ import v1CollectionsRouter from './routes/v1/collectionsRouter.js';
 import v1NotebooksRouter from './routes/v1/notebooksRouter.js';
 import { mountVideoAiContractRouter } from './routes/videoAi/videoAiContractRouter.js';
 import { mountVideoProjectsContractRouter } from './routes/videoProjects/videoProjectsContractRouter.js';
+import { mountVideoRenderContractRouter } from './routes/videoRender/videoRenderContractRouter.js';
 import agentSessionRouter from './routes/voice/agentSessionController.js';
 import { mountSpeechContractRouter } from './routes/voice/speechContractRouter.js';
 import ttsRouter from './routes/voice/ttsController.js';
@@ -239,6 +241,18 @@ const feedbackLimiter = isRateLimitDisabled
   : rateLimit({
       windowMs: 15 * 60 * 1000,
       max: 30,
+      standardHeaders: true,
+      legacyHeaders: false,
+      keyGenerator: perUserOrIpKey,
+      message: { error: 'Too many requests, please try again later.' },
+    });
+
+// Each signup call triggers a Brevo mail to the person's address — cap per user.
+const newsletterLimiter = isRateLimitDisabled
+  ? (_req: Request, _res: Response, next: NextFunction) => next()
+  : rateLimit({
+      windowMs: 60 * 60 * 1000,
+      max: 5,
       standardHeaders: true,
       legacyHeaders: false,
       keyGenerator: perUserOrIpKey,
@@ -511,9 +525,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   // so per-handler `requireAuthUser()` gates the writes and the public/:token
   // routes still work.
   app.use('/api/auth/notebook', optionalAuth);
-  // `:id` deckt auch `multi/ask`. Öffentliche Notebooks fragen oft anonym —
-  // die lässt requireAiConsent durch, angemeldete Aufrufe nicht.
-  app.use(['/api/auth/notebook/:id/ask', '/api/auth/notebook/public/:token/ask'], requireAiConsent);
+  // Öffentliche Notebooks fragen oft anonym — die lässt requireAiConsent
+  // durch, angemeldete Aufrufe nicht.
+  app.use('/api/auth/notebook/public/:token/ask', requireAiConsent);
   mountNotebookContractRouter(app);
   // External API for partner integrations (MCP / programmatic access).
   // Auth: per-route Bearer API key middleware (requireApiKey). Rate-limited
@@ -732,6 +746,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/video-projects', requireAuth, authenticatedReadLimiter);
   mountVideoProjectsContractRouter(app);
 
+  // Server render lane of the video editor: a render is minutes of CPU on the
+  // render service, so starting one takes the mutation limiter, not the read one.
+  app.use('/api/video-render', requireAuth, standardMutationLimiter);
+  mountVideoRenderContractRouter(app);
+
   // ts-rest contract router — mount before legacy campaignCanvasRoute.
   // requireAuth läuft auf dem Prefix, weil createExpressEndpoints die Handler
   // direkt auf `app` registriert und keine spätere Prefix-Middleware erbt.
@@ -925,6 +944,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   // handler can attribute feedback to the signed-in user; tight dedicated limiter.
   app.use('/api/feedback', requireAuth, feedbackLimiter);
   mountFeedbackContractRouter(app);
+  // One-click newsletter double opt-in for the signed-in person's address.
+  app.use('/api/newsletter', requireAuth, newsletterLimiter);
+  mountNewsletterContractRouter(app);
 
   // Content reports (UGC / AI output) → emails the operator, attributed to the user.
   app.use('/api/content-reports', requireAuth, contentReportLimiter);

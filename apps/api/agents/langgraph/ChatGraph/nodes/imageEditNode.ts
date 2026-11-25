@@ -23,6 +23,7 @@ import { visionService } from '../../../../services/vision/VisionService.js';
 import { createLogger } from '../../../../utils/logger.js';
 
 import { extractMessageText } from './classifierHeuristics.js';
+import { saveGeneratedImageToMediathek } from './imageMediathek.js';
 
 import type { ChatGraphState, GeneratedImageResult, ImageEditStyle, ImageStyle } from '../types.js';
 
@@ -150,6 +151,8 @@ export async function imageEditNode(state: ChatGraphState): Promise<Partial<Chat
       style: resultStyle,
       generationTimeMs: imageTimeMs,
     };
+    const shareToken = await saveGeneratedImageToMediathek(userId, stored, userContent);
+    if (shareToken) result.shareToken = shareToken;
 
     // Vision grounding: describe BOTH the original and the edited image so respondNode
     // can narrate the actual change instead of falling back to the model's training prior

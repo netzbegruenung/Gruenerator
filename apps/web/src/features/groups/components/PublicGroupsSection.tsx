@@ -38,13 +38,13 @@ const PublicGroupsSection = memo(
     return (
       <div className="mt-xl">
         <SectionHeader
-          title="Öffentliche Gruppen"
+          title="Öffentliche Projekte"
           searchQuery={search}
           onSearchChange={setSearch}
         />
         {filtered.length === 0 ? (
           <p className="text-sm text-grey-500 dark:text-grey-400 py-md text-center">
-            Keine öffentlichen Gruppen gefunden.
+            Keine öffentlichen Projekte gefunden.
           </p>
         ) : (
           <CardGrid columns="2">

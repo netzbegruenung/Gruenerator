@@ -3,13 +3,15 @@ export const VIDEO_EDITOR_APP_PATH = '/videoeditor/app/';
 /**
  * The editor app's URL. Only known parameters go through: `parteitagRede`
  * opens a party-conference speech, `ki` (project id) and `v` (version) open a
- * KI-Schnitt as the editor's own project instead of the free one. `projekt`
+ * KI-Schnitt as the editor's own project instead of the free one, and
+ * `untertitel` (subtitler project id) opens a subtitled video with its
+ * captions („Bearbeiten“ in Untertitel). `projekt`
  * is the server project's slug, taken from the route, never from the query.
  */
 export function editorAppSrc(search: string, projectSlug: string | null): string {
   const from = new URLSearchParams(search);
   const to = new URLSearchParams();
-  for (const key of ['parteitagRede', 'ki', 'v']) {
+  for (const key of ['parteitagRede', 'ki', 'v', 'untertitel']) {
     const value = from.get(key);
     if (value) to.set(key, value);
   }

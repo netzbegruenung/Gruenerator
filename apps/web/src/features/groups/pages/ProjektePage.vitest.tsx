@@ -30,6 +30,17 @@ vi.mock('../hooks/useGroups', async (importOriginal) => ({
 // nichts zu tun — leer gesetzt, damit die Zusicherungen von der eigenen Liste
 // handeln.
 vi.mock('../components/PublicGroupsSection', () => ({ default: () => null }));
+// Die Rezepte darunter ebenso: eigene Abfragen, hier nicht die Frage.
+vi.mock('../components/ProjekteRecipesSection', () => ({ ProjekteRecipesSection: () => null }));
+vi.mock('../components/ProjekteRecentSection', () => ({ ProjekteRecentSection: () => null }));
+vi.mock('../components/ProjekteNotebooksSection', () => ({
+  ProjekteNotebooksSection: () => null,
+}));
+
+vi.mock('../../usage/useItemUsage', () => ({
+  useItemUsage: () => ({ data: {} }),
+  useRecordItemUsage: () => {},
+}));
 
 vi.mock('@/hooks/useFirstName', () => ({ useFirstName: () => null }));
 
@@ -83,7 +94,7 @@ describe('ProjektePage — Leerzustand', () => {
       })
     );
     renderWithProviders(<ProjektePage />);
-    expect(screen.getByText('Mein Projekt')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Mein Projekt' })).toBeInTheDocument();
     expect(screen.queryByText(/Projekte werden geladen/i)).not.toBeInTheDocument();
   });
 
@@ -109,7 +120,45 @@ describe('ProjektePage — Leerzustand', () => {
       })
     );
     renderWithProviders(<ProjektePage />);
-    expect(screen.getByText('Mein Projekt')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Mein Projekt' })).toBeInTheDocument();
+    expect(screen.queryByText(EMPTY_TEXT)).not.toBeInTheDocument();
+  });
+});
+
+describe('ProjektePage — Archiv', () => {
+  it('führt archivierte Projekte nur im eingeklappten Abschnitt „Archiviert"', () => {
+    useGroups.mockReturnValue(
+      groupsResult({
+        userGroups: [
+          { id: 'g1', name: 'Aktiv', role: 'admin', isAdmin: true },
+          {
+            id: 'g2',
+            name: 'Alt',
+            role: 'admin',
+            isAdmin: true,
+            archived_at: '2026-11-22T10:00:00Z',
+          },
+        ],
+      })
+    );
+    const { container } = renderWithProviders(<ProjektePage />);
+    const details = container.querySelector('details');
+    expect(details).not.toBeNull();
+    expect(details).not.toHaveAttribute('open');
+    expect(details).toHaveTextContent('Archiviert (1)');
+    expect(details).toHaveTextContent('Alt');
+    // Das aktive Projekt steht im Hauptraster, nicht im Archiv.
+    expect(details).not.toHaveTextContent('Aktiv');
+    expect(screen.getByRole('link', { name: 'Aktiv' })).toBeInTheDocument();
+  });
+
+  it('zeigt den Leerzustand nicht, solange nur archivierte Projekte existieren', () => {
+    useGroups.mockReturnValue(
+      groupsResult({
+        userGroups: [{ id: 'g2', name: 'Alt', role: 'admin', archived_at: '2026-11-22T10:00:00Z' }],
+      })
+    );
+    renderWithProviders(<ProjektePage />);
     expect(screen.queryByText(EMPTY_TEXT)).not.toBeInTheDocument();
   });
 });

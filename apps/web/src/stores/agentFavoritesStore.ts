@@ -1,4 +1,4 @@
-import { SKILLS } from '@gruenerator/shared/agents';
+import { SKILL_SLIMS } from '@gruenerator/shared/agents';
 import { useCallback } from 'react';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
@@ -30,10 +30,10 @@ interface AgentFavoritesActions {
 
 type AgentFavoritesStore = AgentFavoritesState & AgentFavoritesActions;
 
-// Derived from SKILLS so adding a new mention there keeps the migration map
+// Derived from SKILL_SLIMS so adding a new mention there keeps the migration map
 // in sync automatically. Used only at v0→v1 store rehydration.
 const SKILL_MENTION_TO_AGENT_ID: Record<string, string> = Object.fromEntries(
-  SKILLS.map((skill) => [skill.mention, skill.identifier])
+  SKILL_SLIMS.map((skill) => [skill.mention, skill.identifier])
 );
 
 interface LegacyV0State {

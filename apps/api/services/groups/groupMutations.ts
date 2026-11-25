@@ -7,16 +7,26 @@
  */
 import crypto from 'crypto';
 
-import { type CreateGroupBody, type GroupAudience } from '@gruenerator/contracts';
+import {
+  type CreateGroupBody,
+  type GroupAudience,
+  type GroupColor,
+  type LandesverbandId,
+} from '@gruenerator/contracts';
 import { generateSlugSuffix } from '@gruenerator/shared/utils';
 import { v4 as uuidv4 } from 'uuid';
 
 import { type GroupRow } from '../../database/schema/groups.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { createLogger } from '../../utils/logger.js';
+import { closeGroupCollabRooms } from '../collab/collabRooms.js';
 import { notifyGroupMembers } from '../notifications/index.js';
+import { dismissGroup } from '../notifications/NotificationService.js';
 
 import { getPostgresAndCheckMembership } from './groupMembership.js';
 import { SYSTEM_GROUP_FORBIDDEN } from './systemGroup.js';
+
+const log = createLogger('groupMutations');
 
 /** The columns the create insert returns; `created_at` is a raw pg value. */
 export type CreatedGroupRow = Pick<
@@ -51,16 +61,13 @@ export async function createGroupForUser(
   const postgres = getPostgresInstance();
   await postgres.ensureInitialized();
 
-  // A personal Space is a solo group: hidden from team discovery, lean UI.
-  const groupType = input.groupType === 'personal' ? 'personal' : 'standard';
-
   return postgres.transaction(async (client) => {
     const group = (await postgres.transactionQueryOne(
       client,
       `INSERT INTO groups (id, name, created_by, join_token, description, slug_suffix, group_type)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         VALUES ($1, $2, $3, $4, $5, $6, 'standard')
        RETURNING id, name, description, created_at, created_by, join_token, slug_suffix`,
-      [groupId, name, userId, joinToken, input.description ?? null, slugSuffix, groupType]
+      [groupId, name, userId, joinToken, input.description ?? null, slugSuffix]
     )) as CreatedGroupRow | null;
 
     if (!group) throw new Error('Failed to create group');
@@ -73,6 +80,24 @@ export async function createGroupForUser(
 
     return group;
   });
+}
+
+/**
+ * Neuer Einladungslink für ein Projekt: der alte wird damit wertlos, auch in
+ * schon verschickten Einladungs-Mails. Das System-Projekt hat keinen Link.
+ * `null`, wenn kein lebendes Projekt getroffen wurde.
+ */
+export async function regenerateJoinToken(groupId: string): Promise<string | null> {
+  const postgres = getPostgresInstance();
+  await postgres.ensureInitialized();
+  const row = (await postgres.queryOne(
+    `UPDATE groups SET join_token = $2
+      WHERE id = $1 AND deleted_at IS NULL AND COALESCE(is_system, FALSE) = FALSE
+      RETURNING join_token`,
+    [groupId, crypto.randomBytes(16).toString('hex')],
+    { table: 'groups' }
+  )) as { join_token: string } | null;
+  return row?.join_token ?? null;
 }
 
 /** Resolve a group by its invite token (the `join_token` column). */
@@ -139,6 +164,9 @@ export interface UpdateGroupInfoInput {
   name?: string | null;
   description?: string | null;
   settings?: Record<string, unknown> | null;
+  landesverband?: LandesverbandId | null;
+  /** `null` clears the colour, `undefined` leaves it alone. */
+  color?: GroupColor | null;
 }
 
 export interface UpdateGroupInfoOutcome {
@@ -157,19 +185,19 @@ export async function updateGroupInfo(
   userId: string,
   input: UpdateGroupInfoInput
 ): Promise<UpdateGroupInfoOutcome> {
-  const { name, description, settings } = input;
+  const { name, description, settings, landesverband, color } = input;
   let postgres: ReturnType<typeof getPostgresInstance>;
   let isAdmin: boolean;
   try {
     ({ postgres, isAdmin } = await getPostgresAndCheckMembership(groupId, userId));
   } catch {
-    return { status: 403, success: false, message: 'Du bist nicht Mitglied dieser Gruppe.' };
+    return { status: 403, success: false, message: 'Du bist nicht Mitglied dieses Projekts.' };
   }
   if (!isAdmin) {
     return {
       status: 403,
       success: false,
-      message: 'Keine Berechtigung zum Ändern der Gruppendetails.',
+      message: 'Keine Berechtigung zum Ändern der Projektdetails.',
     };
   }
 
@@ -179,7 +207,7 @@ export async function updateGroupInfo(
 
   if (name != null) {
     if (!name.trim()) {
-      return { status: 400, success: false, message: 'Gruppenname darf nicht leer sein.' };
+      return { status: 400, success: false, message: 'Projektname darf nicht leer sein.' };
     }
     updateFields.push(`name = $${paramIndex++}`);
     updateValues.push(name.trim());
@@ -191,6 +219,15 @@ export async function updateGroupInfo(
   if (settings != null) {
     updateFields.push(`settings = $${paramIndex++}`);
     updateValues.push(JSON.stringify(settings));
+  }
+  if (landesverband !== undefined) {
+    updateFields.push(`landesverband = $${paramIndex++}`);
+    updateValues.push(landesverband);
+  }
+
+  if (color !== undefined) {
+    updateFields.push(`color = $${paramIndex++}`);
+    updateValues.push(color);
   }
 
   if (updateFields.length === 0) {
@@ -204,7 +241,7 @@ export async function updateGroupInfo(
   );
   if (result.changes === 0) throw new Error('Group not found or no changes made');
 
-  return { status: 200, success: true, message: 'Gruppendetails erfolgreich aktualisiert.' };
+  return { status: 200, success: true, message: 'Projektdetails erfolgreich aktualisiert.' };
 }
 
 export interface GroupVisibility {
@@ -232,4 +269,125 @@ export async function setGroupVisibility(
     [input.is_public, input.audience, groupId],
     { table: 'groups' }
   )) as GroupVisibility | null;
+}
+
+export interface RemoveMemberOutcome {
+  status: 200 | 400 | 403 | 404;
+  success: boolean;
+  message: string;
+  /** Projektname für die Benachrichtigung; nur bei 200 gesetzt. */
+  groupName?: string;
+}
+
+/**
+ * Ein anderes Mitglied aus einem Projekt entfernen — nur Admins, nicht sich
+ * selbst (dafür gibt es „Verlassen"), nicht die Gründer*in, nicht den letzten
+ * Admin, nie im System-Projekt. Wie beim Verlassen fällt nur die
+ * Mitgliedszeile weg: Team-Chats bleiben beim Projekt, und die Besitzregel
+ * (`ownsThreadSql`) entzieht der Person über die fehlende Mitgliedschaft die
+ * Rechte; private Projekt-Chats bleiben bei ihr.
+ */
+export async function removeGroupMember(
+  groupId: string,
+  actorId: string,
+  memberId: string
+): Promise<RemoveMemberOutcome> {
+  if (String(memberId) === String(actorId)) {
+    return {
+      status: 400,
+      success: false,
+      message: 'Dich selbst kannst du über „Projekt verlassen" entfernen.',
+    };
+  }
+
+  let postgres: ReturnType<typeof getPostgresInstance>;
+  let isSystem: boolean;
+  try {
+    ({ postgres, isSystem } = await getPostgresAndCheckMembership(groupId, actorId, true));
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Keine Berechtigung für diese Aktion.';
+    return { status: 403, success: false, message };
+  }
+  if (isSystem) return { status: 400, success: false, message: SYSTEM_GROUP_FORBIDDEN };
+
+  const rows = (await postgres.query(
+    `SELECT gm.user_id, gm.role, g.created_by, g.name
+       FROM group_memberships gm
+       JOIN groups g ON g.id = gm.group_id
+      WHERE gm.group_id = $1 AND g.deleted_at IS NULL`,
+    [groupId],
+    { table: 'group_memberships' }
+  )) as Array<{ user_id: string; role: string; created_by: string | null; name: string }>;
+
+  const target = rows.find((r) => String(r.user_id) === String(memberId));
+  if (!target) {
+    return { status: 404, success: false, message: 'Mitglied nicht in diesem Projekt gefunden.' };
+  }
+  if (target.created_by && String(target.created_by) === String(memberId)) {
+    return {
+      status: 400,
+      success: false,
+      message: 'Die Projektersteller*in kann nicht entfernt werden.',
+    };
+  }
+  const otherAdmins = rows.filter(
+    (r) =>
+      String(r.user_id) !== String(memberId) &&
+      (r.role === 'admin' || String(r.created_by) === String(r.user_id))
+  );
+  if (target.role === 'admin' && otherAdmins.length === 0) {
+    return {
+      status: 400,
+      success: false,
+      message: 'Der letzte Admin kann nicht entfernt werden.',
+    };
+  }
+
+  const result = await postgres.exec(
+    'DELETE FROM group_memberships WHERE group_id = $1 AND user_id = $2',
+    [groupId, memberId]
+  );
+  if (result.changes === 0) throw new Error('Mitgliedschaft konnte nicht entfernt werden.');
+  void closeGroupCollabRooms(groupId, memberId);
+  // Die Person soll keine Benachrichtigungen eines Projekts behalten, das sie nicht mehr sieht.
+  void dismissGroup(`group:${groupId}`, memberId).catch(() => {});
+  // Wer entfernt wurde, darf nicht mit dem alten Link zurückkommen.
+  try {
+    await regenerateJoinToken(groupId);
+  } catch (err) {
+    log.error('[removeGroupMember] Einladungslink nicht erneuert', { groupId, err });
+  }
+
+  return {
+    status: 200,
+    success: true,
+    message: 'Mitglied entfernt.',
+    groupName: target.name,
+  };
+}
+
+/**
+ * Ein Projekt archivieren bzw. wiederherstellen — nur Admins, nie das
+ * System-Projekt. Archiviert heißt: Chats und Inhalte bleiben, das Projekt
+ * verlässt die Hauptlisten und ist schreibgeschützt (Schreibwege laufen über
+ * `assertCanShareToGroup` bzw. `findViewer`). Wirft bei fehlenden Rechten wie
+ * die Mitgliedsprüfung; der Handler macht daraus ein 403.
+ */
+export async function setGroupArchived(
+  groupId: string,
+  userId: string,
+  archived: boolean
+): Promise<{ status: 200 | 400; success: boolean; message: string }> {
+  const { postgres, isSystem } = await getPostgresAndCheckMembership(groupId, userId, true);
+  if (isSystem) return { status: 400, success: false, message: SYSTEM_GROUP_FORBIDDEN };
+  await postgres.exec(
+    `UPDATE groups SET archived_at = ${archived ? 'COALESCE(archived_at, CURRENT_TIMESTAMP)' : 'NULL'}
+      WHERE id = $1 AND deleted_at IS NULL`,
+    [groupId]
+  );
+  return {
+    status: 200,
+    success: true,
+    message: archived ? 'Projekt archiviert.' : 'Projekt wiederhergestellt.',
+  };
 }

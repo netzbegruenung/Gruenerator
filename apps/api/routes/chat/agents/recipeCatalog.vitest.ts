@@ -454,6 +454,58 @@ describe('renderRecipeCatalog', () => {
     expect(renderRecipeCatalog([])).toBe('');
   });
 
+  describe('Rezepte des Projekts', () => {
+    const entry = (key: string, id: string | null) => ({
+      key,
+      mention: key,
+      title: `Titel ${key}`,
+      description: `Wann ${key}`,
+      source: id ? ('user' as const) : ('system' as const),
+      origin: id ? ('group' as const) : ('system' as const),
+      id,
+      ownerName: null,
+    });
+    const entries = [entry('presse', null), entry('antwortbrief', 'r-1'), entry('fremd', 'r-2')];
+
+    it('stellt sie als eigenen Block vor den übrigen Katalog und listet sie dort nicht noch einmal', () => {
+      const block = renderRecipeCatalog(entries, {
+        remaining: 3,
+        pinnedTitle: null,
+        projectRecipeIds: ['r-1'],
+      });
+      const project = block.indexOf('REZEPTE DIESES PROJEKTS');
+      const rest = block.indexOf('WEITERE REZEPTE');
+      expect(project).toBeGreaterThanOrEqual(0);
+      expect(rest).toBeGreaterThan(project);
+      expect(block.slice(project, rest)).toContain(
+        '- antwortbrief: Titel antwortbrief — Wann antwortbrief'
+      );
+      expect(block.slice(rest)).not.toContain('- antwortbrief:');
+      expect(block.slice(rest)).toContain('- fremd:');
+      expect(block).toContain('Im Zweifel lade es');
+      expect(block).toContain('„Skills“');
+    });
+
+    it('führt ein Systemrezept des Projekts über seine Mention', () => {
+      const block = renderRecipeCatalog(entries, {
+        remaining: 3,
+        pinnedTitle: null,
+        projectRecipeIds: ['presse'],
+      });
+      const rest = block.indexOf('WEITERE REZEPTE');
+      expect(block.slice(0, rest)).toContain('- presse:');
+      expect(block.slice(rest)).not.toContain('- presse:');
+    });
+
+    it('bleibt beim alten Katalog, wenn keine Projekt-Zeile sichtbar ist', () => {
+      const plain = renderRecipeCatalog(entries);
+      expect(
+        renderRecipeCatalog(entries, { remaining: 3, pinnedTitle: null, projectRecipeIds: ['weg'] })
+      ).toBe(plain);
+      expect(plain).not.toContain('REZEPTE DIESES PROJEKTS');
+    });
+  });
+
   it('lists mention, title and description and tells the model to load first', () => {
     const block = renderRecipeCatalog([
       {

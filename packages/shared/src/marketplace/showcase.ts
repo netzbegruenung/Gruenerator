@@ -9,6 +9,7 @@ import {
   getLandesverbandHubsByIds,
   type LvHub,
 } from '../agents/landesverbandHubs.js';
+import { resolveSkillMention } from '../agents/skills/index.js';
 import { DEFAULT_INSTANCE_ID, type InstanceId } from '../instances/index.js';
 
 import { type MarketplaceCategory } from './categories.js';
@@ -123,7 +124,11 @@ export function singleLandesverbandHub(
   return lvIds?.length === 1 && hubs.length === 1 ? hubs[0]! : null;
 }
 
-/** A hub's Agents in hub order (Öffentlichkeitsarbeit, Bürger*innen, Wahlprüfsteine, …). */
+/**
+ * A hub's items in hub order (Öffentlichkeitsarbeit, Bürger*innen,
+ * Wahlprüfsteine, …): an agent by its own id, a recipe by the agent it
+ * belongs to. Stable, so the recipes of one agent keep their catalogue order.
+ */
 export function sortByHubOrder<T extends Pick<MarketplaceItem, 'ref'>>(
   hub: LvHub,
   items: readonly T[]
@@ -131,7 +136,10 @@ export function sortByHubOrder<T extends Pick<MarketplaceItem, 'ref'>>(
   const ids = hub.agentIds as readonly string[];
   const rank = (ref: string) => {
     const index = ids.indexOf(ref);
-    return index === -1 ? ids.length : index;
+    if (index !== -1) return index;
+    const owner = resolveSkillMention(ref);
+    const ownerIndex = owner ? ids.indexOf(owner) : -1;
+    return ownerIndex === -1 ? ids.length : ownerIndex;
   };
   return [...items].sort((a, b) => rank(a.ref) - rank(b.ref));
 }

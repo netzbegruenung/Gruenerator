@@ -27,8 +27,10 @@ import {
 } from '@gruenerator/ui';
 import { useState } from 'react';
 import {
+  PiCaretUp,
   PiChatCircle,
   PiDotsThreeVertical,
+  PiFlag,
   PiPencilSimple,
   PiPushPin,
   PiPushPinFill,
@@ -36,6 +38,7 @@ import {
 } from 'react-icons/pi';
 import { Link } from 'react-router-dom';
 
+import { ReportDialog } from '../../../../components/common/ReportDialog';
 import { FEED_KIND_ICONS, feedItemHref } from '../../config/groupFeedPresentation';
 import { type ShareActions, ShareMenuItems, hasShareMenu, projectRoleLabel } from '../shareActions';
 
@@ -55,6 +58,8 @@ export interface GroupFeedCardProps {
   isCloning: boolean;
   /** Rolle ändern und entfernen; null: der Viewer verwaltet hier nichts. */
   actions: ShareActions | null;
+  /** In der Austausch-Liste: die Karte ist die aufgeklappte Zeile; null = keine Zeile, nichts einzuklappen. */
+  onCollapse?: (() => void) | null;
 }
 
 const BOARD_CELLS = [1, 1, 1, 1, 1, 0, 1].map((filled, i) => ({ id: `c${i}`, filled: !!filled }));
@@ -184,15 +189,19 @@ export function GroupFeedCard({
   onUseTemplate,
   isCloning,
   actions,
+  onCollapse = null,
 }: GroupFeedCardProps) {
   const [open, setOpen] = useState(defaultOpen);
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const updateShare = useUpdateGroupShare(groupId);
   const deletePost = useDeleteGroupPost(groupId);
   const post = item.post;
   const isAuthor = !!post && !!currentUserId && post.authorId === currentUserId;
   const canDeletePost = !!post && (isAuthor || isAdmin);
+  const personId = post?.authorId ?? item.sharedById;
+  const canReport = !!(post || item.share) && (!personId || personId !== currentUserId);
   const pinned = isPinned(item);
   const share = item.share;
   const href = feedItemHref(item);
@@ -253,10 +262,14 @@ export function GroupFeedCard({
             {pinned ? <PiPushPinFill /> : <PiPushPin />}
           </Button>
         )}
-        {(isAuthor || canDeletePost) && (
+        {(isAuthor || canDeletePost || canReport || (!post && hasShareMenu(item, actions))) && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Aktionen für diesen Beitrag">
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={post ? 'Aktionen für diesen Beitrag' : `Aktionen für ${item.title}`}
+              >
                 <PiDotsThreeVertical />
               </Button>
             </DropdownMenuTrigger>
@@ -273,18 +286,15 @@ export function GroupFeedCard({
                   Beitrag löschen
                 </DropdownMenuItem>
               )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-        {!post && hasShareMenu(item, actions) && actions && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label={`Aktionen für ${item.title}`}>
-                <PiDotsThreeVertical />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <ShareMenuItems item={item} actions={actions} />
+              {!post && actions && hasShareMenu(item, actions) && (
+                <ShareMenuItems item={item} actions={actions} />
+              )}
+              {canReport && (
+                <DropdownMenuItem onClick={() => setReportOpen(true)}>
+                  <PiFlag className="mr-xs size-4" />
+                  Melden
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         )}
@@ -340,6 +350,12 @@ export function GroupFeedCard({
           <h3 className="m-0 min-w-0 truncate text-[17px] font-semibold">{item.title}</h3>
         )}
         <div className="flex shrink-0 items-center gap-1">
+          {onCollapse && (
+            <Button variant="ghost" size="sm" onClick={onCollapse}>
+              <PiCaretUp aria-hidden />
+              Einklappen
+            </Button>
+          )}
           {canComment && share && (
             <Button
               variant="ghost"
@@ -385,13 +401,24 @@ export function GroupFeedCard({
         />
       )}
 
+      {canReport && (
+        <ReportDialog
+          open={reportOpen}
+          onOpenChange={setReportOpen}
+          title={item.title}
+          kind={post ? 'group_post' : 'group_share'}
+          targetId={post ? item.id : (share?.shareId ?? item.id)}
+          groupId={groupId}
+        />
+      )}
+
       {post && (
         <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Beitrag löschen?</AlertDialogTitle>
               <AlertDialogDescription>
-                Der Beitrag verschwindet mit allen Dateien und Kommentaren aus der Gruppe.
+                Der Beitrag verschwindet mit allen Dateien und Kommentaren aus dem Projekt.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

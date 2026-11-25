@@ -9,7 +9,6 @@ import {
   recurrenceToSchedule,
   scheduleToRecurrence,
   useCreateRecurringTask,
-  useCreateUserAgent,
   useDeleteUserAgent,
   useRecurringTasks,
   useUpdateRecurringTask,
@@ -17,7 +16,6 @@ import {
   useUserAgent,
 } from '@gruenerator/shared/grueneratoren';
 import { useAuth } from '@gruenerator/shared/hooks';
-import { getRandomBytes } from 'expo-crypto';
 import { router, Stack, useLocalSearchParams, usePreventRemove } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
@@ -48,15 +46,14 @@ import {
   countLabel,
   currentModelId,
   defaultScheduleFor,
-  duplicateAgentInput,
   MAX_DESCRIPTION,
   MAX_TASK_INSTRUCTION,
   MAX_TITLE,
   missingForSave,
   MODEL_OPTIONS,
-  newAgentIdentifier,
   taskInstructionTooLong,
 } from './agentEditorLogic';
+import { useAgentConversion } from './useAgentConversion';
 import { useNotebookChoices, useRecipeChoices } from './useEditorChoices';
 
 const SUB = '/(focused)/grueneratoren/agent-editor';
@@ -223,7 +220,6 @@ function EditorForm({
 }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
   const patch = useAgentEditorStore((s) => s.patch);
   const reset = useAgentEditorStore((s) => s.reset);
 
@@ -232,13 +228,13 @@ function EditorForm({
   const showSchedule = variant === 'recurring' || taskId !== null;
   const writesTask = showSchedule;
 
-  const createMut = useCreateUserAgent();
   const updateMut = useUpdateUserAgent(identifier ?? '');
   const deleteMut = useDeleteUserAgent();
   const createTaskMut = useCreateRecurringTask();
   const updateTaskMut = useUpdateRecurringTask();
   const [saving, setSaving] = useState(false);
-  const [duplicating, setDuplicating] = useState(false);
+  const conversion = useAgentConversion(savedAgent);
+  const converted = !!(savedAgent?.migratedTo?.recipe || savedAgent?.migratedTo?.project);
 
   const notebooks = useNotebookChoices(form.defaultNotebookIds);
   const recipes = useRecipeChoices();
@@ -304,67 +300,18 @@ function EditorForm({
     }
     setSaving(true);
     void saveSession(s, {
-      createAgent: createMut.mutateAsync,
       updateAgent: updateMut.mutateAsync,
       createTask: createTaskMut.mutateAsync,
       updateTask: updateTaskMut.mutateAsync,
-      author: user?.display_name || 'Eigener Agent',
     }).then((outcome) => {
       setSaving(false);
       switch (outcome.kind) {
         case 'failed':
           return Alert.alert(outcome.title, outcome.message);
-        case 'task':
-          return leave(() =>
-            router.replace({
-              pathname: '/(focused)/grueneratoren/aufgabe/[id]',
-              params: { id: outcome.taskId },
-            })
-          );
-        case 'agent':
-          return leave(() =>
-            router.replace({
-              pathname: '/(focused)/grueneratoren/agent/[slug]',
-              params: { slug: outcome.slug },
-            })
-          );
         case 'updated':
           return leave(() => router.back());
       }
     });
-  };
-
-  const handleDuplicate = () => {
-    if (!savedAgent) return;
-    Alert.alert(
-      'Agent duplizieren?',
-      session.dirty
-        ? 'Kopiert wird der gespeicherte Stand. Deine ungespeicherten Änderungen hier gehen verloren.'
-        : `Es entsteht „${savedAgent.title} (Kopie)", die du danach bearbeitest.`,
-      [
-        { text: 'Abbrechen', style: 'cancel' },
-        {
-          text: 'Duplizieren',
-          onPress: () => {
-            setDuplicating(true);
-            createMut
-              .mutateAsync(duplicateAgentInput(savedAgent, getRandomBytes))
-              .then((copy) =>
-                leave(() =>
-                  router.replace({ pathname: SUB, params: { identifier: copy.identifier } })
-                )
-              )
-              .catch((err: unknown) =>
-                Alert.alert(
-                  'Duplizieren fehlgeschlagen',
-                  err instanceof Error ? err.message : 'Bitte versuche es erneut.'
-                )
-              )
-              .finally(() => setDuplicating(false));
-          },
-        },
-      ]
-    );
   };
 
   const handleDelete = () => {
@@ -553,11 +500,17 @@ function EditorForm({
         {isEdit ? (
           <FormSection>
             <ListRow
-              icon="copy-outline"
-              title="Duplizieren"
-              onPress={handleDuplicate}
-              disabled={!savedAgent || duplicating || saving}
-              {...(duplicating && { accessory: <ActivityIndicator color={theme.textGreen} /> })}
+              icon="swap-horizontal-outline"
+              title={converted ? 'Nachfolger ansehen' : 'In Rezept oder Projekt umwandeln'}
+              value={
+                converted
+                  ? 'Schon umgewandelt. Der Agent funktioniert weiter.'
+                  : 'Agents laufen aus. Der Agent bleibt dabei bestehen.'
+              }
+              valueLines={2}
+              onPress={conversion.start}
+              disabled={!savedAgent || conversion.busy || saving}
+              {...(conversion.busy && { accessory: <ActivityIndicator color={theme.textGreen} /> })}
             />
             <ListRow
               icon="trash-outline"
@@ -669,64 +622,32 @@ const styles = StyleSheet.create({
   },
 });
 
-type SaveOutcome =
-  | { kind: 'task'; taskId: string }
-  | { kind: 'agent'; slug: string }
-  | { kind: 'updated' }
-  | { kind: 'failed'; title: string; message: string };
+type SaveOutcome = { kind: 'updated' } | { kind: 'failed'; title: string; message: string };
 
 interface SaveDeps {
-  createAgent: ReturnType<typeof useCreateUserAgent>['mutateAsync'];
   updateAgent: ReturnType<typeof useUpdateUserAgent>['mutateAsync'];
   createTask: ReturnType<typeof useCreateRecurringTask>['mutateAsync'];
   updateTask: ReturnType<typeof useUpdateRecurringTask>['mutateAsync'];
-  author: string;
 }
 
 const errorText = (err: unknown) =>
   err instanceof Error ? err.message : 'Speichern fehlgeschlagen.';
 
 /**
- * Speichert die Sitzung: Agent anlegen oder ändern, dann die Aufgabe. Steht
+ * Speichert die Sitzung: Agent ändern, dann die Aufgabe. Steht
  * außerhalb der Komponente, weil der React Compiler `try` mit bedingten
  * Ausdrücken nicht übersetzt (`test/reactCompilerCoverage.vitest.ts`).
- *
- * Die ID eines schon angelegten Agents bleibt in der Sitzung — scheitert danach
- * nur die Aufgabe, legt ein zweiter Versuch keinen zweiten Agent an.
  */
-async function saveSession(
-  s: AgentEditorSession & { setCreatedIdentifier: (identifier: string) => void },
-  deps: SaveDeps
-): Promise<SaveOutcome> {
+async function saveSession(s: AgentEditorSession, deps: SaveDeps): Promise<SaveOutcome> {
   const payload = formToPayload(s.form);
   try {
+    // Neue Agents gibt es nicht mehr; der Editor öffnet nur noch bestehende.
     if (s.identifier === null) {
-      let agentId = s.createdIdentifier;
-      if (!agentId) {
-        const created = await deps.createAgent({
-          identifier: newAgentIdentifier(s.form.title, getRandomBytes),
-          author: deps.author,
-          ...payload,
-        });
-        agentId = created.identifier;
-        s.setCreatedIdentifier(agentId);
-      }
-      if (s.variant !== 'recurring') return { kind: 'agent', slug: agentId };
-      try {
-        const task = await deps.createTask({
-          ...taskFields(s),
-          agentIdentifier: agentId,
-          locale: s.form.locale,
-          enabled: true,
-        });
-        return { kind: 'task', taskId: task.id };
-      } catch (err) {
-        return {
-          kind: 'failed',
-          title: 'Zeitplan nicht gespeichert',
-          message: `Der Agent ist angelegt, aber der Zeitplan konnte nicht gespeichert werden. Bitte erneut speichern.\n\n${errorText(err)}`,
-        };
-      }
+      return {
+        kind: 'failed',
+        title: 'Nicht möglich',
+        message: 'Neue Agents lassen sich nicht mehr anlegen. Lege ein Rezept an.',
+      };
     }
 
     await deps.updateAgent(payload);

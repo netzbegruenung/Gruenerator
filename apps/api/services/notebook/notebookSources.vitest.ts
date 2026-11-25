@@ -395,8 +395,24 @@ describe('resolveReaderSource', () => {
       ownerUserId: 'owner-1',
       title: 'Antrag Radweg',
       sourceUrl: 'https://kv.de/radweg',
+      original: null,
     });
     expect(helper.isDocumentInCollection).not.toHaveBeenCalled();
+  });
+
+  it('names the kept original with its filename and mimetype', async () => {
+    const { deps } = makeDeps({
+      rows: [docRow({ file_path: 'owner-1/d1.pdf', metadata: { mimetype: 'application/pdf' } })],
+    });
+    const out = await resolveReaderSource(
+      { documentId: 'd1', notebookId: 'n1', userId: 'member-1' },
+      deps
+    );
+    expect(out?.original).toEqual({
+      path: 'owner-1/d1.pdf',
+      filename: 'radweg.pdf',
+      mimetype: 'application/pdf',
+    });
   });
 
   it('lets a notebook reader in when the document is linked into it', async () => {

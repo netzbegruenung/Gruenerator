@@ -6,14 +6,13 @@ import type { Href } from 'expo-router';
 
 /**
  * The route that opens a new chat filed in a Projekt, with `text` as its first
- * turn. `teamShared` only counts in a team Projekt: a personal Projekt (and the
- * system Projekt) is a solo workspace with nobody to share with.
+ * turn. `teamShared` off keeps the chat private; it is still filed in the
+ * Projekt and reads its instructions, knowledge and recipes (as on the web).
  */
 export function projectChatRoute(opts: {
   groupId: string;
   text: string;
   teamShared: boolean;
-  solo: boolean;
   /** Unique per start (defaults to now). */
   handoff?: string;
 }): Href {
@@ -22,7 +21,7 @@ export function projectChatRoute(opts: {
     initialMessage: opts.text,
     groupId: opts.groupId,
     handoff: opts.handoff ?? String(Date.now()),
-    ...(!opts.solo && opts.teamShared && { teamShared: '1' }),
+    ...(opts.teamShared && { teamShared: '1' }),
   });
 }
 

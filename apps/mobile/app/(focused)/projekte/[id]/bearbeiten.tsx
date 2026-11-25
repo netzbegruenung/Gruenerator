@@ -1,7 +1,26 @@
+import { type LandesverbandId } from '@gruenerator/contracts';
+import {
+  landesverbandOptions,
+  GROUP_COLOR_KEYS,
+  GROUP_COLOR_STYLES,
+  resolveGroupColor,
+  type GroupColor,
+} from '@gruenerator/shared/groups';
+import { useAuth } from '@gruenerator/shared/hooks';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import * as Haptics from 'expo-haptics';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  useColorScheme,
+  View,
+} from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 
 import { SheetHeader } from '../../../../components/projekte/SheetHeader';
@@ -29,24 +48,33 @@ export default function ProjektBearbeitenScreen() {
   const { mutate, isPending } = useUpdateGroupInfo(id ?? '');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [landesverband, setLandesverband] = useState<LandesverbandId | null>(null);
   const [seeded, setSeeded] = useState(false);
+  const { locale } = useAuth();
+  const [color, setColor] = useState<GroupColor | null>(null);
+  const dark = useColorScheme() === 'dark';
 
   useEffect(() => {
     if (group && !seeded) {
       setName(group.name ?? '');
       setDescription(group.description ?? '');
+      setLandesverband(group.landesverband ?? null);
+      setColor(resolveGroupColor(group.color));
       setSeeded(true);
     }
   }, [group, seeded]);
 
   const unchanged =
-    name.trim() === (group?.name ?? '') && description.trim() === (group?.description ?? '');
+    name.trim() === (group?.name ?? '') &&
+    description.trim() === (group?.description ?? '') &&
+    landesverband === (group?.landesverband ?? null) &&
+    color === resolveGroupColor(group?.color);
   const canSave = seeded && name.trim().length > 0 && !unchanged && !isPending && !!id;
 
   const save = () => {
     if (!canSave) return;
     mutate(
-      { name: name.trim(), description: description.trim() },
+      { name: name.trim(), description: description.trim(), landesverband, color },
       {
         onSuccess: () => {
           void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -115,6 +143,72 @@ export default function ProjektBearbeitenScreen() {
                 { color: theme.text, backgroundColor: theme.buttonBackground },
               ]}
             />
+            <Text style={[styles.label, { color: theme.textSecondary }]}>Landesverband</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.chipsScroll}
+            >
+              <View style={styles.chips}>
+                {[
+                  { id: null, title: 'Keiner' },
+                  ...landesverbandOptions(group.audience, locale, landesverband),
+                ].map((option) => {
+                  const selected = option.id === landesverband;
+                  return (
+                    <Pressable
+                      key={option.id ?? 'none'}
+                      onPress={() => setLandesverband(option.id)}
+                      disabled={isPending}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      style={[
+                        styles.chip,
+                        { backgroundColor: selected ? theme.text : theme.buttonBackground },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.chipText,
+                          { color: selected ? theme.background : theme.text },
+                        ]}
+                      >
+                        {option.title}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </ScrollView>
+            <Text style={[styles.label, { color: theme.textSecondary }]}>Farbe der Kachel</Text>
+            <View accessibilityRole="radiogroup" style={styles.swatches}>
+              {[null, ...GROUP_COLOR_KEYS].map((key) => {
+                const tone = key ? GROUP_COLOR_STYLES[key][dark ? 'dark' : 'light'] : null;
+                const selected = key === color;
+                return (
+                  <Pressable
+                    key={key ?? 'standard'}
+                    onPress={() => setColor(key)}
+                    disabled={isPending}
+                    accessibilityRole="radio"
+                    accessibilityLabel={key ? GROUP_COLOR_STYLES[key].label : 'Standard'}
+                    accessibilityState={{ checked: selected, disabled: isPending }}
+                    style={[
+                      styles.swatch,
+                      {
+                        backgroundColor: tone?.bg ?? theme.buttonBackground,
+                        borderColor: selected ? theme.text : theme.cardBorder,
+                        borderWidth: selected ? 2 : StyleSheet.hairlineWidth,
+                      },
+                    ]}
+                  >
+                    {selected ? (
+                      <Ionicons name="checkmark" size={18} color={tone?.title ?? theme.text} />
+                    ) : null}
+                  </Pressable>
+                );
+              })}
+            </View>
             {description.length >= COUNTER_FROM ? (
               <Text style={[styles.counter, { color: theme.textSecondary }]}>
                 {description.length} / {DESCRIPTION_MAX}
@@ -146,6 +240,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     borderRadius: 12,
     padding: 12,
+  },
+  label: { fontFamily: BODY_FONT, fontSize: 13, marginTop: spacing.small },
+  chipsScroll: { flexGrow: 0 },
+  chips: { flexDirection: 'row', gap: 8 },
+  chip: { borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8 },
+  chipText: { fontFamily: BODY_FONT, fontSize: 14 },
+  swatches: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.small },
+  swatch: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   counter: { fontFamily: BODY_FONT, fontSize: 12, textAlign: 'right' },
 });

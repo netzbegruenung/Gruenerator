@@ -8,7 +8,7 @@
  */
 import { z } from 'zod';
 
-export const itemUsageTypeSchema = z.enum(['notebook', 'agent']);
+export const itemUsageTypeSchema = z.enum(['notebook', 'agent', 'project']);
 
 export const itemUsageStatSchema = z.object({
   item_id: z.string(),
@@ -21,6 +21,13 @@ export const getItemUsageResponseSchema = z.object({
   type: itemUsageTypeSchema,
   items: z.array(itemUsageStatSchema),
 });
+
+export const recordItemUsageBodySchema = z.object({
+  type: itemUsageTypeSchema,
+  item_id: z.string().min(1).max(200),
+});
+
+export const recordItemUsageResponseSchema = z.object({ success: z.literal(true) });
 
 export const itemUsageErrorResponseSchema = z.object({
   error: z.string(),

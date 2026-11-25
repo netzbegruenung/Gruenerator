@@ -115,7 +115,8 @@ const PANEL = 960;
 /** Innenabstand der Texte in der Farbfläche. */
 const PANEL_PAD = 80;
 const HEAD_TOP = 60;
-const FOOTER = { y: 1028, size: 20 } as const;
+/** Fußzeile: 24 px, die kleinste Größe, die auf dem Beamer noch lesbar ist. */
+const FOOTER = { y: 1028, size: 24 } as const;
 const STOERER = { diameter: 300, size: 46 } as const;
 const MARK = { x: 1852, y: 62, diameter: 60, flower: 44, atLogo: 96 } as const;
 
@@ -207,7 +208,9 @@ function inkFor(locale: BrandLocale, grund: Grund): Ink {
     text: DE.colors.textOnDark,
     accent: grund === 'foto' ? null : { fill: brand('grashalm') },
     quote: brand('grashalm'),
-    watermark: { assetId: 'sunflower-weiss', opacity: 0.12 },
+    // 25 %: bei 12 % ging die Blume auf dem Beamer unter (Design-Review 22.11.); weiße
+    // Headline auf der Blume hält rechnerisch 4,6:1 (Tanne mit 25 % Weiß).
+    watermark: { assetId: 'sunflower-weiss', opacity: 0.25 },
     mark: { circle: SHAREPIC_COLOR_HEX.weiss, assetId: 'sunflower-green', size: MARK.flower },
     // Die Farbfassung (sandfarbene Schrift, gelbe Blume) ist für dunkle Gründe.
     logoAssetId: 'gruene-de-logo',
@@ -336,6 +339,14 @@ export class SlideBuilder {
       opacity,
     };
     this.state.assetInstances.push(asset);
+    this.state.layerOrder.push(id);
+  }
+
+  /** Ein Editor-Icon (Tabler), `size` px breit, mittig auf (cx, cy) und einfarbig. */
+  icon(id: string, iconId: string, cx: number, cy: number, size: number, color: string) {
+    this.state.selectedIcons.push(id);
+    // Wie die Sharepics: der Editor zeichnet ein Icon in einer 120er-Box.
+    this.state.iconStates[id] = { iconId, x: cx, y: cy, scale: size / 120, rotation: 0, color };
     this.state.layerOrder.push(id);
   }
 

@@ -12,7 +12,6 @@ import { Alert } from 'react-native';
 import { getErrorMessage } from '../utils/errors';
 
 import { alertSavedToGallery } from './gallery';
-import { shareFile } from './share';
 
 /**
  * Request camera permissions
@@ -126,35 +125,4 @@ export async function saveImageToGallery(
     // Ignore cleanup errors - file deletion is non-critical
   }
   return saved;
-}
-
-/**
- * Share a base64 image via native share sheet
- */
-export async function shareImage(base64Data: string): Promise<boolean> {
-  try {
-    // Create temp file
-    const filename = `sharepic_share_${Date.now()}.png`;
-    const fileUri = await base64ToFileUri(base64Data, filename);
-
-    // Share
-    await shareFile(fileUri, {
-      mimeType: 'image/png',
-      dialogTitle: 'Sharepic teilen',
-    });
-
-    // Clean up temp file
-    const file = new File(Paths.cache, filename);
-    try {
-      file.delete();
-    } catch {
-      // Ignore cleanup errors - file deletion is non-critical
-    }
-
-    return true;
-  } catch (error: unknown) {
-    console.error('[ImageStudioService] shareImage error:', getErrorMessage(error));
-    Alert.alert('Fehler', 'Das Bild konnte nicht geteilt werden.');
-    return false;
-  }
 }

@@ -2,6 +2,7 @@ import { type TrashItem, type TrashKind } from '@gruenerator/contracts';
 import { type IconType } from 'react-icons';
 
 import {
+  LuFolderCog,
   PiBrain,
   PiChatCircle,
   PiCookingPot,
@@ -26,7 +27,6 @@ import {
   PiSpeakerHigh,
   PiSticker,
   PiTable,
-  PiUsersThree,
   PiVideo,
 } from '@/config/shellIcons.generated';
 
@@ -71,7 +71,7 @@ export const TRASH_KIND_ICONS: Record<TrashKind, IconType> = {
   user_letterhead: PiEnvelope,
   user_document: PiFloppyDisk,
   user_knowledge: PiBrain,
-  group: PiUsersThree,
+  group: LuFolderCog,
   reisekosten_abrechnung: PiReceipt,
   explainable: PiLightbulb,
   podcast: PiHeadphones,

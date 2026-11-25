@@ -53,6 +53,7 @@ function emptyBuckets(over: Partial<GroupContentBuckets> = {}): GroupContentBuck
     canvas_templates: [],
     group_posts: [],
     recipes: [],
+    system_recipes: [],
     ...over,
   };
 }
@@ -67,6 +68,9 @@ interface CtxOptions {
   contentCount?: number;
   registry?: SourceRegistry;
   userText?: string;
+  project?: { id: string; documentIds: string[] } | null;
+  hits?: Array<{ source: string; title: string; content: string; documentId?: string }>;
+  mayShare?: boolean;
 }
 
 function makeCtx(opts: CtxOptions = {}) {
@@ -84,10 +88,13 @@ function makeCtx(opts: CtxOptions = {}) {
     } as unknown as SourceRegistry);
   const sse = {
     send: (event: string, payload: unknown) => sseEvents.push([event, payload]),
+    rendersConfirmAction: () => true,
   } as unknown as SSEWriter;
   const state = {
     agentConfig: { userId: opts.userId === undefined ? 'user-1' : opts.userId },
     messages: opts.userText ? [{ role: 'user', content: opts.userText }] : [],
+    project: opts.project ?? null,
+    projectDocs: [{ id: 'doc-1', title: 'Haushalt', kind: 'doc' }],
   } as unknown as ChatGraphState;
 
   const group = opts.group === undefined ? detail() : opts.group;
@@ -103,6 +110,8 @@ function makeCtx(opts: CtxOptions = {}) {
       success: true,
       message: 'Gruppendetails erfolgreich aktualisiert.',
     })),
+    searchScopedDocuments: vi.fn(async () => opts.hits ?? []),
+    mayShareIntoGroup: vi.fn(async () => opts.mayShare ?? true),
   };
   const tool = makeGroupsTool({
     state,
@@ -161,6 +170,21 @@ describe('groups: Auflösung über groupId / groupName', () => {
   it('needs one of the two', async () => {
     const { run } = makeCtx();
     expect(await run({ action: 'get' })).toMatchObject({ error: expect.stringMatching(/groupId/) });
+  });
+
+  it('get und content ohne Angabe meinen im Projekt-Chat das Projekt dieses Chats', async () => {
+    const { run, deps } = makeCtx({ project: { id: 'g-chat', documentIds: [] } });
+    await run({ action: 'get' });
+    expect(deps.getGroupForMember).toHaveBeenLastCalledWith('g-chat', 'user-1');
+    await run({ action: 'content' });
+    expect(deps.getGroupForMember).toHaveBeenLastCalledWith('g-chat', 'user-1');
+  });
+
+  it('ein Projekt-Chat macht update nicht zum Ändern des Chat-Projekts ohne Nennung', async () => {
+    const { run, deps } = makeCtx({ project: { id: 'g-chat', documentIds: [] } });
+    const out = await run({ action: 'update', name: 'Neu' });
+    expect(out.error).toMatch(/groupId/);
+    expect(deps.updateGroupInfo).not.toHaveBeenCalled();
   });
 
   it('groupId of a group the person is not in → not found, no detail leak', async () => {
@@ -367,7 +391,7 @@ describe('groups: create / join (Karten, unverändert)', () => {
     expect(deps.getGroupByToken).toHaveBeenCalledWith('tok123');
     const [, payload] = sseEvents[0] as [string, { type: string; metadata: unknown[] }];
     expect(payload.type).toBe('join_group');
-    expect(payload.metadata).toEqual([{ key: 'Gruppe', value: 'Klima' }]);
+    expect(payload.metadata).toEqual([{ key: 'Projekt', value: 'Klima' }]);
   });
 });
 
@@ -477,11 +501,11 @@ describe('groups: set_visibility', () => {
     expect(notes[0][1]).toContain('schon');
   });
 
-  it('refuses to list a personal space', async () => {
+  it('lists a project stored as personal like any other (type does not matter)', async () => {
     const { run, sseEvents } = makeCtx({ group: detail({ group_type: 'personal' }) });
     const out = await run({ action: 'set_visibility', groupId: 'g1', isPublic: true });
-    expect(out.error).toMatch(/persönlicher Space/);
-    expect(sseEvents).toHaveLength(0);
+    expect(out.error).toBeUndefined();
+    expect(sseEvents).toHaveLength(1);
   });
 
   it('is refused outside a thread', async () => {
@@ -528,5 +552,72 @@ describe('was der Schreiber im split-Modus wirklich sieht', () => {
     expect(registry.freshSize).toBe(0);
     expect(registry.renderAll()).toContain('VORGÄNGE IN DIESEM TURN');
     expect(registry.renderAll()).toContain('heißt jetzt „Neu"');
+  });
+});
+
+describe('groups — search (Projekt dieses Chats)', () => {
+  const project = { id: 'g1', documentIds: ['file-1', 'doc-1'] };
+
+  it("searches the scope of the chat's project and labels hits for read_artifact", async () => {
+    const { run, deps, registered } = makeCtx({
+      project,
+      hits: [
+        {
+          source: 'document:file-1',
+          title: 'Protokoll Mai',
+          content: 'Treffpunkt Rathaus',
+          documentId: 'file-1',
+        },
+        {
+          source: 'document:doc-1',
+          title: 'Haushalt',
+          content: 'Klausur 2027',
+          documentId: 'doc-1',
+        },
+      ],
+    });
+    const out = await run({ action: 'search', query: 'Treffpunkt' });
+    expect(deps.searchScopedDocuments).toHaveBeenCalledWith({
+      query: 'Treffpunkt',
+      userId: 'user-1',
+      documentIds: ['file-1', 'doc-1'],
+    });
+    expect(out.results).toEqual([
+      { title: 'Protokoll Mai', excerpt: 'Treffpunkt Rathaus', id: 'file-1', kind: 'file' },
+      { title: 'Haushalt', excerpt: 'Klausur 2027', id: 'doc-1', kind: 'doc' },
+    ]);
+    expect(registered).toHaveLength(1);
+  });
+
+  it('refuses outside a project chat and for another project', async () => {
+    expect((await makeCtx().run({ action: 'search', query: 'x' })).error).toMatch(/Projekt/);
+    const { run, deps } = makeCtx({ project });
+    expect((await run({ action: 'search', query: 'x', groupId: 'other' })).error).toMatch(
+      /Projekt/
+    );
+    expect(deps.searchScopedDocuments).not.toHaveBeenCalled();
+  });
+});
+
+describe('groups — add_text', () => {
+  it("asks for confirmation in the chat's project without a groupId", async () => {
+    const { run, sseEvents, deps } = makeCtx({ project: { id: 'g1', documentIds: [] } });
+    const out = await run({ action: 'add_text', title: 'Notiz', text: 'Wir treffen uns Montag.' });
+    expect(out).toMatchObject({ ok: true, needsConfirmation: true });
+    expect(deps.getGroupForMember).toHaveBeenCalledWith('g1', 'user-1');
+    const card = sseEvents.find(([e]) => e === 'confirm_action')?.[1] as Record<string, unknown>;
+    expect(card).toMatchObject({ type: 'add_project_text' });
+  });
+
+  it('shows no card when the person may not add to the project', async () => {
+    const { run, sseEvents } = makeCtx({ project: { id: 'g1', documentIds: [] }, mayShare: false });
+    const out = await run({ action: 'add_text', title: 'Notiz', text: 'x' });
+    expect(out.error).toMatch(/nichts anlegen/);
+    expect(sseEvents).toHaveLength(0);
+  });
+
+  it('needs a project outside project chats', async () => {
+    const out = await makeCtx().run({ action: 'add_text', title: 'Notiz', text: 'x' });
+    expect(out.error).toMatch(/groupId oder groupName/);
   });
 });

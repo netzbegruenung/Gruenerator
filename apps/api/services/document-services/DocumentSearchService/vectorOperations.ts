@@ -9,6 +9,7 @@
  */
 
 import { chunkToNumericId } from '../../../database/services/QdrantService/utils.js';
+import { EXCLUDE_COLLAB_SOURCE } from '../collabSourceType.js';
 import { embeddingPayload } from '../embeddingProvenance.js';
 import { offsetPayload } from '../offsetPayload.js';
 import { pagePayload } from '../pagePayload.js';
@@ -135,7 +136,11 @@ export async function searchUserDocuments(
       hybridOptions = {},
     } = options;
 
-    const filter: QdrantFilter = { must: [{ key: 'user_id', match: { value: userId } }] };
+    // Collab-document chunks are reached by document id only.
+    const filter: QdrantFilter = {
+      must: [{ key: 'user_id', match: { value: userId } }],
+      must_not: [EXCLUDE_COLLAB_SOURCE],
+    };
 
     if (sourceType) {
       filter.must!.push({ key: 'source_type', match: { value: sourceType } });

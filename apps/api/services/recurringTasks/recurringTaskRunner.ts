@@ -28,6 +28,7 @@ import {
 } from '../backgroundRuns/verifiedTurn.js';
 import { deriveTitle, type UserLocale } from '../boards/agentFlow/generate.js';
 import { createDocumentWithContent } from '../docs/DocGenerationService.js';
+import { loadProjectRunContext, type ProjectRunContext } from '../groups/projectRunContext.js';
 import { createNotification } from '../notifications/NotificationService.js';
 
 import {
@@ -72,6 +73,23 @@ export async function runRecurringTask(
     if (!(await hasAiConsent(task.user_id))) {
       throw new Error('Für die KI-Funktionen fehlt die Einwilligung nach Art. 9 DSGVO.');
     }
+    // Projekt der Aufgabe: nur mit aktiver Mitgliedschaft zur Laufzeit. Wer
+    // ausgetreten ist (oder das Projekt weg ist), bekommt den Lauf ohne
+    // Projektmaterial — nie das Wissen eines Projekts, das ihm nicht mehr offensteht.
+    let project: ProjectRunContext | null = null;
+    let deliverGroupId: string | null = null;
+    if (task.group_id) {
+      try {
+        project = await loadProjectRunContext(task.group_id, task.user_id);
+      } catch (e) {
+        log.warn(`Recurring task ${task.id}: project context failed (running without):`, e);
+      }
+      if (project) deliverGroupId = task.group_id;
+      else
+        log.warn(
+          `Recurring task ${task.id}: owner is no active member of project ${task.group_id} — running without project context`
+        );
+    }
     const {
       turn,
       content: verified,
@@ -87,6 +105,7 @@ export async function runRecurringTask(
         // Honor the bound agent's tool selection; the default universal agent
         // (no agent_identifier) keeps the full tool set.
         restrictToAgentTools: !!task.agent_identifier,
+        ...(project && { project }),
       },
       { verifyInstruction: task.instruction },
       deps
@@ -134,7 +153,7 @@ export async function runRecurringTask(
       return;
     }
 
-    delivered = await deliver(task, content);
+    delivered = await deliver(task, content, deliverGroupId);
   } catch (error) {
     const err = error as Error;
     log.error(`Recurring task ${task.id} failed:`, err);
@@ -215,7 +234,8 @@ export async function runRecurringTask(
 /** Deliver the generated content per the task's delivery method. */
 async function deliver(
   task: RecurringTask,
-  content: string
+  content: string,
+  groupId: string | null
 ): Promise<{ actionUrl: string | null; notifyTitle: string; notifyBody: string }> {
   if (task.delivery === 'document') {
     const docTitle = deriveTitle(task.title, content);
@@ -230,7 +250,11 @@ async function deliver(
 
   if (task.delivery === 'thread') {
     const agentId = task.agent_identifier ?? 'gruenerator-universal';
-    const thread = await createThread(task.user_id, agentId, task.title, 'chat');
+    // Im Projekt nur, wenn der Lauf Projektmaterial bekam (Mitgliedschaft geprüft).
+    const thread =
+      groupId != null
+        ? await createThread(task.user_id, agentId, task.title, 'chat', { groupId })
+        : await createThread(task.user_id, agentId, task.title, 'chat');
     await createMessage(thread.id, 'user', task.instruction, undefined, task.user_id);
     await createMessage(
       thread.id,

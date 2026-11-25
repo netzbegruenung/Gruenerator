@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render } from '@testing-library/react';
+import { render, waitFor } from '@testing-library/react';
 import { act } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -20,6 +20,10 @@ vi.mock('@hocuspocus/provider', () => ({
       on: vi.fn(),
       off: vi.fn(),
       clientID: 1,
+    };
+    // Der Server-Impuls (`turnSignal`, #5700) liest eine Y.Map aus dem Raum.
+    document = {
+      getMap: () => ({ get: () => undefined, observe: vi.fn(), unobserve: vi.fn() }),
     };
     constructor(opts: { name: string }) {
       constructed.names.push(opts.name);
@@ -54,23 +58,33 @@ describe('ChatCollaborationBridge gate', () => {
     expect(constructed.names).toEqual([]);
   });
 
-  it('joins the room for an own thread with a group share', () => {
+  // The room code is a lazy chunk (#5891), so joining is asynchronous.
+  it('joins the room for an own thread with a group share', async () => {
     cacheThreadShareMetaForTest('thread-a', { accessType: 'owner', teamShared: true });
     mount();
-    expect(constructed.names).toEqual(['chat-thread-a']);
+    await waitFor(() => expect(constructed.names).toEqual(['chat-thread-a']));
   });
 
-  it('joins the room for someone else’s thread', () => {
+  it('joins the room for someone else’s thread', async () => {
     cacheThreadShareMetaForTest('thread-a', { accessType: 'group', teamShared: false });
     mount();
-    expect(constructed.names).toEqual(['chat-thread-a']);
+    await waitFor(() => expect(constructed.names).toEqual(['chat-thread-a']));
   });
 
-  it('connects once the list says the thread became a team chat', () => {
+  it('connects once the list says the thread became a team chat', async () => {
     cacheThreadShareMetaForTest('thread-a', { accessType: 'owner', teamShared: false });
     mount();
     expect(constructed.names).toEqual([]);
     act(() => cacheThreadShareMetaForTest('thread-a', { accessType: 'owner', teamShared: true }));
-    expect(constructed.names).toEqual(['chat-thread-a']);
+    await waitFor(() => expect(constructed.names).toEqual(['chat-thread-a']));
+  });
+
+  it('keeps the chat mounted while the room loads', async () => {
+    cacheThreadShareMetaForTest('thread-a', { accessType: 'owner', teamShared: false });
+    const view = mount();
+    const before = view.container.querySelector('div');
+    act(() => cacheThreadShareMetaForTest('thread-a', { accessType: 'owner', teamShared: true }));
+    await waitFor(() => expect(constructed.names).toEqual(['chat-thread-a']));
+    expect(view.container.querySelector('div')).toBe(before);
   });
 });

@@ -10,9 +10,11 @@ const getConnection = vi.fn();
 const createConnectLink = vi.fn();
 const browseDrive = vi.fn();
 class ConnectionNotAllowedError extends Error {}
+class ConnectionNotConfiguredError extends Error {}
 vi.mock('../../services/connections/ConnectionService.js', () => ({
   ConnectionService: { getConnection, createConnectLink },
   ConnectionNotAllowedError,
+  ConnectionNotConfiguredError,
 }));
 vi.mock('../../services/connections/driveBrowse.js', () => ({ browseDrive }));
 const uploadToDrive = vi.fn();
@@ -96,6 +98,16 @@ describe('connectionsContractRouter.connectLink', () => {
   it('meldet einen gesperrten Anbieter als 403', async () => {
     createConnectLink.mockReset().mockRejectedValue(new ConnectionNotAllowedError('gesperrt'));
     expect(await connectLink()).toMatchObject({ status: 403, body: { success: false } });
+  });
+
+  it('nennt eine nicht eingerichtete Integration beim Namen', async () => {
+    createConnectLink
+      .mockReset()
+      .mockRejectedValue(new ConnectionNotConfiguredError('Outlook ist noch nicht eingerichtet.'));
+    expect(await connectLink()).toMatchObject({
+      status: 500,
+      body: { success: false, message: 'Outlook ist noch nicht eingerichtet.' },
+    });
   });
 
   it('meldet einen Nango-Fehler als 500', async () => {

@@ -24,13 +24,13 @@ let n = 0;
 const id = () => `id${n++}`;
 
 describe('canWritePost', () => {
-  it('allows team projects, never personal ones', () => {
-    expect(canWritePost({ group_type: 'team' }, false)).toBe(true);
-    expect(canWritePost({ group_type: 'personal' }, true)).toBe(false);
+  it('allows every project, whatever its stored type', () => {
+    expect(canWritePost({}, false)).toBe(true);
+    expect(canWritePost({}, true)).toBe(true);
   });
   it('allows the system project only for admins', () => {
-    expect(canWritePost({ group_type: 'team', is_system: true }, false)).toBe(false);
-    expect(canWritePost({ group_type: 'team', is_system: true }, true)).toBe(true);
+    expect(canWritePost({ is_system: true }, false)).toBe(false);
+    expect(canWritePost({ is_system: true }, true)).toBe(true);
   });
 });
 

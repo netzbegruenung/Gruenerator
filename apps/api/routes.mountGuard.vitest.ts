@@ -60,6 +60,7 @@ describe('routes.ts mount order', () => {
       { prefix: '/api/translation', mount: 'mountTranslationContractRouter(app)' },
       { prefix: '/api/voice', mount: 'mountSpeechContractRouter(app)' },
       { prefix: '/api/trash', mount: 'mountTrashContractRouter(app)' },
+      { prefix: '/api/video-render', mount: 'mountVideoRenderContractRouter(app)' },
     ];
 
     for (const { prefix, mount } of cases) {
@@ -114,11 +115,6 @@ describe('routes.ts mount order', () => {
         path: '/api/auth/user-templates/describe-image',
         auth: "app.use('/api/auth/user-templates', requireAuth",
         mount: 'mountUserTemplatesContractRouter(app)',
-      },
-      {
-        path: '/api/auth/notebook/:id/ask',
-        auth: "app.use('/api/auth/notebook', optionalAuth",
-        mount: 'mountNotebookContractRouter(app)',
       },
       {
         path: '/api/documents/upload-manual',

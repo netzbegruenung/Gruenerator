@@ -43,7 +43,7 @@ beforeEach(() => {
   );
 });
 
-function setup() {
+function setup(onPick?: (items: unknown[]) => void) {
   const onAdded = vi.fn();
   const utils = renderWithProviders(
     <AddExistingPicker
@@ -51,6 +51,7 @@ function setup() {
       sharedKeys={new Set(['collaborative_documents:d-in'])}
       currentUserId={ME}
       onAdded={onAdded}
+      onPick={onPick}
     />
   );
   return { ...utils, onAdded };
@@ -110,6 +111,25 @@ describe('AddExistingPicker', () => {
       contentId: 'd-old',
       permissions: { read: true, write: false },
     });
+  });
+
+  it('only hands the pick back with onPick — nothing is shared yet', async () => {
+    let shares = 0;
+    server.use(
+      http.post(`*/api/auth/groups/${GROUP}/share`, () => {
+        shares += 1;
+        return HttpResponse.json({ success: true });
+      })
+    );
+    const onPick = vi.fn();
+    const { user, onAdded } = setup(onPick);
+
+    await user.click(await option(/3\. Okt/));
+
+    expect(onPick).toHaveBeenCalledTimes(1);
+    expect(onPick.mock.calls[0]?.[0]).toMatchObject([{ id: 'd-old' }]);
+    expect(shares).toBe(0);
+    expect(onAdded).not.toHaveBeenCalled();
   });
 
   it('shows the server message under the row that failed', async () => {

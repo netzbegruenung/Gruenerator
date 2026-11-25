@@ -1,7 +1,5 @@
-import { SUPPORTED_AUDIO_TYPES, acceptForMediaType } from '@gruenerator/shared/media-library';
-import { Button } from '@gruenerator/ui';
-import { useRef, type JSX } from 'react';
-import { HiFilter, HiOutlineFilter, HiPlus } from 'react-icons/hi';
+import { type JSX } from 'react';
+import { HiFilter, HiOutlineFilter } from 'react-icons/hi';
 import { LuArrowDownUp } from 'react-icons/lu';
 
 import {
@@ -9,19 +7,17 @@ import {
   GridSizeToggle,
   type GridSize,
 } from '../../../components/common/Gallery/parts';
-import { PageHeroSearch } from '../../../components/common/PageHero';
 
 import type { MediaLibraryFilters, MediaTypeFilter } from '../hooks/useMediaLibraryFilters';
 import type { SortOrder } from '@gruenerator/shared/media-library';
 
-export const TYPE_OPTIONS: { id: MediaTypeFilter; label: string }[] = [
-  { id: 'all', label: 'Alle Medien' },
+/** The type filter of „Deine Inhalte". Videos include the Reels. */
+export const STUDIO_FILTERS: { id: MediaTypeFilter; label: string }[] = [
+  { id: 'all', label: 'Alle' },
+  { id: 'video', label: 'Videos' },
   { id: 'sharepic', label: 'Sharepics' },
   { id: 'ki', label: 'KI-Bilder' },
-  { id: 'reel', label: 'Reels' },
   { id: 'upload', label: 'Uploads' },
-  { id: 'image', label: 'Bilder' },
-  { id: 'video', label: 'Videos' },
   { id: 'audio', label: 'Audio' },
 ];
 
@@ -30,62 +26,34 @@ const SORT_OPTIONS: { id: SortOrder; label: string }[] = [
   { id: 'oldest', label: 'Älteste zuerst' },
 ];
 
-export function typeLabel(type: MediaTypeFilter): string {
-  return TYPE_OPTIONS.find((option) => option.id === type)?.label ?? type;
+/** Label of a `?typ=` value; older links (reel, image) have no menu entry. */
+function studioFilterLabel(type: MediaTypeFilter): string {
+  return STUDIO_FILTERS.find((f) => f.id === type)?.label ?? type;
 }
 
-/** Search, upload, type filter, sort and tile size — the Mediathek hero's icon row. */
+/** Filter, sort and tile size — the icon row beside „Deine Inhalte" (as on /vorlagen). */
 export function MediaToolbar({
   filters,
   gridSize,
   onToggleGridSize,
-  onFiles,
 }: {
   filters: MediaLibraryFilters;
   gridSize: GridSize;
   onToggleGridSize: () => void;
-  onFiles: (files: FileList) => void;
 }): JSX.Element {
-  const fileRef = useRef<HTMLInputElement>(null);
-  const typeActive = filters.type !== 'all';
-
+  const typeFiltered = filters.type !== 'all';
+  // 8 px apart on touch screens: the buttons' 44 px tap areas (#5928) meet, not overlap.
   return (
-    <>
-      <PageHeroSearch
-        query={filters.searchInput}
-        onQuery={filters.setSearchInput}
-        placeholder="Mediathek durchsuchen…"
-      />
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label="Dateien hochladen"
-        title="Dateien hochladen"
-        onClick={() => fileRef.current?.click()}
-      >
-        <HiPlus aria-hidden className="size-[18px]" />
-      </Button>
-      <input
-        ref={fileRef}
-        type="file"
-        accept={[acceptForMediaType('all'), ...SUPPORTED_AUDIO_TYPES].join(',')}
-        multiple
-        hidden
-        aria-label="Dateien auswählen"
-        onChange={(e) => {
-          if (e.target.files?.length) onFiles(e.target.files);
-          e.target.value = '';
-        }}
-      />
+    <div className="flex items-center gap-1 pointer-coarse:gap-2">
       <FilterMenuButton
-        label={typeActive ? `Filter: ${typeLabel(filters.type)}` : 'Filter'}
+        label={typeFiltered ? `Filter: ${studioFilterLabel(filters.type)}` : 'Filter'}
         menuLabel="Anzeigen"
         value={filters.type}
-        options={TYPE_OPTIONS}
+        options={STUDIO_FILTERS}
         onChange={(value) => filters.setType(value as MediaTypeFilter)}
-        active={typeActive}
+        active={typeFiltered}
         icon={
-          typeActive ? (
+          typeFiltered ? (
             <HiFilter aria-hidden className="size-[18px]" />
           ) : (
             <HiOutlineFilter aria-hidden className="size-[18px]" />
@@ -102,6 +70,6 @@ export function MediaToolbar({
         icon={<LuArrowDownUp aria-hidden className="size-[18px]" />}
       />
       <GridSizeToggle gridSize={gridSize} onToggle={onToggleGridSize} />
-    </>
+    </div>
   );
 }

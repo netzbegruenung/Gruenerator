@@ -34,6 +34,7 @@ const TYPE_ICONS: Record<string, IoniconsIconName> = {
   group_join_requested: 'person-add-outline',
   group_join_approved: 'checkmark-circle-outline',
   group_join_denied: 'close-circle-outline',
+  group_content_reported: 'flag-outline',
   pushed_content: 'phone-portrait-outline',
 };
 

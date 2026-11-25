@@ -38,7 +38,7 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response): P
   }
 });
 
-async function fetchGroups(userId: string): Promise<unknown[]> {
+export async function fetchGroups(userId: string): Promise<unknown[]> {
   try {
     const memberships = await db.query(
       'SELECT group_id, role, joined_at FROM group_memberships WHERE user_id = $1',
@@ -49,7 +49,7 @@ async function fetchGroups(userId: string): Promise<unknown[]> {
 
     const groupIds = (memberships as Array<{ group_id: string }>).map((m) => m.group_id);
     const groupsData = await db.query(
-      'SELECT id, name, description, created_at, created_by, join_token, settings, avatar_url, links FROM groups WHERE id = ANY($1) AND deleted_at IS NULL',
+      'SELECT id, name, description, created_at, created_by, join_token, settings, avatar_url, links, is_system FROM groups WHERE id = ANY($1) AND deleted_at IS NULL',
       [groupIds]
     );
 
@@ -67,19 +67,23 @@ async function fetchGroups(userId: string): Promise<unknown[]> {
         description: string;
         created_at: string;
         created_by: string;
-        join_token: string;
+        join_token: string | null;
         settings: unknown;
         avatar_url: string;
         links: unknown;
+        is_system: boolean | null;
       }>
     ).map((group) => {
       const membership = membershipByGroupId.get(group.id);
       const role = membership?.role || 'member';
+      const isAdmin = group.created_by === userId || role === 'admin';
       return {
         ...group,
+        // Der Einladungslink ist ein Beitritts-Geheimnis: nur Admins bekommen ihn.
+        join_token: isAdmin && !group.is_system ? group.join_token : null,
         role,
         joined_at: membership?.joined_at,
-        isAdmin: group.created_by === userId || role === 'admin',
+        isAdmin,
       };
     });
   } catch (error) {

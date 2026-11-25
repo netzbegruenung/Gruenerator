@@ -1,5 +1,5 @@
 import { type AgentListItem } from '@gruenerator/chat';
-import { type RecurringTask, type TextForm } from '@gruenerator/contracts';
+import { type PublicTextForm, type RecurringTask, type TextForm } from '@gruenerator/contracts';
 import {
   AGENTURA_TYPE_LABELS,
   SKILL_CATEGORY_LABELS,
@@ -37,6 +37,7 @@ import { MarketCard } from '../../components/marketplace/MarketCard';
 import { MarketplaceSheet } from '../../components/marketplace/MarketplaceSheet';
 import { marketplaceRoute } from '../../components/marketplace/marketplaceTarget';
 import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
+import { useAddedRecipes } from '../../hooks/agents/useAddedRecipes';
 import { useAgenturaCatalog } from '../../hooks/agents/useAgenturaCatalog';
 import { useOwnRecipes } from '../../hooks/agents/useOwnRecipes';
 import { useSharedUserAgents } from '../../hooks/agents/useSharedUserAgents';
@@ -52,8 +53,9 @@ const SECTION_KINDS = ['agent', 'recipe', 'task'] as const;
 /** Was das Sheet über der Übersicht anbietet — wie im Web. */
 const AGENTURA_KINDS = ['agent', 'recipe'] as const;
 
+// Neue Agents gibt es nicht mehr; wiederkehrende Aufgaben legen ihren Agent
+// vorerst weiter selbst an.
 const CREATE_ACTIONS = [
-  { id: 'agent', title: 'Agent' },
   { id: 'recipe', title: 'Rezept' },
   { id: 'task', title: 'Wiederkehrende Aufgabe' },
 ];
@@ -99,6 +101,7 @@ export default function AgentsScreen() {
   const tasks = useRecurringTasks();
   const library = useUserLibrary();
   const catalog = useAgenturaCatalog();
+  const added = useAddedRecipes();
   const deleteAgent = useDeleteUserAgent();
   const deleteRecipe = useDeleteRecipe();
   const deleteTask = useDeleteRecurringTask();
@@ -266,17 +269,22 @@ export default function AgentsScreen() {
     };
   };
 
-  const recipeItem = (recipe: TextForm): MarketItem => ({
-    key: `r-${recipe.id}`,
-    kind: 'recipe',
-    libraryRef: null,
-    iconKey: recipe.iconKey ?? null,
-    title: recipe.title,
-    meta: 'Rezept',
-    description: recipe.description ?? `@${recipe.mention}`,
-    searchText: searchTextOf([recipe.title, recipe.description, recipe.mention]),
-    ...recipeActions(recipe.mention, recipe.title, true, null),
-  });
+  // Eigene (bearbeitbar) oder aus dem Marktplatz geholte Nutzer-Rezepte; die
+  // geholten tragen ihre Zeilen-id als Bibliotheksverweis.
+  const recipeItem = (recipe: TextForm | PublicTextForm, own = true): MarketItem => {
+    const libraryRef = own ? null : { kind: 'recipe' as const, ref: recipe.id };
+    return {
+      key: `r-${recipe.id}`,
+      kind: 'recipe',
+      libraryRef,
+      iconKey: recipe.iconKey ?? null,
+      title: recipe.title,
+      meta: 'Rezept',
+      description: recipe.description ?? `@${recipe.mention}`,
+      searchText: searchTextOf([recipe.title, recipe.description, recipe.mention]),
+      ...recipeActions(recipe.mention, recipe.title, own, libraryRef),
+    };
+  };
 
   const taskItem = (task: RecurringTask): MarketItem => {
     const openDetail = () =>
@@ -319,10 +327,9 @@ export default function AgentsScreen() {
   };
 
   // Was der Marktplatz anbietet, nach Verweis — dieselben Verweise wie im Web:
-  // agentRef bei Agents (uuid bei fremden), Mention bei Katalog-Rezepten.
-  // Landesverbands-Inhalte erst mit geladenen Rollen, sonst stünden kurz die
-  // Inhalte aller Verbände auf der Übersicht. Öffentliche Nutzer-Rezepte führt
-  // die App nicht; ein solcher Verweis bleibt hier aus und erscheint im Web.
+  // agentRef bei Agents (uuid bei fremden). Landesverbands-Inhalte erst mit
+  // geladenen Rollen, sonst stünden kurz die Inhalte aller Verbände auf der
+  // Übersicht. Rezepte löst `useAddedRecipes` auf.
   const shopAgents = useMemo(() => {
     const lv = catalog.rolesLoaded ? catalog.lvSystemAgents : [];
     const map = new Map<string, Agent>();
@@ -330,22 +337,9 @@ export default function AgentsScreen() {
       map.set(agentRef(agent, false), agent);
     return map;
   }, [catalog.generalSystemAgents, catalog.lvSystemAgents, catalog.rolesLoaded, communityAgents]);
-  const shopSkills = useMemo(
-    () =>
-      new Map(
-        catalog.skills
-          .filter((s) => catalog.rolesLoaded || !isLandesverbandIdentifier(s.identifier))
-          .map((s) => [s.mention, s])
-      ),
-    [catalog.skills, catalog.rolesLoaded]
-  );
   const addedAgents = library.items.flatMap((i) => {
     const agent = i.kind === 'agent' ? (shopAgents.get(i.ref) ?? null) : null;
     return agent && !ownAgentKeys.has(agentKey(agent)) ? [agent] : [];
-  });
-  const addedSkills = library.items.flatMap((i) => {
-    const skill = i.kind === 'recipe' ? (shopSkills.get(i.ref) ?? null) : null;
-    return skill ? [skill] : [];
   });
 
   // Aus Projekten geteilt — ohne die eigenen (die stehen schon oben) und ohne
@@ -357,14 +351,15 @@ export default function AgentsScreen() {
 
   const allItems: MarketItem[] = [
     ...userAgents.map((a) => agentItem(a)),
-    ...ownRecipes.map(recipeItem),
+    ...ownRecipes.map((r) => recipeItem(r)),
     ...addedAgents.map((a) => agentItem(a)),
     ...projectAgents.map((e) =>
       // Fremde Agents tragen ihren Prompt nicht mit (#3781); für Kachel und
       // Chat-Start reicht, was da ist.
       agentItem(e.agent as Agent, e.groups[0] ? `aus ${e.groups[0].name}` : null)
     ),
-    ...addedSkills.map(skillItem),
+    ...added.skills.map(skillItem),
+    ...added.forms.map((f) => recipeItem(f, false)),
     ...(tasks.data ?? []).map(taskItem),
   ];
   const items = query ? allItems.filter((item) => item.searchText.includes(query)) : allItems;
@@ -496,11 +491,7 @@ export default function AgentsScreen() {
         onSelect={(id) =>
           afterSheet(() => {
             if (id === 'recipe') router.push('/(focused)/grueneratoren/rezept/neu');
-            else
-              router.push({
-                pathname: '/(focused)/grueneratoren/agent/neu',
-                params: id === 'task' ? { mode: 'recurring' } : {},
-              });
+            else router.push('/(focused)/grueneratoren/aufgabe/neu');
           })
         }
       />

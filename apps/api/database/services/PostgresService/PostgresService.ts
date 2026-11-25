@@ -757,7 +757,7 @@ export class PostgresService {
       const stats = await this.query<DatabaseStats['tables'][number]>(`
         SELECT
           schemaname,
-          tablename,
+          relname AS tablename,
           n_tup_ins as inserts,
           n_tup_upd as updates,
           n_tup_del as deletes,

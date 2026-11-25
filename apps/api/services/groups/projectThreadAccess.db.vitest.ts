@@ -43,9 +43,13 @@ vi.mock('./groupContent.js', async (importOriginal) => ({
 }));
 
 const { readThreadProjectInstructions } = await import('./groupInstructions.js');
-const { getProjectFileSources } = await import('./projectFiles.js');
+const { getProjectFileDocumentIds } = await import('./projectFiles.js');
 const { getSpaceRecallScope, getThreadRecallContext, recallPastChats } =
   await import('../../routes/chat/services/pastChatRecallService.js');
+const { getTrashedThread, listTrashedThreads } =
+  await import('../../routes/chat/services/threadTrashService.js');
+const { expirePendingApproval } =
+  await import('../../routes/chat/services/threadPersistenceService.js');
 
 const A = randomUUID();
 const B = randomUUID();
@@ -126,9 +130,9 @@ describe.skipIf(!url)('Projektmaterial nach Mitgliedschaft', () => {
   });
 
   it('files follow the same rule', async () => {
-    expect(await getProjectFileSources(T1, B)).toHaveLength(1);
-    expect(await getProjectFileSources(T2, B)).toHaveLength(0);
-    expect(await getProjectFileSources(T1, C)).toHaveLength(0);
+    expect(await getProjectFileDocumentIds(T1, B)).toHaveLength(1);
+    expect(await getProjectFileDocumentIds(T2, B)).toHaveLength(0);
+    expect(await getProjectFileDocumentIds(T1, C)).toHaveLength(0);
   });
 
   it('recall scope for B in the team chat: own chats plus team chats, never A private', async () => {
@@ -159,7 +163,7 @@ describe.skipIf(!url)('Projektmaterial nach Mitgliedschaft', () => {
       JSON.stringify({ [C]: 'write' }),
     ]);
     expect(await readThreadProjectInstructions(T1, C)).toBeNull();
-    expect(await getProjectFileSources(T1, C)).toHaveLength(0);
+    expect(await getProjectFileDocumentIds(T1, C)).toHaveLength(0);
     expect(await getSpaceRecallScope(T1, C)).toBeNull();
     await pool.query(`UPDATE chat_threads SET permissions = '{}'::jsonb WHERE id = $1`, [T1]);
   });
@@ -175,7 +179,7 @@ describe.skipIf(!url)('Projektmaterial nach Mitgliedschaft', () => {
       [P, T4, A]
     );
     expect(await readThreadProjectInstructions(T4, B)).toBeNull();
-    expect(await getProjectFileSources(T4, B)).toHaveLength(0);
+    expect(await getProjectFileDocumentIds(T4, B)).toHaveLength(0);
   });
 
   it('a legacy share with empty permissions counts as read and write', async () => {
@@ -189,7 +193,7 @@ describe.skipIf(!url)('Projektmaterial nach Mitgliedschaft', () => {
       [P, T5, A]
     );
     expect((await readThreadProjectInstructions(T5, B))?.text).toBe('Im Du schreiben.');
-    expect(await getProjectFileSources(T5, B)).toHaveLength(1);
+    expect(await getProjectFileDocumentIds(T5, B)).toHaveLength(1);
   });
 
   it('a member who leaves loses the material', async () => {
@@ -198,7 +202,47 @@ describe.skipIf(!url)('Projektmaterial nach Mitgliedschaft', () => {
       [P, B]
     );
     expect(await readThreadProjectInstructions(T1, B)).toBeNull();
-    expect(await getProjectFileSources(T1, B)).toHaveLength(0);
+    expect(await getProjectFileDocumentIds(T1, B)).toHaveLength(0);
     expect(await getSpaceRecallScope(T1, B)).toBeNull();
+  });
+
+  it('a starter who left can no longer settle cards in the team chat', async () => {
+    const pending = `{"pendingApproval":{"resolved":"false"}}`;
+    for (const thread of [T1, T2]) {
+      await pool.query(
+        `INSERT INTO chat_messages (thread_id, role, content, tool_results) VALUES ($1,'assistant','?',$2::jsonb)`,
+        [thread, pending]
+      );
+    }
+    await pool.query(
+      `UPDATE group_memberships SET is_active = FALSE WHERE group_id = $1 AND user_id = $2`,
+      [P, A]
+    );
+    await expirePendingApproval(T1, A);
+    await expirePendingApproval(T2, A);
+    const { rows } = await pool.query<{ thread_id: string; resolved: string }>(
+      `SELECT thread_id, tool_results->'pendingApproval'->>'resolved' AS resolved
+         FROM chat_messages WHERE thread_id = ANY($1::uuid[])`,
+      [[T1, T2]]
+    );
+    expect(Object.fromEntries(rows.map((r) => [r.thread_id, r.resolved]))).toEqual({
+      [T1]: 'false',
+      [T2]: 'expired',
+    });
+  });
+
+  it('a trashed team chat stays with the project after its starter left', async () => {
+    await pool.query(`UPDATE chat_threads SET deleted_at = now() WHERE id = ANY($1::uuid[])`, [
+      [T1, T2],
+    ]);
+    await pool.query(
+      `UPDATE group_memberships SET is_active = FALSE WHERE group_id = $1 AND user_id = $2`,
+      [P, A]
+    );
+    expect((await getTrashedThread(T1, A)).status).toBe('forbidden');
+    expect((await getTrashedThread(T2, A)).status).toBe('ok');
+    const listed = (await listTrashedThreads(A, { limit: 50, before: null })).map((t) => t.id);
+    expect(listed).toContain(T2);
+    expect(listed).not.toContain(T1);
   });
 });

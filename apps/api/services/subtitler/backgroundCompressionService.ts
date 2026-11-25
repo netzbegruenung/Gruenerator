@@ -287,8 +287,6 @@ async function compressVideoInBackground(
           '192k',
           '-movflags',
           '+faststart',
-          '-avoid_negative_ts',
-          'make_zero',
         ];
 
         if (videoCodec === 'libx264') {
