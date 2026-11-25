@@ -1,16 +1,23 @@
-import { Button } from '@gruenerator/ui';
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@gruenerator/ui';
 import { motion } from 'motion/react';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  FaPlus,
+  FaChevronDown,
   FaEdit,
+  FaEllipsisH,
+  FaFileAlt,
+  FaPlus,
   FaShareAlt,
-  FaInstagram,
   FaTimes,
   FaDownload,
-  FaFileAlt,
 } from 'react-icons/fa';
-import { PiFilmSlate } from 'react-icons/pi';
+import { PiFilmSlate, PiSubtitles } from 'react-icons/pi';
 
 import CopyButton from '../../../components/common/CopyButton';
 import JobErrorNotice from '../../../components/common/JobErrorNotice';
@@ -167,7 +174,7 @@ const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({
     document.body.removeChild(link);
   };
 
-  const handleShareToInstagram = useCallback(async () => {
+  const handleNativeShare = useCallback(async () => {
     if (!videoUrl) return;
     setIsSharing(true);
     try {
@@ -190,6 +197,15 @@ const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({
       setIsSharing(false);
     }
   }, [videoUrl, socialText]);
+
+  const shareProjectId = exportStore.projectId || projectId;
+  // One „Teilen“: the phone's share sheet with the file where it can take one
+  // (that was the Instagram button), the link dialog otherwise.
+  const canShare = (canNativeShare && !!videoUrl) || !!shareProjectId;
+  const handleShare = () => {
+    if (canNativeShare && videoUrl) void handleNativeShare();
+    else setShowShareModal(true);
+  };
 
   return (
     <div className="flex justify-center">
@@ -259,73 +275,110 @@ const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({
                   Dein Video wurde erfolgreich mit Untertiteln versehen.
                 </p>
 
-                <div className="flex flex-wrap gap-md max-lg:justify-center">
-                  {videoUrl && (
-                    <Button
-                      variant="brand"
-                      size="brand-icon"
-                      onClick={handleDownload}
-                      title="Herunterladen"
-                    >
-                      <FaDownload />
-                    </Button>
-                  )}
-                  <Button
-                    variant="brand-outline"
-                    size="brand-icon"
-                    onClick={onEditAgain}
-                    title="Bearbeiten"
-                  >
-                    <FaEdit />
-                  </Button>
-                  {onOpenInEditor && (
-                    <Button
-                      variant="brand-outline"
-                      size="brand-icon"
-                      onClick={onOpenInEditor}
-                      title="Im Video Editor öffnen"
-                    >
-                      <PiFilmSlate />
-                    </Button>
-                  )}
-                  {(exportStore.projectId || projectId) && (
-                    <Button
-                      variant="brand-outline"
-                      size="brand-icon"
-                      onClick={() => setShowShareModal(true)}
-                      title="Video Teilen"
-                    >
-                      <FaShareAlt />
-                    </Button>
-                  )}
-                  {videoUrl && canNativeShare && (
-                    <Button
-                      variant="brand-outline"
-                      size="brand-icon"
-                      onClick={handleShareToInstagram}
-                      disabled={isSharing}
-                      title="Auf Instagram posten"
-                    >
-                      {isSharing ? <Spinner size="small" /> : <FaInstagram />}
-                    </Button>
-                  )}
-                  <Button
-                    variant="brand-outline"
-                    size="brand-icon"
-                    onClick={onGenerateSocialText}
-                    disabled={isGeneratingSocialText || !!socialText}
-                    title="Beitragstext erstellen"
-                  >
-                    {isGeneratingSocialText ? <Spinner size="small" /> : <FaFileAlt />}
-                  </Button>
-                  <Button
-                    variant="brand-ghost"
-                    size="brand-icon"
-                    onClick={onReset}
-                    title="Neues Video"
-                  >
-                    <FaPlus />
-                  </Button>
+                <div className="flex flex-col gap-sm max-lg:w-full max-lg:max-w-sm max-lg:items-stretch">
+                  <div className="flex gap-sm">
+                    {videoUrl && (
+                      <Button
+                        variant="brand"
+                        size="brand-md"
+                        className="max-lg:flex-1 max-lg:px-4"
+                        onClick={handleDownload}
+                      >
+                        <FaDownload />
+                        Herunterladen
+                      </Button>
+                    )}
+                    {canShare && (
+                      <Button
+                        variant="brand-outline"
+                        size="brand-md"
+                        className="max-lg:flex-1 max-lg:px-4"
+                        onClick={handleShare}
+                        disabled={isSharing}
+                      >
+                        {isSharing ? <Spinner size="small" /> : <FaShareAlt />}
+                        Teilen
+                      </Button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-sm">
+                    {onOpenInEditor ? (
+                      // Two editors, so „Bearbeiten“ asks which one: the simple
+                      // subtitle editor and the video editor looked alike as icons.
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="brand-outline" size="brand" className="max-lg:flex-1">
+                            <FaEdit />
+                            Bearbeiten
+                            <FaChevronDown className="size-3" aria-hidden />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-72">
+                          <DropdownMenuItem
+                            onSelect={onEditAgain}
+                            className="items-start gap-sm py-2"
+                          >
+                            <PiSubtitles className="mt-0.5 size-5 text-primary-500" aria-hidden />
+                            <span className="flex flex-col">
+                              <span className="font-medium">Untertitel anpassen</span>
+                              <span className="text-xs text-foreground-muted">
+                                Text und Zeiten korrigieren
+                              </span>
+                            </span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onSelect={onOpenInEditor}
+                            className="items-start gap-sm py-2"
+                          >
+                            <PiFilmSlate className="mt-0.5 size-5 text-primary-500" aria-hidden />
+                            <span className="flex flex-col">
+                              <span className="font-medium">Im Video Editor schneiden</span>
+                              <span className="text-xs text-foreground-muted">
+                                Kürzen, Clips, Musik. Untertitel wandern mit
+                              </span>
+                            </span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : (
+                      <Button
+                        variant="brand-outline"
+                        size="brand"
+                        className="max-lg:flex-1"
+                        onClick={onEditAgain}
+                      >
+                        <FaEdit />
+                        Bearbeiten
+                      </Button>
+                    )}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="brand-ghost"
+                          size="brand-icon"
+                          aria-label="Mehr"
+                          title="Mehr"
+                        >
+                          {isGeneratingSocialText ? <Spinner size="small" /> : <FaEllipsisH />}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        <DropdownMenuItem
+                          onSelect={onGenerateSocialText}
+                          disabled={isGeneratingSocialText || !!socialText}
+                        >
+                          <FaFileAlt aria-hidden />
+                          {isGeneratingSocialText
+                            ? 'Beitragstext wird erstellt …'
+                            : 'Beitragstext erstellen'}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={onReset}>
+                          <FaPlus aria-hidden />
+                          Neues Video
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
               </div>
             </div>
