@@ -138,7 +138,12 @@ export function readSiteVariant(theme: string | null): SiteVariant {
   return parsed.success ? parsed.data : DEFAULT_SITE_VARIANT;
 }
 
-/** Header ground: white as on gruene.de, or the colour of the variant. Absent means white. */
+/**
+ * Header ground: white as on gruene.de, or the colour of the variant. Absent means white.
+ * Deprecated 2026-11-25: the header is white in every variant and the hero shows the variant,
+ * so the renderer no longer reads this. Stored rows and site docs still carry it (F0), so it
+ * stays readable.
+ */
 export const siteHeaderStyleSchema = z.enum(['weiss', 'farbig']);
 export type SiteHeaderStyle = z.infer<typeof siteHeaderStyleSchema>;
 export const DEFAULT_SITE_HEADER_STYLE: SiteHeaderStyle = 'weiss';

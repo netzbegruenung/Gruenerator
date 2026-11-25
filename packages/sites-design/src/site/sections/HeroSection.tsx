@@ -118,7 +118,6 @@ function FullBleedHero({ ctx, place }: HeroProps) {
     <Section
       ctx={ctx}
       place={place}
-      ground={hasImage ? 'photo' : 'deep'}
       // The photo ground is transparent: while the portrait loads (or fails), the white text
       // would sit on the page's paper. The deeper green keeps it readable until then.
       className="site:relative site:isolate site:bg-[var(--site-palette-deeper)] site:flex site:min-h-[min(88svh,56rem)] site:items-end site:overflow-hidden site:pt-hero site:pb-section"

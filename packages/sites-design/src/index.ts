@@ -18,7 +18,7 @@ export {
   visibleBlocks,
   type SiteRenderMode,
 } from './model/visibility.js';
-export { variantSwatches, type SiteSwatch } from './model/swatches.js';
+export { variantPreview } from './model/swatches.js';
 export { sizedSrc } from './model/images.js';
 export { type SiteDocumentKind } from './model/meta.js';
 export { type LegalDocumentKind } from './legal/types.js';
