@@ -25,6 +25,20 @@ const adapter = {
   ensureInitialized: async () => {},
   query: async (text: string, params?: unknown[]): Promise<unknown[]> =>
     (await pool.query<Record<string, unknown>>(text, params)).rows,
+  async transaction<T>(callback: (client: pg.PoolClient) => Promise<T>): Promise<T> {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await callback(client);
+      await client.query('COMMIT');
+      return result;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  },
 };
 
 vi.mock('../../database/services/PostgresService/PostgresService.js', async (importOriginal) => ({
