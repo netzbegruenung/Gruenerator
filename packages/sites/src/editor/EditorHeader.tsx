@@ -137,12 +137,7 @@ export function EditorHeader({
       </div>
 
       <div className="ml-auto flex shrink-0 items-center gap-xxs">
-        {children && (
-          <>
-            {children}
-            <Divider />
-          </>
-        )}
+        {children}
         <Button
           variant="ghost"
           size="icon-sm"
