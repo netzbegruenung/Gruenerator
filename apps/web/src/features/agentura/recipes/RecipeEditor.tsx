@@ -86,74 +86,74 @@ function RecipeEditor({ mode, initialState, onCancel, projectId = null }: Recipe
   const canShare = mode === 'edit' && form.kind === 'custom';
 
   return (
-    <div className="flex min-h-full flex-col">
-      <div className="mx-auto w-full max-w-[640px] flex-1 px-md pt-xl pb-xl">
-        <h1 className="m-0 mb-lg text-base font-semibold text-foreground-heading">
-          {mode === 'create' ? 'Neues Rezept' : 'Rezept bearbeiten'}
-        </h1>
-        {editor.error && (
-          <p role="alert" className="mb-md text-sm text-destructive">
-            {editor.error}
-          </p>
-        )}
-        <RecipeForm editor={editor} />
-      </div>
+    // Formular und Leiste stehen als ein Block mittig. Wird der Inhalt höher
+    // als der Bildschirm, scrollt er, und die Leiste klebt am unteren Rand.
+    <div className="h-full min-h-0 overflow-y-auto">
+      <div className="flex min-h-full flex-col px-md py-2xl">
+        <div className="mx-auto my-auto w-full max-w-[640px]">
+          <h1 className="sr-only">{mode === 'create' ? 'Neues Rezept' : 'Rezept bearbeiten'}</h1>
+          {editor.error && (
+            <p role="alert" className="mb-md text-sm text-destructive">
+              {editor.error}
+            </p>
+          )}
+          <RecipeForm editor={editor} />
 
-      <footer className="sticky bottom-0 z-20 border-t border-grey-200 bg-background pb-[env(safe-area-inset-bottom)] dark:border-grey-700">
-        <div className="mx-auto flex w-full max-w-[640px] flex-wrap items-center gap-sm px-md py-sm">
-          <RecipeCategoryChip value={form.category} onChange={(v) => editor.set('category', v)} />
-          <div className="ml-auto flex items-center gap-xs">
-            {editor.justSaved && (
-              <span role="status" className="text-sm text-foreground-muted">
-                Gespeichert ✓
-              </span>
-            )}
-            {mode === 'edit' && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" aria-label="Weitere Aktionen">
-                    <PiDotsThreeBold aria-hidden />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" side="top">
-                  <DropdownMenuItem onSelect={() => void openInChat()}>
-                    Im Chat verwenden
-                  </DropdownMenuItem>
-                  {canShare && (
-                    <DropdownMenuItem onSelect={() => setShareOpen(true)}>
-                      Teilen …
+          <footer className="sticky bottom-0 z-10 mt-lg flex flex-wrap items-center gap-sm border-t border-grey-200 bg-background py-sm pb-[max(var(--spacing-sm),env(safe-area-inset-bottom))] dark:border-grey-700">
+            <RecipeCategoryChip value={form.category} onChange={(v) => editor.set('category', v)} />
+            <div className="ml-auto flex items-center gap-xs">
+              {editor.justSaved && (
+                <span role="status" className="text-sm text-foreground-muted">
+                  Gespeichert ✓
+                </span>
+              )}
+              {mode === 'edit' && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" aria-label="Weitere Aktionen">
+                      <PiDotsThreeBold aria-hidden />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" side="top">
+                    <DropdownMenuItem onSelect={() => void openInChat()}>
+                      Im Chat verwenden
                     </DropdownMenuItem>
-                  )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    variant="destructive"
-                    disabled={deleteMut.isPending}
-                    onSelect={() => void handleDelete()}
-                  >
-                    Löschen
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => (onCancel ? onCancel() : navigate('/grueneratoren'))}
-              disabled={editor.isSaving}
-            >
-              Abbrechen
-            </Button>
-            <Button
-              variant="brand"
-              size="brand-sm"
-              onClick={() => void handleSave()}
-              disabled={editor.isSaving}
-            >
-              Speichern
-            </Button>
-          </div>
+                    {canShare && (
+                      <DropdownMenuItem onSelect={() => setShareOpen(true)}>
+                        Teilen …
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      variant="destructive"
+                      disabled={deleteMut.isPending}
+                      onSelect={() => void handleDelete()}
+                    >
+                      Löschen
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => (onCancel ? onCancel() : navigate('/grueneratoren'))}
+                disabled={editor.isSaving}
+              >
+                Abbrechen
+              </Button>
+              <Button
+                variant="brand"
+                size="brand-sm"
+                onClick={() => void handleSave()}
+                disabled={editor.isSaving}
+              >
+                Speichern
+              </Button>
+            </div>
+          </footer>
         </div>
-      </footer>
+      </div>
 
       {canShare && (
         <Dialog open={shareOpen} onOpenChange={setShareOpen}>

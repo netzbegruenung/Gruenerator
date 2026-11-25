@@ -155,7 +155,10 @@ export function useRecipeEditor({ mode, initialState, projectId = null }: UseRec
   // gespeichert würde ein Name, den niemand gesehen hat.
   const fieldErrors: Partial<Record<RecipeFieldKey, string>> = {};
   if (form.title.trim().length === 0) fieldErrors.title = 'Gib dem Rezept einen Namen.';
-  if (canEditMention && mentionFieldValue.length < 2)
+  // Ohne Namen gibt es auch keinen Namen im Chat — das sagt schon der Fehler
+  // am Namen, und das Feld dazu ist noch gar nicht zu sehen.
+  const mentionVisible = form.title.trim().length > 0 || form.mentionTouched;
+  if (canEditMention && mentionVisible && mentionFieldValue.length < 2)
     fieldErrors.mention = 'Der Name im Chat braucht mindestens zwei Buchstaben oder Ziffern.';
   if (form.styleBlock.trim().length === 0)
     fieldErrors.styleBlock = 'Schreib eine Anleitung oder lass sie aus Beispielen erstellen.';

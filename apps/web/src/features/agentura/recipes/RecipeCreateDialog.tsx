@@ -4,11 +4,10 @@ import {
   ConfirmDialogProvider,
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogHeader,
   DialogTitle,
   toast,
 } from '@gruenerator/ui';
+import { useEffect } from 'react';
 
 import { RecipeCategoryChip } from './RecipeCategoryChip';
 import { RecipeForm } from './RecipeForm';
@@ -31,6 +30,10 @@ export function RecipeCreateDialog({ open, onOpenChange, projectId }: RecipeCrea
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
+        // Radix fokussiert sonst das erste Bedienelement, die Symbol-Auswahl.
+        // Getippt wird zuerst der Name — darauf setzt der Körper den Fokus.
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        aria-describedby={undefined}
         className="flex max-h-[min(88dvh,900px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-[640px]"
       >
         {/* Neu gemountet bei jedem Öffnen: ein abgebrochener Entwurf soll beim
@@ -53,6 +56,10 @@ function RecipeCreateDialogBody({
   onClose: () => void;
 }) {
   const editor = useRecipeEditor({ mode: 'create', initialState: EMPTY_RECIPE_FORM, projectId });
+  const titleId = editor.fieldIds.title;
+  useEffect(() => {
+    document.getElementById(titleId)?.focus();
+  }, [titleId]);
 
   const handleSave = async () => {
     const result = await editor.save();
@@ -63,11 +70,10 @@ function RecipeCreateDialogBody({
 
   return (
     <>
-      <DialogHeader className="px-lg pt-lg pb-xs text-left">
-        <DialogTitle>Neues Rezept</DialogTitle>
-        <DialogDescription>Alle im Projekt können es nutzen.</DialogDescription>
-      </DialogHeader>
-      <div className="min-h-0 flex-1 overflow-y-auto px-lg pt-sm pb-lg">
+      {/* Kein sichtbarer Kopf: der Name des Rezepts ist die Überschrift. Der
+          Titel bleibt für Screenreader, sonst hätte der Dialog keinen Namen. */}
+      <DialogTitle className="sr-only">Neues Rezept</DialogTitle>
+      <div className="min-h-0 flex-1 overflow-y-auto px-lg pt-lg pb-lg">
         {editor.error && (
           <p role="alert" className="mb-md text-sm text-destructive">
             {editor.error}
