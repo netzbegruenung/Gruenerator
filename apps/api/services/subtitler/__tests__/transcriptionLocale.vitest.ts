@@ -30,6 +30,6 @@ describe('startTranscriptionJob', () => {
     const result = await startTranscriptionJob({ uploadId: 'u1' }, 'de-AT');
 
     expect(result).toEqual({ ok: true });
-    expect(transcribeVideo).toHaveBeenCalledWith('/tmp/u1', 'manual', 'de-AT');
+    expect(transcribeVideo).toHaveBeenCalledWith('/tmp/u1', 'u1', 'manual', 'de-AT');
   });
 });
