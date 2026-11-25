@@ -65,6 +65,7 @@ async function initializeBoardAgentState(
         projectNotebookIds: project.projectNotebookIds,
       }),
       ...(project.projectRecipeIds.length > 0 && { projectRecipeIds: project.projectRecipeIds }),
+      ...(project.projectRecipesExclusive && { projectRecipesExclusive: true }),
       // Dateien des Projekts als ein Suchbereich (wie im Projekt-Chat).
       ...(project.projectFileDocumentIds.length > 0 && {
         defaultNotebookDocumentIds: project.projectFileDocumentIds,

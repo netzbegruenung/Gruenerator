@@ -16,6 +16,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   useColorScheme,
@@ -49,6 +50,7 @@ export default function ProjektBearbeitenScreen() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [landesverband, setLandesverband] = useState<LandesverbandId | null>(null);
+  const [recipesExclusive, setRecipesExclusive] = useState(false);
   const [seeded, setSeeded] = useState(false);
   const { locale } = useAuth();
   const [color, setColor] = useState<GroupColor | null>(null);
@@ -59,6 +61,7 @@ export default function ProjektBearbeitenScreen() {
       setName(group.name ?? '');
       setDescription(group.description ?? '');
       setLandesverband(group.landesverband ?? null);
+      setRecipesExclusive(group.recipes_exclusive === true);
       setColor(resolveGroupColor(group.color));
       setSeeded(true);
     }
@@ -68,13 +71,20 @@ export default function ProjektBearbeitenScreen() {
     name.trim() === (group?.name ?? '') &&
     description.trim() === (group?.description ?? '') &&
     landesverband === (group?.landesverband ?? null) &&
+    recipesExclusive === (group?.recipes_exclusive === true) &&
     color === resolveGroupColor(group?.color);
   const canSave = seeded && name.trim().length > 0 && !unchanged && !isPending && !!id;
 
   const save = () => {
     if (!canSave) return;
     mutate(
-      { name: name.trim(), description: description.trim(), landesverband, color },
+      {
+        name: name.trim(),
+        description: description.trim(),
+        landesverband,
+        ...(!group?.is_system && { recipesExclusive }),
+        color,
+      },
       {
         onSuccess: () => {
           void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -180,6 +190,24 @@ export default function ProjektBearbeitenScreen() {
                 })}
               </View>
             </ScrollView>
+            {!group.is_system && (
+              <View style={styles.switchRow}>
+                <View style={styles.flex}>
+                  <Text style={[styles.switchTitle, { color: theme.text }]}>
+                    Nur Projekt-Rezepte verwenden
+                  </Text>
+                  <Text style={[styles.switchHint, { color: theme.textSecondary }]}>
+                    Chats im Projekt schreiben nur mit den Rezepten dieses Projekts.
+                  </Text>
+                </View>
+                <Switch
+                  value={recipesExclusive}
+                  onValueChange={setRecipesExclusive}
+                  disabled={isPending}
+                  accessibilityLabel="Nur Projekt-Rezepte verwenden"
+                />
+              </View>
+            )}
             <Text style={[styles.label, { color: theme.textSecondary }]}>Farbe der Kachel</Text>
             <View accessibilityRole="radiogroup" style={styles.swatches}>
               {[null, ...GROUP_COLOR_KEYS].map((key) => {
@@ -243,6 +271,14 @@ const styles = StyleSheet.create({
   },
   label: { fontFamily: BODY_FONT, fontSize: 13, marginTop: spacing.small },
   chipsScroll: { flexGrow: 0 },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.small,
+    marginTop: spacing.small,
+  },
+  switchTitle: { fontFamily: BODY_FONT, fontSize: 15 },
+  switchHint: { fontFamily: BODY_FONT, fontSize: 13, marginTop: 2 },
   chips: { flexDirection: 'row', gap: 8 },
   chip: { borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8 },
   chipText: { fontFamily: BODY_FONT, fontSize: 14 },
