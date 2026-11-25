@@ -33,6 +33,7 @@ import { type DrizzleDB, getDrizzleInstance } from '../../database/services/Driz
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { notTrashed } from '../../database/trash.js';
 import { buildThumbnailTileUrl, versionFromShareRow } from '../media/thumbnailUrl.js';
+import { owningProjectNotTrashed } from '../sites/publishedSite.js';
 import { isRowId } from '../trash/ownedRowTrash.js';
 
 type Tx = Parameters<Parameters<DrizzleDB['transaction']>[0]>[0];
@@ -397,7 +398,8 @@ const userSiteReportable = and(
   eq(userSites.is_published, true),
   isNotNull(userSites.published_snapshot),
   eq(userSites.moderation, 'ok'),
-  notTrashed(userSites)
+  notTrashed(userSites),
+  owningProjectNotTrashed
 );
 
 const userSiteTarget: ModerationTarget = {
