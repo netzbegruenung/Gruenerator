@@ -1,23 +1,10 @@
 import { cn } from '@gruenerator/ui';
 
-import {
-  AsideCard,
-  SHELF_GRID,
-  SHELF_TILE,
-  ShelfSection,
-  SLIDER_HEAD,
-  SliderCard,
-  WissenDashboardFrame,
-  WissenMainGrid,
-} from './WissenLayout';
-
 import { Bone } from '@/components/dashboard/Bone';
-import { DASH_CARD, DASH_TINT } from '@/components/dashboard/dashboardStyles';
 
-// Ladezustände des Wissens-Dashboards. Jeder Abschnitt hat seinen Platzhalter
-// in der Form des späteren Inhalts, damit beim Eintreffen nichts springt; der
-// Routen-Fallback setzt dieselben Teile zur ganzen Seite zusammen. Dieses Modul
-// zieht keinen Chat-Code nach, damit der Fallback sofort steht.
+// Ladezustände der Dashboard-Karten (Schlagzeilen, Umfrage, Trends) im
+// Arbeiten-Tab. Jede Karte hat ihren Platzhalter in der Form des späteren
+// Inhalts, damit beim Eintreffen nichts springt.
 
 export function SliderSkeleton() {
   return (
@@ -60,78 +47,5 @@ export function TrendsSkeleton() {
         </li>
       ))}
     </ul>
-  );
-}
-
-/** Platzhalter für die Notebook-Kacheln (vor dem Laden des Chunks). */
-export function ShelfSkeleton() {
-  return (
-    <div className={SHELF_GRID}>
-      {[0, 1, 2, 3].map((i) => (
-        <div key={i} className={cn(SHELF_TILE, 'justify-end gap-1.5', DASH_TINT)}>
-          <Bone className="h-5 w-3/4 bg-(--dash-mg-tint-2)" />
-          <Bone className="h-3.5 w-1/2 bg-(--dash-mg-tint-2)" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/** Der Composer, solange er noch nicht geladen ist: dieselbe Pille, leer. */
-function ComposerSkeleton() {
-  return (
-    <div
-      className={cn(
-        'mx-auto flex w-full max-w-[760px] items-center gap-2 rounded-full border border-border py-1.5 pl-6 pr-1.5 shadow-md max-md:shadow-sm max-md:pl-[18px]',
-        DASH_CARD
-      )}
-    >
-      <Bone className="h-4 w-48 flex-1" />
-      <span className={cn('size-11 shrink-0 rounded-full', DASH_TINT)} />
-    </div>
-  );
-}
-
-/** Die ganze Seite als Skeleton — Fallback der Route, solange der Seiten-Chunk lädt. */
-export function WissenDashboardSkeleton() {
-  return (
-    <WissenDashboardFrame
-      // Der Titel steht in der Seiten-Config, die erst mit dem Chunk kommt — bis
-      // dahin ein Platzhalter. Als <span>, weil er in der <h1> steht.
-      title={
-        <span
-          aria-hidden
-          className="inline-block h-[1em] w-[12em] max-w-full animate-pulse rounded bg-(--dash-skeleton) align-middle"
-        />
-      }
-      composer={<ComposerSkeleton />}
-      aria-busy
-    >
-      <WissenMainGrid
-        slider={
-          <SliderCard>
-            <div className={SLIDER_HEAD}>
-              <Bone className="h-4 w-24" />
-            </div>
-            <SliderSkeleton />
-          </SliderCard>
-        }
-        poll={
-          <AsideCard>
-            <Bone className="h-4 w-24" />
-            <PollSkeleton />
-          </AsideCard>
-        }
-        trends={
-          <AsideCard>
-            <Bone className="h-4 w-24" />
-            <TrendsSkeleton />
-          </AsideCard>
-        }
-      />
-      <ShelfSection header={<Bone className="h-6 w-48" />}>
-        <ShelfSkeleton />
-      </ShelfSection>
-    </WissenDashboardFrame>
   );
 }
