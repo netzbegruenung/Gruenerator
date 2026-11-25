@@ -537,7 +537,7 @@ describe('RecipeEditor', () => {
     fireEvent.change(screen.getByRole('textbox', { name: /Beispiele/ }), {
       target: { value: 'Ein Beispieltext.' },
     });
-    await user.click(screen.getByRole('button', { name: 'Gemeinsamkeiten erkennen' }));
+    await user.click(screen.getByRole('button', { name: 'Anleitung erstellen' }));
 
     expect(await screen.findByText('Vorhandene Anleitung ersetzen?')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Behalten' }));
@@ -563,7 +563,7 @@ describe('RecipeEditor', () => {
     fireEvent.change(screen.getByRole('textbox', { name: /Beispiele/ }), {
       target: { value: 'Ein Beispieltext.' },
     });
-    await user.click(screen.getByRole('button', { name: 'Gemeinsamkeiten erkennen' }));
+    await user.click(screen.getByRole('button', { name: 'Anleitung erstellen' }));
 
     await waitFor(() => expect(analyze).toHaveBeenCalledTimes(1));
     const body = (analyze.mock.calls[0]?.[0] as { body: Record<string, unknown> }).body;
@@ -596,7 +596,7 @@ describe('RecipeEditor', () => {
       target: { value: 'Ein Beispieltext.' },
     });
 
-    expect(screen.getByRole('button', { name: 'Gemeinsamkeiten erkennen' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Anleitung erstellen' })).toBeDisabled();
     expect(analyze).not.toHaveBeenCalled();
     expect(screen.getByText(/Gib dem Rezept oben einen Namen/)).toBeInTheDocument();
 
@@ -605,7 +605,7 @@ describe('RecipeEditor', () => {
     expect(names).toHaveLength(1);
 
     await user.type(names[0]!, 'Pressemitteilungen Hessen');
-    expect(screen.getByRole('button', { name: 'Gemeinsamkeiten erkennen' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Anleitung erstellen' })).toBeEnabled();
   });
 
   it('behandelt eine 200 ohne styleBlock als fehlgeschlagene Analyse', async () => {
@@ -622,7 +622,7 @@ describe('RecipeEditor', () => {
     fireEvent.change(screen.getByRole('textbox', { name: /Beispiele/ }), {
       target: { value: 'Ein Beispieltext.' },
     });
-    await user.click(screen.getByRole('button', { name: 'Gemeinsamkeiten erkennen' }));
+    await user.click(screen.getByRole('button', { name: 'Anleitung erstellen' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('ohne Ergebnis');
     // Das Formular steht noch, die Anleitung ist unberührt.
@@ -640,7 +640,7 @@ describe('RecipeEditor', () => {
     fireEvent.change(screen.getByRole('textbox', { name: /Beispiele/ }), {
       target: { value: 'Ein Beispieltext.' },
     });
-    await user.click(screen.getByRole('button', { name: 'Gemeinsamkeiten erkennen' }));
+    await user.click(screen.getByRole('button', { name: 'Anleitung erstellen' }));
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Analyse fehlgeschlagen: Modell nicht erreichbar.');
