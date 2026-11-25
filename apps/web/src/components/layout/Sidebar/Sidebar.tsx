@@ -1,7 +1,7 @@
 import { useAgentStore, setThreadListSlot, useUserProfileStore } from '@gruenerator/chat/stores';
 import { getAgentSlug, getSlimAgent } from '@gruenerator/shared/agents';
 import { buildGroupPath } from '@gruenerator/shared/groups';
-import { sortByUsage } from '@gruenerator/shared/utils';
+import { buildNotebookSlug, sortByUsage } from '@gruenerator/shared/utils';
 import {
   Sheet,
   SheetContent,
@@ -18,12 +18,15 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getFavouriteItemsById } from '../../../config/sidebarFavouritesConfig';
 import { useCanSeeSites } from '../../../config/sitesGate';
 import { useUserAgents } from '../../../features/agents/api';
+import { useNotebookCollections } from '../../../features/auth/hooks/useProfileData';
 import { useGroups } from '../../../features/groups/hooks/useGroups';
+import { useSharedNotebookCollections } from '../../../features/notebook/hooks/useSharedNotebookCollections';
 import { useItemUsage } from '../../../features/usage/useItemUsage';
 import { useStartLayout } from '../../../hooks/useStartLayout';
 import useAgentFavoritesStore from '../../../stores/agentFavoritesStore';
 import { useAuthStore } from '../../../stores/authStore';
 import useSidebarFavouritesStore, {
+  notebookFavouriteId,
   projektFavouriteId,
 } from '../../../stores/sidebarFavouritesStore';
 import useSidebarStore from '../../../stores/sidebarStore';
@@ -47,6 +50,7 @@ import {
   FiSidebar,
   FiX,
   LuFolderCog,
+  PiBooks,
   PiSignIn,
   PiSparkle,
   PiStarFill,
@@ -714,6 +718,32 @@ const SidebarFavourites = memo(function SidebarFavourites({
       return g ? [{ id, title: g.name, path: buildGroupPath(g) }] : [];
     });
   }, [favouriteIds, userGroups]);
+  // Eigene und geteilte Notebooks (`notebook:<id>`): abgefragt nur, wenn eins
+  // angeheftet ist. Gelöschte oder nicht mehr geteilte fallen still heraus.
+  const hasNotebookFavourite = favouriteIds.some((id) => id.startsWith('notebook:'));
+  const { query: ownNotebooks } = useNotebookCollections({ isActive: hasNotebookFavourite });
+  const sharedNotebooks = useSharedNotebookCollections({ enabled: hasNotebookFavourite });
+  const notebookItems = useMemo(() => {
+    if (!hasNotebookFavourite) return [];
+    const byId = new Map(
+      [...(ownNotebooks.data ?? []), ...(sharedNotebooks.data ?? [])].map((c) => [
+        notebookFavouriteId(c.id),
+        c,
+      ])
+    );
+    return favouriteIds.flatMap((id) => {
+      const c = byId.get(id);
+      return c
+        ? [
+            {
+              id,
+              title: c.name,
+              path: `/notebooks/${c.slug_suffix ? buildNotebookSlug(c.name, c.slug_suffix) : c.id}`,
+            },
+          ]
+        : [];
+    });
+  }, [favouriteIds, hasNotebookFavourite, ownNotebooks.data, sharedNotebooks.data]);
 
   const favoriteIdentifiers = useAgentFavoritesStore((s) => s.favoriteIdentifiers);
   const favoriteTitles = useAgentFavoritesStore((s) => s.favoriteTitles);
@@ -758,7 +788,13 @@ const SidebarFavourites = memo(function SidebarFavourites({
 
   // Favourites only show in the expanded sidebar (no icon-only rail entries).
   if (!expanded) return null;
-  if (configItems.length === 0 && projektItems.length === 0 && agentItems.length === 0) return null;
+  if (
+    configItems.length === 0 &&
+    projektItems.length === 0 &&
+    notebookItems.length === 0 &&
+    agentItems.length === 0
+  )
+    return null;
 
   const titleClass = cn(
     'min-w-0 flex-1 truncate text-left text-[15px] font-medium leading-tight transition-all duration-150',
@@ -840,6 +876,15 @@ const SidebarFavourites = memo(function SidebarFavourites({
           p.title,
           p.path,
           removeStar(() => removeFavourite(p.id), p.title)
+        )
+      )}
+      {notebookItems.map((n) =>
+        renderRow(
+          n.id,
+          <PiBooks aria-hidden="true" className={iconClass} />,
+          n.title,
+          n.path,
+          removeStar(() => removeFavourite(n.id), n.title)
         )
       )}
       {agentItems.map((a) =>
