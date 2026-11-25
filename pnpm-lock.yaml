@@ -594,8 +594,8 @@ importers:
         specifier: ^1.11.0
         version: 1.11.0(zod@4.6.7)
       '@ggraphic/editor':
-        specifier: 0.1.0-alpha.18
-        version: 0.1.0-alpha.18(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.10.0(@napi-rs/canvas@1.1.1))(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.10.0(@napi-rs/canvas@1.1.1))(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))
+        specifier: 0.1.0-alpha.19
+        version: 0.1.0-alpha.19(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.10.0(@napi-rs/canvas@1.1.1))(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.10.0(@napi-rs/canvas@1.1.1))(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))
       '@gruenerator/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
@@ -688,8 +688,8 @@ importers:
         specifier: 0.1.0-alpha.7
         version: 0.1.0-alpha.7(yjs@13.6.33)
       '@ggraphic/editor':
-        specifier: 0.1.0-alpha.18
-        version: 0.1.0-alpha.18(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.10.0(@napi-rs/canvas@1.1.1))(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.10.0(@napi-rs/canvas@1.1.1))(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))
+        specifier: 0.1.0-alpha.19
+        version: 0.1.0-alpha.19(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.10.0(@napi-rs/canvas@1.1.1))(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.10.0(@napi-rs/canvas@1.1.1))(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))
       '@tanstack/react-query':
         specifier: ^5.108.1
         version: 5.108.1(@types/react@19.3.0)(react@19.3.0)
@@ -1328,8 +1328,8 @@ importers:
         specifier: 7.29.13
         version: 7.29.13(supports-color@10.2.2)
       '@ggraphic/editor':
-        specifier: 0.1.0-alpha.18
-        version: 0.1.0-alpha.18(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.10.0(@napi-rs/canvas@1.1.1))(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.10.0(@napi-rs/canvas@1.1.1))(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))
+        specifier: 0.1.0-alpha.19
+        version: 0.1.0-alpha.19(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.10.0(@napi-rs/canvas@1.1.1))(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.10.0(@napi-rs/canvas@1.1.1))(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))
       '@gruenerator/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
@@ -1485,8 +1485,8 @@ importers:
         specifier: ^3.10.2
         version: 3.10.2(@swc/core@1.16.2(@swc/helpers@0.5.23))(@swc/html@1.16.2)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.32))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.32)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(sharp@0.35.5(@types/node@26.6.6))(supports-color@10.2.2)(svgo@3.3.5)(webpack-cli@5.1.4)
       '@ggraphic/editor':
-        specifier: 0.1.0-alpha.18
-        version: 0.1.0-alpha.18(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.10.0(@napi-rs/canvas@1.1.1))(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.10.0(@napi-rs/canvas@1.1.1))(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))
+        specifier: 0.1.0-alpha.19
+        version: 0.1.0-alpha.19(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.10.0(@napi-rs/canvas@1.1.1))(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.10.0(@napi-rs/canvas@1.1.1))(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -1497,11 +1497,11 @@ importers:
         specifier: 0.1.0-alpha.7
         version: 0.1.0-alpha.7(yjs@13.6.33)
       '@ggraphic/editor':
-        specifier: 0.1.0-alpha.18
-        version: 0.1.0-alpha.18(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.10.0(@napi-rs/canvas@1.1.1))(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.10.0(@napi-rs/canvas@1.1.1))(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))
+        specifier: 0.1.0-alpha.19
+        version: 0.1.0-alpha.19(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.10.0(@napi-rs/canvas@1.1.1))(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.10.0(@napi-rs/canvas@1.1.1))(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))
       '@ggraphic/schema':
-        specifier: 0.1.0-alpha.6
-        version: 0.1.0-alpha.6
+        specifier: 0.1.0-alpha.7
+        version: 0.1.0-alpha.7
       '@gruenerator/contracts':
         specifier: workspace:*
         version: link:../contracts
@@ -1818,8 +1818,8 @@ importers:
         specifier: 0.1.0-alpha.7
         version: 0.1.0-alpha.7(yjs@13.6.33)
       '@ggraphic/schema':
-        specifier: 0.1.0-alpha.6
-        version: 0.1.0-alpha.6
+        specifier: 0.1.0-alpha.7
+        version: 0.1.0-alpha.7
       '@gruenerator/core':
         specifier: workspace:*
         version: link:../core
@@ -2314,6 +2314,9 @@ importers:
 
   packages/sites:
     dependencies:
+      '@ggraphic/editor-chrome':
+        specifier: 0.1.0-alpha.0
+        version: 0.1.0-alpha.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@gruenerator/collab':
         specifier: workspace:*
         version: link:../collab
@@ -2611,8 +2614,8 @@ importers:
         specifier: 0.1.0-alpha.7
         version: 0.1.0-alpha.7(yjs@13.6.33)
       '@ggraphic/schema':
-        specifier: 0.1.0-alpha.6
-        version: 0.1.0-alpha.6
+        specifier: 0.1.0-alpha.7
+        version: 0.1.0-alpha.7
       '@gruenerator/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -5565,16 +5568,22 @@ packages:
       yjs:
         optional: true
 
-  '@ggraphic/editor@0.1.0-alpha.18':
-    resolution: {integrity: sha512-I13DLeVUcq3IZ7hYZcE7xD8Nf640nkCd/XqAtlY7VTj1omzK6rjXy1BPrDEaRdYH7BqJ+zrT+yhSJoYxp4s9iw==}
+  '@ggraphic/editor-chrome@0.1.0-alpha.0':
+    resolution: {integrity: sha512-/rSSadIid8UPB9dwg9EMapVzj0EeE9WNLDVMaLfExXDBL1ew3gt1ic2qa8nD8f/lMjbe/HWAUrtJJtLzVOqr7A==}
+    peerDependencies:
+      react: ^19.0.0
+      react-dom: ^19.0.0
+
+  '@ggraphic/editor@0.1.0-alpha.19':
+    resolution: {integrity: sha512-3YxiA3plcg9lQSRsQgtDGQ0zqWXIT54h686EvgcIC0C8XquWDeP6wNTnE/9sDGBBRXsJH92yOtgxHWlB4qKLlA==}
     peerDependencies:
       konva: ^10.9.0
       react: ^19.3.0
       react-dom: ^19.3.0
       react-konva: ^19.3.2
 
-  '@ggraphic/schema@0.1.0-alpha.6':
-    resolution: {integrity: sha512-tdBvZ/cwleiZeHryKr717HTnn7kOz12ObUJgtnSHzDKH+o9HuZbMXkTsD0nkONIK8QVzvZo54Txn0qk0nWiyNA==}
+  '@ggraphic/schema@0.1.0-alpha.7':
+    resolution: {integrity: sha512-7IAB+qz3ZWE+eSKHacFGywu1R14EgO9rF4MQN0DQH/hHn6uX04nC2Bo+YYEbf2pHt8ygGFee4AA9IQ3jhKoMHw==}
 
   '@grpc/grpc-js@1.14.5':
     resolution: {integrity: sha512-7VZM+SVdEcUUqSQeNI3zM8Qs/BhQKZndPo2h5VkYkAM8Iz0wJIa8mKV5ekQGqG8UUsnkQ0NMxIxwkIHYvj0qOw==}
@@ -5688,9 +5697,6 @@ packages:
 
   '@iconify-json/ri@1.2.10':
     resolution: {integrity: sha512-WWMhoncVVM+Xmu9T5fgu2lhYRrKTEWhKk3Com0KiM111EeEsRLiASjpsFKnC/SrB6covhUp95r2mH8tGxhgd5Q==}
-
-  '@iconify-json/tabler@1.2.45':
-    resolution: {integrity: sha512-4JEFGeOGq0rP+neKaG1VaSNb/ptCUeS9fDsQpPAs1Mlt5mCh3gZs/EhqVyxm5fXIcMQcz7Y9Q46udrEyIZhD9g==}
 
   '@iconify-json/tabler@1.2.46':
     resolution: {integrity: sha512-iyEZEUhHV4x1ZbNzzjk3i6Z+MH5h5nXipqKaH7+bUlnoQwzn7fNjWRSqwWtwQ4PYN6WM+N/fLQC/48TRto26qQ==}
@@ -15280,15 +15286,6 @@ packages:
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
-  lucide-react@1.73.0:
-    resolution: {integrity: sha512-fVOzGviL9mTfHenG1PbCfIceavyGlnpYNSYr+aGZHLRymAJ7DTP6KHuqt0uBkCKAoenr1UVkwSbDIYt2xIesEQ==}
-    peerDependencies:
-      '@types/react': 19.3.0
-      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
-    peerDependenciesMeta:
-      '@types/react':
-        optional: true
-
   lucide-react@1.77.0:
     resolution: {integrity: sha512-VS6sOi8ZUH1qm6swBL/tpI4xAhB6pFTdHvw3pfCJD+DaTJwpyynVzfOS6mdyMZ+OCdY/GMSQbqinOMOPbNSrQA==}
     peerDependencies:
@@ -18682,9 +18679,6 @@ packages:
 
   tailwind-merge@2.6.0:
     resolution: {integrity: sha512-P+Vu1qXfzediirmHOC3xKGAYeZtPcV9g76X+xg2FD4tYgR71ewMA35Y3sCz3zhiN/dwefRpJX0yBcgwi1fXNQA==}
-
-  tailwind-merge@3.7.0:
-    resolution: {integrity: sha512-XPPUyAc+cvspz3lHTcR/QgPfW2A0lv/xQNIjX3HGhLR+Nq2lHaLq5MtTesHn8GUr3W3DguT2KT5x3NVgRtYwmA==}
 
   tailwind-merge@3.7.1:
     resolution: {integrity: sha512-v7y4BV4FUlO8exj/4M5UXKeoowDiuugVUg3tkMNIyOUCOHy5xp8+5aWQeXCtZ2491sUV1YPsVeM9EveZ6/xuZQ==}
@@ -24380,10 +24374,19 @@ snapshots:
     optionalDependencies:
       yjs: 13.6.33
 
-  '@ggraphic/editor@0.1.0-alpha.18(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.10.0(@napi-rs/canvas@1.1.1))(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.10.0(@napi-rs/canvas@1.1.1))(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))':
+  '@ggraphic/editor-chrome@0.1.0-alpha.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
+    dependencies:
+      clsx: 2.1.1
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
+      react-icons: 5.7.0(react@19.3.0)
+      tailwind-merge: 3.7.1
+
+  '@ggraphic/editor@0.1.0-alpha.19(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.10.0(@napi-rs/canvas@1.1.1))(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.10.0(@napi-rs/canvas@1.1.1))(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.6.0(react@19.3.0))':
     dependencies:
       '@ggraphic/core': 0.1.0-alpha.7(yjs@13.6.33)
-      '@ggraphic/schema': 0.1.0-alpha.6
+      '@ggraphic/editor-chrome': 0.1.0-alpha.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@ggraphic/schema': 0.1.0-alpha.7
       '@hocuspocus/provider': 4.8.0(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
       '@iconify-json/bi': 1.2.7
       '@iconify-json/flowbite': 1.2.7
@@ -24391,7 +24394,7 @@ snapshots:
       '@iconify-json/iconoir': 1.2.12
       '@iconify-json/lucide': 1.2.150
       '@iconify-json/ri': 1.2.10
-      '@iconify-json/tabler': 1.2.45
+      '@iconify-json/tabler': 1.2.46
       '@iconify/react': 6.0.4(react@19.3.0)
       '@iconify/utils': 3.1.7
       '@pdf-lib/fontkit': 1.1.1
@@ -24413,7 +24416,7 @@ snapshots:
       fflate: 0.8.3
       immer: 11.2.10
       konva: 10.10.0(@napi-rs/canvas@1.1.1)
-      lucide-react: 1.73.0(@types/react@19.3.0)(react@19.3.0)
+      lucide-react: 1.77.0(@types/react@19.3.0)(react@19.3.0)
       pdf-lib: 1.17.1
       qrcode.react: 4.2.0(react@19.3.0)
       radix-ui: 1.8.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -24425,7 +24428,7 @@ snapshots:
       react-konva: 19.3.2(@types/react@19.3.0)(konva@10.10.0(@napi-rs/canvas@1.1.1))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       recharts: 3.10.1(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react@19.3.0)(redux@5.0.1)
       smartcrop: 2.0.5
-      tailwind-merge: 3.7.0
+      tailwind-merge: 3.7.1
       use-image: 1.1.4(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       uuid: 14.0.3
       y-protocols: 1.0.7(yjs@13.6.33)
@@ -24438,10 +24441,11 @@ snapshots:
       - redux
       - use-sync-external-store
 
-  '@ggraphic/editor@0.1.0-alpha.18(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.10.0(@napi-rs/canvas@1.1.1))(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.10.0(@napi-rs/canvas@1.1.1))(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))':
+  '@ggraphic/editor@0.1.0-alpha.19(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(konva@10.10.0(@napi-rs/canvas@1.1.1))(react-dom@19.3.0(react@19.3.0))(react-konva@19.3.2(@types/react@19.3.0)(konva@10.10.0(@napi-rs/canvas@1.1.1))(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(redux@5.0.1)(use-sync-external-store@1.7.0(react@19.3.0))':
     dependencies:
       '@ggraphic/core': 0.1.0-alpha.7(yjs@13.6.33)
-      '@ggraphic/schema': 0.1.0-alpha.6
+      '@ggraphic/editor-chrome': 0.1.0-alpha.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@ggraphic/schema': 0.1.0-alpha.7
       '@hocuspocus/provider': 4.8.0(y-protocols@1.0.7(yjs@13.6.33))(yjs@13.6.33)
       '@iconify-json/bi': 1.2.7
       '@iconify-json/flowbite': 1.2.7
@@ -24449,7 +24453,7 @@ snapshots:
       '@iconify-json/iconoir': 1.2.12
       '@iconify-json/lucide': 1.2.150
       '@iconify-json/ri': 1.2.10
-      '@iconify-json/tabler': 1.2.45
+      '@iconify-json/tabler': 1.2.46
       '@iconify/react': 6.0.4(react@19.3.0)
       '@iconify/utils': 3.1.7
       '@pdf-lib/fontkit': 1.1.1
@@ -24471,7 +24475,7 @@ snapshots:
       fflate: 0.8.3
       immer: 11.2.10
       konva: 10.10.0(@napi-rs/canvas@1.1.1)
-      lucide-react: 1.73.0(@types/react@19.3.0)(react@19.3.0)
+      lucide-react: 1.77.0(@types/react@19.3.0)(react@19.3.0)
       pdf-lib: 1.17.1
       qrcode.react: 4.2.0(react@19.3.0)
       radix-ui: 1.8.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -24483,7 +24487,7 @@ snapshots:
       react-konva: 19.3.2(@types/react@19.3.0)(konva@10.10.0(@napi-rs/canvas@1.1.1))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       recharts: 3.10.1(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react-is@19.2.8)(react@19.3.0)(redux@5.0.1)
       smartcrop: 2.0.5
-      tailwind-merge: 3.7.0
+      tailwind-merge: 3.7.1
       use-image: 1.1.4(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       uuid: 14.0.3
       y-protocols: 1.0.7(yjs@13.6.33)
@@ -24496,7 +24500,7 @@ snapshots:
       - redux
       - use-sync-external-store
 
-  '@ggraphic/schema@0.1.0-alpha.6':
+  '@ggraphic/schema@0.1.0-alpha.7':
     dependencies:
       '@xmldom/xmldom': 0.9.12
       zod: 4.6.7
@@ -24623,10 +24627,6 @@ snapshots:
       '@iconify/types': 2.0.0
 
   '@iconify-json/ri@1.2.10':
-    dependencies:
-      '@iconify/types': 2.0.0
-
-  '@iconify-json/tabler@1.2.45':
     dependencies:
       '@iconify/types': 2.0.0
 
@@ -35513,12 +35513,6 @@ snapshots:
     dependencies:
       react: 19.3.0
 
-  lucide-react@1.73.0(@types/react@19.3.0)(react@19.3.0):
-    dependencies:
-      react: 19.3.0
-    optionalDependencies:
-      '@types/react': 19.3.0
-
   lucide-react@1.77.0(@types/react@19.3.0)(react@19.3.0):
     dependencies:
       react: 19.3.0
@@ -38571,14 +38565,14 @@ snapshots:
       decimal.js-light: 2.5.1
       es-toolkit: 1.52.0
       eventemitter3: 5.0.4
-      immer: 11.2.9
+      immer: 11.2.10
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
       react-is: 19.2.8
       react-redux: 9.3.0(@types/react@19.3.0)(react@19.3.0)(redux@5.0.1)
       reselect: 5.2.0
       tiny-invariant: 1.3.3
-      use-sync-external-store: 1.6.0(react@19.3.0)
+      use-sync-external-store: 1.7.0(react@19.3.0)
       victory-vendor: 37.3.6
     transitivePeerDependencies:
       - '@types/react'
@@ -39898,8 +39892,6 @@ snapshots:
   tagged-tag@1.0.0: {}
 
   tailwind-merge@2.6.0: {}
-
-  tailwind-merge@3.7.0: {}
 
   tailwind-merge@3.7.1: {}
 

@@ -28,7 +28,7 @@ vi.mock('../../../database/services/PostgresService.js', async () => {
   };
   const doc = { id: IDS.doc, title: 'Antrag Schulhof', content: 'Der Schulhof wird entsiegelt.' };
   const query = (sql: string, params: unknown[]) => {
-    if (sql.includes('FROM user_documents WHERE user_id = $1 AND id = ANY($2)')) {
+    if (sql.includes('FROM user_documents WHERE') && sql.includes('AND id = ANY($2)')) {
       const [userId, ids] = params as [string, string[]];
       return Promise.resolve(userId === IDS.user && ids.includes(text.id) ? [text] : []);
     }

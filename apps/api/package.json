@@ -146,7 +146,7 @@
   "devDependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.329",
     "@anthropic-ai/sdk": "^1.11.0",
-    "@ggraphic/editor": "0.1.0-alpha.18",
+    "@ggraphic/editor": "0.1.0-alpha.19",
     "@gruenerator/eslint-config": "workspace:*",
     "@types/compression": "^1.8.1",
     "@types/cors": "^2.8.19",

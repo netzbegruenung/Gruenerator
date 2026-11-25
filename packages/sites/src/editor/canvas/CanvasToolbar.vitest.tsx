@@ -44,7 +44,7 @@ const cardTitles = (draft: SiteDraft) => {
 const select = (blockId: string, itemId: string | null = null) => ({ blockId, itemId, path: null });
 
 beforeEach(() => {
-  useEditorStore.setState({ selection: null, elementPanel: null, dialog: null });
+  useEditorStore.setState({ selection: null, elementPanel: null, sidebarTab: null });
 });
 
 describe('CanvasToolbar', () => {

@@ -4,7 +4,7 @@ import {
   type SupportedLocale,
 } from '@gruenerator/contracts';
 import { ToggleGroup, ToggleGroupItem } from '@gruenerator/ui';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 
 import { LoadErrorState } from '../components/common/LoadErrorState';
 import { SiteDraftProvider, useDraft } from '../draft/SiteDraftContext';
@@ -18,13 +18,12 @@ import { useAuth } from '../SitesContext';
 import { useEditorStore } from '../stores/editorStore';
 
 import { CanvasToolbar } from './canvas/CanvasToolbar';
-import { ElementPanel } from './canvas/ElementPanel';
 import { useAnchorRect } from './canvas/useAnchorRect';
-import { EditorDialogs } from './EditorDialogs';
 import { EditorHeader } from './EditorHeader';
 import { EditorSkeleton } from './EditorSkeleton';
 import { PreviewDialog } from './PreviewDialog';
 import { PublishControls } from './publish/PublishControls';
+import { SiteSidebarPanel, SiteSidebarTabs } from './sidebar/SiteSidebar';
 
 function DraftPreview({ site, editable }: { site: SiteData; editable: boolean }) {
   const { user } = useAuth();
@@ -71,7 +70,6 @@ function CanvasOverlay({ doc }: { doc: Document | null }) {
           canvasHeight={doc?.defaultView?.innerHeight ?? 0}
         />
       )}
-      <ElementPanel selection={selection} />
     </>
   );
 }
@@ -122,14 +120,20 @@ function PreviewInteractions({ doc }: { doc: Document | null }) {
   return null;
 }
 
+/** The header's height (56px plus its border); the desktop panel starts below it. */
+const EDITOR_CHROME_VARS = {
+  '--editor-topbar-height': '57px',
+  '--image-studio-tab-bar-width': '76px',
+} as CSSProperties;
+
 export function SiteEditor({ site, onBack }: { site: SiteData; onBack?: () => void }) {
   const session = useSiteDraftSession(site.id);
   const [previewOpen, setPreviewOpen] = useState(false);
   const previewButtonRef = useRef<HTMLButtonElement>(null);
   useLeaveWarning(session.state === 'ready' && session.save !== 'saved');
-  // The editor store is module state: leave no selection or open dialog behind for the next visit.
+  // The editor store is module state: leave no selection or open panel behind for the next visit.
   useEffect(
-    () => () => useEditorStore.setState({ selection: null, elementPanel: null, dialog: null }),
+    () => () => useEditorStore.setState({ selection: null, elementPanel: null, sidebarTab: null }),
     []
   );
 
@@ -153,7 +157,14 @@ export function SiteEditor({ site, onBack }: { site: SiteData; onBack?: () => vo
     case 'ready':
       return (
         <SiteDraftProvider ydoc={session.ydoc}>
-          <div className="min-h-full flex flex-col bg-grey-100 dark:bg-grey-800">
+          {/* The sidebar chrome lays out against this root (`data-editor-chrome-root`): on desktop
+              the rail sits left of the page and the panel opens beside it; on a phone the tab bar
+              is at the bottom and the panel is a sheet between page and tab bar. */}
+          <div
+            data-editor-chrome-root=""
+            style={EDITOR_CHROME_VARS}
+            className="relative flex h-dvh min-h-0 flex-col bg-grey-100 dark:bg-grey-800"
+          >
             <EditorHeader
               save={session.save}
               onPreview={() => setPreviewOpen(true)}
@@ -162,10 +173,13 @@ export function SiteEditor({ site, onBack }: { site: SiteData; onBack?: () => vo
             >
               <PublishControls site={site} provider={session.provider} />
             </EditorHeader>
-            <div className="h-[calc(100dvh-57px)] min-h-0">
+            <div className="absolute bottom-0 left-0 top-[var(--editor-topbar-height)] z-[120] max-canvas-mobile:contents">
+              <SiteSidebarTabs />
+            </div>
+            <div className="min-h-0 flex-1 canvas-mobile:pl-[calc(var(--image-studio-tab-bar-width)+var(--canvas-panel-width,0px))]">
               <PreviewPane site={site} />
             </div>
-            <EditorDialogs />
+            <SiteSidebarPanel />
             <PreviewDialog
               open={previewOpen}
               onOpenChange={setPreviewOpen}

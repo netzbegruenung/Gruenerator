@@ -8,8 +8,6 @@ import { handleApiError } from '../../../utils/errorHandler';
 import { SectionHeading } from '../common/Field';
 
 import { AddressField } from './AddressField';
-import { DesignChoice } from './DesignChoice';
-import { VariantPicker } from './VariantPicker';
 
 function AddressSettings() {
   const { site, publicOrigin, updateSite, isUpdating } = useSite();
@@ -63,25 +61,11 @@ export function SettingsPanel() {
     <div>
       <SectionHeading>Einstellungen</SectionHeading>
 
-      <section className="mb-xl" aria-labelledby="settings-address">
+      <section aria-labelledby="settings-address">
         <h4 id="settings-address" className="mb-sm text-base font-semibold text-foreground">
           Adresse
         </h4>
         <AddressSettings />
-      </section>
-
-      <section className="mb-xl" aria-labelledby="settings-variant">
-        <h4 id="settings-variant" className="mb-sm text-base font-semibold text-foreground">
-          Farbvariante
-        </h4>
-        <VariantPicker />
-      </section>
-
-      <section aria-labelledby="settings-header">
-        <h4 id="settings-header" className="mb-sm text-base font-semibold text-foreground">
-          Kopfzeile
-        </h4>
-        <DesignChoice field="header" />
       </section>
     </div>
   );
