@@ -361,6 +361,24 @@ export const textFormDraftResponseSchema = z.object({
   spec: draftedRecipeSpecSchema,
 });
 
+// ── Describe ─────────────────────────────────────────────────────────────────
+
+/**
+ * POST /api/text-forms/describe — „Mit KI erstellen" unter der Beschreibung:
+ * aus Name und Anleitung den Satz, an dem der Grünerator erkennt, wann das
+ * Rezept passt.
+ */
+export const describeRecipeBodySchema = z.object({
+  title: z.string().trim().min(1).max(MAX_TEXT_FORM_TITLE_CHARS),
+  styleBlock: z.string().trim().min(1).max(MAX_TEXT_FORM_STYLE_CHARS),
+});
+export type DescribeRecipeBody = z.infer<typeof describeRecipeBodySchema>;
+
+export const textFormDescribeResponseSchema = z.object({
+  success: z.boolean(),
+  description: z.string(),
+});
+
 /**
  * Ein fremdes Rezept, wie der offene Katalog es zeigt.
  *

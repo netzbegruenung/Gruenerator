@@ -20,8 +20,10 @@ import { type AiObjectCall, type StructuredResult } from '../ai/generate.js';
 // ─── Module mocks (hoisted before imports) ────────────────────
 
 const mockAiObject = vi.fn();
+const mockAiText = vi.fn();
 vi.mock('../ai/generate.js', () => ({
   aiObject: (...args: unknown[]) => mockAiObject(...args),
+  aiText: (...args: unknown[]) => mockAiText(...args),
 }));
 
 vi.mock('../../utils/logger.js', () => ({
@@ -35,7 +37,7 @@ vi.mock('../../utils/logger.js', () => ({
 
 // ─── Import after mocks ──────────────────────────────────────
 
-const { draftRecipeSpec } = await import('./textFormDraftService.js');
+const { describeRecipe, draftRecipeSpec } = await import('./textFormDraftService.js');
 
 /** A minimal, otherwise-valid draft object returned by the mocked model. */
 function baseDraft(overrides: Partial<Record<string, unknown>> = {}): Record<string, unknown> {
@@ -284,6 +286,32 @@ describe('party-internal boundary', () => {
     it('keeps genuine bold text starting with n intact', async () => {
       const text = `### Zweck\n\nSchreibe **nicht** im Passiv und **nie** kürzer. ${tail}`;
       expect(await styleBlockFor(text)).toBe(text.trim());
+    });
+  });
+
+  describe('describeRecipe', () => {
+    beforeEach(() => mockAiText.mockReset());
+
+    it('schickt Name und Anleitung über die Creator-Lane und glättet die Antwort', async () => {
+      mockAiText.mockResolvedValueOnce(
+        '„Einladungen zur Mitgliederversammlung mit Tagesordnung.\nNutzen, wenn zur MV eingeladen wird."'
+      );
+      const description = await describeRecipe({
+        title: 'Einladung MV',
+        styleBlock: 'Schreibe förmlich.',
+      });
+      expect(description).toBe(
+        'Einladungen zur Mitgliederversammlung mit Tagesordnung. Nutzen, wenn zur MV eingeladen wird.'
+      );
+      const call = mockAiText.mock.calls[0]?.[0] as { lane: string; prompt: string };
+      expect(call.lane).toBe('creator_draft');
+      expect(call.prompt).toContain('Einladung MV');
+      expect(call.prompt).toContain('Schreibe förmlich.');
+    });
+
+    it('wirft, wenn die Antwort unter der Speichergrenze des Editors liegt', async () => {
+      mockAiText.mockResolvedValueOnce('Zu kurz.');
+      await expect(describeRecipe({ title: 'X', styleBlock: 'Y' })).rejects.toThrow(/zu kurz/);
     });
   });
 });
