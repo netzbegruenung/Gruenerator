@@ -24,8 +24,10 @@
  *     worker pool's provider fallback instead of adding new resilience surface.
  *
  * What it deliberately does NOT produce, and why that is safe here:
- *   - `detectedFilters` — the caller keeps using `heuristicExtractFilters`,
- *     which is deterministic and is what the old catch branch already used.
+ *   - `detectedFilters` as a whole — the caller keeps `heuristicExtractFilters`
+ *     as the fallback. The one filter it DOES produce is `contentType`: the
+ *     heuristic reads only the current message, so „suche nur im notebook"
+ *     after „was haben wir beschlossen" lost the Beschluss filter (25.11.2026).
  *   - `documentSubtype` / `targetGroupName` — read only by document-CREATION
  *     and share paths (`chatGraphContractRouter` subtypeOverride,
  *     `confirmActionService`). A turn forced to `search` never reaches them.
@@ -33,6 +35,11 @@
  *     being kicked out of the agentic loop. That is a routing change, called out
  *     at the call site rather than hidden here.
  */
+
+import {
+  LANDESVERBAND_CONTENT_TYPES,
+  type LandesverbandContentType,
+} from '@gruenerator/shared/search';
 
 import { aiText } from '../../../../services/ai/generate.js';
 import { createLogger } from '../../../../utils/logger.js';
@@ -50,6 +57,8 @@ const REFINE_TIMEOUT_MS = 2_500;
  *  extracting the topic — the exact failure `extractSearchTopic` handles better. */
 const MAX_QUERY_LENGTH = 200;
 
+const CONTENT_TYPE_LIST = LANDESVERBAND_CONTENT_TYPES.join(', ');
+
 const REFINE_PROMPT = `Du formulierst Suchanfragen für eine Dokumentensammlung.
 
 Der/die Nutzer*in hat Dokumente ausgewählt und dazu eine Nachricht geschrieben. Extrahiere daraus, WONACH in den Dokumenten gesucht werden soll — nicht, was mit dem Ergebnis geschehen soll.
@@ -60,13 +69,21 @@ Der/die Nutzer*in hat Dokumente ausgewählt und dazu eine Nachricht geschrieben.
 - Nennt die Nachricht selbst ein Thema, gilt dieses — auch wenn daneben ein Rückverweis-Wort steht. "Zeig mir die Kontaktdaten" heisst Kontaktdaten, gleich worum es vorher ging.
 - Nennt sie KEIN eigenes Thema und zeigt mit "das", "dies", "davon", "dazu" oder "darin" auf den GESPRÄCHSVERLAUF zurück, setze dessen Thema als Anfrage ein — nicht das Dokument als Ganzes. Nach einem Turn über Löschfristen heisst "kannst du das wörtlich zitieren?" also: Löschfristen.
 - Ist die Nachricht so allgemein, dass es kein Thema gibt ("fass das zusammen"), und gibt auch der Verlauf keines her, gib den Kern der Nachricht als Anfrage zurück.
+- Fragt die Nachricht nach einer Dokumentart ("was haben wir beschlossen", "unsere Pressemitteilungen dazu"), gib sie als contentType an, nicht in der Anfrage. Nennt sie weder Thema noch Art ("suche nur im Notebook"), gilt die Dokumentart aus dem Gesprächsverlauf weiter. Sonst null. Erlaubt: ${CONTENT_TYPE_LIST}.
 
 Antworte NUR mit JSON:
-{"query": "…", "subQueries": ["…", "…"] | null}`;
+{"query": "…", "subQueries": ["…", "…"] | null, "contentType": "…" | null}`;
 
 export interface RefinedQuery {
   query: string;
   subQueries: string[] | null;
+  /**
+   * Die Dokumentart, nach der gefragt ist — ein Filter, kein Suchwort. Der
+   * Auflöser sieht den Verlauf, deshalb trägt ein Folge-Turn ohne eigenes
+   * Typwort („suche nur im notebook") die Art aus dem Turn davor weiter; die
+   * Heuristik über die aktuelle Nachricht kann das bauartbedingt nicht.
+   */
+  contentType: LandesverbandContentType | null;
 }
 
 interface RefineArgs {
@@ -123,7 +140,7 @@ export async function refineSearchQuery({
     log.info(
       `[QueryRefine] "${userContent.slice(0, 50)}" → "${refined.query}"${
         refined.subQueries ? ` (+${refined.subQueries.length} Unterfragen)` : ''
-      } in ${elapsedMs}ms`
+      }${refined.contentType ? ` contentType=${refined.contentType}` : ''} in ${elapsedMs}ms`
     );
     return refined;
   } catch (err) {
@@ -165,6 +182,14 @@ function parseRefined(raw: string | undefined | null): RefinedQuery | null {
         .filter((s) => s.length > 0 && s.length <= MAX_QUERY_LENGTH)
     : [];
 
+  // Eine unbekannte Art wäre ein Filter, der alles leert — dann lieber keiner.
+  const rawType = record['contentType'];
+  const contentType =
+    typeof rawType === 'string' &&
+    (LANDESVERBAND_CONTENT_TYPES as readonly string[]).includes(rawType)
+      ? (rawType as LandesverbandContentType)
+      : null;
+
   // One "sub"-query is the query again, not a decomposition.
-  return { query, subQueries: subQueries.length > 1 ? subQueries : null };
+  return { query, subQueries: subQueries.length > 1 ? subQueries : null, contentType };
 }
