@@ -107,6 +107,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Du kannst dem Grünerator Dateien mitgeben, statt ihren Inhalt abzutippen: ein Gesetzesentwurf, eine Studie, ein Screenshot, eine Tabelle. Er liest sie und bezieht sie in die Antwort ein."
   },
   {
+    "url": "/docs/chat/im-projekt-chatten",
+    "title": "Im Projekt chatten",
+    "category": "Chat",
+    "lead": "Öffne dein Projekt und schreibe unter Neuen Chat im Projekt starten. Die Projektanweisungen laufen mit. Der Chat kann durchsuchbare Projektdateien und geteilte Notebooks berücksichtigen. Für passende…"
+  },
+  {
     "url": "/docs/chat/ki-chat",
     "title": "KI-Chat",
     "category": "Chat",
@@ -146,7 +152,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/features/intro",
     "title": "Features",
     "category": "Features",
-    "lead": "Neben dem Chat gibt es im Grünerator drei größere Flächen. Diese Seiten beschreiben, was es dort gibt — jede Funktion, jeden Schalter. Wenn du stattdessen eine bestimmte Aufgabe erledigen willst, sin…"
+    "lead": "Hier findest du die wichtigsten Funktionen neben dem Chat. Wenn du stattdessen eine bestimmte Aufgabe erledigen willst, sind die Guides für Einsteiger*innen der kürzere Weg."
   },
   {
     "url": "/docs/features/ki-im-editor",
@@ -164,7 +170,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/features/marktplatz",
     "title": "Grüneratoren und Marktplatz",
     "category": "Features",
-    "lead": "Deine Agents, Rezepte und wiederkehrenden Aufgaben findest du unter Grüneratoren. Das ist der gleichnamige Eintrag in der Seitenleiste, die Adresse ist /grueneratoren. Alles Offizielle und alles, was…"
+    "lead": "Deine Rezepte findest du unter Projekte → Deine Rezepte. Für bestehende Agents und wiederkehrende Aufgaben ist die bisherige Übersicht unter /grueneratoren weiterhin erreichbar. Offizielle und öffent…"
   },
   {
     "url": "/docs/features/notebooks",
@@ -201,6 +207,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "title": "Präsentationen",
     "category": "Features",
     "lead": "Eine Präsentation ist eine Folge von Folien mit eigenem Vortragsmodus. Du legst sie über Leere Präsentation an — oder lässt sie dir im Chat aus einem Thema erzeugen."
+  },
+  {
+    "url": "/docs/features/projekte",
+    "title": "Projekte",
+    "category": "Features",
+    "lead": "In einem Projekt sammelst du, was zu einer Aufgabe gehört. Die Klima-AG kann zum Beispiel ihre Beschlüsse hinterlegen, Einladungen nach einem gemeinsamen Rezept schreiben und Entwürfe im Austausch be…"
   },
   {
     "url": "/docs/features/sharepics",
@@ -324,9 +336,9 @@ export const DOCS_PAGES: readonly DocPage[] = [
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
-    "title": "Wie erstelle ich einen Agenten?",
+    "title": "Wie wandle ich einen bestehenden Agent um?",
     "category": "Guides",
-    "lead": "Unter Grüneratoren kannst du einen eigenen Agenten für eine Aufgabe erstellen, die du häufiger erledigst, zum Beispiel für Pressemitteilungen, Recherchen oder Social-Media-Texte. Du beschreibst zuers…"
+    "lead": "Eigene Grünerator-Agents, die du bereits angelegt hast, kannst du weiter verwenden. Für neue Aufgaben legst du ein Rezept oder Projekt an. Willst du die Anleitung eines bisherigen Agents übernehmen,…"
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
@@ -1359,7 +1371,47 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wo du Dateien anhängst",
     "anchor": "#wo-du-dateien-anhängst",
     "category": "Chat",
-    "text": "Im Chat über das „+\"-Menü links im Eingabefeld. Das ist der einzige Ort — die früheren Generator-Formulare mit Büroklammer-Symbol gibt es nicht mehr, seit alles im Chat und in den Grüneratoren zusammengelaufen ist."
+    "text": "Öffne das Plus-Menü links im Eingabefeld und wähle Datei hinzufügen. Bereits gespeicherte Dateien und Texte kannst du über @datei auswählen. Dazu gehören auch Inhalte, die in eines deiner Projekte geteilt wurden. So nutzt du Dateien und Notebooks im Projektchat."
+  },
+  {
+    "url": "/docs/chat/im-projekt-chatten",
+    "pageTitle": "Im Projekt chatten",
+    "heading": "Im Projekt chatten",
+    "anchor": "",
+    "category": "Chat",
+    "text": "Öffne dein Projekt und schreibe unter Neuen Chat im Projekt starten. Die Projektanweisungen laufen mit. Der Chat kann durchsuchbare Projektdateien und geteilte Notebooks berücksichtigen. Für passende Schreibaufträge stehen die Rezepte des Projekts bereit."
+  },
+  {
+    "url": "/docs/chat/im-projekt-chatten",
+    "pageTitle": "Im Projekt chatten",
+    "heading": "Entscheiden, wer den Chat sieht",
+    "anchor": "#entscheiden-wer-den-chat-sieht",
+    "category": "Chat",
+    "text": "Unter dem Eingabefeld ist Im Projekt teilen beim Start eingeschaltet. So können die Projektmitglieder den Chat öffnen und darin weiterschreiben. Schalte die Freigabe vor dem Senden aus, wenn du den Entwurf zunächst für dich behalten willst. Dein privater Projektchat kann weiterhin Projektwissen verwenden. Geteilt: Privat: Unter Bisherige Chats öffnest du ein Gespräch erneut."
+  },
+  {
+    "url": "/docs/chat/im-projekt-chatten",
+    "pageTitle": "Im Projekt chatten",
+    "heading": "Ergebnisse im Projekt ablegen",
+    "anchor": "#ergebnisse-im-projekt-ablegen",
+    "category": "Chat",
+    "text": "Bitte im geteilten Projektchat zum Beispiel „Lege die Einladung als Doc an“. Das erstellte Doc erscheint im Chat und im Projektwissen. Im Beispiel steht die Einladung danach unter Wissen. Für Aufgaben kannst du fragen „Welche offenen Karten gibt es auf unseren Boards?“. Der Projektchat sucht dann in den offenen Aufgaben der Projekt-Boards."
+  },
+  {
+    "url": "/docs/chat/im-projekt-chatten",
+    "pageTitle": "Im Projekt chatten",
+    "heading": "Mit Projektwissen arbeiten",
+    "anchor": "#mit-projektwissen-arbeiten",
+    "category": "Chat",
+    "text": "Die Klima-AG hat ihre Beschlüsse als Notebook geteilt und ein Rezept für Einladungen hinterlegt. Eine mögliche Anfrage lautet: Fasse die Beschlüsse aus unserem Notebook „Klima-AG – Beschlüsse“ zusammen und entwirf daraus eine Einladung zum nächsten Treffen. Nenne die Quellen für die Beschlüsse. Du kannst das Notebook auch über @ und die Datei oder den gespeicherten Text über @datei auswählen. Geteilte Notebooks findest du unter Notebooks → aus deinen Projekten. Bei einer fehlenden Quelle zeigt dir Wissen, ob eine Datei bereits durchsuchbar ist. Wenn ein bestimmtes Rezept gelten soll, wähle es ausdrücklich per @. In einem Projekt mit eingestelltem Landesverband kannst du auch dessen Rezepte und Wissensdatenbank verwenden."
+  },
+  {
+    "url": "/docs/chat/im-projekt-chatten",
+    "pageTitle": "Im Projekt chatten",
+    "heading": "Weiterlesen",
+    "anchor": "#weiterlesen",
+    "category": "Chat",
+    "text": "Projekte Dateien hinzufügen Ein eigenes Rezept erstellen"
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -1375,7 +1427,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Agents aufrufen",
     "anchor": "#agents-aufrufen",
     "category": "Chat",
-    "text": "Für Anträge, Reden, Wahlprogramme und Bürger*innenanfragen gibt es eigene Agents — du findest sie unter dem Menüpunkt Grüneratoren in der Seitenleiste und kannst sie direkt im Chat öffnen. Sie stehen außerdem in derselben @-Liste wie die Rezepte: deine eigenen unter eigene. Hat jemand aus einem deiner Projekte einen Agenten mit dem Projekt geteilt, steht er dort unter aus deinen Projekten, mit dem Namen des Projekts, aus der er kommt. Ein @-Aufruf wechselt für diese eine Nachricht auf diesen Agenten; ein Rezept, das du vorher gewählt hast, bleibt dabei aktiv."
+    "text": "Für Anträge, Reden, Wahlprogramme und Bürger*innenanfragen gibt es eigene Agents — du findest offizielle und öffentliche Agents im Marktplatz. Bestehende eigene Agents kannst du über /grueneratoren öffnen und in ein Rezept oder Projekt umwandeln. Sie stehen außerdem in derselben @-Liste wie die Rezepte: deine eigenen unter eigene. Hat jemand aus einem deiner Projekte einen Agenten mit dem Projekt geteilt, steht er dort unter aus deinen Projekten, mit dem Namen des Projekts, aus der er kommt. Ein @-Aufruf wechselt für diese eine Nachricht auf diesen Agenten; ein Rezept, das du vorher gewählt hast, bleibt dabei aktiv."
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -1399,7 +1451,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Gespräch starten",
     "anchor": "#gespräch-starten",
     "category": "Chat",
-    "text": "Den Chat erreichst du über den Menüpunkt Chat in der Seitenleiste oder direkt unter /chat. Dort siehst du: Eingabefeld unten zum Schreiben deiner Nachricht Seitenleiste links mit deinem Gesprächsverlauf — Gespräche kannst du dort auch in Projekten bündeln (auch gemeinsam mit anderen, mit Übersicht unter /projekte) „+\"-Menü links im Eingabefeld — Dateien anhängen, Websuche und Dokumentensuche ein- und ausschalten, Rezepte, Rollen, Konnektoren und die Erstellen-Werkzeuge Modell-Auswahl rechts unten im Eingabefeld Jedes Gespräch wird als eigener Thread mit eigener Adresse (/chat/…) gespeichert. Du kannst jederzeit ein neues Gespräch beginnen oder in der Seitenleiste zu einem früheren Gespräch zurückkehren."
+    "text": "Den Chat erreichst du über den Menüpunkt Chat in der Seitenleiste oder direkt unter /chat. Dort siehst du: Eingabefeld unten zum Schreiben deiner Nachricht Seitenleiste links mit deinem Gesprächsverlauf — Projektchats startest du auf der Projektseite und findest sie dort unter Bisherige Chats. Mehr dazu unter Im Projekt chatten. „+\"-Menü links im Eingabefeld — Dateien anhängen, Websuche und Dokumentensuche ein- und ausschalten, Rezepte, Rollen, Konnektoren und die Erstellen-Werkzeuge Modell-Auswahl rechts unten im Eingabefeld Jedes Gespräch wird als eigener Thread mit eigener Adresse (/chat/…) gespeichert. Du kannst jederzeit ein neues Gespräch beginnen oder in der Seitenleiste zu einem früheren Gespräch zurückkehren."
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -1620,6 +1672,14 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/features/boards",
     "pageTitle": "Boards",
+    "heading": "Aufgaben im Projektchat finden",
+    "anchor": "#aufgaben-im-projektchat-finden",
+    "category": "Features",
+    "text": "Wenn ein Board mit deinem Projekt geteilt ist, kannst du im Projektchat fragen: „Welche offenen Karten gibt es auf unseren Boards?“ Der Chat sucht in den offenen Aufgaben der Boards dieses Projekts."
+  },
+  {
+    "url": "/docs/features/boards",
+    "pageTitle": "Boards",
     "heading": "Den Grünerator in einer Karte fragen",
     "anchor": "#den-grünerator-in-einer-karte-fragen",
     "category": "Features",
@@ -1743,7 +1803,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Features",
     "anchor": "",
     "category": "Features",
-    "text": "Neben dem Chat gibt es im Grünerator drei größere Flächen. Diese Seiten beschreiben, was es dort gibt — jede Funktion, jeden Schalter. Wenn du stattdessen eine bestimmte Aufgabe erledigen willst, sind die Guides für Einsteiger*innen der kürzere Weg. Office — Dokumente, Tabellen, Präsentationen und Boards, gemeinsam bearbeitbar und mit KI-Unterstützung direkt im Editor. Grüneratoren und Marktplatz — deine Agents, Rezepte und Aufgaben an einem Ort, dazu der Marktplatz für offizielle und öffentliche Agents, Rezepte, Vorlagen, Sticker und Hintergründe: fertige dazuholen, merken, eigene veröffentlichen. Notebooks — eigenes Wissen bündeln und durchsuchbar machen: Quellarten, Teilen, Verwaltung. Landesverbände — welche Inhalte der Landesverbände im Grünerator stecken und was ihre Agents können."
+    "text": "Hier findest du die wichtigsten Funktionen neben dem Chat. Wenn du stattdessen eine bestimmte Aufgabe erledigen willst, sind die Guides für Einsteiger*innen der kürzere Weg. Projekte — Wissen, Rezepte, Chats und Austausch an einem Ort. Office — Dokumente, Tabellen, Präsentationen und Boards, gemeinsam bearbeitbar und mit KI-Unterstützung direkt im Editor. Grüneratoren und Marktplatz — offizielle und öffentliche Agents, Rezepte, Vorlagen, Sticker und Hintergründe finden, merken und veröffentlichen. Notebooks — eigenes Wissen bündeln und durchsuchbar machen: Quellarten, Teilen, Verwaltung. Landesverbände — wie Rezepte mit dem Stil und der Wissensdatenbank eines Landesverbands arbeiten."
   },
   {
     "url": "/docs/features/ki-im-editor",
@@ -1847,7 +1907,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Im Projekt",
     "anchor": "#im-projekt",
     "category": "Features",
-    "text": "Arbeitet ihr als Team für einen Landesverband, stell in den Einstellungen des Projekts den Landesverband ein (das dürfen Projekt-Admins). Dann gilt in allen Chats des Projekts: Die Rezepte des Landesverbands stehen als Projekt-Rezepte bereit, die Pressemitteilung kommt im Stil dieses Verbands, und die Wissensdatenbank des Landesverbands wird ohne @ durchsucht — für alle Mitglieder, auch ohne die Rolle der Landesgeschäftsstelle. Einzelne Rezepte — auch allgemeine wie @wahlpruefstein — legst du im Projekt über Hinzufügen → Vorhandenes hinzufügen dazu. Die Rezepte des Landesverbands stehen auf der Projektseite unter Rezepte."
+    "text": "Arbeitet ihr als Team für einen Landesverband, öffnet als Projekt-Admin Projektoptionen → Bearbeiten und wählt den Landesverband. Dann gilt in allen Chats des Projekts: Die Rezepte des Landesverbands stehen als Projekt-Rezepte bereit, die Pressemitteilung kommt im Stil dieses Verbands, und die Wissensdatenbank des Landesverbands wird ohne @ durchsucht — für alle Mitglieder, auch ohne die Rolle der Landesgeschäftsstelle. Einzelne Rezepte — auch allgemeine wie @wahlpruefstein — legst du im Projekt über Hinzufügen → Vorhandenes hinzufügen dazu. Die Rezepte des Landesverbands stehen auf der Projektseite unter Rezepte. So nutzt du sie im Projektchat."
   },
   {
     "url": "/docs/features/landesverbaende",
@@ -1887,7 +1947,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Grüneratoren und Marktplatz",
     "anchor": "",
     "category": "Features",
-    "text": "Deine Agents, Rezepte und wiederkehrenden Aufgaben findest du unter Grüneratoren. Das ist der gleichnamige Eintrag in der Seitenleiste, die Adresse ist /grueneratoren. Alles Offizielle und alles, was andere öffentlich teilen, liegt im Marktplatz unter /marktplatz. Du erreichst ihn über das Laden-Symbol (Marktplatz) oben auf der Seite Grüneratoren. Dort gibt es nicht nur Agents und Rezepte, sondern auch Vorlagen, Sticker und Hintergründe. Früher gab es drei getrennte Schaufenster: die Agentura für Agents und Rezepte, die öffentlichen Vorlagen auf der Vorlagen-Seite und Entdecken bei Sticker & Hintergründe. Heute liegt das alles zusammen im Marktplatz. Aus Skills sind Rezepte geworden, aus Von der Basis wurde Öffentlich. Alte Links und Lesezeichen (/agentura, /studio/sticker/entdecken, /agents) führen automatisch an die richtige Stelle."
+    "text": "Deine Rezepte findest du unter Projekte → Deine Rezepte. Für bestehende Agents und wiederkehrende Aufgaben ist die bisherige Übersicht unter /grueneratoren weiterhin erreichbar. Offizielle und öffentlich geteilte Inhalte findest du im Marktplatz unter /marktplatz. Früher gab es drei getrennte Schaufenster: die Agentura für Agents und Rezepte, die öffentlichen Vorlagen auf der Vorlagen-Seite und Entdecken bei Sticker & Hintergründe. Heute liegt das alles zusammen im Marktplatz. Aus Skills sind Rezepte geworden, aus Von der Basis wurde Öffentlich. Alte Links und Lesezeichen (/agentura, /studio/sticker/entdecken, /agents) führen automatisch an die richtige Stelle."
   },
   {
     "url": "/docs/features/marktplatz",
@@ -1900,10 +1960,10 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/features/marktplatz",
     "pageTitle": "Grüneratoren und Marktplatz",
-    "heading": "Deine Grüneratoren",
-    "anchor": "#deine-grüneratoren",
+    "heading": "Bestehende Agents umwandeln",
+    "anchor": "#bestehende-agents-umwandeln",
     "category": "Features",
-    "text": "Die Seite Grüneratoren zeigt, womit du arbeitest, in drei Abschnitten: Agents, Rezepte und Wiederkehrende Aufgaben. Dazu gehört dreierlei: was du selbst gebaut hast, was jemand in einem deiner Projekte geteilt hat, was du dir aus dem Marktplatz dazugeholt hast. Woher eine Karte stammt, steht in ihrer grauen Zeile unter dem Titel. Weitere Aktionen liegen im Menü mit den drei Punkten: Bearbeiten, Teilen und Löschen bei Eigenem, Aus meinen Grüneratoren entfernen bei Dazugeholtem. Oben rechts stehen drei Schaltflächen: die Suche über Titel, Beschreibung und @-Namen, das Laden-Symbol (Marktplatz), das den Marktplatz mit Agents und Rezepten als Fenster über deiner Seite öffnet, Neu, um einen Agent, ein Rezept oder eine Wiederkehrende Aufgabe anzulegen. Unter Verlauf & Steuerung im selben Menü siehst du, wann deine wiederkehrenden Aufgaben gelaufen sind. Rechts neben der ersten Überschrift schaltest du zwischen drei und vier Karten pro Zeile um. Ein Agent kann auch nach Zeitplan laufen, etwa „jeden Montag eine Presseschau“. Angelegt wird er über Neu → Wiederkehrende Aufgabe. Im Editor erscheint dann ein zusätzlicher Zeitplan-Tab."
+    "text": "Deine bestehenden Agents bleiben nutzbar. Für neue Aufgaben legst du ein Rezept oder Projekt an. So kannst du einen bestehenden Agent umwandeln."
   },
   {
     "url": "/docs/features/marktplatz",
@@ -1911,7 +1971,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Deine Grüneratoren",
     "anchor": "#deine-grüneratoren",
     "category": "Features",
-    "text": "Denselben Tab siehst du, wenn du später einen Agenten mit Zeitplan bearbeitest."
+    "text": "Die Seite Grüneratoren zeigt, womit du arbeitest, in drei Abschnitten: Agents, Rezepte und Wiederkehrende Aufgaben. Dazu gehört dreierlei: was du selbst gebaut hast, was jemand in einem deiner Projekte geteilt hat, was du dir aus dem Marktplatz dazugeholt hast. Woher eine Karte stammt, steht in ihrer grauen Zeile unter dem Titel. Weitere Aktionen liegen im Menü mit den drei Punkten: Bearbeiten, Teilen und Löschen bei Eigenem, Aus meinen Grüneratoren entfernen bei Dazugeholtem. Oben rechts stehen drei Schaltflächen: die Suche über Titel, Beschreibung und @-Namen, das Laden-Symbol (Marktplatz), das den Marktplatz mit Agents und Rezepten als Fenster über deiner Seite öffnet, Neu, um ein Rezept oder eine Wiederkehrende Aufgabe anzulegen. Unter Verlauf & Steuerung im selben Menü siehst du, wann deine wiederkehrenden Aufgaben gelaufen sind. Rechts neben der ersten Überschrift schaltest du zwischen drei und vier Karten pro Zeile um. Über Neu → Wiederkehrende Aufgabe legst du einen Auftrag mit Zeitplan an, etwa „jeden Montag eine Presseschau“. Aufgaben mit Projektbezug findest du auch unter Geplant auf der Projektseite."
   },
   {
     "url": "/docs/features/marktplatz",
@@ -1964,18 +2024,10 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/features/marktplatz",
     "pageTitle": "Grüneratoren und Marktplatz",
-    "heading": "Eigene Agents bauen",
-    "anchor": "#eigene-agents-bauen",
-    "category": "Features",
-    "text": "Du kannst deine eigenen Agents bauen, ganz ohne technische Vorkenntnisse. Wie das Schritt für Schritt geht, liest du unter Eigene Agents erstellen."
-  },
-  {
-    "url": "/docs/features/marktplatz",
-    "pageTitle": "Grüneratoren und Marktplatz",
     "heading": "Eigene Rezepte bauen",
     "anchor": "#eigene-rezepte-bauen",
     "category": "Features",
-    "text": "Genauso kannst du dir eigene Rezepte bauen: eine Schreibvorgabe für eine bestimmte Textsorte, die du danach per @mention auf jeden Agenten anwendest. Wie das Schritt für Schritt geht, liest du unter Eigene Rezepte erstellen."
+    "text": "Unter Projekte → Deine Rezepte legst du ein eigenes Rezept an. Die Schreibvorgabe kannst du im Chat über @ wählen und mit einem Projekt teilen. Wie das Schritt für Schritt geht, liest du unter Eigene Rezepte erstellen."
   },
   {
     "url": "/docs/features/marktplatz",
@@ -2015,7 +2067,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "In der App",
     "anchor": "#in-der-app",
     "category": "Features",
-    "text": "Auch die App hat den Marktplatz, mit denselben Arten, derselben Herkunft und derselben Trennung nach Land. Er öffnet sich über deinen Grüneratoren (Agents und Rezepte), auf der Vorlagen-Seite, bei Sticker & Hintergründe und in der Sticker- und Hintergrund-Auswahl des Profilbild-Editors. Was du am Rechner gemerkt oder zu deinen Grüneratoren geholt hast, ist in der App schon da, und umgekehrt. Eigene Agents und Rezepte legst du am Rechner an."
+    "text": "Auch die App hat den Marktplatz, mit denselben Arten, derselben Herkunft und derselben Trennung nach Land. Er öffnet sich über deinen Grüneratoren (Agents und Rezepte), auf der Vorlagen-Seite, bei Sticker & Hintergründe und in der Sticker- und Hintergrund-Auswahl des Profilbild-Editors. Was du am Rechner gemerkt oder zu deinen Grüneratoren geholt hast, ist in der App schon da, und umgekehrt. Deine Rezepte findest du auch in der App unter Projekte."
   },
   {
     "url": "/docs/features/marktplatz",
@@ -2031,7 +2083,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Merken oder „Zu meinen Grüneratoren“?",
     "anchor": "#merken-oder-zu-meinen-grüneratoren",
     "category": "Features",
-    "text": "Beides speichert etwas an deinem Konto, gilt also am Rechner und in der App. Der Unterschied ist, wo es danach auftaucht: Zu meinen Grüneratoren legt einen Agent oder ein Rezept auf deine Seite Grüneratoren, neben deine eigenen. Ein zweiter Klick (In meinen Grüneratoren) nimmt es wieder heraus. Merken setzt ein Lesezeichen auf eine Vorlage, einen Sticker, einen Hintergrund oder ein Notebook. Gemerkte Vorlagen findest du auf der Seite Vorlagen über Nur gemerkte Vorlagen, gemerkte Sticker und Hintergründe in deiner Sammlung bei Sticker & Hintergründe, gemerkte Notebooks auf der Wissen-Seite hinter Meine Notebooks. Gemerkt zeigt, dass es schon gespeichert ist. Ein weiterer Klick nimmt es wieder heraus."
+    "text": "Beides speichert etwas an deinem Konto, gilt also am Rechner und in der App. Der Unterschied ist, wo es danach auftaucht: Zu meinen Grüneratoren fügt den Eintrag deiner Bibliothek hinzu. Rezepte findest du anschließend auch unter Projekte → Deine Rezepte. Ein zweiter Klick (In meinen Grüneratoren) nimmt es wieder heraus. Merken setzt ein Lesezeichen auf eine Vorlage, einen Sticker, einen Hintergrund oder ein Notebook. Gemerkte Vorlagen findest du auf der Seite Vorlagen über Nur gemerkte Vorlagen, gemerkte Sticker und Hintergründe in deiner Sammlung bei Sticker & Hintergründe, gemerkte Notebooks auf der Wissen-Seite hinter Meine Notebooks. Gemerkt zeigt, dass es schon gespeichert ist. Ein weiterer Klick nimmt es wieder heraus."
   },
   {
     "url": "/docs/features/marktplatz",
@@ -2047,7 +2099,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Tipps für die Nutzung",
     "anchor": "#tipps-für-die-nutzung",
     "category": "Features",
-    "text": "Probier einen Agenten aus, bevor du ihn dazuholst. Im Marktplatz öffnet Im Chat ausprobieren ein Gespräch mit der ganzen Konfiguration. Hol dir, was du regelmäßig brauchst, zu deinen Grüneratoren. Den Rest findest du jederzeit wieder im Marktplatz. Hefte deine wichtigsten Agents mit dem Stern an, damit sie in der Seitenleiste auftauchen. Schau dir vor dem Bauen ähnliche Agents an. Über die „Verwandte“-Liste auf den Detailseiten findest du Vorbilder. Mehr zum Arbeiten mit Agents im Gespräch findest du unter KI-Chat."
+    "text": "Probier einen Agenten aus, bevor du ihn dazuholst. Im Marktplatz öffnet Im Chat ausprobieren ein Gespräch mit der ganzen Konfiguration. Hol dir, was du regelmäßig brauchst, zu deinen Grüneratoren. Den Rest findest du jederzeit wieder im Marktplatz. Hefte deine wichtigsten Agents mit dem Stern an, damit sie in der Seitenleiste auftauchen. Mehr zum Arbeiten mit Agents im Gespräch findest du unter KI-Chat."
   },
   {
     "url": "/docs/features/notebooks",
@@ -2119,7 +2171,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Verwalten",
     "anchor": "#verwalten",
     "category": "Features",
-    "text": "Hinter der Kachel „Meine Notebooks\" auf der Wissen-Seite erscheint jedes deiner Notebooks als Karte, zusammen mit den Notebooks, die andere über ein Projekt mit dir teilen, und denen, die du im Marktplatz gemerkt hast. Ein Klick auf die Karte öffnet die Notebook-Detailseite, von der aus du chatten und durchsuchen kannst. Über das Drei-Punkte-Menü der Karte erreichst du weitere Aktionen: Bearbeiten — öffnet wieder den Editor (Quellen, Details, Labels, Wolke, Docs). Auf der Bearbeiten-Seite kannst du Name und Beschreibung auch direkt im Kopfbereich ändern und alle Quellen per „Alle Quellen aktualisieren\" neu synchronisieren. Teilen — Untermenü mit „Link kopieren\" und — falls du in Projekten bist — Optionen, das Notebook direkt zu einem Projekt hinzuzufügen. Die volle Sichtbarkeitssteuerung liegt dagegen im „Teilen\"-Button auf der Bearbeiten-Seite (siehe oben). Löschen — entfernt das Notebook unwiderruflich. Wichtig: Die enthaltenen Dokumente bleiben in deiner persönlichen Bibliothek erhalten und können in andere Notebooks aufgenommen werden."
+    "text": "Unter Projekte → Deine Notebooks findest du eigene und mit dir geteilte Notebooks. Geteilte Notebooks kannst du auch über @ im Chat auswählen. Projektchats können die im Projekt geteilten Notebooks automatisch berücksichtigen. Die Wissen-Seite bietet weiterhin Meine Notebooks, darunter auch im Marktplatz gemerkte Notebooks. Ein Klick auf die Karte öffnet die Notebook-Detailseite, von der aus du chatten und durchsuchen kannst. Über das Drei-Punkte-Menü der Karte erreichst du weitere Aktionen: Bearbeiten — öffnet wieder den Editor (Quellen, Details, Labels, Wolke, Docs). Auf der Bearbeiten-Seite kannst du Name und Beschreibung auch direkt im Kopfbereich ändern und alle Quellen per „Alle Quellen aktualisieren\" neu synchronisieren. Teilen — Untermenü mit „Link kopieren\" und — falls du in Projekten bist — Optionen, das Notebook direkt zu einem Projekt hinzuzufügen. Die volle Sichtbarkeitssteuerung liegt dagegen im „Teilen\"-Button auf der Bearbeiten-Seite (siehe oben). Löschen — entfernt das Notebook unwiderruflich. Wichtig: Die enthaltenen Dokumente bleiben in deiner persönlichen Bibliothek erhalten und können in andere Notebooks aufgenommen werden."
   },
   {
     "url": "/docs/features/notebooks",
@@ -2344,6 +2396,46 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#was-der-grünerator-an-der-präsentation-ändern-kann",
     "category": "Features",
     "text": "Schreib in der Chat-Seitenleiste, was passieren soll. Folien sprichst du dabei über ihre Nummer an („Folie 3\") oder über ihren Inhalt („die Folie mit den Zahlen\"). Pro Auftrag führt der Grünerator bis zu Änderungen aus. Wenn du „mach den Titel von Folie 2 kürzer\" sagst, bleibt alles andere an dieser Folie unangetastet — Inhalt, Notizen, Hintergrund. Du musst nie die ganze Folie neu beschreiben, nur weil du eine Kleinigkeit ändern willst. Welche Änderungen möglich sind, stammt direkt aus dem Programmcode. Kommt eine neue Fähigkeit dazu, meldet sich die Doku-Prüfung automatisch, bis sie hier mit einem Beispielsatz beschrieben ist."
+  },
+  {
+    "url": "/docs/features/projekte",
+    "pageTitle": "Projekte",
+    "heading": "Projekte",
+    "anchor": "",
+    "category": "Features",
+    "text": "In einem Projekt sammelst du, was zu einer Aufgabe gehört. Die Klima-AG kann zum Beispiel ihre Beschlüsse hinterlegen, Einladungen nach einem gemeinsamen Rezept schreiben und Entwürfe im Austausch besprechen. Du kannst ein Projekt erst allein nutzen und später Menschen einladen."
+  },
+  {
+    "url": "/docs/features/projekte",
+    "pageTitle": "Projekte",
+    "heading": "Was du unter Projekte findest",
+    "anchor": "#was-du-unter-projekte-findest",
+    "category": "Features",
+    "text": "Öffne Projekte in der Seitenleiste oder gehe zu gruenerator.eu/projekte. Unter Zuletzt findest du bereits genutzte Projekte und Notebooks. Darunter stehen Deine Projekte, Deine Notebooks und Deine Rezepte. Über das Feld oben kannst du ein Projekt suchen oder anlegen."
+  },
+  {
+    "url": "/docs/features/projekte",
+    "pageTitle": "Projekte",
+    "heading": "Was in einem Projekt liegt",
+    "anchor": "#was-in-einem-projekt-liegt",
+    "category": "Features",
+    "text": "Chats startest du direkt auf der Projektseite. Unter Bisherige Chats öffnest du ein Gespräch erneut. Anweisungen geben den Chats im Projekt gemeinsame Vorgaben. Projekt-Admins können sie anpassen. Wissen enthält zum Beispiel Dateien, Notebooks und Docs. Die Anzeige durchsuchbar hilft dir zu sehen, was der Chat bereits durchsuchen kann. Rezepte sind Schreibanleitungen für wiederkehrende Textsorten. Teile ein vorhandenes Rezept über Hinzufügen oder lege ein neues direkt im Abschnitt Rezepte an. Bei einem Projekt mit eingestelltem Landesverband erscheinen dort auch seine Rezepte. Austausch ist der Ort für Beiträge und Kommentare. Er erscheint, sobald weitere Personen im Projekt sind oder es dort bereits etwas zu besprechen gibt. Geplant führt die wiederkehrenden Aufgaben auf, die dem Projekt zugeordnet sind."
+  },
+  {
+    "url": "/docs/features/projekte",
+    "pageTitle": "Projekte",
+    "heading": "Weiterlesen",
+    "anchor": "#weiterlesen",
+    "category": "Features",
+    "text": "Ein Projekt erstellen und andere einladen Im Projekt chatten Landesverband-Rezepte"
+  },
+  {
+    "url": "/docs/features/projekte",
+    "pageTitle": "Projekte",
+    "heading": "Wer Zugriff hat",
+    "anchor": "#wer-zugriff-hat",
+    "category": "Features",
+    "text": "Projekt-Admins können im Menü Projektoptionen einladen, Mitglieder verwalten und das Projekt archivieren. Mitglieder können Wissen hinzufügen. Eine Freigabe aus dem Projekt entfernen dürfen Projekt-Admins sowie die Person, die den Inhalt geteilt hat. Schreibrechte hängen vom Inhalt und seiner Freigabe ab. Admins können ein Projekt zur Aufnahme weiterer Mitglieder unter Öffentliche Projekte sichtbar machen. Interessierte stellen dort eine Beitrittsanfrage. Das System-Projekt Grünerator hat eigene Regeln: Instanz-Admins teilen Inhalte und schreiben Beiträge, Mitglieder können kommentieren. Archivierte Projekte findest du auf der Projektübersicht unter Archiviert. Während ein Projekt archiviert ist, kannst du seine Inhalte lesen. Wiederkehrende Aufgaben pausieren bis zur Wiederherstellung."
   },
   {
     "url": "/docs/features/sharepics",
@@ -2687,7 +2779,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Weiterlesen",
     "anchor": "#weiterlesen",
     "category": "Guides",
-    "text": "Notebooks — Quellarten, Teilen, Verwaltung, häufige Fragen Wie binde ich die Grüne Wolke ein? — Voraussetzung, um Wolke-Ordner anzuhängen Landesverband-Agents — Österreich: vorgefertigte Wissensdatenbank der Grünen Österreich"
+    "text": "Notebooks — Quellarten, Teilen, Verwaltung, häufige Fragen Wie binde ich die Grüne Wolke ein? — Voraussetzung, um Wolke-Ordner anzuhängen Landesverband-Rezepte — Österreich: vorgefertigte Wissensdatenbank der Grünen Österreich"
   },
   {
     "url": "/docs/guides/einsteigerinnen/erinnerungen-erstellen",
@@ -2735,7 +2827,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Austausch: Beiträge, Kommentare und Erwähnungen",
     "anchor": "#austausch-beiträge-kommentare-und-erwähnungen",
     "category": "Guides",
-    "text": "Sobald außer dir noch andere im Projekt sind oder es schon Beiträge gibt, erscheint unter den Chats der Abschnitt Austausch. Dort schreibst du über + Beiträge, teilst Inhalte mit einer Notiz und kommentierst. Suchen kannst du im Austausch über „…“ → „Im Austausch suchen“. Klicke auf „Schreib etwas an das Projekt …“. Der Beitragseditor öffnet sich. Schreibe deinen Text, hänge bei Bedarf über „Dateien“ Anhänge an und klicke auf „Posten“. Ein Beitrag darf bis zu 5.000 Zeichen und zehn Dateien mit jeweils höchstens 25 MiB enthalten; auch ein Beitrag nur mit Dateien ist möglich. Über „Aus meinen Inhalten“ teilst du stattdessen einen vorhandenen Inhalt mit einer Notiz. Bei einem Eintrag im Wissen holt „Im Austausch besprechen“ ihn in den Austausch, damit ihr darüber schreiben könnt. Über die Sprechblase unter einem Beitrag öffnest du die Kommentare. Schreibe ins Feld „Kommentieren …“ und klicke auf „Senden“. Auf vorhandene Kommentare kannst du antworten; Antworten werden als Thread zusammengefasst. Kommentare dürfen bis zu 2.000 Zeichen enthalten. Über das Stecknadel-Symbol können Admins bis zu drei Einträge anheften. Eine weitere Anheftung löst die älteste."
+    "text": "Sobald außer dir noch andere im Projekt sind oder es bereits etwas zu besprechen gibt, erscheint unter den Chats der Abschnitt Austausch. Dort schreibst du über + Beiträge, teilst Inhalte mit einer Notiz und kommentierst. Suchen kannst du im Austausch über „…“ → „Im Austausch suchen“. Klicke auf + neben Austausch. Der Beitragseditor öffnet sich. Schreibe deinen Text, hänge bei Bedarf über „Dateien“ Anhänge an und klicke auf „Posten“. Ein Beitrag darf bis zu 5.000 Zeichen und zehn Dateien mit jeweils höchstens 25 MiB enthalten; auch ein Beitrag nur mit Dateien ist möglich. Über „Aus meinen Inhalten“ hängst du einen vorhandenen Inhalt an deinen Entwurf. Mit „Posten“ veröffentlichst du ihn im Austausch. Bei einem Eintrag im Wissen holt „Im Austausch besprechen“ ihn in den Austausch, damit ihr darüber schreiben könnt. Über die Sprechblase unter einem Beitrag öffnest du die Kommentare. Schreibe ins Feld „Kommentieren …“ und klicke auf „Senden“. Auf vorhandene Kommentare kannst du antworten; Antworten werden als Thread zusammengefasst. Kommentare dürfen bis zu 2.000 Zeichen enthalten. Über das Stecknadel-Symbol können Admins bis zu drei Einträge anheften."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
@@ -2743,7 +2835,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Austausch: Beiträge, Kommentare und Erwähnungen",
     "anchor": "#austausch-beiträge-kommentare-und-erwähnungen",
     "category": "Guides",
-    "text": "Angeheftete Einträge stehen im Austausch oben. Die anderen Mitglieder bekommen eine Benachrichtigung, wenn jemand einen Beitrag schreibt oder einen Inhalt teilt. Tippe @ und wähle eine Person aus der Liste, um sie gezielt anzusprechen. Sie bekommt eine eigene Benachrichtigung. Mit @alle benachrichtigst du alle Mitglieder des Projekts. Antwortest du auf einen Kommentar, ist die Person, der du antwortest, schon erwähnt. Wie viele Benachrichtigungen du bekommst und welche auch per E-Mail kommen, stellst du in den Einstellungen unter Benachrichtigungen ein. „Benachrichtigungen stummschalten“ im Menü „Projektoptionen“ stoppt die E-Mails dieses Projekts; in der Glocke erscheinen sie weiterhin."
+    "text": "Eine weitere Anheftung löst die älteste. Angeheftete Einträge stehen im Austausch oben. Die anderen Mitglieder bekommen eine Benachrichtigung, wenn jemand einen Beitrag schreibt oder einen Inhalt teilt. Tippe @ und wähle eine Person aus der Liste, um sie gezielt anzusprechen. Sie bekommt eine eigene Benachrichtigung. Mit @alle benachrichtigst du alle Mitglieder des Projekts. Antwortest du auf einen Kommentar, ist die Person, der du antwortest, schon erwähnt. Wie viele Benachrichtigungen du bekommst und welche auch per E-Mail kommen, stellst du in den Einstellungen unter Benachrichtigungen ein. „Benachrichtigungen stummschalten“ im Menü „Projektoptionen“ stoppt die E-Mails dieses Projekts; in der Glocke erscheinen sie weiterhin."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
@@ -2759,7 +2851,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Menschen einladen",
     "anchor": "#menschen-einladen",
     "category": "Guides",
-    "text": "Du kannst jederzeit einladen, auch wenn du das Projekt zunächst allein genutzt hast. Öffne oben rechts auf der Projektseite das Drei-Punkte-Menü „Projektoptionen“ und wähle „Per E-Mail einladen“. Den Eintrag sehen nur Admins. Gib im Dialog „Einladen“ E-Mail-Adressen ein (Platzhalter: name@beispiel.de) und bestätige jede mit Enter oder einem Komma. Eingeladene erhalten eine E-Mail mit einem Beitrittslink zu diesem Projekt. Oder klicke auf „Einladungslink kopieren“ und schicke den Link selbst, etwa per Messenger. Teile ihn nur mit den vorgesehenen Personen. Klicke auf „Einladen“, um die E-Mails zu verschicken. Im selben Menü findest du auch „Einladungslink kopieren“ und „Mitglieder verwalten“. In einem archivierten Projekt kannst du nicht einladen."
+    "text": "Du kannst jederzeit einladen, auch wenn du das Projekt zunächst allein genutzt hast. Öffne oben rechts auf der Projektseite das Drei-Punkte-Menü „Projektoptionen“ und wähle „Per E-Mail einladen“. Den Eintrag sehen nur Admins. Gib im Dialog „Einladen“ E-Mail-Adressen ein (Platzhalter: name@beispiel.de) und bestätige jede mit Enter oder einem Komma. Eingeladene erhalten eine E-Mail mit einem Beitrittslink zu diesem Projekt. Klicke auf „Einladen“, um die E-Mails zu verschicken. Wenn du die Einladung selbst verschicken möchtest, öffne Projektoptionen → Einladungslink kopieren. Im selben Menü kannst du auch Mitglieder verwalten. In einem archivierten Projekt kannst du nicht einladen."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
@@ -2767,7 +2859,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Projekt anlegen",
     "anchor": "#projekt-anlegen",
     "category": "Guides",
-    "text": "Öffne im Bereich Arbeiten die Seite Projekte. Direkt erreichbar ist sie auch unter /projekte. Klicke unter dem Eingabefeld auf „Projekt erstellen“. Alternativ tippst du im Feld oben einen Namen ein und wählst „… als Projekt erstellen“. Es öffnet sich der Dialog „Neues Projekt“. Gib unter Name den Namen des Projekts ein. Er darf höchstens 100 Zeichen lang sein. Optional beschreibst du unter „Worum geht es in diesem Projekt?“ das Thema in ein bis zwei Sätzen. Optional hängst du über „Dateien auswählen“ gleich Dateien an. Optional gibst du E-Mail-Adressen ein, um Menschen einzuladen. Bestätige jede Adresse mit Enter oder einem Komma. Klicke auf „Projekt erstellen“. Hast du Adressen eingetragen, heißt der Knopf „Erstellen & einladen“. Das neue Projekt öffnet sich automatisch. Du bist Admin und kannst Mitglieder und Inhalte verwalten."
+    "text": "Öffne Projekte in der Seitenleiste. Direkt erreichbar ist sie auch unter /projekte. Klicke neben Deine Projekte auf das Plus (Neues Projekt). Du kannst auch im Feld oben einen Namen eingeben und „… als Projekt erstellen“ wählen. Es öffnet sich der Dialog „Neues Projekt“. Gib unter Name den Namen des Projekts ein. Er darf höchstens 100 Zeichen lang sein. Optional beschreibst du unter „Worum geht es in diesem Projekt?“ das Thema in ein bis zwei Sätzen. Optional hängst du über „Dateien auswählen“ gleich Dateien an. Optional gibst du E-Mail-Adressen ein, um Menschen einzuladen. Bestätige jede Adresse mit Enter oder einem Komma. Klicke auf „Projekt erstellen“. Hast du Adressen eingetragen, heißt der Knopf „Erstellen & einladen“. Das neue Projekt öffnet sich automatisch. Du bist Admin und kannst Mitglieder und Inhalte verwalten."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
@@ -2783,7 +2875,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Weiterlesen",
     "anchor": "#weiterlesen",
     "category": "Guides",
-    "text": "Wie erstelle ich ein eigenes Notebook? — Quellen sammeln und ein Notebook aufbauen"
+    "text": "Projekte Wie erstelle ich ein eigenes Notebook? — Quellen sammeln und ein Notebook aufbauen"
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
@@ -2791,7 +2883,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wenn etwas fehlt",
     "anchor": "#wenn-etwas-fehlt",
     "category": "Guides",
-    "text": "Kein „Einladen“-Knopf? Dann bist du kein Admin des Projekts, das Projekt ist archiviert, oder es ist das System-Projekt „Grünerator“. Kein Abschnitt „Austausch“? Er erscheint erst, wenn außer dir jemand im Projekt ist oder es Beiträge gibt. Lade zuerst jemanden ein. Notebooks fehlen im Auswahlfenster? Es zeigt nur Inhalte, die dir gehören. Erstelle dafür zuerst ein Notebook. „Hinzufügen“ fehlt? Im System-Projekt „Grünerator“ dürfen nur Instanz-Admins Inhalte teilen und Beiträge schreiben. In allen anderen Projekten dürfen Mitglieder Inhalte hinzufügen; Entfernen bleibt eine Admin-Aktion."
+    "text": "Kein „Einladen“-Knopf? Dann bist du kein Admin des Projekts, das Projekt ist archiviert, oder es ist das System-Projekt „Grünerator“. Kein Abschnitt „Austausch“? Er erscheint erst, wenn außer dir jemand im Projekt ist oder es Beiträge gibt. Lade zuerst jemanden ein. Notebooks fehlen im Auswahlfenster? Es zeigt nur Inhalte, die dir gehören. Erstelle dafür zuerst ein Notebook. „Hinzufügen“ fehlt? Im System-Projekt „Grünerator“ dürfen nur Instanz-Admins Inhalte teilen und Beiträge schreiben. In allen anderen Projekten dürfen Mitglieder Inhalte hinzufügen. Entfernen können sie ihre eigenen Freigaben. Projekt-Admins können auch Freigaben anderer entfernen."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
@@ -2799,7 +2891,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wissen und Notebooks hinzufügen",
     "anchor": "#wissen-und-notebooks-hinzufügen",
     "category": "Guides",
-    "text": "Alles, was du ins Projekt legst, steht rechts im Abschnitt Wissen. Chats in diesem Projekt nutzen es als Grundlage. Klicke oben rechts auf „Hinzufügen“. Wähle „Vorhandenes hinzufügen …“, um etwas aus deinen eigenen Inhalten zu übernehmen, zum Beispiel ein Notebook. Mit „Neues Doc“, „Neues Sheet“, „Neue Präsentation“ oder „Neues Board“ legst du direkt im Projekt etwas Neues an. „Datei hochladen“, „Text“ und „Link“ (nur für Admins) bringen weiteres Material ein. Wähle im Auswahlfenster das Notebook aus, das du freigeben möchtest. Mitglieder des Projekts können das Notebook danach öffnen und lesen; durch das Hinzufügen erhalten sie keine Schreibrechte. Über dem Wissen steht, wie viel davon Chats tatsächlich durchsuchen können, zum Beispiel „3 von 4 durchsuchbar“. Bei Dateien, die noch eingelesen werden oder sich nicht auslesen ließen, ist die Zahl niedriger. Nach sechs Einträgen zeigt „Alle anzeigen“ den Rest, und die Lupe neben der Überschrift öffnet die Suche."
+    "text": "Dateien, Notebooks und Docs findest du rechts unter Wissen. Geteilte Rezepte haben dort ihren eigenen Abschnitt Rezepte. Wie der Chat darauf zugreift, zeigt der Artikel Im Projekt chatten. Klicke oben rechts auf „Hinzufügen“. Wähle „Vorhandenes hinzufügen …“, um etwas aus deinen eigenen Inhalten zu übernehmen, zum Beispiel ein Notebook. Mit „Neues Doc“, „Neues Sheet“, „Neue Präsentation“ oder „Neues Board“ legst du direkt im Projekt etwas Neues an. „Datei hochladen“, „Text“ und „Link“ (nur für Admins) bringen weiteres Material ein. Wähle im Auswahlfenster das Notebook aus, das du freigeben möchtest. Mitglieder des Projekts können das Notebook danach öffnen und lesen; durch das Hinzufügen erhalten sie keine Schreibrechte. Die Projektübersicht im Feature-Artikel zeigt, wo der Knopf Hinzufügen und der Abschnitt Wissen liegen. Über dem Wissen steht, wie viel davon Chats tatsächlich durchsuchen können, zum Beispiel „3 von 4 durchsuchbar“. Bei Dateien, die noch eingelesen werden oder sich nicht auslesen ließen, ist die Zahl niedriger. Nach sechs Einträgen zeigt „Alle anzeigen“ den Rest, und die Lupe neben der Überschrift öffnet die Suche."
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
@@ -3451,59 +3543,35 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
-    "pageTitle": "Wie erstelle ich einen Agenten?",
-    "heading": "Wie erstelle ich einen Agenten?",
+    "pageTitle": "Wie wandle ich einen bestehenden Agent um?",
+    "heading": "Wie wandle ich einen bestehenden Agent um?",
     "anchor": "",
     "category": "Guides",
-    "text": "Unter Grüneratoren kannst du einen eigenen Agenten für eine Aufgabe erstellen, die du häufiger erledigst, zum Beispiel für Pressemitteilungen, Recherchen oder Social-Media-Texte. Du beschreibst zuerst in normalen Worten, was der Agent tun soll. Der Grünerator füllt daraus den Editor vor; vor dem Speichern kannst du alles kontrollieren und ändern. Noch in der Erprobung: Verhalten und Funktionen können sich ändern. Melde Probleme gern dem Team."
+    "text": "Eigene Grünerator-Agents, die du bereits angelegt hast, kannst du weiter verwenden. Für neue Aufgaben legst du ein Rezept oder Projekt an. Willst du die Anleitung eines bisherigen Agents übernehmen, dauert die Umwandlung nur wenige Minuten. Der ursprüngliche Agent bleibt dabei erhalten."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
-    "pageTitle": "Wie erstelle ich einen Agenten?",
-    "heading": "Schritt 1: Deine Grüneratoren öffnen",
-    "anchor": "#schritt-1-deine-grüneratoren-öffnen",
+    "pageTitle": "Wie wandle ich einen bestehenden Agent um?",
+    "heading": "So geht’s",
+    "anchor": "#so-gehts",
     "category": "Guides",
-    "text": "Öffne Grüneratoren über den gleichnamigen Eintrag in der Seitenleiste. Klicke oben rechts auf das Plus (Neu) und wähle Agent."
+    "text": "Öffne die bisherige Übersicht Grüneratoren unter gruenerator.eu/grueneratoren. Wähle deinen Agent unter Agents laufen aus oder öffne seine Bearbeitungsseite und klicke auf Umwandeln. In der App findest du In Rezept oder Projekt umwandeln im Editor deines Agents. Wähle Rezept, wenn du vor allem eine wiederverwendbare Schreibanleitung brauchst. Wähle Projekt, wenn auch Notebooks, Projektanweisungen oder wiederkehrende Aufgaben dazugehören. Lies unter Was passiert, was der Grünerator bei deiner Auswahl übernimmt. Wechsel zwischen den beiden Zielen, um die Angaben zu vergleichen. Bestätige mit In Rezept umwandeln oder In Projekt umwandeln. Öffne den Nachfolger und probiere ihn mit einer typischen Anfrage aus. Später kommst du über Nachfolger ansehen wieder dorthin."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
-    "pageTitle": "Wie erstelle ich einen Agenten?",
-    "heading": "Schritt 2: Den Agenten beschreiben",
-    "anchor": "#schritt-2-den-agenten-beschreiben",
+    "pageTitle": "Wie wandle ich einen bestehenden Agent um?",
+    "heading": "Was kommt mit?",
+    "anchor": "#was-kommt-mit",
     "category": "Guides",
-    "text": "Schreibe in das Eingabefeld, wofür du den Agenten brauchst, wie seine Antworten klingen sollen und welche Fähigkeiten er benötigt. Je konkreter die Beschreibung ist, desto brauchbarer wird der Entwurf. Zum Beispiel: Ein Agent für Pressemitteilungen unseres Kreisverbands. Er soll sachlich und verständlich schreiben, vor dem Entwurf nach Anlass, Kernbotschaft und Zitaten fragen und bei Bedarf im Web recherchieren. Du kannst stattdessen eines der Beispiele 📰 Pressestelle, 🚲 Recherche-Bot oder 📣 Social Media anklicken und den vorgeschlagenen Text anpassen. Schicke die Beschreibung mit der Pfeiltaste im Eingabefeld ab. Der Grünerator erstellt daraufhin einmalig einen Entwurf und öffnet den Editor. Gespeichert ist der Agent zu diesem Zeitpunkt noch nicht. Über „Lieber manuell anlegen?\" öffnest du denselben Editor mit leeren Feldern."
+    "text": "| Rezept | Projekt | ----------------------------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | Anleitung | Die Rolle wird zur Rezept-Anleitung. | Die Rolle wird zur Projektanweisung. Eine längere Rolle kommt als eigenes Rezept ins Projekt. | Notebooks und wiederkehrende Aufgaben | Sie bleiben beim bisherigen Agent. | Notebooks werden ins Projekt geteilt. Eigene wiederkehrende Aufgaben können dort weiterlaufen. | Freigaben an Projekte | Der Grünerator versucht, das Rezept in dieselben Projekte zu teilen. | Das neue Projekt startest du allein. Weitere Personen kannst du danach einladen. | Prüfe die Angaben im Dialog besonders bei öffentlichen Agents und Agents mit fester Werkzeug- oder Modellwahl. Eine öffentliche Listung, Begrüßung und Startfragen werden bei der Umwandlung nicht übernommen. Wenn beim Anlegen weniger mitkam als angekündigt, zeigt der Dialog, was fehlt."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
-    "pageTitle": "Wie erstelle ich einen Agenten?",
-    "heading": "Schritt 3: Den Entwurf unter „Grundlagen“ prüfen",
-    "anchor": "#schritt-3-den-entwurf-unter-grundlagen-prüfen",
+    "pageTitle": "Wie wandle ich einen bestehenden Agent um?",
+    "heading": "Weiterlesen",
+    "anchor": "#weiterlesen",
     "category": "Guides",
-    "text": "Links siehst du das Formular, rechts die Vorschau der späteren Startseite. Prüfe zuerst im Tab Grundlagen die drei Pflichtfelder: Name: So erscheint der Agent unter deinen Grüneratoren. Über die Schaltfläche daneben kannst du sein Symbol ändern. Beschreibung: Ein kurzer Satz, der anderen den Zweck erklärt. Anleitung: Die Regeln für das Verhalten des Agenten. Hier sollte genau stehen, welche Aufgabe er hat, welche Angaben er vor dem Schreiben erfragen und wie er das Ergebnis aufbauen soll. Speichern bleibt deaktiviert, solange Name oder Beschreibung leer sind oder die Anleitung weniger als zehn Zeichen enthält. Unter Begrüßung & Startfragen kannst du optional einen Begrüßungstext und anklickbare Beispielfragen eintragen. Eine Beispielfrage kommt jeweils in eine eigene Zeile. Erweiterte Einstellungen enthält Region, Tags und Modell; für den ersten Agenten kannst du die Voreinstellungen beibehalten."
-  },
-  {
-    "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
-    "pageTitle": "Wie erstelle ich einen Agenten?",
-    "heading": "Schritt 4: Werkzeuge auswählen",
-    "anchor": "#schritt-4-werkzeuge-auswählen",
-    "category": "Guides",
-    "text": "Öffne den Tab Werkzeuge. Aktiviert ist nur, was der Agent im Gespräch verwenden darf. Prüfe die Auswahl besonders nach einem KI-Entwurf: Die KI kann passend zu deiner Beschreibung zusätzliche Werkzeuge einschalten. Beim manuellen Anlegen sind zunächst nur Grünerator-Wissen und Recherche aktiviert. Ein markiert die beiden Voreinstellungen. Schalte weitere Werkzeuge nur ein, wenn dein Agent sie tatsächlich braucht. Für einen reinen Schreibassistenten sind beispielsweise Bildgenerierung und Formulare ausfüllen nicht nötig. Die zusätzliche Option Quell-Links direkt im Antworttext ist für versandfertige E-Mails oder Briefe gedacht: Dann können konkrete Artikel-URLs aus der Recherche direkt im Text statt nur in den Quellen-Karten erscheinen."
-  },
-  {
-    "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
-    "pageTitle": "Wie erstelle ich einen Agenten?",
-    "heading": "Schritt 5: Optional Notebooks hinzufügen",
-    "anchor": "#schritt-5-optional-notebooks-hinzufügen",
-    "category": "Guides",
-    "text": "Im Tab Wissen kannst du ein oder mehrere Notebooks auswählen. Der Agent durchsucht die ausgewählten Notebooks dann automatisch als Wissensquelle. Neben den Grünerator-Notebooks erscheinen unter Meine Notebooks auch deine eigenen Notebooks. Ein ausgewähltes Notebook ist eine zusätzliche Wissensquelle. Es beschränkt den Agenten nicht automatisch ausschließlich auf diese Inhalte. Wenn er nur mit bestimmten Quellen arbeiten soll, schreibe diese Vorgabe zusätzlich eindeutig in die Anleitung und aktiviere keine unnötigen Recherche-Werkzeuge. Falls du eigene Dateien verwenden möchtest, erstelle zuerst ein Notebook und kehre anschließend in den Agenten-Editor zurück."
-  },
-  {
-    "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
-    "pageTitle": "Wie erstelle ich einen Agenten?",
-    "heading": "Schritt 6: Speichern und testen",
-    "anchor": "#schritt-6-speichern-und-testen",
-    "category": "Guides",
-    "text": "Klicke oben rechts auf Speichern. Erst jetzt wird der Agent angelegt. Anschließend bleibst du auf seiner Bearbeitungsseite und kannst ihn über Im Chat öffnen ausprobieren. Teste dabei mindestens: Fragt der Agent fehlende Angaben ab? Hält er Ton, Aufbau und Grenzen aus der Anleitung ein? Verwendet er nur die Werkzeuge und Wissensquellen, die du vorgesehen hast? Wenn etwas nicht passt, kehre zu deinen Grüneratoren zurück und wähle im Menü der Karte (drei Punkte) Bearbeiten. Passe vor allem die Anleitung an, speichere erneut und teste noch einmal."
+    "text": "Wie erstelle ich ein eigenes Rezept? Projekte Im Projekt chatten"
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
@@ -3511,7 +3579,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wie erstelle ich ein eigenes Rezept?",
     "anchor": "",
     "category": "Guides",
-    "text": "Ein Rezept ist eine Schreibvorgabe für eine bestimmte Textsorte: Aufbau, Ton und Länge, einmal festgelegt und danach per @mention auf jeden Agenten anwendbar. Anders als ein Agent ist ein Rezept kein eigenständiges Gegenüber — es ist eine Vorlage, die du im Chat kurz aktivierst, etwa @presse für eine Pressemitteilung oder ein selbst gebautes @einladung für Einladungen zur Mitgliederversammlung. Unter Grüneratoren kannst du dir eigene Rezepte für Textsorten bauen, die du häufiger schreibst."
+    "text": "Ein Rezept ist eine Schreibvorgabe für eine bestimmte Textsorte: Aufbau, Ton und Länge, einmal festgelegt und danach per @mention auf jeden Agenten anwendbar. Anders als ein Agent ist ein Rezept kein eigenständiges Gegenüber — es ist eine Vorlage, die du im Chat kurz aktivierst, etwa @presse für eine Pressemitteilung oder ein selbst gebautes @einladung für Einladungen zur Mitgliederversammlung. Unter Projekte kannst du dir eigene Rezepte für Textsorten anlegen, die du häufiger schreibst."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
@@ -3519,7 +3587,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Als Standard-Rezept an einem eigenen Agenten hinterlegen",
     "anchor": "#als-standard-rezept-an-einem-eigenen-agenten-hinterlegen",
     "category": "Guides",
-    "text": "Baust du einen eigenen Agenten, kannst du im Tab Grundlagen unter Standard-Rezept (optional) eines deiner Rezepte auswählen. Der Agent verwendet es dann automatisch, sobald du im Chat kein anderes Rezept per @mention wählst. Wie du einen eigenen Agenten anlegst, steht unter Eigene Agents erstellen."
+    "text": "Bei einem bestehenden eigenen Agent kannst du im Tab Grundlagen unter Standard-Rezept (optional) eines deiner Rezepte auswählen. Der Agent verwendet es dann automatisch, sobald du im Chat kein anderes Rezept per @mention wählst. Die Anleitung eines bestehenden Agents kannst du auch in ein Rezept oder Projekt umwandeln."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
@@ -3532,10 +3600,10 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
     "pageTitle": "Wie erstelle ich ein eigenes Rezept?",
-    "heading": "Schritt 1: Deine Grüneratoren öffnen",
-    "anchor": "#schritt-1-deine-grüneratoren-öffnen",
+    "heading": "Schritt 1: Deine Rezepte öffnen",
+    "anchor": "#schritt-1-deine-rezepte-öffnen",
     "category": "Guides",
-    "text": "Öffne Grüneratoren über den gleichnamigen Eintrag in der Seitenleiste. Klicke oben rechts auf das Plus (Neu) und wähle Rezept."
+    "text": "Öffne Projekte in der Seitenleiste und klicke neben Deine Rezepte auf Neues Rezept. Soll das Rezept sofort im Projekt liegen, öffne das Projekt und klicke unter Rezepte auf + Rezept. Nach dem Speichern wird es mit dem Projekt geteilt."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
@@ -3551,7 +3619,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 3: Grundlagen prüfen",
     "anchor": "#schritt-3-grundlagen-prüfen",
     "category": "Guides",
-    "text": "Links siehst du das Formular, rechts die Vorschau. Das Formular ist nicht aufgeteilt — alle Felder stehen untereinander. Oben legst du fest: Name: So erscheint das Rezept unter deinen Grüneratoren. Über die Schaltfläche daneben kannst du sein Symbol ändern. @mention: Der Name, mit dem du das Rezept im Chat aufrufst (z. B. @einladung). Er wird beim Anlegen aus dem Namen abgeleitet und lässt sich danach nicht mehr ändern. Beschreibung: Ein kurzer Satz, der erklärt, wofür das Rezept gedacht ist. Speichern bleibt deaktiviert, solange Name oder Anleitung leer sind."
+    "text": "Links siehst du das Formular, rechts die Vorschau. Das Formular ist nicht aufgeteilt — alle Felder stehen untereinander. Oben legst du fest: Name: So erscheint das Rezept unter Deine Rezepte. Über die Schaltfläche daneben kannst du sein Symbol ändern. @mention: Der Name, mit dem du das Rezept im Chat aufrufst (z. B. @einladung). Er wird beim Anlegen aus dem Namen abgeleitet und lässt sich danach nicht mehr ändern. Beschreibung: Ein kurzer Satz, der erklärt, wofür das Rezept gedacht ist. Speichern bleibt deaktiviert, solange Name oder Anleitung leer sind."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
@@ -4068,6 +4136,14 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/guides/landesverbaende/landesverband-einrichten",
     "pageTitle": "Wie richte ich den Grünerator für meinen Landesverband ein?",
+    "heading": "Einen Landesverband fürs Projekt einstellen",
+    "anchor": "#einen-landesverband-fürs-projekt-einstellen",
+    "category": "Guides",
+    "text": "Die Geschäftsstellen-Rolle schaltet Inhalte für dein persönliches Profil frei. Wenn ihr dieselben Rezepte und Quellen im Team verwenden wollt, kann ein Projekt-Admin auf der Projektseite Projektoptionen → Bearbeiten öffnen und den Landesverband einstellen. Die Rezepte und das Notebook stehen dann in Projektchats auch Mitgliedern ohne Geschäftsstellen-Rolle zur Verfügung. Der Landesverband des Projekts hat dort Vorrang vor der aktiven Profilrolle. Für Österreich heißt der Eintrag im selben Menü Österreich. Mehr dazu unter Landesverband-Rezepte im Projekt."
+  },
+  {
+    "url": "/docs/guides/landesverbaende/landesverband-einrichten",
+    "pageTitle": "Wie richte ich den Grünerator für meinen Landesverband ein?",
     "heading": "Noch persönlicher",
     "anchor": "#noch-persönlicher",
     "category": "Guides",
@@ -4079,15 +4155,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 1: Deine Rolle eintragen",
     "anchor": "#schritt-1-deine-rolle-eintragen",
     "category": "Guides",
-    "text": "Öffne die Einstellungen — über dein Profilbild unten in der Seitenleiste oder direkt über /settings. Geh zu Personalisierung. Wenn du den Grünerator zum ersten Mal benutzt, ist das gleich der erste Schritt der Einrichtung („Was machst du bei den Grünen?“). Unter Deine Rollen auf Hinzufügen. Wähle nacheinander: Ebene: Land Bundesland: dein Landesverband Rolle: Mitarbeiter*in Landesgeschäftsstelle (in Österreich: Mitarbeiter*in Landesorganisation) Der Assistent zeigt dir zum Schluss, was diese Rolle freischaltet — zum Beispiel „4 Agenten und 5 Rezepte sowie das Notebook Hessen erscheinen künftig im Marktplatz und im Chat“. Speichern, fertig. Danach steht unter deinen Rollen ein Knopf „Zu deinem Landesverband“, der den Marktplatz direkt bei deinem Landesverband öffnet. Die Inhalte eines Landesverbands hängen an der Geschäftsstellen-Rolle und nur an ihr. Landtagsfraktion, MdL-Büro, Kreisverband oder Ortsverband geben zwar auch ein Bundesland an, schalten die LV-Agents aber nicht frei — sie sind das Material eines bestimmten Landesverbands, kein allgemeiner Bestand. Umgekehrt gilt: Ohne passende Rolle siehst du die LV-Inhalte nicht."
-  },
-  {
-    "url": "/docs/guides/landesverbaende/landesverband-einrichten",
-    "pageTitle": "Wie richte ich den Grünerator für meinen Landesverband ein?",
-    "heading": "Schritt 1: Deine Rolle eintragen",
-    "anchor": "#schritt-1-deine-rolle-eintragen",
-    "category": "Guides",
-    "text": "Das ist Absicht und kein Fehler — vor der Zuteilung stand in der Agentura ein Regal mit elf fremden Landesverbänden, das für alle anderen nur Rauschen war. Du kannst mehrere Rollen anlegen (etwa Landesgeschäftsstelle und Kreisverband). Im Chat wählst du dann über das + links im Eingabefeld aus, in welcher Rolle du gerade schreibst; das Kürzel der aktiven Rolle steht als Chip daneben (z. B. LGS)."
+    "text": "Öffne die Einstellungen — über dein Profilbild unten in der Seitenleiste oder direkt über /settings. Geh zu Personalisierung. Wenn du den Grünerator zum ersten Mal benutzt, ist das gleich der erste Schritt der Einrichtung („Was machst du bei den Grünen?“). Unter Deine Rollen auf Hinzufügen. Wähle nacheinander: Ebene: Land Bundesland: dein Landesverband Rolle: Mitarbeiter*in Landesgeschäftsstelle (in Österreich: Mitarbeiter*in Landesorganisation) Der Assistent zeigt dir zum Schluss die freigeschalteten Rezepte und das Notebook deines Landesverbands. Speichere die Rolle. Danach steht unter deinen Rollen ein Knopf „Zu deinem Landesverband“, der den Marktplatz direkt bei deinem Landesverband öffnet. Im eigenen Profil schaltet die Geschäftsstellen-Rolle die Rezepte und das Notebook des Landesverbands frei. Für gemeinsame Chats kann ein Projekt-Admin den Landesverband fürs Projekt einstellen. Du kannst mehrere Rollen anlegen (etwa Landesgeschäftsstelle und Kreisverband). Im Chat wählst du dann über das + links im Eingabefeld aus, in welcher Rolle du gerade schreibst; das Kürzel der aktiven Rolle steht als Chip daneben (z. B. LGS)."
   },
   {
     "url": "/docs/guides/landesverbaende/landesverband-einrichten",
@@ -4095,7 +4163,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 2: Was du jetzt hast",
     "anchor": "#schritt-2-was-du-jetzt-hast",
     "category": "Guides",
-    "text": "Eine eigene Herkunft im Marktplatz. Sie trägt den Namen deines Landesverbands (bei Hessen also „Grüne Hessen“). Darunter stehen die drei Agents deines Verbands, Öffentlichkeitsarbeit, Bürger*innenanfragen und Wahlprüfsteine, und eure Rezepte. Im Chat erreichst du die Rezepte außerdem über @ (siehe unten). Mit Zu meinen Grüneratoren holst du dir, was du täglich brauchst, auf deine eigene Seite. In der App ist es derselbe Filter. Eure Rezepte im Chat. Die Presse- und Instagram-Rezepte deines Landesverbands tauchen jetzt in der Rezept-Liste des Chats auf und lassen sich mit @ erwähnen, etwa @presse-hessen-partei oder @insta-hessen. Welche es je Landesverband gibt, steht unter Landesverband-Agents. Euer Notebook. Die Wissensdatenbank deines Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) erscheint in der Auswahl und lässt sich im Chat als Quelle erwähnen. Und die Automatik: Bittest du den Chat einfach um „eine Pressemitteilung zu …“, nimmt er von selbst eure Vorlage statt der allgemeinen. Du musst dafür nichts erwähnen und nichts einstellen — die Rolle in deinem Profil genügt."
+    "text": "Eine eigene Herkunft im Marktplatz. Sie trägt den Namen deines Landesverbands (bei Hessen also „Grüne Hessen“). Darunter stehen die Rezepte deines Verbands, etwa für Öffentlichkeitsarbeit, Bürger*innenanfragen und Wahlprüfsteine. Im Chat erreichst du die Rezepte außerdem über @ (siehe unten). Mit Zu meinen Grüneratoren fügst du Rezepte deiner Bibliothek hinzu. Du findest sie danach unter Projekte → Deine Rezepte. Den Herkunftsfilter gibt es auch in der App. Eure Rezepte im Chat. Die Presse- und Instagram-Rezepte deines Landesverbands tauchen jetzt in der Rezept-Liste des Chats auf und lassen sich mit @ erwähnen, etwa @presse-hessen-partei oder @insta-hessen. Welche es je Landesverband gibt, steht unter Landesverband-Rezepte. Euer Notebook. Die Wissensdatenbank deines Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) erscheint in der Auswahl und lässt sich im Chat als Quelle erwähnen. Und die Automatik: Bittest du den Chat einfach um „eine Pressemitteilung zu …“, nimmt er von selbst eure Vorlage statt der allgemeinen. Du musst dafür nichts erwähnen und nichts einstellen — die Rolle in deinem Profil genügt."
   },
   {
     "url": "/docs/guides/landesverbaende/landesverband-einrichten",
@@ -4111,7 +4179,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wenn nichts erscheint",
     "anchor": "#wenn-nichts-erscheint",
     "category": "Guides",
-    "text": "Dein Bundesland ist nicht dabei. Nicht jeder Landesverband hat eigene Agents, und einzelne haben sich gegen ein eigenes Notebook entschieden. Welche Landesverbände abgedeckt sind, steht aktuell auf der Seite Landesverband-Agents. Ist deiner nicht dabei, bleibt der Assistent stumm und verspricht nichts — die allgemeinen Rezepte (@presse, @instagram, @facebook, …) stehen dir wie allen anderen offen. Du hast die Rolle gerade erst angelegt. Der Gang erscheint, sobald die Einstellungen gespeichert sind; ein Neuladen der Seite hilft, wenn ein Tab schon länger offen stand. In der App genügt es, sie einmal neu zu starten. --- Was ihr mit den drei Agents jeweils machen könnt — Pressemitteilungen, Bürger*innenanfragen, Wahlprüfsteine — steht ausführlich unter Landesverband-Agents."
+    "text": "Dein Bundesland ist nicht dabei. Die verfügbaren Rezepte und Notebooks unterscheiden sich je nach Landesverband. Welche Landesverbände abgedeckt sind, steht aktuell auf der Seite Landesverband-Rezepte. Die allgemeinen Rezepte (@presse, @instagram, @facebook, …) stehen dir wie allen anderen offen. Du hast die Rolle gerade erst angelegt. Der Einstieg zu deinem Landesverband erscheint, sobald die Einstellungen gespeichert sind; ein Neuladen der Seite hilft, wenn ein Tab schon länger offen stand. In der App genügt es, sie einmal neu zu starten. --- Beispiele für Pressemitteilungen, Bürger*innenanfragen und Wahlprüfsteine findest du unter Landesverband-Rezepte."
   },
   {
     "url": "/docs/sonstiges/archiv/newsletter/2025-03-gruugo",
@@ -4695,7 +4763,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Einstellungen",
     "anchor": "",
     "category": "Sonstiges",
-    "text": "Alles, was du am Grünerator für dich einstellen kannst, liegt in einem Fenster: Einstellungen. Du öffnest es über dein Profilbild unten in der Seitenleiste oder direkt über die Adresse /settings. Es legt sich über die Seite, auf der du gerade bist — du verlierst also nichts, was du angefangen hast. Was du hier änderst, gilt für dein Konto und damit auf allen Geräten, an denen du angemeldet bist. Gespeichert wird sofort; nur bei längeren Texten wie den Anweisungen gibt es einen Speichern-Knopf. Zwei Dinge werden häufig hier gesucht und sind woanders: Was der Chat kann — steht unter KI-Chat Einstellungen einzelner Agents (Region, Modell, Werkzeuge) — die gehören zum jeweiligen Agenten, nicht zu deinem Konto, siehe Eigene Agents erstellen"
+    "text": "Alles, was du am Grünerator für dich einstellen kannst, liegt in einem Fenster: Einstellungen. Du öffnest es über dein Profilbild unten in der Seitenleiste oder direkt über die Adresse /settings. Es legt sich über die Seite, auf der du gerade bist — du verlierst also nichts, was du angefangen hast. Was du hier änderst, gilt für dein Konto und damit auf allen Geräten, an denen du angemeldet bist. Gespeichert wird sofort; nur bei längeren Texten wie den Anweisungen gibt es einen Speichern-Knopf. Zwei Dinge werden häufig hier gesucht und sind woanders: Was der Chat kann — steht unter KI-Chat Einstellungen einzelner Agents (Region, Modell, Werkzeuge) — die gehören zum jeweiligen Agenten, nicht zu deinem Konto, siehe Bestehende Agents umwandeln"
   },
   {
     "url": "/docs/sonstiges/einstellungen",
