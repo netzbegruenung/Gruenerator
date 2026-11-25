@@ -54,14 +54,21 @@ const missingRoleLogged = new Set<string>();
  *     role and log once per agent. A blander answer beats a 500, but this is a
  *     misconfiguration and the log has to say so.
  */
+/**
+ * The persona of a system agent: its own `systemRole`, else the pipeline's,
+ * else the one from the intern repo. Null when none was rolled out. Shared with
+ * the MCP agent prompts (`routes/mcp-server/agentPrompts.ts`), which otherwise
+ * ship the empty registry value (#6004).
+ */
+export function resolveSystemRole(identifier: string, own: string): string | null {
+  return own || getPipelineSystemRole(identifier) || getInternalAgentPrompt(identifier);
+}
+
 function withInternalRole(agent: Agent): AgentConfig {
   if (agent.systemRole) return agent as AgentConfig;
 
-  const fromPipeline = getPipelineSystemRole(agent.identifier);
-  if (fromPipeline) return { ...agent, systemRole: fromPipeline } as AgentConfig;
-
-  const internal = getInternalAgentPrompt(agent.identifier);
-  if (internal) return { ...agent, systemRole: internal } as AgentConfig;
+  const resolved = resolveSystemRole(agent.identifier, agent.systemRole);
+  if (resolved) return { ...agent, systemRole: resolved } as AgentConfig;
 
   // Suche-Agenten laufen über den SearchGraph, der ihre Persona nie liest —
   // der Ersatz ist dort kein Rollout-Loch.

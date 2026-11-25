@@ -17,6 +17,7 @@ import { MCP_AGENTS, MCP_SOCIAL_MEDIA_VARIANTS, type McpAgent } from '@gruenerat
 import { z } from 'zod';
 
 import { localizePlaceholders } from '../../services/localization/index.js';
+import { resolveSystemRole } from '../chat/agents/agentLoader.js';
 
 import type { PromptMessage } from './methodPrompts.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -48,6 +49,9 @@ function toolHints(enabledTools?: readonly string[]): string {
 function buildAgentMessages(agent: McpAgent, message: string, country: Country): PromptMessage[] {
   const locale = LOCALE_BY_COUNTRY[country];
   const localize = (text: string) => localizePlaceholders(text, locale);
+  // The registry carries `systemRole: ''` for system agents — the persona
+  // lives in the intern repo and is resolved the same way the chat does.
+  const systemRole = resolveSystemRole(agent.identifier, agent.systemRole) ?? '';
 
   const messages: PromptMessage[] = [
     {
@@ -56,7 +60,7 @@ function buildAgentMessages(agent: McpAgent, message: string, country: Country):
       role: 'user',
       content: {
         type: 'text',
-        text: `# Systemprompt: ${agent.title}\n\n${localize(agent.systemRole)}${toolHints(agent.enabledTools)}\n\n---\n*Bitte antworte ab jetzt im Charakter dieses Assistenten.*`,
+        text: `# Systemprompt: ${agent.title}\n\n${localize(systemRole)}${toolHints(agent.enabledTools)}\n\n---\n*Bitte antworte ab jetzt im Charakter dieses Assistenten.*`,
       },
     },
     { role: 'assistant', content: { type: 'text', text: localize(agent.openingMessage) } },
