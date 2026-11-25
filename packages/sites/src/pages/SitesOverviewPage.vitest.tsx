@@ -3,9 +3,15 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const hoisted = vi.hoisted(() => ({ list: { current: {} as Record<string, unknown> } }));
+const hoisted = vi.hoisted(() => ({
+  list: { current: {} as Record<string, unknown> },
+  projects: { current: [] as Array<{ isAdmin: boolean }> },
+}));
 
 vi.mock('../hooks/useSite', () => ({ useSiteList: () => hoisted.list.current }));
+vi.mock('../hooks/useSiteSharing', () => ({
+  useSiteProjects: () => ({ data: hoisted.projects.current }),
+}));
 vi.mock('../SitesContext', () => ({
   FROM_OVERVIEW_STATE: { fromOverview: true },
   useSitesPaths: () => ({
@@ -30,6 +36,7 @@ function summary(subdomain: string, over: Record<string, unknown> = {}) {
     theme: null,
     role: 'admin',
     group: null,
+    is_creator: true,
     ...over,
   };
 }
@@ -67,7 +74,10 @@ function renderOverview() {
 }
 
 describe('SitesOverviewPage', () => {
-  beforeEach(() => setList([]));
+  beforeEach(() => {
+    setList([]);
+    hoisted.projects.current = [];
+  });
 
   it('lists every site with its address and status, linking to its editor', async () => {
     setList([
@@ -113,8 +123,14 @@ describe('SitesOverviewPage', () => {
   it('sorts sites into own, project and shared sections', () => {
     setList([
       summary('eigene'),
-      summary('kv', { group: { id: 'g1', name: 'Kreisverband' }, role: 'editor' }),
-      summary('fremde', { role: 'viewer' }),
+      summary('kv', {
+        group: { id: 'g1', name: 'Kreisverband' },
+        role: 'editor',
+        is_creator: false,
+      }),
+      summary('fremde', { role: 'viewer', is_creator: false }),
+      summary('coadmin', { role: 'admin', is_creator: false }),
+      summary('degradiert', { role: 'editor', is_creator: true }),
     ]);
     renderOverview();
     const own = screen.getByRole('region', { name: 'Meine Websites' });
@@ -124,5 +140,21 @@ describe('SitesOverviewPage', () => {
     expect(within(projects).getByText('Seite kv')).toBeInTheDocument();
     expect(within(projects).getByText('Kreisverband')).toBeInTheDocument();
     expect(within(shared).getByText('Seite fremde')).toBeInTheDocument();
+    // A co-admin did not create the site; a demoted creator still did.
+    expect(within(shared).getByText('Seite coadmin')).toBeInTheDocument();
+    expect(within(own).getByText('Seite degradiert')).toBeInTheDocument();
+  });
+
+  it('keeps a new site open at the limit for a project admin', () => {
+    hoisted.projects.current = [{ isAdmin: true }];
+    setList([summary('a1'), summary('a2')], 2);
+    renderOverview();
+    expect(screen.getByRole('button', { name: 'Neue Website' })).toBeEnabled();
+  });
+
+  it('does not count co-admin sites against the personal limit', () => {
+    setList([summary('a1'), summary('b1', { is_creator: false })], 2);
+    renderOverview();
+    expect(screen.getByRole('button', { name: 'Neue Website' })).toBeEnabled();
   });
 });

@@ -141,10 +141,12 @@ function HeaderPresence({ provider }: { provider: HocuspocusProvider }) {
 export function SiteEditor({
   site,
   role,
+  group,
   onBack,
 }: {
   site: SiteData;
   role: SiteRole;
+  group: { id: string; name: string } | null;
   onBack?: () => void;
 }) {
   const session = useSiteDraftSession(site.id);
@@ -232,6 +234,7 @@ export function SiteEditor({
             {role === 'admin' && (
               <SiteShareDialog
                 site={site}
+                isProjectSite={group !== null}
                 open={shareOpen}
                 onOpenChange={setShareOpen}
                 returnFocusRef={shareButtonRef}

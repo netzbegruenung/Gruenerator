@@ -894,6 +894,8 @@ export type SiteSummary = z.infer<typeof siteSummarySchema>;
 export const siteListItemSchema = siteSummarySchema.extend({
   role: siteRoleSchema,
   group: z.object({ id: z.string(), name: z.string() }).nullable(),
+  /** Whether the caller created the site (counts against their quota), not just administers it. */
+  is_creator: z.boolean(),
 });
 export type SiteListItem = z.infer<typeof siteListItemSchema>;
 export const siteListResponseSchema = z.object({
@@ -904,6 +906,8 @@ export const siteListResponseSchema = z.object({
 export const siteByHandleResponseSchema = z.object({
   site: siteSchema,
   role: siteRoleSchema,
+  /** The project a project site belongs to; null for a personal site. */
+  group: z.object({ id: z.string(), name: z.string() }).nullable(),
   public_origin: z.string().nullable(),
 });
 

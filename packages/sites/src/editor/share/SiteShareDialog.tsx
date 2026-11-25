@@ -82,18 +82,15 @@ function MemberRow({
   );
 }
 
-function ShareBody({ site }: { site: SiteData }) {
+function ShareBody({ site, isProjectSite }: { site: SiteData; isProjectSite: boolean }) {
   const { user } = useAuth();
-  const sharing = useSiteSharing(site.id, true);
+  const sharing = useSiteSharing(site.id, true, !isProjectSite);
   const projects = useSiteProjects();
   const [message, setMessage] = useState<string | null>(null);
   const [pick, setPick] = useState('');
 
   const members = sharing.members.data ?? [];
   const shares = sharing.groups.data ?? [];
-  // 409 `not_personal`: a project site belongs to its project and has no project shares.
-  const isProjectSite =
-    sharing.groups.error instanceof SiteMemberError && sharing.groups.error.code === 'not_personal';
   const sharedIds = new Set(shares.map((g) => g.groupId));
   const options = (projects.data ?? []).filter((g) => !sharedIds.has(g.id));
 
@@ -235,11 +232,14 @@ function ShareBody({ site }: { site: SiteData }) {
 
 export function SiteShareDialog({
   site,
+  isProjectSite,
   open,
   onOpenChange,
   returnFocusRef,
 }: {
   site: SiteData;
+  /** The by-handle `group` is set: the site belongs to a project and has no project shares. */
+  isProjectSite: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   returnFocusRef?: RefObject<HTMLElement | null>;
@@ -256,7 +256,7 @@ export function SiteShareDialog({
           }
         }}
       >
-        <ShareBody site={site} />
+        <ShareBody site={site} isProjectSite={isProjectSite} />
       </DialogContent>
     </Dialog>
   );

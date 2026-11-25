@@ -7,6 +7,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { BackButton } from '../components/common/BackButton';
 import { LoadErrorState } from '../components/common/LoadErrorState';
 import { useSiteList } from '../hooks/useSite';
+import { useSiteProjects } from '../hooks/useSiteSharing';
 import { FROM_OVERVIEW_STATE, useSitesPaths } from '../SitesContext';
 import { formatAddress } from '../utils/siteAddress';
 
@@ -78,14 +79,11 @@ function SiteCard({ site, publicOrigin }: { site: SiteListItem; publicOrigin: st
   );
 }
 
-/**
- * Own sites (no project, I am admin), project sites, and the rest shared with me. The list item
- * does not say who created a site, so an own-account admin site counts as "Meine Websites".
- */
+/** Sites I created (the personal quota counts these), project sites, and the rest shared with me. */
 function groupSites(sites: SiteListItem[]) {
-  const mine = sites.filter((s) => s.group === null && s.role === 'admin');
+  const mine = sites.filter((s) => s.group === null && s.is_creator);
   const projects = sites.filter((s) => s.group !== null);
-  const shared = sites.filter((s) => s.group === null && s.role !== 'admin');
+  const shared = sites.filter((s) => s.group === null && !s.is_creator);
   return [
     { id: 'sites-mine', title: 'Meine Websites', sites: mine },
     { id: 'sites-projects', title: 'Projekte', sites: projects },
@@ -95,6 +93,7 @@ function groupSites(sites: SiteListItem[]) {
 
 export function SitesOverviewPage({ onBack }: { onBack?: () => void }) {
   const { sites, publicOrigin, limit, isLoading, error, refetch } = useSiteList();
+  const projects = useSiteProjects();
   const navigate = useNavigate();
   const paths = useSitesPaths();
 
@@ -115,8 +114,10 @@ export function SitesOverviewPage({ onBack }: { onBack?: () => void }) {
   }
 
   const sections = groupSites(sites);
-  const ownCount = sites.filter((site) => site.group === null && site.role === 'admin').length;
-  const full = ownCount >= limit;
+  const ownCount = sites.filter((site) => site.group === null && site.is_creator).length;
+  const canCreateInProject = (projects.data ?? []).some((p) => p.isAdmin);
+  // A full personal quota still leaves project sites to project admins.
+  const full = ownCount >= limit && !canCreateInProject;
 
   return (
     <div className="min-h-full px-md py-xl lg:px-xl">

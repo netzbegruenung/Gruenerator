@@ -26,7 +26,7 @@ function fail(res: { status: number; body: unknown }): never {
 }
 
 /** Everyone with access to a site, and the projects a personal site is shared into. */
-export function useSiteSharing(siteId: string, enabled: boolean) {
+export function useSiteSharing(siteId: string, enabled: boolean, personal: boolean) {
   const queryClient = useQueryClient();
 
   const members = useQuery<SiteMember[]>({
@@ -41,8 +41,8 @@ export function useSiteSharing(siteId: string, enabled: boolean) {
 
   const groups = useQuery<SiteGroupShare[]>({
     queryKey: groupsKey(siteId),
-    // A project site has no project shares: the server answers 409 `not_personal` for it.
-    enabled,
+    // A project site has no project shares (the server answers 409 for it): do not ask.
+    enabled: enabled && personal,
     retry: false,
     queryFn: async () => {
       const res = await getContractsClient().sites.listSiteGroups({ params: { id: siteId } });

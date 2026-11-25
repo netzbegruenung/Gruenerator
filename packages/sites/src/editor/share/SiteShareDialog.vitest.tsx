@@ -25,11 +25,11 @@ import { SiteShareDialog } from './SiteShareDialog';
 
 const site = { id: 's1', subdomain: 'anna' } as SiteData;
 
-function setup() {
+function setup(isProjectSite = false) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <SiteShareDialog site={site} open onOpenChange={() => {}} />
+      <SiteShareDialog site={site} isProjectSite={isProjectSite} open onOpenChange={() => {}} />
     </QueryClientProvider>
   );
 }
@@ -78,16 +78,11 @@ describe('SiteShareDialog', () => {
     );
   });
 
-  it('hides the project section for a project site', async () => {
-    api.sites.listSiteGroups.mockResolvedValue({
-      status: 409,
-      body: { error: 'x', code: 'not_personal' },
-    });
-    setup();
+  it('hides the project section and asks nothing for a project site', async () => {
+    setup(true);
     await screen.findByRole('combobox', { name: 'Rolle von Bert' });
-    await waitFor(() =>
-      expect(screen.queryByRole('heading', { name: 'Projekte' })).not.toBeInTheDocument()
-    );
+    expect(screen.queryByRole('heading', { name: 'Projekte' })).not.toBeInTheDocument();
+    expect(api.sites.listSiteGroups).not.toHaveBeenCalled();
   });
 
   it('has no axe violations', async () => {

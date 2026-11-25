@@ -231,6 +231,7 @@ describe('sitesContract', () => {
     const byHandle = await call('getSiteByHandle', { params: { handle: SITE_ID } });
     expect(byHandle.status).toBe(200);
     expect(byHandle.body.role).toBe('viewer');
+    expect(byHandle.body.group).toBeNull();
     expect((await call('prepareSiteDraft', { params: { id: SITE_ID }, body: {} })).status).toBe(
       200
     );
@@ -618,7 +619,13 @@ describe('sitesContract', () => {
     getSiteRoleMock.mockResolvedValueOnce('admin').mockResolvedValueOnce('editor');
     queryMock.mockResolvedValueOnce([
       row(),
-      row({ id: 'second', subdomain: 'anna-wien', group_id: GROUP_ID, group_name: 'Wien' }),
+      row({
+        id: 'second',
+        subdomain: 'anna-wien',
+        user_id: 'someone-else',
+        group_id: GROUP_ID,
+        group_name: 'Wien',
+      }),
     ]);
     const res = await call('listSites', {});
     expect(res.status).toBe(200);
@@ -633,6 +640,7 @@ describe('sitesContract', () => {
       null,
       { id: GROUP_ID, name: 'Wien' },
     ]);
+    expect(res.body.sites.map((s: { is_creator: boolean }) => s.is_creator)).toEqual([true, false]);
     expect(res.body.sites[0]).not.toHaveProperty('published_snapshot');
     const [sql, params] = queryMock.mock.calls[0];
     expect(sql).toMatch(/ORDER BY us\.updated_at DESC, us\.id/);
@@ -655,6 +663,14 @@ describe('sitesContract', () => {
     queryMock.mockResolvedValueOnce([row()]);
     await call('getSiteByHandle', { params: { handle: SITE_ID } });
     expect(queryMock.mock.calls[1][0]).toMatch(/id = \$1 AND deleted_at IS NULL/);
+  });
+
+  it('getSiteByHandle names the project of a project site', async () => {
+    queryMock
+      .mockResolvedValueOnce([row({ group_id: GROUP_ID })])
+      .mockResolvedValueOnce([{ id: GROUP_ID, name: 'Wien' }]);
+    const res = await call('getSiteByHandle', { params: { handle: 'anna' } });
+    expect(res.body.group).toEqual({ id: GROUP_ID, name: 'Wien' });
   });
 
   it('getSiteByHandle answers 404 for another account and for an invalid address', async () => {

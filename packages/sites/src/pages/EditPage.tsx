@@ -16,7 +16,7 @@ interface EditPageProps {
 }
 
 export function EditPage({ handle }: EditPageProps) {
-  const { site, role, publicOrigin, isLoading, error, refetch } = useSiteByHandle(handle);
+  const { site, role, group, publicOrigin, isLoading, error, refetch } = useSiteByHandle(handle);
   const navigate = useNavigate();
   const routeState: unknown = useLocation().state;
   const paths = useSitesPaths();
@@ -50,8 +50,8 @@ export function EditPage({ handle }: EditPageProps) {
   }
 
   return (
-    <CurrentSiteProvider value={{ site, role, public_origin: publicOrigin }}>
-      <SiteEditor key={site.id} site={site} role={role} onBack={back} />
+    <CurrentSiteProvider value={{ site, role, group, public_origin: publicOrigin }}>
+      <SiteEditor key={site.id} site={site} role={role} group={group} onBack={back} />
     </CurrentSiteProvider>
   );
 }

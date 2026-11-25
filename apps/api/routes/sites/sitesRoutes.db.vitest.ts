@@ -222,11 +222,20 @@ describe.skipIf(!url)('Sites routes by role (DB)', () => {
     const res = await as(projMember)('listSites');
     const byId = new Map(res.body.sites.map((s: any) => [s.id, s]));
     expect((byId.get(own) as any).role).toBe('admin');
+    expect((byId.get(own) as any).is_creator).toBe(true);
     expect(byId.get(projSite) as any).toMatchObject({
       role: 'editor',
       group: { id: g, name: 'Projekt X' },
+      is_creator: false,
     });
-    expect(byId.get(other) as any).toMatchObject({ role: 'viewer', group: null });
+    expect(
+      (await as(projMember)('getSiteByHandle', { params: { handle: projSite } })).body.group
+    ).toEqual({ id: g, name: 'Projekt X' });
+    expect(byId.get(other) as any).toMatchObject({
+      role: 'viewer',
+      group: null,
+      is_creator: false,
+    });
   });
 
   it('a co-admin trashes and restores; the creator quota counts, whoever restores', async () => {

@@ -241,6 +241,7 @@ export const sitesContractRouter = s.router(sitesContract, {
           theme: site.theme,
           role,
           group: row.group_id && row.group_name ? { id: row.group_id, name: row.group_name } : null,
+          is_creator: row.user_id === userId,
         });
       });
       return {
@@ -282,9 +283,16 @@ export const sitesContractRouter = s.router(sitesContract, {
       }
       const access = await requireSiteRole(row.id, userId, 'viewer');
       if (typeof access === 'string') return denied(access);
+      const groupRows = row.group_id
+        ? await db.query<{ id: string; name: string }>(
+            'SELECT id, name FROM groups WHERE id = $1 AND deleted_at IS NULL',
+            [row.group_id]
+          )
+        : [];
+      const group = groupRows[0] ? { id: groupRows[0].id, name: groupRows[0].name } : null;
       return {
         status: 200 as const,
-        body: { site: toSite(row), role: access.role, public_origin: publicOrigin() },
+        body: { site: toSite(row), role: access.role, group, public_origin: publicOrigin() },
       };
     } catch (error) {
       log.error('Error fetching user site by handle:', error);

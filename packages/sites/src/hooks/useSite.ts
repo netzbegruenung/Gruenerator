@@ -61,7 +61,12 @@ export const SITES_QUERY_KEY = ['sites'] as const;
 const SITE_LIST_KEY = ['sites', 'list'] as const;
 export const siteHandleKey = (handle: string) => ['sites', 'handle', handle] as const;
 
-export type SiteByHandleData = { site: Site; role: SiteRole; public_origin: string | null };
+export type SiteByHandleData = {
+  site: Site;
+  role: SiteRole;
+  group: { id: string; name: string } | null;
+  public_origin: string | null;
+};
 
 /** The account's sites for the overview, most recently edited first. */
 export function useSiteList() {
@@ -97,6 +102,7 @@ export function useSiteByHandle(handle: string) {
   return {
     site: data === undefined ? undefined : (data?.site ?? null),
     role: data ? data.role : null,
+    group: data ? data.group : null,
     publicOrigin: data ? data.public_origin : null,
     isLoading,
     error,
@@ -137,6 +143,7 @@ function useSiteMutations() {
       queryClient.setQueryData<SiteByHandleData>(siteHandleKey(site.subdomain), {
         site,
         role: known?.role ?? 'admin',
+        group: known?.group ?? null,
         public_origin: origin?.public_origin ?? null,
       });
     }

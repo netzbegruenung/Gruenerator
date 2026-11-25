@@ -24,6 +24,8 @@ interface CreateSiteScreenProps {
   /** Projects the person administers; with none the site is simply their own. */
   projects?: ReadonlyArray<{ id: string; name: string }>;
   projectId?: string;
+  /** False once the personal quota is used up: a project is then required. */
+  allowPersonal?: boolean;
   onProjectChange?: (id: string) => void;
 }
 
@@ -44,6 +46,7 @@ export function CreateSiteScreen({
   isGeneratingFromFlyer,
   projects = [],
   projectId = '',
+  allowPersonal = true,
   onProjectChange,
 }: CreateSiteScreenProps) {
   const [step, setStep] = useState(0);
@@ -165,7 +168,7 @@ export function CreateSiteScreen({
               {projects.length > 0 && onProjectChange && (
                 <div className="mt-md space-y-2">
                   <Label htmlFor="site-project" className="text-base">
-                    Projekt (optional)
+                    {allowPersonal ? 'Projekt (optional)' : 'Projekt'}
                   </Label>
                   <select
                     id="site-project"
@@ -174,7 +177,7 @@ export function CreateSiteScreen({
                     disabled={isProcessing}
                     className="w-full rounded-md border border-grey-300 bg-background px-sm py-sm text-base text-foreground dark:border-grey-600"
                   >
-                    <option value="">Persönliche Website</option>
+                    {allowPersonal && <option value="">Persönliche Website</option>}
                     {projects.map((project) => (
                       <option key={project.id} value={project.id}>
                         {project.name}

@@ -31,6 +31,7 @@ vi.mock('../SitesContext', () => ({
   }),
 }));
 vi.mock('../hooks/useSite', () => ({
+  useSiteList: () => ({ sites: [], limit: 25 }),
   useCreateSite: () => ({
     publicOrigin: 'https://grsites.de',
     createSite: m.createSite,
