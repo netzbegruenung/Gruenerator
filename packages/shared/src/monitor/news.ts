@@ -1,6 +1,8 @@
 import {
+  type LandtagDocument,
   type MonitorArticle,
   type MonitorSnapshot,
+  type WhatHappenedArticle,
   type WhatHappenedResult,
 } from '@gruenerator/contracts';
 
@@ -99,19 +101,40 @@ export function monitorNewsItems(articles: MonitorArticle[], now?: number): Brie
 
 /** Neue Beiträge der Landesverbands-Notebooks als Meldungen, neueste zuerst. */
 export function landesverbandNewsItems(days: FeedDays, now?: number): BriefingNewsItem[] {
-  return days
-    .flatMap((d) => d.articles)
-    .slice(0, NEWS_LIMIT)
-    .map((a) => ({
-      key: a.sourceUrl,
-      source: a.sourceName,
-      time: timeAgo(a.publishedAt ?? a.indexedAt, now),
-      title: a.title,
-      href: a.sourceUrl,
-    }));
+  return lvArticleNewsItems(
+    days.flatMap((d) => d.articles),
+    now
+  );
 }
 
-export function standLine(snapshot: MonitorSnapshot): string {
+/** Landesverbands-Beiträge ohne Tagesgruppen (Land-Ansicht) als Meldungen. */
+export function lvArticleNewsItems(
+  articles: WhatHappenedArticle[],
+  now?: number
+): BriefingNewsItem[] {
+  return articles.slice(0, NEWS_LIMIT).map((a) => ({
+    key: a.sourceUrl,
+    source: a.sourceName,
+    time: timeAgo(a.publishedAt ?? a.indexedAt, now),
+    title: a.title,
+    href: a.sourceUrl,
+  }));
+}
+
+/** Landtagsdrucksachen als Meldungen: Dokumenttyp und Fraktionen stehen, wo sonst die Quelle steht. */
+export function landtagNewsItems(documents: LandtagDocument[], now?: number): BriefingNewsItem[] {
+  return documents.slice(0, NEWS_LIMIT).map((d) => ({
+    key: d.url,
+    source: d.parties.length > 0 ? `${d.docType} · ${d.parties.join(', ')}` : d.docType,
+    time: timeAgo(d.publishedAt, now),
+    title: d.title,
+    href: d.url,
+  }));
+}
+
+export function standLine(
+  snapshot: Pick<MonitorSnapshot, 'createdAt' | 'totalArticles' | 'sources'>
+): string {
   const time = new Date(snapshot.createdAt).toLocaleTimeString('de-DE', {
     hour: '2-digit',
     minute: '2-digit',
