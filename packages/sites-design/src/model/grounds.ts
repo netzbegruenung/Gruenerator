@@ -6,11 +6,16 @@ import {
 } from '@gruenerator/contracts';
 
 export type SiteGround = 'paper' | 'surface' | 'tint' | 'deep' | 'deeper' | 'vivid' | 'photo';
-export type SitePart = 'header' | SiteBlockType | 'footer';
+export type SitePart = SiteBlockType | 'footer';
+
+/**
+ * The header is white in every variant, as on gruene.de, so the hero is the part that shows the
+ * variant right at the top of the page.
+ */
+export const HEADER_GROUND: SiteGround = 'paper';
 
 const GROUNDS: Record<SitePart, Record<SiteVariant, SiteGround>> = {
-  header: { dunkel: 'deep', hell: 'surface', leuchtend: 'vivid' },
-  hero: { dunkel: 'surface', hell: 'surface', leuchtend: 'surface' },
+  hero: { dunkel: 'deep', hell: 'surface', leuchtend: 'vivid' },
   about: { dunkel: 'paper', hell: 'paper', leuchtend: 'paper' },
   heroImage: { dunkel: 'photo', hell: 'photo', leuchtend: 'photo' },
   themes: { dunkel: 'surface', hell: 'paper', leuchtend: 'deep' },
@@ -58,8 +63,17 @@ const ALTERNATE: Record<SupportedLocale, Record<SiteGround, SiteGround>> = {
   },
 };
 
-/** The ground a block paints on its own: a banner or contact with a photo sits on the photo. */
-function ownGround(block: SiteBlock, variant: SiteVariant, locale: SupportedLocale): SiteGround {
+/**
+ * The ground a block paints on its own: a banner or contact with a photo sits on the photo, and
+ * so does the full-bleed hero with a portrait (without one it is the deep green).
+ */
+function ownGround(
+  block: SiteBlock,
+  variant: SiteVariant,
+  locale: SupportedLocale,
+  hasPortrait: boolean
+): SiteGround {
+  if (block.type === 'hero' && block.layout === 'vollbild') return hasPortrait ? 'photo' : 'deep';
   if (block.type === 'contact' && block.backgroundImageUrl !== '') return 'photo';
   if (block.type === 'heroImage') return block.imageUrl !== '' ? 'photo' : 'deep';
   return sectionGround(variant, block.type, locale);
@@ -73,12 +87,13 @@ function ownGround(block: SiteBlock, variant: SiteVariant, locale: SupportedLoca
 export function blockGrounds(
   blocks: readonly SiteBlock[],
   variant: SiteVariant,
-  locale: SupportedLocale
+  locale: SupportedLocale,
+  hasPortrait: boolean
 ): Map<string, SiteGround> {
   const grounds = new Map<string, SiteGround>();
   let above: SiteGround | null = null;
   for (const block of blocks) {
-    const own = ownGround(block, variant, locale);
+    const own = ownGround(block, variant, locale, hasPortrait);
     if (block.hidden) {
       grounds.set(block.id, own);
       continue;

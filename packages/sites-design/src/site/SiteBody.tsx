@@ -66,7 +66,12 @@ export function SiteBody({
   const blocks = visibleBlocks(snapshot, mode, Boolean(edit));
   const shown = blocks.filter((block) => !block.hidden);
   const anchors = blockAnchors(blocks);
-  const grounds = blockGrounds(blocks, snapshot.variant, snapshot.locale);
+  const grounds = blockGrounds(
+    blocks,
+    snapshot.variant,
+    snapshot.locale,
+    snapshot.profile_image !== ''
+  );
   const ctx: SectionContext = {
     snapshot,
     mode,
