@@ -23,7 +23,7 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import { loadUserRoles } from '../../services/roles/userRoles.js';
 import { analyzeTextForm, textFormLabel } from '../../services/user/textFormAnalysisService.js';
-import { draftRecipeSpec } from '../../services/user/textFormDraftService.js';
+import { describeRecipe, draftRecipeSpec } from '../../services/user/textFormDraftService.js';
 import { normalizeTextFormMention, resolveTextFormKind } from '../../services/user/textFormKind.js';
 import {
   deleteTextForm,
@@ -117,6 +117,21 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
       return {
         status: 500 as const,
         body: { success: false, message: 'Entwurf konnte nicht erstellt werden.' },
+      };
+    }
+  },
+
+  describe: async (args) => {
+    try {
+      getAuthedUser(args.req);
+      const description = await describeRecipe(args.body);
+      return { status: 200 as const, body: { success: true, description } };
+    } catch (error) {
+      const err = error as Error;
+      log.error('[userTextFormsContract.describe] Error:', err);
+      return {
+        status: 500 as const,
+        body: { success: false, message: 'Beschreibung konnte nicht erstellt werden.' },
       };
     }
   },

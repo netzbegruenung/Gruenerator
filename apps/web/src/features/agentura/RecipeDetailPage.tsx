@@ -134,7 +134,7 @@ function SystemRecipeView({
   const Icon = skill.icon ?? PiSparkle;
   const isFavorite = library.has('recipe', skill.mention);
 
-  const editHref = `/agentura/rezept/${encodeURIComponent(skill.mention)}/bearbeiten`;
+  const editHref = `/projekte/rezept/${encodeURIComponent(skill.mention)}/bearbeiten`;
   // Mit einem eigenen Override trägt der Link die Zeilen-ID mit — der
   // angepasste Stil, den die Seite eine Zeile darüber ankündigt, nicht der
   // mitgelieferte Rumpf.
@@ -323,7 +323,7 @@ function UserRecipeView({
             className={ICON_BTN}
             aria-label="Bearbeiten"
             onClick={() =>
-              navigate(`/agentura/rezept/${encodeURIComponent(form.mention)}/bearbeiten`)
+              navigate(`/projekte/rezept/${encodeURIComponent(form.mention)}/bearbeiten`)
             }
           >
             <PiPencilSimple className="h-[18px] w-[18px]" />

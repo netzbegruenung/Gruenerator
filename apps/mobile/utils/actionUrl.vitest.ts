@@ -83,6 +83,9 @@ describe('actionUrlToRoute', () => {
     '/agents/new',
     '/agentura/rezept/neu',
     '/agentura/rezept/presse/bearbeiten',
+    '/projekte/rezept/neu',
+    '/projekte/rezept/neu?projekt=g1',
+    '/projekte/rezept/presse/bearbeiten',
     '/vorlagen-neu',
   ])('opens %s in the web viewer instead of an unmatched route', (url) => {
     expect(actionUrlToRoute(url)).toEqual({

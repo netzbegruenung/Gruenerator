@@ -11,11 +11,13 @@ import { z } from 'zod';
 import {
   analyzeTextFormBodySchema,
   analyzeTextFormResponseSchema,
+  describeRecipeBodySchema,
   draftRecipeBodySchema,
   mentionableTextFormsListResponseSchema,
   publicTextFormsResponseSchema,
   saveTextFormBodySchema,
   textFormDeleteResponseSchema,
+  textFormDescribeResponseSchema,
   textFormDraftResponseSchema,
   textFormShareBodySchema,
   textFormShareModeBodySchema,
@@ -74,6 +76,24 @@ export const userTextFormsContract = c.router(
         500: textFormErrorResponseSchema,
       },
       summary: 'Draft a recipe spec from a freeform brief',
+    },
+
+    /**
+     * POST /api/text-forms/describe — write the trigger description from a
+     * recipe's name and Anleitung. Declared before the `:mention` routes for
+     * the same reason as `draft`.
+     */
+    describe: {
+      method: 'POST',
+      path: '/api/text-forms/describe',
+      body: describeRecipeBodySchema,
+      responses: {
+        200: textFormDescribeResponseSchema,
+        400: textFormErrorResponseSchema,
+        401: textFormErrorResponseSchema,
+        500: textFormErrorResponseSchema,
+      },
+      summary: 'Write a recipe trigger description from its name and instructions',
     },
 
     /**

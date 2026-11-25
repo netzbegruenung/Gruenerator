@@ -216,7 +216,7 @@ describe('RecipeDetailPage — Systemrezept', () => {
     expect(chat.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(chat.nextElementSibling).toBe(button);
     await userEvent.click(button);
-    expect(navigate).toHaveBeenCalledWith('/agentura/rezept/presse/bearbeiten');
+    expect(navigate).toHaveBeenCalledWith('/projekte/rezept/presse/bearbeiten');
   });
 
   it('sagt es, wenn schon ein eigener Stil dafür gespeichert ist', async () => {

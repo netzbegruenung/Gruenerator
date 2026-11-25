@@ -213,7 +213,7 @@ function GrueneratorenPage() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => navigate('/agentura/rezept/neu')}>
+                <DropdownMenuItem onClick={() => navigate('/projekte/rezept/neu')}>
                   <PiFileText />
                   <span>Rezept</span>
                 </DropdownMenuItem>
@@ -315,7 +315,7 @@ function GrueneratorenPage() {
           action={
             <div className="flex flex-wrap items-center justify-center gap-sm">
               <Button asChild variant="brand" size="brand-sm">
-                <Link to="/agentura/rezept/neu">
+                <Link to="/projekte/rezept/neu">
                   <PiFileText />
                   Rezept erstellen
                 </Link>

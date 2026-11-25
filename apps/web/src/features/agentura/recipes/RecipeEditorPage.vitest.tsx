@@ -27,9 +27,9 @@ function renderPage(mention = 'mein-rezept') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={[`/agentura/rezept/${mention}/bearbeiten`]}>
+      <MemoryRouter initialEntries={[`/projekte/rezept/${mention}/bearbeiten`]}>
         <Routes>
-          <Route path="/agentura/rezept/:mention/bearbeiten" element={<RecipeEditorPage />} />
+          <Route path="/projekte/rezept/:mention/bearbeiten" element={<RecipeEditorPage />} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>

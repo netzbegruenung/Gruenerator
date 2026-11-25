@@ -28,7 +28,7 @@ import {
 import { z } from 'zod';
 
 import { createLogger } from '../../utils/logger.js';
-import { aiObject } from '../ai/generate.js';
+import { aiObject, aiText } from '../ai/generate.js';
 import { type StructuredValidation } from '../ai/structuredParsing.js';
 import { toolInputJsonSchema } from '../ai/toolJsonSchema.js';
 
@@ -191,6 +191,43 @@ function restoreLineBreaks(text: string): string {
   return text
     .replace(/(?:\*\*n)+(?![a-zäöüß])/g, (run) => '\n'.repeat(run.length / 3))
     .replace(/\\n/g, '\n');
+}
+
+const DESCRIBE_SYSTEM_PROMPT = `Du schreibst die Auslöser-Beschreibung eines Grünerator-Rezepts. Ein Rezept ist eine Schreibvorgabe für eine Textsorte. An der Beschreibung allein entscheidet der Grünerator, ob er das Rezept für eine Anfrage nutzt.
+
+Regeln:
+- Genau ein bis zwei Sätze, 60 bis 220 Zeichen, auf Deutsch. Genderstern (*innen) nur bei Personenbezeichnungen (Mitglieder*innen, Bürger*innen), nie bei Sachwörtern.
+- Muster: „<Was das Rezept liefert>. Nutzen, wenn <Auslöser>.“ — etwa „Einladungen zu Ortsverbandstreffen mit Termin und Ort. Nutzen, wenn zu einem Treffen oder einer Sitzung eingeladen werden soll.“
+- Nur die Beschreibung ausgeben: keine Anführungszeichen, keine Überschrift, keine Erklärung.`;
+
+/** Unter dieser Länge speichert der Editor nicht (`USER_RECIPE_DESCRIPTION_MIN`). */
+const MIN_DESCRIPTION_CHARS = 30;
+
+/**
+ * Write the trigger description for a recipe from its name and Anleitung
+ * („Mit KI erstellen" im Editor). Same lane as {@link draftRecipeSpec}: both
+ * are the creator writing about a recipe, not the recipe writing a text.
+ */
+export async function describeRecipe(params: {
+  title: string;
+  styleBlock: string;
+}): Promise<string> {
+  const raw = await aiText({
+    lane: 'creator_draft',
+    system: DESCRIBE_SYSTEM_PROMPT,
+    prompt: `## Name\n\n${params.title}\n\n## Anleitung\n\n${params.styleBlock}\n\nSchreibe die Beschreibung.`,
+    maxOutputTokens: 300,
+    temperature: 0.3,
+  });
+  const description = raw
+    .replace(/^["„“']+|["“”']+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, MAX_TEXT_FORM_DESCRIPTION_CHARS);
+  if (description.length < MIN_DESCRIPTION_CHARS) {
+    throw new Error(`Beschreibung zu kurz (${description.length} Zeichen)`);
+  }
+  return description;
 }
 
 /** Synthesize a validated recipe spec from the creator conversation. */

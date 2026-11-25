@@ -37,7 +37,7 @@ export function ProjekteRecipesSection() {
   // Wie der Kopf der Grüneratoren-Übersicht: ein Icon-Knopf statt Text.
   const newButton = (
     <Button asChild variant="ghost" size="icon" title="Neues Rezept">
-      <Link to="/agentura/rezept/neu" aria-label="Neues Rezept">
+      <Link to="/projekte/rezept/neu" aria-label="Neues Rezept">
         <PiPlus aria-hidden className="size-[18px]" />
       </Link>
     </Button>

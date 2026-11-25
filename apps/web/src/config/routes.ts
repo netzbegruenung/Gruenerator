@@ -111,6 +111,28 @@ const LegacySkillMentionRedirect = lazy(() =>
   Promise.resolve({ default: LegacySkillMentionRedirectComponent })
 );
 
+// Anlegen und Bearbeiten eines Rezepts liegen seit 11/2026 unter /projekte/rezept/…
+// (Rezepte gehören zu den Projekten). Die alten /agentura-Pfade leiten für immer
+// weiter — samt `?projekt=` und `location.state`, über den „Als Rezept speichern"
+// die Chat-Antwort mitgibt. Das Backend nennt in Werkzeug-Antworten weiter die
+// alten Pfade: ausgelieferte Apps öffnen sie im Web-Viewer, einen neuen
+// /projekte/<x>-Pfad hielten sie für ein Projekt.
+export const LegacyRecipeEditorRedirectComponent: FC<Record<string, unknown>> = () => {
+  const { mention } = useParams();
+  const location = useLocation();
+  const pathname = mention
+    ? `/projekte/rezept/${encodeURIComponent(mention)}/bearbeiten`
+    : '/projekte/rezept/neu';
+  return createElement(Navigate, {
+    to: { pathname, search: location.search },
+    state: location.state as unknown,
+    replace: true,
+  });
+};
+const LegacyRecipeEditorRedirect = lazy(() =>
+  Promise.resolve({ default: LegacyRecipeEditorRedirectComponent })
+);
+
 // Redirect legacy /gruppen/:idOrSlug → /projekte/:idOrSlug preserving the param.
 const LegacyGruppenIdRedirectComponent: FC<Record<string, unknown>> = () => {
   const { idOrSlug } = useParams();
@@ -481,8 +503,15 @@ const standardRoutes: RouteConfig[] = [
         { path: '/agents/new', component: AgentCreatorPage },
         { path: '/agents/new/manual', component: AgentBuilderPage },
         { path: '/agents/:identifier/edit', component: AgentSettingsPage },
-        { path: '/agentura/rezept/neu', component: RecipeCreatorPage },
-        { path: '/agentura/rezept/:mention/bearbeiten', component: RecipeEditorPage },
+        // Volle Höhe: Formular und Leiste stehen mittig, langer Inhalt scrollt für sich.
+        { path: '/projekte/rezept/neu', component: RecipeCreatorPage, layoutMode: 'sidebarOnly' },
+        {
+          path: '/projekte/rezept/:mention/bearbeiten',
+          component: RecipeEditorPage,
+          layoutMode: 'sidebarOnly',
+        },
+        { path: '/agentura/rezept/neu', component: LegacyRecipeEditorRedirect },
+        { path: '/agentura/rezept/:mention/bearbeiten', component: LegacyRecipeEditorRedirect },
       ] satisfies RouteConfig[])
     : []),
   // EXPERIMENTAL — recurring agent tasks management.
@@ -788,7 +817,7 @@ const standardRoutes: RouteConfig[] = [
   // closed); generator → its agent.
   {
     path: '/gruenerator/erstellen',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/agentura/rezept/neu') })),
+    component: lazy(() => Promise.resolve({ default: createRedirect('/projekte/rezept/neu') })),
   },
   { path: '/gruenerator/:slug', component: LegacyGeneratorSlugRedirect },
   // Redirects for removed pages

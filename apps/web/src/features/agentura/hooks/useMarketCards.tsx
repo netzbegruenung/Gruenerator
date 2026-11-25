@@ -134,7 +134,7 @@ export function useMarketCards() {
       isFavorite: item.isFavorite,
       onToggleFavorite: () => library.toggle('recipe', entry.id ?? entry.mention),
       onEdit: entry.editable
-        ? () => navigate(`/agentura/rezept/${encodeURIComponent(entry.mention)}/bearbeiten`)
+        ? () => navigate(`/projekte/rezept/${encodeURIComponent(entry.mention)}/bearbeiten`)
         : undefined,
       onShare: entry.editable
         ? () => setShareTarget({ kind: 'recipe', mention: entry.mention })

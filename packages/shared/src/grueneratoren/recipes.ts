@@ -148,6 +148,24 @@ export function useDraftRecipe() {
   });
 }
 
+/**
+ * „Mit KI erstellen" unter der Beschreibung: der Auslöser-Satz aus Name und
+ * Anleitung. Leer zählt als Fehlschlag, wie bei `useAnalyzeRecipe`.
+ */
+export function useDescribeRecipe() {
+  return useMutation({
+    mutationFn: async (input: { title: string; styleBlock: string }): Promise<string> => {
+      const res = await getContractsClient().userTextForms.describe({ body: input });
+      if (res.status !== 200)
+        throw new ApiError(res.status, textFormErrorMessage(res.body, res.status));
+      const description: unknown = res.body.description;
+      if (typeof description !== 'string' || description.trim().length === 0)
+        throw new ApiError(res.status, 'Die Beschreibung kam ohne Ergebnis zurück.');
+      return description;
+    },
+  });
+}
+
 /** Create or update a recipe. */
 export function useSaveRecipe() {
   const queryClient = useQueryClient();
