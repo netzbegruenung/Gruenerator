@@ -25,8 +25,19 @@ vi.mock('../../../../ChunkQualityService/index.js', () => ({
   chunkQualityService: { calculateQualityScore: () => 1 },
 }));
 
-vi.mock('../../../../document-services/index.js', () => ({
-  smartChunkDocument: (text: string) => Promise.resolve([{ text }]),
+vi.mock('../../../../document-services/index.js', async () => ({
+  // A `## Seite N` marker stands for what the real chunker reads from it.
+  smartChunkDocument: (text: string) => {
+    const page = /^## Seite (\d+)/m.exec(text)?.[1];
+    return Promise.resolve([
+      { text, ...(page ? { metadata: { page_number: Number(page) } } : {}) },
+    ]);
+  },
+  pagePayload: (
+    await vi.importActual<typeof import('../../../../document-services/pagePayload.js')>(
+      '../../../../document-services/pagePayload.js'
+    )
+  ).pagePayload,
   buildEmbeddingTextsForChunks: (chunks: Array<{ text: string }>) => chunks.map((c) => c.text),
   embeddingPayload: () => ({ embedding_model: 'mistral-embed' }),
   offsetPayload: () => ({ char_start: null, char_end: null }),
@@ -71,12 +82,12 @@ function makeProcessor() {
   );
 }
 
-const store = (fingerprint?: Record<string, unknown>) =>
+const store = (fingerprint?: Record<string, unknown>, text: string = TEXT) =>
   makeProcessor().processAndStoreDocument(
     SOURCE,
     'beschluss',
     URL_UNDER_TEST,
-    { title: 'Beschluss', text: TEXT, publishedAt: null, categories: [], bodyFallback: false },
+    { title: 'Beschluss', text, publishedAt: null, categories: [], bodyFallback: false },
     {
       isFile: true, // URL_UNDER_TEST is a .pdf
       collectionOverride: 'landesverbaende_documents',
@@ -386,6 +397,19 @@ describe('processAndStoreDocument — changed text', () => {
     expect(setPayload).not.toHaveBeenCalled();
     const [, , points] = batchUpsert.mock.calls[0] as [unknown, string, { payload: unknown }[]];
     expect(points[0].payload).toMatchObject({ file_hash: 'abc123' });
+  });
+
+  it('writes the page of each chunk', async () => {
+    scrollDocuments.mockResolvedValue([]);
+
+    await store(undefined, `## Seite 4\n\n${TEXT}`);
+
+    const [, , points] = batchUpsert.mock.calls[0] as [
+      unknown,
+      string,
+      { payload: Record<string, unknown> }[],
+    ];
+    expect(points[0].payload.page_number).toBe(4);
   });
 
   it('stamps checked_at next to indexed_at on a normal store', async () => {
