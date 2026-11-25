@@ -10,7 +10,7 @@ import {
   useIsNarrowerThan,
 } from '@gruenerator/ui';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, ExternalLink, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ExternalLink, FileText, X } from 'lucide-react';
 import { memo, useEffect, useId, useMemo, useRef, type RefObject } from 'react';
 
 import { useCitationPanel } from '../../context/CitationPanelContext';
@@ -37,7 +37,21 @@ interface ChunksResponse {
   document_title: string;
   chunk_count: number;
   chunks: ChunkData[];
+  /** Only manual uploads keep their file; absent on older APIs. */
+  has_original?: boolean;
+  original_mimetype?: string | null;
 }
+
+interface DocumentChunks {
+  chunks: ChunkData[];
+  /** Set when the upload is stored and GET /:id/original can serve it. */
+  original: { mimetype: string | null } | null;
+}
+
+/** `VITE_API_BASE_URL` already ends in `/api`; the web app falls back to the
+ *  same-origin proxy. Same default as the notebook reader's „Original öffnen". */
+const API_BASE_URL =
+  (import.meta.env as unknown as Record<string, string | undefined>).VITE_API_BASE_URL ?? '/api';
 
 /** Header, body and footer share one gutter, so the left edge of every line —
  *  label, quote, page note — stacks. 28px: wide enough that the quote card's
@@ -74,6 +88,20 @@ function documentKind(contentType?: string, sourceUrl?: string): string | null {
   const extension = lastSegment.includes('.') ? lastSegment.split('.').pop() : null;
   if (extension && /^[a-z]{2,5}$/i.test(extension)) return extension.toUpperCase();
   return null;
+}
+
+/** „PDF öffnen", „DOCX öffnen", „Bild öffnen" — the button says what opens. */
+function originalLabel(mimetype: string | null, documentTitle: string): string {
+  if (mimetype?.startsWith('image/')) return 'Bild öffnen';
+  const kind = documentKind(mimetype ?? undefined, documentTitle);
+  return kind ? `${kind} öffnen` : 'Original öffnen';
+}
+
+function originalHref(documentId: string, notebookId: string, page: number | null): string {
+  const query = notebookId ? `?notebookId=${encodeURIComponent(notebookId)}` : '';
+  // `#page=N` is the PDF open parameter the browser viewers read; other types ignore it.
+  const fragment = page ? `#page=${page}` : '';
+  return `${API_BASE_URL}/documents/${encodeURIComponent(documentId)}/original${query}${fragment}`;
 }
 
 function CitedChunk({ text, citedText }: { text: string; citedText?: string }) {
@@ -134,7 +162,7 @@ function CitationPanelBody({ titleId }: { titleId: string }) {
   const documentId = source?.documentId;
   const collectionId = source?.collectionId;
 
-  const chunksQuery = useQuery<ChunkData[], Error>({
+  const chunksQuery = useQuery<DocumentChunks, Error>({
     queryKey: ['document-chunks', documentId, collectionId],
     queryFn: async ({ signal }) => {
       const { fetch: configFetch } = useChatConfigStore.getState();
@@ -162,13 +190,17 @@ function CitationPanelBody({ titleId }: { titleId: string }) {
       if (!data.success || data.chunks.length === 0) {
         throw new Error('Keine Inhalte gefunden');
       }
-      return data.chunks;
+      return {
+        chunks: data.chunks,
+        original: data.has_original ? { mimetype: data.original_mimetype ?? null } : null,
+      };
     },
     enabled: Boolean(documentId),
     staleTime: 5 * 60 * 1000,
   });
 
-  const chunks = useMemo(() => chunksQuery.data ?? [], [chunksQuery.data]);
+  const chunks = useMemo(() => chunksQuery.data?.chunks ?? [], [chunksQuery.data]);
+  const original = chunksQuery.data?.original ?? null;
   const citedPosition = source ? chunks.findIndex((c) => c.index === source.chunkIndex) : -1;
   const cited = citedPosition === -1 ? null : chunks[citedPosition];
 
@@ -193,17 +225,12 @@ function CitationPanelBody({ titleId }: { titleId: string }) {
       : 'Inhalte konnten nicht geladen werden'
     : null;
 
-  const kind = documentKind(source.contentType, source.sourceUrl);
+  const page = cited?.pageNumber ?? null;
+  // With a stored original the button names the file type and carries the
+  // page; without one, both stay as plain text so neither gets lost.
+  const kind = original ? null : documentKind(source.contentType, source.sourceUrl);
   const originLabel = [kind, source.collectionName].filter(Boolean).join(' · ');
-  const positionLabel =
-    citedPosition === -1
-      ? null
-      : [
-          `Abschnitt ${citedPosition + 1} von ${chunks.length}`,
-          cited?.pageNumber ? `Seite ${cited.pageNumber}` : null,
-        ]
-          .filter(Boolean)
-          .join(' · ');
+  const pageLabel = !original && page ? `Seite ${page}` : null;
 
   return (
     <>
@@ -255,14 +282,33 @@ function CitationPanelBody({ titleId }: { titleId: string }) {
             </Button>
           </div>
         </div>
-        {(originLabel || positionLabel) && (
+        {(originLabel || pageLabel || original) && (
           <div className="flex flex-wrap items-center gap-2 text-[0.84375rem] text-foreground-muted">
             {originLabel && (
               <span className="rounded-md border border-border bg-background-alt px-2.5 py-[3px]">
                 {originLabel}
               </span>
             )}
-            {positionLabel && <span>{positionLabel}</span>}
+            {pageLabel && <span>{pageLabel}</span>}
+            {original && (
+              <a
+                href={originalHref(source.documentId, source.collectionId, page)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-7 items-center gap-1.5 rounded-md border border-primary-600 bg-background px-2.5 py-[3px] font-semibold text-primary-700 transition-colors hover:bg-primary-50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none pointer-coarse:min-h-11 dark:border-primary-400 dark:text-primary-300 dark:hover:bg-primary-900/40"
+              >
+                <FileText aria-hidden="true" className="size-3.5" />
+                {originalLabel(original.mimetype, source.documentTitle)}
+                {page ? (
+                  <>
+                    <span aria-hidden="true" className="font-normal text-foreground-muted">
+                      · S. {page}
+                    </span>
+                    <span className="sr-only">, Seite {page}</span>
+                  </>
+                ) : null}
+              </a>
+            )}
           </div>
         )}
       </header>
@@ -294,7 +340,7 @@ function CitationPanelBody({ titleId }: { titleId: string }) {
 
             <div
               ref={citedRef}
-              className="mb-5 rounded-r-xl border-l-[3px] border-primary-500 bg-primary-50 px-[1.375rem] py-5 dark:bg-primary-900/40"
+              className="mb-5 rounded-xl bg-primary-50 px-[1.375rem] py-5 dark:bg-primary-900/40"
             >
               <p className={cn(LABEL_CLS, 'mb-3 text-primary-700 dark:text-primary-300')}>
                 Zitierte Passage

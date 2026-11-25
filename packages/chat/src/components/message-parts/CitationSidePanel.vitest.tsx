@@ -74,7 +74,11 @@ interface TestChunk {
   pageNumber?: number;
 }
 
-function chunksResponse(documentId: string, chunks: TestChunk[] = CHUNKS) {
+function chunksResponse(
+  documentId: string,
+  chunks: TestChunk[] = CHUNKS,
+  extra: Record<string, unknown> = {}
+) {
   return new Response(
     JSON.stringify({
       success: true,
@@ -82,6 +86,7 @@ function chunksResponse(documentId: string, chunks: TestChunk[] = CHUNKS) {
       document_title: 'Fraktionshandbuch',
       chunk_count: chunks.length,
       chunks,
+      ...extra,
     }),
     { status: 200, headers: { 'Content-Type': 'application/json' } }
   );
@@ -106,8 +111,10 @@ describe('CitationSidePanel — Darstellung', () => {
   it('sagt, wo im Dokument die Passage steht', async () => {
     render(<Harness sources={[source()]} />);
     // Die API liefert Seitenzahlen; bis hierher wurden sie geholt und verworfen.
-    expect(await screen.findByText('Abschnitt 2 von 3 · Seite 14')).toBeInTheDocument();
+    expect(await screen.findByText('Seite 14')).toBeInTheDocument();
     expect(screen.getByText('PDF · Kommunalpolitik')).toBeInTheDocument();
+    // Die Chunk-Zählung ist eine Indexgröße, keine Angabe für Lesende.
+    expect(screen.queryByText(/Abschnitt \d+ von/)).not.toBeInTheDocument();
   });
 
   it('trennt die Passage von ihrer Umgebung', async () => {
@@ -128,7 +135,7 @@ describe('CitationSidePanel — Darstellung', () => {
     await user.click(screen.getByRole('button', { name: /Weiter/ }));
 
     expect(await screen.findByText('Zitat 2 von 2')).toBeInTheDocument();
-    expect(screen.getByText('Abschnitt 3 von 3 · Seite 15')).toBeInTheDocument();
+    expect(screen.getByText('Seite 15')).toBeInTheDocument();
   });
 
   it('blendet den Blätterfuß bei einer einzigen Quelle aus', async () => {
@@ -254,5 +261,46 @@ describe('CitationSidePanel — Abruf-URL', () => {
       '/api/documents/doc-1/chunks?collectionId=grundsatz-system',
       expect.objectContaining({ method: 'GET' })
     );
+  });
+});
+
+describe('CitationSidePanel — gespeichertes Original', () => {
+  it('öffnet das hochgeladene PDF auf der Seite der zitierten Stelle', async () => {
+    useChatConfigStore.getState().configure({
+      fetch: async () =>
+        chunksResponse('doc-1', CHUNKS, {
+          has_original: true,
+          original_mimetype: 'application/pdf',
+        }),
+    });
+    render(<Harness sources={[source({ sourceUrl: undefined, collectionId: 'nb-1' })]} />);
+    const link = await screen.findByRole('link', { name: 'PDF öffnen, Seite 14' });
+    expect(link).toHaveAttribute('href', '/api/documents/doc-1/original?notebookId=nb-1#page=14');
+    expect(link).toHaveAttribute('target', '_blank');
+    // Dateiart und Seite stehen im Knopf, nicht noch einmal daneben.
+    expect(screen.getByText('Kommunalpolitik')).toBeInTheDocument();
+    expect(screen.queryByText('Seite 14')).not.toBeInTheDocument();
+  });
+
+  it('nennt die Dateiart aus dem Titel, wenn der MIME-Typ zu lang ist', async () => {
+    useChatConfigStore.getState().configure({
+      fetch: async () =>
+        chunksResponse('doc-1', [{ index: 1, text: 'Text', tokens: 1 }], {
+          has_original: true,
+          original_mimetype:
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        }),
+    });
+    render(<Harness sources={[source({ documentTitle: 'Satzung.docx', sourceUrl: undefined })]} />);
+    expect(await screen.findByRole('link', { name: 'DOCX öffnen' })).toBeInTheDocument();
+  });
+
+  it('zeigt keinen Knopf ohne gespeichertes Original', async () => {
+    render(<Harness sources={[source()]} />);
+    await screen.findByText('Zitierte Passage');
+    const originals = screen
+      .queryAllByRole('link')
+      .filter((a) => a.getAttribute('href')?.includes('/original'));
+    expect(originals).toHaveLength(0);
   });
 });
