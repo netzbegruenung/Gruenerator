@@ -1,4 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+
+// `ALL_COLLECTIONS` is filtered by the instance this process serves, bound at
+// import time. The assertions below describe production; without the pin a dev
+// `.env` with `INSTANCE_ID=local` (all channels) turned them red (#4249).
+vi.hoisted(() => {
+  vi.stubEnv('INSTANCE_ID', 'production');
+});
 
 import {
   ALL_COLLECTIONS,
