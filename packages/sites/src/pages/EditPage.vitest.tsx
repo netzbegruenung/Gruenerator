@@ -136,7 +136,7 @@ describe('EditPage', () => {
     expect(unloadCancelled()).toBe(true);
 
     setSession({ state: 'ready', ydoc, provider: {}, save: 'saved' });
-    expect(screen.getByRole('status')).toBeEmptyDOMElement();
+    expect(screen.getByRole('status')).toHaveTextContent('Gespeichert');
     expect(unloadCancelled()).toBe(false);
 
     setSession({ state: 'ready', ydoc, provider: {}, save: 'offline' });
