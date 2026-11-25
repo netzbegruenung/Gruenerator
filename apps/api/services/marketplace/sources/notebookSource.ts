@@ -9,7 +9,6 @@
 import { type MarketplaceItemOf } from '@gruenerator/contracts';
 import {
   isNotebookOfferedIn,
-  isNotebookResolvableIn,
   NOTEBOOK_REGISTRY,
   type NotebookDefinition,
 } from '@gruenerator/shared/notebooks';
@@ -20,6 +19,10 @@ import { profiles } from '../../../database/schema/core.js';
 import { getDrizzleInstance } from '../../../database/services/DrizzleService.js';
 import { favoriteEntity, unfavoriteEntity } from '../../entityFavorites/EntityFavoritesService.js';
 import { listPublicNotebooksForViewer } from '../../notebook/publicNotebookListing.js';
+import {
+  AGGREGATE_NOTEBOOK_ID,
+  isResolvableSystemNotebook,
+} from '../../notebook/systemNotebookRefs.js';
 import { type MarketplaceContext } from '../context.js';
 import { favoritedAmong } from '../enrich.js';
 
@@ -74,12 +77,6 @@ function toItem(
 }
 
 /**
- * The multi-source „Grünerator" notebook only had a page on `/wissen`, which is
- * gone; it lives on as the chat's `@alle` mention, not as a notebook to open.
- */
-const AGGREGATE_NOTEBOOK_ID = 'gruenerator-notebook';
-
-/**
  * A system notebook as an item. `ref` and `slug` are the registry id — the web
  * resolver forwards `/notebooks/<registry id>` to the notebook's page.
  * Official content: no report, no author.
@@ -108,10 +105,10 @@ function systemItem(nb: NotebookDefinition): NotebookItem {
 
 /**
  * Lists show what the instance offers; a link, a like or a save may also
- * resolve a notebook the instance merely hides (`isNotebookResolvableIn`).
+ * resolve a notebook the instance merely hides.
  */
 function systemCandidates(ctx: MarketplaceContext, forList: boolean): Candidate<'notebook'>[] {
-  const gate = forList ? isNotebookOfferedIn : isNotebookResolvableIn;
+  const gate = forList ? isNotebookOfferedIn : isResolvableSystemNotebook;
   return NOTEBOOK_REGISTRY.filter(
     (nb) => nb.id !== AGGREGATE_NOTEBOOK_ID && gate(nb.id, ctx.instanceId)
   ).map((nb) => ({
