@@ -34,6 +34,7 @@ import { PreviewDialog } from './PreviewDialog';
 import { usePublishControls } from './publish/usePublishControls';
 import { SiteShareDialog } from './share/SiteShareDialog';
 import { SiteSidebarPanel, SiteSidebarTabs } from './sidebar/SiteSidebar';
+import { SiteMenu, type SiteMenuEntry } from './SiteMenu';
 import { useUndoShortcuts } from './useUndoShortcuts';
 
 function DraftPreview({ site, editable }: { site: SiteData; editable: boolean }) {
@@ -158,27 +159,75 @@ const EDITOR_CHROME_VARS = {
 
 export const PUBLISH_ADMINS_ONLY = 'Veröffentlichen können nur Admins.';
 
-function HeaderPresence({ provider }: { provider: HocuspocusProvider }) {
+function HeaderPresence({
+  provider,
+  compact = false,
+}: {
+  provider: HocuspocusProvider;
+  compact?: boolean;
+}) {
   const collaborators = useCollaborators(provider);
-  return <PresenceAvatars collaborators={collaborators} />;
+  return (
+    <PresenceAvatars collaborators={collaborators} compact={compact} maxVisible={compact ? 2 : 5} />
+  );
 }
 
-type EditorTopBarProps = Omit<Parameters<typeof EditorHeader>[0], 'menu' | 'publish'> &
-  Parameters<typeof usePublishControls>[0];
+/** Phone site menu: who else is in the editor, by name. */
+function PresenceNote({ provider }: { provider: HocuspocusProvider }) {
+  const collaborators = useCollaborators(provider);
+  if (collaborators.length === 0) return null;
+  return <span>Gerade dabei: {collaborators.map((user) => user.name).join(', ')}</span>;
+}
+
+type HeaderProps = Omit<Parameters<typeof EditorHeader>[0], 'menu' | 'publish'>;
 
 /** The header inside the draft provider: publishing reads the draft. */
-function EditorTopBar({ site, provider, onShowLive, ...header }: EditorTopBarProps) {
-  const { menu, button } = usePublishControls({ site, provider, onShowLive });
+function EditorTopBar({
+  site,
+  provider,
+  onShowLive,
+  extraEntries,
+  ...header
+}: HeaderProps & Parameters<typeof usePublishControls>[0] & { provider: HocuspocusProvider }) {
+  const { menu, button } = usePublishControls({
+    site,
+    provider,
+    onShowLive,
+    extraEntries,
+    badge: <HeaderPresence provider={provider} compact />,
+    note: <PresenceNote provider={provider} />,
+  });
   return <EditorHeader {...header} menu={menu} publish={button} />;
 }
 
-/** Editors and viewers: the site name without its menu (publish, unpublish, delete are admin). */
-function MemberTopBar(header: Omit<Parameters<typeof EditorHeader>[0], 'menu' | 'publish'>) {
+/** Editors and viewers: the site name; publish, unpublish and delete are for admins. */
+function MemberTopBar({
+  provider,
+  role,
+  extraEntries,
+  ...header
+}: HeaderProps & { provider: HocuspocusProvider; role: SiteRole; extraEntries: SiteMenuEntry[] }) {
   const title = useDraft((d) => d.site_title.trim()) || 'Website';
   return (
     <EditorHeader
       {...header}
-      menu={<span className="truncate px-sm text-sm font-semibold text-foreground">{title}</span>}
+      editable={role !== 'viewer'}
+      menu={
+        <SiteMenu
+          title={title}
+          entries={role === 'viewer' ? [] : extraEntries}
+          badge={<HeaderPresence provider={provider} compact />}
+          // A viewer has nothing to open: the name stays plain, the avatars beside it.
+          note={
+            role === 'viewer' ? null : (
+              <>
+                <span>{PUBLISH_ADMINS_ONLY}</span>
+                <PresenceNote provider={provider} />
+              </>
+            )
+          }
+        />
+      }
       publish={null}
     />
   );
@@ -198,6 +247,9 @@ export function SiteEditor({
   const session = useSiteDraftSession(site.id);
   const [shareOpen, setShareOpen] = useState(false);
   const shareButtonRef = useRef<HTMLButtonElement>(null);
+  // Dialogs hand focus back to whatever opened them: the bar button, or on a phone the site menu.
+  const shareReturnRef = useRef<HTMLElement | null>(null);
+  const previewReturnRef = useRef<HTMLElement | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [view, setView] = useState<PreviewView>('draft');
   const [device, setDevice] = useState<CanvasDevice>('desktop');
@@ -228,13 +280,34 @@ export function SiteEditor({
         />
       );
     case 'ready': {
+      const openPreview = (from: HTMLElement | null) => {
+        previewReturnRef.current = from;
+        setPreviewOpen(true);
+      };
+      const openShare = (from: HTMLElement | null) => {
+        shareReturnRef.current = from;
+        setShareOpen(true);
+      };
       const header = {
         save: session.save,
         device,
         onDeviceChange: setDevice,
-        onPreview: () => setPreviewOpen(true),
+        onPreview: () => openPreview(previewButtonRef.current),
         onBack,
         previewButtonRef,
+      };
+      // What the bar shows on a desktop and a phone lists in the site menu.
+      const previewEntry: SiteMenuEntry = {
+        key: 'preview',
+        label: 'Vorschau',
+        onSelect: openPreview,
+        phoneOnly: true,
+      };
+      const shareEntry: SiteMenuEntry = {
+        key: 'share',
+        label: 'Teilen',
+        onSelect: openShare,
+        phoneOnly: true,
       };
       return (
         <SiteDraftProvider ydoc={session.ydoc}>
@@ -251,6 +324,7 @@ export function SiteEditor({
                 site={site}
                 provider={session.provider}
                 onShowLive={() => setView('live')}
+                extraEntries={[previewEntry, shareEntry]}
                 {...header}
               >
                 <HeaderPresence provider={session.provider} />
@@ -258,7 +332,7 @@ export function SiteEditor({
                   ref={shareButtonRef}
                   variant="ghost"
                   size="sm"
-                  onClick={() => setShareOpen(true)}
+                  onClick={() => openShare(shareButtonRef.current)}
                   title="Teilen"
                 >
                   <FiUserPlus aria-hidden="true" />
@@ -266,17 +340,24 @@ export function SiteEditor({
                 </Button>
               </EditorTopBar>
             ) : (
-              <MemberTopBar {...header}>
+              <MemberTopBar
+                provider={session.provider}
+                role={role}
+                extraEntries={[previewEntry]}
+                {...header}
+              >
                 <HeaderPresence provider={session.provider} />
               </MemberTopBar>
             )}
             {role !== 'admin' && (
               // Same left inset as the preview below: the sidebar rail overlays this column.
               <div
+                // An editor finds the note in the site menu on a phone; a viewer keeps it, it is
+                // the only sign the page cannot be changed.
                 className={
                   role === 'viewer'
                     ? 'border-b border-grey-200 bg-background-pure dark:border-grey-700'
-                    : 'border-b border-grey-200 bg-background-pure dark:border-grey-700 canvas-mobile:pl-[calc(var(--image-studio-tab-bar-width)+var(--canvas-panel-width,0px))]'
+                    : 'border-b border-grey-200 bg-background-pure dark:border-grey-700 max-md:hidden canvas-mobile:pl-[calc(var(--image-studio-tab-bar-width)+var(--canvas-panel-width,0px))]'
                 }
               >
                 <p className="m-0 px-md py-xs text-sm text-grey-600 dark:text-grey-400">
@@ -311,13 +392,13 @@ export function SiteEditor({
                 isProjectSite={group !== null}
                 open={shareOpen}
                 onOpenChange={setShareOpen}
-                returnFocusRef={shareButtonRef}
+                returnFocusRef={shareReturnRef}
               />
             )}
             <PreviewDialog
               open={previewOpen}
               onOpenChange={setPreviewOpen}
-              returnFocusRef={previewButtonRef}
+              returnFocusRef={previewReturnRef}
             >
               <DraftPreview site={site} editable={false} />
             </PreviewDialog>

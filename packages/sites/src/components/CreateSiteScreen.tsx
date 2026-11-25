@@ -109,7 +109,7 @@ export function CreateSiteScreen({
   const totalSteps = 2;
 
   return (
-    <div className="relative flex min-h-full items-center justify-center px-md py-xl lg:px-xl">
+    <div className="relative flex min-h-full items-center justify-center px-md pt-14 pb-xl sm:py-xl lg:px-xl">
       {onBack && step === 0 && (
         <div className="absolute top-3 left-3 z-10">
           <BackButton onBack={onBack} />

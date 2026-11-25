@@ -53,7 +53,7 @@ function MemberRow({
   const direct = member.source === 'member';
   return (
     <li className="flex flex-wrap items-center gap-sm py-xs">
-      <span className="min-w-0 flex-1 truncate text-sm text-foreground">
+      <span className="min-w-0 flex-1 truncate text-sm text-foreground max-sm:basis-full">
         {name}
         {isSelf && ' (du)'}
       </span>
@@ -159,7 +159,7 @@ function ShareBody({ site, isProjectSite }: { site: SiteData; isProjectSite: boo
           <ul className="m-0 list-none p-0">
             {shares.map((share) => (
               <li key={share.groupId} className="flex flex-wrap items-center gap-sm py-xs">
-                <span className="min-w-0 flex-1 truncate text-sm text-foreground">
+                <span className="min-w-0 flex-1 truncate text-sm text-foreground max-sm:basis-full">
                   {share.name}
                 </span>
                 <select
