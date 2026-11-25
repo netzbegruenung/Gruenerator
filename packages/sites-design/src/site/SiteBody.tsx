@@ -120,7 +120,10 @@ export function SiteBlockPreview({ snapshot }: { snapshot: PublishedSiteSnapshot
     liveAnchors: [`#${anchor}`],
     edit: null,
   };
-  const ground = blockGrounds(blocks, snapshot.variant, snapshot.locale).get(block.id) ?? 'paper';
+  const ground =
+    blockGrounds(blocks, snapshot.variant, snapshot.locale, snapshot.profile_image !== '').get(
+      block.id
+    ) ?? 'paper';
   return (
     <div data-ground="paper">{renderBlock(ctx, { block, anchor, ground, first: true }, null)}</div>
   );
