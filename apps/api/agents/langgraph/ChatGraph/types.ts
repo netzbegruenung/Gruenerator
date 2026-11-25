@@ -720,6 +720,8 @@ export interface ChatGraphInput {
   project?: ChatProject | null | undefined;
   /** Ins Projekt des Threads geteilte Rezepte (`user_text_forms`-Ids). Siehe `ChatGraphState.projectRecipeIds`. */
   projectRecipeIds?: string[] | undefined;
+  /** Projekt-Schalter „Nur Projekt-Rezepte verwenden". Siehe `ChatGraphState.projectRecipesExclusive`. */
+  projectRecipesExclusive?: boolean | undefined;
   contextWindowTokens?: number | undefined;
 }
 
@@ -1091,6 +1093,9 @@ export interface ChatGraphState {
   // Rezepte, die ins Projekt des Threads geteilt sind: der Loop listet sie im
   // Katalog als eigenen Block vor den übrigen (`renderRecipeCatalog`).
   projectRecipeIds?: readonly string[];
+  // Projekt-Schalter `groups.recipes_exclusive`: der Katalog führt an
+  // Textsorten nur die Projekt-Rezepte (`prioritizeProjectRecipes`).
+  projectRecipesExclusive?: boolean;
 
   // The person's explicit memory for this turn (services/memory). `memoryContext`
   // is the rendered, numbered text the prompt shows; `memories` is the same

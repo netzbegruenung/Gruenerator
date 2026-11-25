@@ -530,6 +530,7 @@ export async function assembleToolCatalog(
       roles: state.userRoles,
       visualBlocks: state.visualBlocks ?? [],
       projectRecipeRefs: state.projectRecipeIds ?? [],
+      projectRecipesExclusive: state.projectRecipesExclusive ?? false,
     });
     recipeCatalog = recipeCatalog
       .filter((entry) => pinnedKey === null || recipeKey(entry) !== pinnedKey)
@@ -543,6 +544,7 @@ export async function assembleToolCatalog(
         if (recommendedTools.length === 0 && skillRole(entry.mention) === 'methode') return [];
         return [{ ...entry, recommendedTools }];
       });
+    const projectRecipeRefs = new Set(state.projectRecipeIds ?? []);
     if (recipeCatalog.length > 0) {
       tools.rezept_laden = makeRecipeTool({
         isMounted,
@@ -555,14 +557,21 @@ export async function assembleToolCatalog(
         // Landesgeschäftsstelle schreibt (aktive Rolle), lädt das Tool deterministisch dessen
         // Variante — die kleinen Loop-Modelle greifen sonst zuverlässig zur
         // generischen Vorlage, obwohl die LV-Zeile im Katalog steht.
-        preferLv: (mention) =>
-          preferredLvRecipeMention({
+        // Im Projekt nie weg von einem Projekt-Rezept, und mit „Nur Projekt-
+        // Rezepte" nur hin zu einem (`prioritizeProjectRecipes`).
+        preferLv: (mention) => {
+          if (projectRecipeRefs.has(mention)) return null;
+          const variant = preferredLvRecipeMention({
             mention,
             agentIdentifier: agentConfig.identifier ?? null,
             activeRole: state.activeRole ?? null,
             projectLandesverband: state.projectLandesverband ?? null,
             userLocale: state.userLocale ?? null,
-          }),
+          });
+          return variant && state.projectRecipesExclusive && !projectRecipeRefs.has(variant)
+            ? null
+            : variant;
+        },
       });
     }
   }

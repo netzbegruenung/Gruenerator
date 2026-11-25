@@ -27,6 +27,7 @@ import {
   isSkillOfferedIn,
   landesverbandIdsForRoles,
   matchesRecipeAudience,
+  skillRole,
 } from '@gruenerator/shared/agents';
 import { type InstanceId } from '@gruenerator/shared/instances';
 
@@ -43,6 +44,8 @@ import {
 import { listUserLibrary } from '../../../services/user/userLibraryService.js';
 import { createLogger } from '../../../utils/logger.js';
 import { MAX_RECIPES_PER_TURN } from '../services/agenticLoop/recipeRegistry.js';
+
+import { systemRecipeTextsorte } from './lvRecipePreference.js';
 
 const log = createLogger('recipeCatalog');
 
@@ -65,6 +68,12 @@ export interface RecipeCatalogEntry {
   ownerName: string | null;
   /** Empfohlene Loop-Werkzeuge (nur Systemrezepte), auf die montierten gefiltert. */
   recommendedTools?: readonly string[];
+  /**
+   * Die Textsorte (`presse`, `instagram`, …), um die der Eintrag mit anderen
+   * konkurriert — `null` (oder fehlend) für Methoden und für Nutzer-Rezepte ohne Angabe.
+   * Siehe `prioritizeProjectRecipes`.
+   */
+  textsorte?: string | null;
 }
 
 /** Wie viele gespeicherte Rezepte anderer höchstens im Katalog stehen — jede Zeile kostet Tokens. */
@@ -102,6 +111,62 @@ export function catalogDescription(raw: string, maxChars = 220): string {
  */
 function ownerIsVisible(identifier: string): boolean {
   return !DISABLED_LV_AGENT_IDS.has(identifier);
+}
+
+/**
+ * Die Textsorte eines Nutzer-Rezepts: seine `text_type`-Angabe, sonst die des
+ * Systemrezepts, dessen Mention es überschreibt. Ohne beides `null` — dann
+ * verdrängt es nichts und wird von nichts verdrängt.
+ */
+function userRecipeTextsorte(
+  form: Pick<MentionableTextForm, 'mention' | 'textType'>
+): string | null {
+  if (form.textType) return form.textType;
+  const allSkills: readonly Skill[] = SKILLS;
+  const system = allSkills.find((s) => s.mention === form.mention);
+  return system && skillRole(system.mention) !== 'methode' ? systemRecipeTextsorte(system) : null;
+}
+
+/**
+ * Ein Projekt-Rezept verdrängt im Chat seines Projekts jedes andere Rezept
+ * derselben Textsorte: im Projekt „Grüne Hessen" mit „PM Hessen (Partei)" steht
+ * keine zweite Pressemitteilung mehr zur Wahl. Live 25.11.2026: der Block
+ * „REZEPTE DIESES PROJEKTS" stand vorn, das Modell lud trotzdem „PM Hessen
+ * (Fraktion)" aus dem übrigen Katalog, weil dessen Beschreibung besser zum
+ * Thema passte. Eine Bitte im Prompt entscheidet das nicht verlässlich, ein
+ * fehlender Eintrag schon.
+ *
+ * Mit dem Projekt-Schalter `exclusive` bleiben von den Textsorten nur die des
+ * Projekts. Methoden bleiben in beiden Fällen: sie sagen, wie recherchiert
+ * wird, nicht wie geschrieben wird. Eine ausdrückliche Wahl (`@rezept`) läuft
+ * nicht über den Katalog und bleibt unberührt.
+ */
+export function prioritizeProjectRecipes(
+  entries: readonly RecipeCatalogEntry[],
+  projectRefs: readonly string[],
+  exclusive: boolean
+): RecipeCatalogEntry[] {
+  if (projectRefs.length === 0 && !exclusive) return [...entries];
+  const refs = new Set(projectRefs);
+  const covered = new Set(
+    entries
+      .filter((e) => isProjectRecipe(e, refs))
+      .map((e) => e.textsorte)
+      .filter((t): t is string => t != null)
+  );
+  const kept = entries.filter((e) => {
+    if (isProjectRecipe(e, refs)) return true;
+    if (e.origin === 'system' && skillRole(e.mention) === 'methode') return true;
+    if (exclusive) return false;
+    return e.textsorte == null || !covered.has(e.textsorte);
+  });
+  if (kept.length < entries.length) {
+    log.info(
+      `[recipeCatalog] Projekt-Rezepte vorn: ${entries.length - kept.length} verdrängt` +
+        (exclusive ? ' (nur Projekt-Rezepte)' : ` (Textsorten: ${[...covered].join(', ')})`)
+    );
+  }
+  return kept;
 }
 
 /**
@@ -149,7 +214,19 @@ export async function buildRecipeCatalog(params: {
    * Projekt ist die Zuteilung, wie das Speichern in der Bibliothek.
    */
   projectRecipeRefs?: readonly string[];
+  /** Projekt-Schalter „Nur Projekt-Rezepte verwenden" (`groups.recipes_exclusive`). */
+  projectRecipesExclusive?: boolean;
 }): Promise<RecipeCatalogEntry[]> {
+  return prioritizeProjectRecipes(
+    await collectRecipeCatalog(params),
+    params.projectRecipeRefs ?? [],
+    params.projectRecipesExclusive ?? false
+  );
+}
+
+async function collectRecipeCatalog(
+  params: Parameters<typeof buildRecipeCatalog>[0]
+): Promise<RecipeCatalogEntry[]> {
   const { userLocale, userId, roles } = params;
   const codeCtx = { kinds: params.visualBlocks ?? [] };
   const instanceId = params.instanceId ?? CURRENT_INSTANCE;
@@ -196,6 +273,7 @@ export async function buildRecipeCatalog(params: {
       origin: 'system' as const,
       id: null,
       ownerName: null,
+      textsorte: skillRole(s.mention) === 'methode' ? null : systemRecipeTextsorte(s),
       ...(s.recommendedTools ? { recommendedTools: s.recommendedTools } : {}),
     }));
 
@@ -232,6 +310,7 @@ export async function buildRecipeCatalog(params: {
           origin: foreign ? ('group' as const) : ('own' as const),
           id: f.id,
           ownerName: f.ownerName ? catalogDescription(f.ownerName, 60) : null,
+          textsorte: userRecipeTextsorte(f),
         };
       }
     );
@@ -291,6 +370,7 @@ async function buildLibraryEntries(
       origin: 'library',
       id: f.id,
       ownerName: f.ownerName ? catalogDescription(f.ownerName, 60) : null,
+      textsorte: userRecipeTextsorte(f),
     });
   }
   return out.slice(-LIBRARY_CATALOG_MAX);

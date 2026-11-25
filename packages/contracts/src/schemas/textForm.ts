@@ -291,6 +291,8 @@ export const mentionableTextFormSchema = z.object({
   description: z.string().nullable(),
   iconKey: z.string().nullable(),
   category: skillCategorySchema.nullable().default(null),
+  /** Additiv (F0): die Textsorte der Zeile — ein Projekt-Rezept verdrängt gleichartige im Chat-Katalog. */
+  textType: textFormTypeSchema.nullable().default(null),
   kind: textFormKindSchema,
   sharedFromGroup: z.string().nullable(),
   ownerName: z.string().nullable(),
