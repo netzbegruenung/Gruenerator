@@ -82,6 +82,7 @@ import {
 } from './resultSamples.js';
 import { decideWolkeUrlMigration } from './wolkeUrlMigration.js';
 
+import type { ScraperResult } from '../../types.js';
 import type {
   SourceResult,
   LandesverbandScrapeOptions,
@@ -90,7 +91,6 @@ import type {
   LandesverbandSearchOptions,
   ProcessResult,
 } from './types.js';
-import type { ScraperResult } from '../../types.js';
 
 /**
  * Cold archive collection for documents past their source's maxAgeYears. Stale
@@ -383,7 +383,13 @@ export class LandesverbandScraper extends BaseScraper {
             this.log(`Processing PDF with OcrService: ${filename}`);
 
             // Scans über GreenPTs Docling statt Mistral OCR — wie die Parlamente (`parliament/pdfText.ts`).
-            const result = await ocrService.extractTextFromDocument(tempPath, 'docling');
+            // Mit Seitenmarken (#6088): die Chunks bekommen `page_number`, Zitate ihr „S. N"
+            // und der PDF-Viewer springt direkt auf die Seite. Unveränderte PDFs halten die
+            // Byte-Gatter oben vor der Extraktion an, die Marken erreichen also nur neue und
+            // geänderte Dateien; der Bestand bleibt ohne Seiten, bis sich eine Datei ändert.
+            const result = await ocrService.extractTextFromDocument(tempPath, 'docling', {
+              pageMarkers: true,
+            });
             text = result.text || '';
             recordExtraction({
               method: result.extractionMethod || result.method,

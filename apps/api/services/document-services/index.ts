@@ -43,6 +43,7 @@ export type { EmbeddingProvenancePayload } from './embeddingProvenance.js';
 // Zeichen-Offsets im Quelldokument für das Qdrant-Payload
 export { offsetPayload } from './offsetPayload.js';
 export type { ChunkOffsetPayload } from './offsetPayload.js';
+export { pagePayload } from './pagePayload.js';
 
 // TextChunker - Text segmentation utilities
 export {

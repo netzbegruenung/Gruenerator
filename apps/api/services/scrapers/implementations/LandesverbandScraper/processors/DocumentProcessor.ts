@@ -21,6 +21,7 @@ import {
   buildEmbeddingTextsForChunks,
   embeddingPayload,
   offsetPayload,
+  pagePayload,
   smartChunkDocument,
   structurePayload,
 } from '../../../../document-services/index.js';
@@ -258,6 +259,7 @@ export class DocumentProcessor {
         ...structurePayload(chunk),
         ...embeddingPayload(),
         ...offsetPayload(chunk),
+        ...pagePayload(chunk),
         quality_score: chunkQualityService.calculateQualityScore(chunkTexts[index]),
         title: documentTitle,
         primary_category: categories?.[0] || null,
