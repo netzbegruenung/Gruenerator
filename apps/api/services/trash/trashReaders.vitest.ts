@@ -97,6 +97,18 @@ const ALLOWLIST: readonly AllowEntry[] = [
     'SELECT id FROM user_sites WHERE user_id = $1 AND group_id IS NULL',
   ],
   [
+    'apps/api/services/sites/userSiteTrash.ts',
+    'user_sites',
+    "account deletion: locks the leaver's sites, trashed ones included, before handing them over",
+    'SELECT id FROM user_sites WHERE id IN (',
+  ],
+  [
+    'apps/api/services/groups/groupTrash.ts',
+    'user_sites',
+    'project purge: every site of the project goes with it (FK cascade), trashed ones included, so their Yjs rows and shares go too',
+    'SELECT id FROM user_sites WHERE group_id = $1',
+  ],
+  [
     'apps/api/services/docs/CollaborativeDocumentService.ts',
     'chat_threads',
     'purge: a purged document takes its chat thread along, trashed or not',

@@ -34,6 +34,9 @@ const EXEMPT: Record<string, string> = {
   'services/groups/groupPosts.ts': 'group posts, transactional with the post',
   // Ein Projekt wird endgültig gelöscht: alle seine Freigaben mit.
   'services/groups/groupTrash.ts': 'purge of a trashed project',
+  // Eine Website wird endgültig gelöscht (Papierkorb, Projekt-Purge, Kontolöschung): ihre
+  // Projekt-Freigaben gehen mit, sie haben keine FK.
+  'services/sites/userSiteTrash.ts': 'purge of a trashed Website',
   // Ein Wolke-Link wird gelöscht; die Freigaben darauf zeigten ins Leere.
   'utils/integrations/nextcloud/shareManager.ts': 'cascade of a deleted Wolke link',
 };

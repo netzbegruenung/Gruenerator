@@ -35,8 +35,8 @@ export async function closeShareRoom(contentType: string, contentId: string): Pr
 
 /**
  * A project stopped granting access — a member left (`userId`) or the project
- * went to the trash (`null`: everyone). Close the rooms of everything shared
- * with it, plus its presence room. Never throws.
+ * went to the trash or was archived (`null`: everyone). Close the rooms of everything shared
+ * with it, plus the rooms of its own sites and its presence room. Never throws.
  */
 export async function closeGroupCollabRooms(groupId: string, userId: string | null): Promise<void> {
   try {
@@ -46,10 +46,19 @@ export async function closeGroupCollabRooms(groupId: string, userId: string | nu
           AND content_type IN ('collaborative_documents', 'canvas_template', 'chat_threads', 'user_sites')`,
       [groupId]
     );
+    // Websites, die dem Projekt gehören (nicht nur geteilt sind); getrashte haben keinen Raum.
+    const sites = await getPostgresInstance().query<{ id: string }>(
+      'SELECT id FROM user_sites WHERE group_id = $1 AND deleted_at IS NULL',
+      [groupId]
+    );
     const rooms = shares
       .map((share) => collabRoomForShare(share.content_type, share.content_id))
       .filter((room): room is string => room !== null);
-    await closeCollabRooms([...rooms, `group-presence-${groupId}`], userId);
+    const siteRooms = sites.map((site) => `site-${site.id}`);
+    await closeCollabRooms(
+      [...new Set([...rooms, ...siteRooms]), `group-presence-${groupId}`],
+      userId
+    );
   } catch (err) {
     log.warn(
       `closing the collab rooms of group ${groupId} failed: ${

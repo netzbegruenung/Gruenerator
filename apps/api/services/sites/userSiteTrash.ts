@@ -178,7 +178,7 @@ export async function restoreUserSite(actorId: string, id: string): Promise<Owne
 type SiteQuery = (text: string, params: unknown[]) => Promise<unknown>;
 
 /** What lives beside a site row: its Yjs draft and its shares into projects (no FK to either). */
-async function removeSiteSideStores(query: SiteQuery, id: string): Promise<void> {
+export async function removeSiteSideStores(query: SiteQuery, id: string): Promise<void> {
   await query('DELETE FROM yjs_document_updates WHERE document_id = $1', [id]);
   await query('DELETE FROM yjs_document_snapshots WHERE document_id = $1', [id]);
   await query(
@@ -212,6 +212,16 @@ export async function reassignSitesBeforeAccountDeletion(
   userId: string,
   tx: Pick<PoolClient, 'query'>
 ): Promise<string[]> {
+  // Two co-admins deleting at once could each pick the other as heir; the cascade then takes the
+  // site. Lock this person's sites (id order, so two leavers cannot deadlock) — the second waits
+  // for the first's commit and re-reads the members.
+  await tx.query(
+    `SELECT id FROM user_sites WHERE id IN (
+       SELECT id FROM user_sites WHERE user_id = $1
+       UNION SELECT site_id FROM site_members WHERE user_id = $1)
+      ORDER BY id FOR UPDATE`,
+    [userId]
+  );
   const purged: string[] = [];
   const purge = async (id: string) => {
     await tx.query('DELETE FROM user_sites WHERE id = $1', [id]);

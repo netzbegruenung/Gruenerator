@@ -50,11 +50,13 @@ describe('closeShareRoom', () => {
 
 describe('closeGroupCollabRooms', () => {
   it("closes every shared room plus the project's presence room", async () => {
-    query.mockResolvedValue([
-      { content_type: 'collaborative_documents', content_id: 'doc-1' },
-      { content_type: 'canvas_template', content_id: 'canvas-1' },
-      { content_type: 'chat_threads', content_id: 't-1' },
-    ]);
+    query
+      .mockResolvedValueOnce([
+        { content_type: 'collaborative_documents', content_id: 'doc-1' },
+        { content_type: 'canvas_template', content_id: 'canvas-1' },
+        { content_type: 'chat_threads', content_id: 't-1' },
+      ])
+      .mockResolvedValueOnce([]);
 
     await closeGroupCollabRooms('g-1', 'user-1');
 
@@ -62,6 +64,18 @@ describe('closeGroupCollabRooms', () => {
     expect(closeCollabRooms).toHaveBeenCalledWith(
       ['doc-1', 'canvas-1', 'chat-t-1', 'group-presence-g-1'],
       'user-1'
+    );
+  });
+
+  it('also closes the rooms of the sites the project owns', async () => {
+    query
+      .mockResolvedValueOnce([{ content_type: 'user_sites', content_id: 's-shared' }])
+      .mockResolvedValueOnce([{ id: 's-own' }, { id: 's-shared' }]);
+    await closeGroupCollabRooms('g-1', null);
+    expect(query.mock.calls[1]?.[0]).toContain('FROM user_sites WHERE group_id = $1');
+    expect(closeCollabRooms).toHaveBeenCalledWith(
+      ['site-s-shared', 'site-s-own', 'group-presence-g-1'],
+      null
     );
   });
 

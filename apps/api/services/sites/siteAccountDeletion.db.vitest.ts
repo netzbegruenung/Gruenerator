@@ -134,6 +134,32 @@ describe.skipIf(!url)('Kontolöschung und Papierkorb von Websites', () => {
     expect(await roleOf(s, c)).toBe('admin');
   });
 
+  it('two co-admins deleting their accounts at once leave the site to the third admin', async () => {
+    for (let i = 0; i < 5; i++) {
+      const [x, y, z] = [randomUUID(), randomUUID(), randomUUID()];
+      for (const u of [x, y, z]) {
+        await pool.query("INSERT INTO profiles (id, display_name) VALUES ($1, 'P')", [u]);
+      }
+      const s = await mkSite(x);
+      await member(s, y, 'admin', "now() - interval '3 days'");
+      await member(s, x, 'admin', "now() - interval '2 days'");
+      await member(s, z, 'admin');
+      const leave = async (user: string) => {
+        const client = await pool.connect();
+        try {
+          await client.query('BEGIN');
+          await reassignSitesBeforeAccountDeletion(user, client);
+          await client.query('DELETE FROM profiles WHERE id = $1', [user]);
+          await client.query('COMMIT');
+        } finally {
+          client.release();
+        }
+      };
+      await Promise.all([leave(x), leave(y)]);
+      expect((await siteRow(s))?.user_id).toBe(z);
+    }
+  });
+
   it('keeps a project site alive with user_id NULL', async () => {
     const g = randomUUID();
     await pool.query("INSERT INTO groups (id, name) VALUES ($1, 'G')", [g]);
