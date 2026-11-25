@@ -5,11 +5,20 @@ import {
   landesverbandTitle,
 } from '@gruenerator/shared/agents';
 import { type GroupFeedItem } from '@gruenerator/shared/groups';
+import { lazy, Suspense, useState } from 'react';
 import { PiNotebook, PiPlus } from 'react-icons/pi';
 import { Link } from 'react-router-dom';
 
 import { KnowledgeRow } from './ProjectKnowledgeList';
 import { type ShareActions } from './shareActions';
+
+// Erst beim ersten Öffnen geladen: Editor, Icon-Auswahl und Beispiel-Analyse
+// gehören nicht in das Bundle jeder Projektseite.
+const RecipeCreateDialog = lazy(() =>
+  import('../../agentura/recipes/RecipeCreateDialog').then((m) => ({
+    default: m.RecipeCreateDialog,
+  }))
+);
 
 interface ProjectRecipesCardProps {
   groupId: string;
@@ -25,9 +34,9 @@ interface ProjectRecipesCardProps {
 
 /**
  * „Rezepte": die ins Projekt geteilten Rezepte. Chats im Projekt laden sie
- * vorab (`services/groups/projectRecipes.ts`). „+ Rezept" legt ein neues an und
- * teilt es gleich hierher; ein Rezept gehört aber der Person und bleibt auch
- * ohne Projekt bestehen.
+ * vorab (`services/groups/projectRecipes.ts`). „+ Rezept" legt im Dialog ein
+ * neues an und teilt es gleich hierher; ein Rezept gehört aber der Person und
+ * bleibt auch ohne Projekt bestehen.
  */
 export function ProjectRecipesCard({
   groupId,
@@ -37,6 +46,7 @@ export function ProjectRecipesCard({
   onDiscuss,
   landesverband,
 }: ProjectRecipesCardProps) {
+  const [createOpen, setCreateOpen] = useState(false);
   // Was das Projekt über seinen Landesverband mitbringt (`streamContext.ts`):
   // nicht geteilt, also auch nicht zu entfernen — nur sichtbar machen.
   const shared = new Set(items.map((i) => i.slug));
@@ -61,13 +71,14 @@ export function ProjectRecipesCard({
           Rezepte
         </h2>
         {canAdd && (
-          <Link
-            to={`/agentura/rezept/neu?projekt=${encodeURIComponent(groupId)}`}
+          <button
+            type="button"
+            onClick={() => setCreateOpen(true)}
             className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-primary-600 dark:text-primary-400 hover:bg-muted"
           >
             <PiPlus aria-hidden className="size-4" />
             Rezept
-          </Link>
+          </button>
         )}
       </div>
       {items.length === 0 ? (
@@ -106,6 +117,11 @@ export function ProjectRecipesCard({
             </span>
           ))}
         </p>
+      )}
+      {createOpen && (
+        <Suspense fallback={null}>
+          <RecipeCreateDialog open={createOpen} onOpenChange={setCreateOpen} projectId={groupId} />
+        </Suspense>
       )}
     </section>
   );
