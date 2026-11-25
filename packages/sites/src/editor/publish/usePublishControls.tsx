@@ -1,10 +1,10 @@
 import { type SitePublishIssue } from '@gruenerator/contracts';
 import {
-  Badge,
   Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Popover,
@@ -12,8 +12,8 @@ import {
   PopoverContent,
 } from '@gruenerator/ui';
 import { type HocuspocusProvider } from '@hocuspocus/provider';
-import { useRef, useState } from 'react';
-import { FiMoreVertical } from 'react-icons/fi';
+import { useRef, useState, type ReactNode } from 'react';
+import { FiChevronDown } from 'react-icons/fi';
 
 import { useDraft } from '../../draft/SiteDraftContext';
 import { settleLegalSave } from '../../hooks/legalSaveGate';
@@ -26,14 +26,17 @@ import { SitesApiError } from '../../utils/errorHandler';
 
 import { ConfirmAlert, DeleteSiteDialog } from './DeleteSiteDialog';
 import { PublishIssues } from './PublishIssues';
-import { publishState } from './publishState';
+import { publishState, type PublishStatus } from './publishState';
 import { waitForSynced } from './waitForSynced';
 
 export const PUBLISH_SYNC_TIMEOUT_MS = 5000;
 
-// Only 'live' gets a badge: for 'unpublished' and 'changed' the publish button
-// ("Veröffentlichen" / "Änderungen veröffentlichen") already names the state.
-const LIVE_BADGE = 'Live';
+// Heads the site menu: the bar itself carries no status badge.
+const STATUS_LABELS: Record<PublishStatus, string> = {
+  unpublished: 'Nicht veröffentlicht',
+  live: 'Live · aktuell',
+  changed: 'Live · Entwurf hat Änderungen',
+};
 
 const NOT_SAVED_MESSAGE =
   'Noch nicht alles gespeichert. Prüfe deine Verbindung und versuche es noch einmal.';
@@ -41,9 +44,19 @@ const NOT_SAVED_MESSAGE =
 interface PublishControlsProps {
   site: SiteData;
   provider: Pick<HocuspocusProvider, 'unsyncedChanges' | 'on' | 'off'>;
+  /** Shows the published state in the canvas; offered once there is one. */
+  onShowLive?: () => void;
 }
 
-export function PublishControls({ site, provider }: PublishControlsProps) {
+/**
+ * Publishing, split for the top bar: `menu` is the site name with everything about the site
+ * (status, live page, unpublish, delete), `button` the one publish action. One state behind
+ * both, so an unpublish cannot start while a publish is running.
+ */
+export function usePublishControls({ site, provider, onShowLive }: PublishControlsProps): {
+  menu: ReactNode;
+  button: ReactNode;
+} {
   const { user } = useAuth();
   const toast = useToast();
   const { togglePublish, deleteSite, publicOrigin } = useSite();
@@ -143,60 +156,74 @@ export function PublishControls({ site, provider }: PublishControlsProps) {
 
   const liveUrl = site.is_published && publicOrigin ? `${publicOrigin}/${site.subdomain}` : null;
 
-  return (
-    <>
-      {status === 'live' && (
-        // On a phone the header has no room for badge and button.
-        <Badge variant="default" className="max-sm:hidden">
-          {LIVE_BADGE}
-        </Badge>
-      )}
-      <Popover open={issuesOpen} onOpenChange={setIssuesOpen}>
-        <PopoverAnchor asChild>
-          <Button
-            ref={triggerRef}
-            onClick={() => void publish()}
-            disabled={status === 'live' || busy}
-          >
-            {status === 'live'
-              ? 'Veröffentlicht'
-              : status === 'changed'
-                ? 'Änderungen veröffentlichen'
-                : 'Veröffentlichen'}
-          </Button>
-        </PopoverAnchor>
-        <PopoverContent
-          align="end"
-          className="w-80"
-          aria-labelledby="publish-issues-title"
-          onCloseAutoFocus={(e) => {
-            e.preventDefault();
-            // After picking an issue the target field owns the focus, not the trigger.
-            if (pickedIssue.current) pickedIssue.current = false;
-            else triggerRef.current?.focus();
-          }}
+  const siteName = draft.site_title.trim() || 'Website';
+
+  const button = (
+    <Popover open={issuesOpen} onOpenChange={setIssuesOpen}>
+      <PopoverAnchor asChild>
+        <Button
+          ref={triggerRef}
+          size="sm"
+          variant={status === 'live' ? 'ghost' : 'default'}
+          onClick={() => void publish()}
+          disabled={status === 'live' || busy}
+          className={status === 'live' ? 'font-normal text-grey-600 dark:text-grey-400' : undefined}
         >
-          <PublishIssues issues={shownIssues} draft={draft} onPick={pickIssue} />
-        </PopoverContent>
-      </Popover>
+          {status === 'live'
+            ? 'Veröffentlicht'
+            : status === 'changed'
+              ? 'Änderungen veröffentlichen'
+              : 'Veröffentlichen'}
+        </Button>
+      </PopoverAnchor>
+      <PopoverContent
+        align="end"
+        className="w-80"
+        aria-labelledby="publish-issues-title"
+        onCloseAutoFocus={(e) => {
+          e.preventDefault();
+          // After picking an issue the target field owns the focus, not the trigger.
+          if (pickedIssue.current) pickedIssue.current = false;
+          else triggerRef.current?.focus();
+        }}
+      >
+        <PublishIssues issues={shownIssues} draft={draft} onPick={pickIssue} />
+      </PopoverContent>
+    </Popover>
+  );
+
+  const menu = (
+    <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button ref={menuRef} variant="outline" aria-label="Weitere Aktionen">
-            <FiMoreVertical />
+          <Button ref={menuRef} variant="ghost" size="sm" className="min-w-0 font-semibold">
+            <span className="truncate">{siteName}</span>
+            <FiChevronDown className="text-grey-500" aria-hidden />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="start" className="min-w-64">
+          <DropdownMenuLabel className="font-normal">
+            <span className="block font-semibold">{STATUS_LABELS[status]}</span>
+            {publicOrigin && (
+              <span className="block text-xs text-grey-600 dark:text-grey-400">
+                {`${publicOrigin.replace(/^https?:\/\//, '')}/${site.subdomain}`}
+              </span>
+            )}
+          </DropdownMenuLabel>
           {liveUrl && (
             <DropdownMenuItem onSelect={() => window.open(liveUrl, '_blank', 'noopener')}>
               Live-Seite öffnen
             </DropdownMenuItem>
           )}
+          {onShowLive && site.published_snapshot && (
+            <DropdownMenuItem onSelect={onShowLive}>Live-Stand ansehen</DropdownMenuItem>
+          )}
+          <DropdownMenuSeparator />
           {site.is_published && (
             <DropdownMenuItem onSelect={() => setUnpublishOpen(true)}>
               Veröffentlichung zurückziehen
             </DropdownMenuItem>
           )}
-          {site.is_published && <DropdownMenuSeparator />}
           <DropdownMenuItem variant="destructive" onSelect={() => setDeleteOpen(true)}>
             Website löschen
           </DropdownMenuItem>
@@ -220,4 +247,6 @@ export function PublishControls({ site, provider }: PublishControlsProps) {
       />
     </>
   );
+
+  return { menu, button };
 }

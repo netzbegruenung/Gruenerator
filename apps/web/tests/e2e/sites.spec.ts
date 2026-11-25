@@ -184,8 +184,10 @@ test.describe('Sites: Editor-Raum', () => {
         await page.goto('/sites');
         await page.getByRole('link', { name: new RegExp(site.site_title) }).click();
         await expect(page).toHaveURL(new RegExp(`/sites/${site.subdomain}$`));
-        await expect(page.getByText('Nicht veröffentlicht', { exact: true })).toHaveCount(0);
-        await expect(page.getByText('Live', { exact: true })).toBeVisible();
+        // The bar carries no status badge; the publish button names the state.
+        await expect(
+          page.getByRole('button', { name: 'Veröffentlicht', exact: true })
+        ).toBeDisabled();
 
         const preview = page.frameLocator('iframe').first();
         await expect(preview.getByText(GENERATED.hero.heading).first()).toBeVisible();
@@ -194,9 +196,10 @@ test.describe('Sites: Editor-Raum', () => {
         await expect(name).toHaveText(GENERATED.hero.heading);
         await name.fill(`${GENERATED.hero.heading} Neu`);
 
-        await expect(page.getByText('Live', { exact: true })).toHaveCount(0);
         await page.getByRole('button', { name: 'Änderungen veröffentlichen' }).click();
-        await expect(page.getByText('Live', { exact: true })).toBeVisible();
+        await expect(
+          page.getByRole('button', { name: 'Veröffentlicht', exact: true })
+        ).toBeDisabled();
         expect(state.snapshot?.site_title).toBe(`${GENERATED.hero.heading} Neu`);
       } finally {
         await room.close();

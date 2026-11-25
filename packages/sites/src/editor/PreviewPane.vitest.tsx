@@ -41,35 +41,51 @@ function liveSnapshot() {
   return built.snapshot;
 }
 
+function published(): SiteData {
+  return {
+    id: 's1',
+    subdomain: 'anna',
+    legal: LEGAL,
+    published_snapshot: liveSnapshot(),
+  } as SiteData;
+}
+
 describe('PreviewPane', () => {
-  it('has no toggle without a published snapshot', () => {
+  it('edits the draft by default', () => {
+    renderWithDraft(
+      <PreviewPane site={published()} view="draft" onViewChange={() => {}} device="desktop" />
+    );
+    expect(screen.getByTestId('frame')).toHaveTextContent('Mustermensch');
+    expect(screen.queryByText('Du siehst den Live-Stand.')).toBeNull();
+  });
+
+  it('shows the published snapshot unedited, with a way back to the draft', async () => {
+    const onViewChange = vi.fn();
+    const { user } = renderWithDraft(
+      <PreviewPane site={published()} view="live" onViewChange={onViewChange} device="desktop" />
+    );
+    expect(screen.getByTestId('frame')).toHaveTextContent('Alter Stand');
+    expect(screen.getByTestId('frame')).toHaveAttribute('data-title', 'Live-Stand der Website');
+    await user.click(screen.getByRole('button', { name: 'Zurück zum Entwurf' }));
+    expect(onViewChange).toHaveBeenCalledWith('draft');
+  });
+
+  it('falls back to the draft when there is no published snapshot', () => {
     renderWithDraft(
       <PreviewPane
-        site={{ id: 's1', subdomain: 'anna', legal: LEGAL, published_snapshot: null } as SiteData}
+        site={{ ...published(), published_snapshot: null }}
+        view="live"
+        onViewChange={() => {}}
+        device="desktop"
       />
     );
-    expect(screen.queryByRole('radio', { name: 'Live-Stand' })).toBeNull();
     expect(screen.getByTestId('frame')).toHaveTextContent('Mustermensch');
   });
 
-  it('shows the published snapshot unedited under "Live-Stand" and the draft under "Entwurf"', async () => {
-    const { user } = renderWithDraft(
-      <PreviewPane
-        site={
-          {
-            id: 's1',
-            subdomain: 'anna',
-            legal: LEGAL,
-            published_snapshot: liveSnapshot(),
-          } as SiteData
-        }
-      />
+  it('narrows the canvas to the chosen device', () => {
+    const { container } = renderWithDraft(
+      <PreviewPane site={published()} view="draft" onViewChange={() => {}} device="phone" />
     );
-    expect(screen.getByTestId('frame')).toHaveTextContent('Mustermensch');
-    await user.click(screen.getByRole('radio', { name: 'Live-Stand' }));
-    expect(screen.getByTestId('frame')).toHaveTextContent('Alter Stand');
-    expect(screen.getByTestId('frame')).toHaveAttribute('data-title', 'Live-Stand der Website');
-    await user.click(screen.getByRole('radio', { name: 'Entwurf' }));
-    expect(screen.getByTestId('frame')).toHaveTextContent('Mustermensch');
+    expect(container.querySelector('[data-device="phone"]')).toHaveStyle({ width: '375px' });
   });
 });

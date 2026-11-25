@@ -33,7 +33,7 @@ import { SitePublishError, type SiteData } from '../../hooks/useSite';
 import { useEditorStore } from '../../stores/editorStore';
 import { renderWithDraft } from '../../test/renderWithDraft';
 
-import { PublishControls } from './PublishControls';
+import { usePublishControls } from './usePublishControls';
 
 const LEGAL: SiteLegalDraft = {
   name: 'Anna Beispiel',
@@ -76,11 +76,26 @@ function site(over: Partial<SiteData> = {}): SiteData {
   } as SiteData;
 }
 
-function setup(s: SiteData, provider = fakeProvider().provider) {
-  return renderWithDraft(<PublishControls site={s} provider={provider} />);
+const onShowLive = vi.fn();
+
+function Harness({ site: s, provider }: { site: SiteData; provider: never }) {
+  const { menu, button } = usePublishControls({ site: s, provider, onShowLive });
+  return (
+    <>
+      {menu}
+      {button}
+    </>
+  );
 }
 
-describe('PublishControls', () => {
+function setup(s: SiteData, provider = fakeProvider().provider) {
+  return renderWithDraft(<Harness site={s} provider={provider} />);
+}
+
+// The menu trigger is the site name: BASE_DRAFT's title.
+const MENU = { name: /Mustermensch|Neuer Titel/ };
+
+describe('usePublishControls', () => {
   beforeEach(() => {
     hoisted.togglePublish.mockReset().mockResolvedValue({});
     hoisted.deleteSite.mockReset().mockResolvedValue(undefined);
@@ -94,21 +109,33 @@ describe('PublishControls', () => {
     await enqueueLegalSave('s1', () => Promise.resolve(true));
   });
 
-  it('shows the badge and button for each state', () => {
+  it('labels the publish button for each state', () => {
     const a = setup(site());
-    expect(screen.queryByText('Nicht veröffentlicht')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Veröffentlichen' })).toBeEnabled();
     a.unmount();
 
     const b = setup(site({ is_published: true, published_snapshot: snapshot() }));
-    expect(screen.getByText('Live', { exact: true })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Veröffentlicht' })).toBeDisabled();
     b.unmount();
 
     const c = setup(site({ is_published: true, published_snapshot: snapshot() }));
     act(() => setSiteField(c.ydoc, 'site_title', 'Neuer Titel'));
-    expect(screen.queryByText('Änderungen nicht veröffentlicht')).toBeNull();
     expect(screen.getByRole('button', { name: 'Änderungen veröffentlichen' })).toBeEnabled();
+  });
+
+  it('names the state and address at the top of the site menu', async () => {
+    const { user } = setup(site({ is_published: true, published_snapshot: snapshot() }));
+    await user.click(screen.getByRole('button', MENU));
+    expect(await screen.findByText('Live · aktuell')).toBeInTheDocument();
+    expect(screen.getByText('grsites.de/anna')).toBeInTheDocument();
+  });
+
+  it('offers the live state in the canvas once there is one', async () => {
+    onShowLive.mockReset();
+    const { user } = setup(site({ is_published: true, published_snapshot: snapshot() }));
+    await user.click(screen.getByRole('button', MENU));
+    await user.click(await screen.findByRole('menuitem', { name: 'Live-Stand ansehen' }));
+    expect(onShowLive).toHaveBeenCalledTimes(1);
   });
 
   it('issues block publishing and list "Impressum: Name"', async () => {
@@ -216,10 +243,9 @@ describe('PublishControls', () => {
         { path: 'blocks.ac2.items.c.link', message: 'Link muss mit https:// beginnen' },
       ])
     );
-    const { user } = renderWithDraft(
-      <PublishControls site={site()} provider={fakeProvider().provider} />,
-      { blocks }
-    );
+    const { user } = renderWithDraft(<Harness site={site()} provider={fakeProvider().provider} />, {
+      blocks,
+    });
     await user.click(screen.getByRole('button', { name: 'Veröffentlichen' }));
     await user.click(
       await screen.findByRole('button', {
@@ -250,7 +276,7 @@ describe('PublishControls', () => {
 
   it('unpublishes after a confirmation', async () => {
     const { user } = setup(site({ is_published: true, published_snapshot: snapshot() }));
-    await user.click(screen.getByRole('button', { name: 'Weitere Aktionen' }));
+    await user.click(screen.getByRole('button', MENU));
     await user.click(
       await screen.findByRole('menuitem', { name: 'Veröffentlichung zurückziehen' })
     );
@@ -263,7 +289,7 @@ describe('PublishControls', () => {
   it('opens the live page at origin/subdomain in a new tab', async () => {
     const open = vi.spyOn(window, 'open').mockReturnValue(null);
     const { user } = setup(site({ is_published: true, published_snapshot: snapshot() }));
-    await user.click(screen.getByRole('button', { name: 'Weitere Aktionen' }));
+    await user.click(screen.getByRole('button', MENU));
     await user.click(await screen.findByRole('menuitem', { name: 'Live-Seite öffnen' }));
     expect(open).toHaveBeenCalledWith('https://grsites.de/anna', '_blank', 'noopener');
     open.mockRestore();
@@ -271,15 +297,17 @@ describe('PublishControls', () => {
 
   it('offers no live page or unpublish while unpublished', async () => {
     const { user } = setup(site());
-    await user.click(screen.getByRole('button', { name: 'Weitere Aktionen' }));
+    await user.click(screen.getByRole('button', MENU));
     expect(await screen.findByRole('menuitem', { name: 'Website löschen' })).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: 'Live-Seite öffnen' })).toBeNull();
     expect(screen.queryByRole('menuitem', { name: 'Veröffentlichung zurückziehen' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Live-Stand ansehen' })).toBeNull();
+    expect(screen.getByText('Nicht veröffentlicht')).toBeInTheDocument();
   });
 
   it('deletes only after the in-page confirmation', async () => {
     const { user } = setup(site());
-    await user.click(screen.getByRole('button', { name: 'Weitere Aktionen' }));
+    await user.click(screen.getByRole('button', MENU));
     await user.click(await screen.findByRole('menuitem', { name: 'Website löschen' }));
     const dialog = await screen.findByRole('alertdialog', { name: 'Website löschen?' });
     expect(dialog).toHaveTextContent(
@@ -288,7 +316,7 @@ describe('PublishControls', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
     expect(hoisted.deleteSite).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole('button', { name: 'Weitere Aktionen' }));
+    await user.click(screen.getByRole('button', MENU));
     await user.click(await screen.findByRole('menuitem', { name: 'Website löschen' }));
     await user.click(
       within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Löschen' })
@@ -309,7 +337,7 @@ describe('PublishControls', () => {
     });
     await waitFor(() => expect(hoisted.togglePublish).toHaveBeenCalledTimes(1));
 
-    await user.click(screen.getByRole('button', { name: 'Weitere Aktionen' }));
+    await user.click(screen.getByRole('button', MENU));
     await user.click(
       await screen.findByRole('menuitem', { name: 'Veröffentlichung zurückziehen' })
     );
