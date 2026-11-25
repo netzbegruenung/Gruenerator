@@ -145,7 +145,7 @@ export function NotebookHub({ slugOrId, isNew }: { slugOrId: string; isNew: bool
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
-          <Button onClick={() => void navigate('/wissen')}>Zu meinen Notebooks</Button>
+          <Button onClick={() => void navigate('/projekte')}>Zu meinen Notebooks</Button>
         </EmptyContent>
       </Empty>
     );

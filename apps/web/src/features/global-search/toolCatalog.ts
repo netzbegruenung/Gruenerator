@@ -238,7 +238,7 @@ export const CATALOG: ToolCatalogEntry[] = [
     id: 'tool-notebooks',
     title: 'Notebooks',
     subtitle: 'Wissensmanagement & Recherche',
-    path: '/notebooks',
+    path: '/marktplatz?art=notebooks',
     icon: nav('notebooks'),
     keywords: ['notebooks', 'notebook', 'wissen', 'recherche', 'dokumente'],
   },

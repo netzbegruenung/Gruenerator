@@ -13,6 +13,7 @@ import { PiImage, PiLayout, PiNotebook, PiSticker } from 'react-icons/pi';
 import { Link } from 'react-router-dom';
 
 import { PhosphorIcon } from '../agents/icons/PhosphorIcon';
+import { getNotebookById } from '../notebook/config/notebooksConfig';
 import { profilbildAssetHref } from '../studio-tools/utils/galleryAsset';
 import { useGrueneratorVorlage } from '../vorlagen/hooks/useGrueneratorVorlage';
 
@@ -242,12 +243,23 @@ function AssetActions({ item }: { item: MarketplaceAssetItem }) {
 
 // ── Notebooks ────────────────────────────────────────────────────────────────
 
-const notebookVisual = (): MarketplaceVisual => ({ type: 'icon', icon: <PiNotebook /> });
+/** System-Notebooks tragen ihre Registry-Id als `ref`; öffentliche eine UUID. */
+function notebookVisual(item: MarketplaceItemOf<'notebook'>): MarketplaceVisual {
+  const system = getNotebookById(item.ref);
+  if (!system) return { type: 'icon', icon: <PiNotebook /> };
+  const Icon = system.icon;
+  const icon = <Icon aria-hidden />;
+  return system.coverImage
+    ? { type: 'image', src: system.coverImage, cutout: false, icon }
+    : { type: 'icon', icon };
+}
 
 function NotebookActions({ item }: { item: MarketplaceItemOf<'notebook'> }) {
+  const to =
+    getNotebookById(item.ref)?.path ?? `/notebooks/${encodeURIComponent(item.notebook.slug)}`;
   return (
     <Button asChild variant="link" className={TEXT_ACTION}>
-      <Link to={`/notebooks/${encodeURIComponent(item.notebook.slug)}`}>Notebook öffnen</Link>
+      <Link to={to}>Notebook öffnen</Link>
     </Button>
   );
 }
