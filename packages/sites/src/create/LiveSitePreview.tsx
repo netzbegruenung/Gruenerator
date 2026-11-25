@@ -6,12 +6,57 @@ import {
   type SupportedLocale,
 } from '@gruenerator/contracts';
 import { Button } from '@gruenerator/ui';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { useGenerationFocus } from '../components/common/useGenerationFocus';
 import { liveSiteDraft } from '../generation/liveDraft';
 import { SITE_GENERATION_STEP_LABELS } from '../generation/stepLabels';
 import { SitePreviewFrame } from '../preview/SitePreviewFrame';
+
+/** Draft keys in page order, with the block type each one fills. */
+const SECTIONS = [
+  ['hero', 'hero'],
+  ['about', 'about'],
+  ['hero_image', 'heroImage'],
+  ['themes', 'themes'],
+  ['actions', 'actions'],
+  ['contact', 'contact'],
+] as const;
+
+/** The block the model is writing now: the last section the draft has reached. */
+function writingBlock(draft: SiteContentDraft): string | null {
+  let block: string | null = null;
+  for (const [key, type] of SECTIONS) if (draft[key] !== undefined) block = type;
+  return block;
+}
+
+/**
+ * Keeps the section being written in view, one jump per new section rather than per word. The
+ * first scroll, wheel, touch or key of the person ends it: from then on they decide where to look.
+ */
+function useFollowWriting(doc: Document | null, block: string | null) {
+  const following = useRef(true);
+
+  useEffect(() => {
+    if (!doc) return;
+    const stop = () => {
+      following.current = false;
+    };
+    const events = ['wheel', 'touchmove', 'keydown'] as const;
+    for (const event of events) doc.addEventListener(event, stop, { passive: true });
+    return () => {
+      for (const event of events) doc.removeEventListener(event, stop);
+    };
+  }, [doc]);
+
+  useEffect(() => {
+    if (!doc || !block || !following.current) return;
+    const reduce = doc.defaultView?.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    doc
+      .querySelector(`[data-block-id="live-${block}"]`)
+      ?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+  }, [doc, block]);
+}
 
 interface LiveSitePreviewProps {
   draft: SiteContentDraft;
@@ -48,6 +93,8 @@ export function LiveSitePreview({
       ),
     [draft, contactEmail, locale]
   );
+  const [frameDoc, setFrameDoc] = useState<Document | null>(null);
+  useFollowWriting(frameDoc, writingBlock(draft));
 
   return (
     <div className="relative h-full w-full">
@@ -56,6 +103,7 @@ export function LiveSitePreview({
         handle={handle}
         title="Deine Website entsteht"
         className="block h-full w-full border-0"
+        onFrameDocument={setFrameDoc}
       />
       <LiveStatus steps={steps} current={current} creating={creating} onCancel={onCancel} />
     </div>
