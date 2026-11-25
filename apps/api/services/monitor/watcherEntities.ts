@@ -24,7 +24,10 @@ export const WATCHER_ENTITIES: WatcherEntity[] = [
       'grüne wollen',
       'grüne halten',
       'grüne im',
+      'grüne in ',
       'grüne und',
+      // „NRW-Grüne schicken …", „schwarz-grüne Koalition"
+      '-grüne ',
       'grüne richten',
       'grüne über',
       'grüne attackiert',

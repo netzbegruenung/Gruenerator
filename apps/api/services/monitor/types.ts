@@ -1,4 +1,4 @@
-import { topicCategorySchema, type TopicCategory } from '@gruenerator/contracts';
+import { topicCategorySchema, type MonitorLand, type TopicCategory } from '@gruenerator/contracts';
 
 import type {
   KeywordEntry as NlpKeywordEntry,
@@ -8,7 +8,7 @@ import type {
 
 export type { NounCount } from '../nlp/types.js';
 
-export type { TopicCategory };
+export type { MonitorLand, TopicCategory };
 
 export const TOPIC_CATEGORIES: readonly TopicCategory[] = topicCategorySchema.options;
 
@@ -33,6 +33,8 @@ export interface MonitorArticle {
   topics: Partial<Record<TopicCategory, number>>;
   primaryTopic: TopicCategory | null;
   topNouns?: NounCount[] | undefined;
+  /** Bundesländer the article belongs to (`laender.ts`); written at ingest only. */
+  lands?: MonitorLand[];
 }
 
 export type KeywordEntry = NlpKeywordEntry<TopicCategory | null>;

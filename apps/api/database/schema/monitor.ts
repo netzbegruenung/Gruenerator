@@ -12,6 +12,7 @@
 import {
   type MonitorArticle,
   type MonitorKeywordEntry,
+  type MonitorLand,
   type MonitorLocale,
   type NounCount,
   type SocialTrend,
@@ -68,6 +69,8 @@ export const monitorArticles = pgTable(
     first_seen_at: timestamp('first_seen_at', { withTimezone: true, mode: 'string' }).defaultNow(),
     last_seen_at: timestamp('last_seen_at', { withTimezone: true, mode: 'string' }).defaultNow(),
     top_nouns: jsonb('top_nouns').$type<NounCount[]>().default([]),
+    // Bundesländer the article belongs to (services/monitor/laender.ts). GIN-indexed in the migration.
+    lands: text('lands').array().$type<MonitorLand[]>().notNull().default([]),
   },
   (t) => [
     index('idx_monitor_articles_seen').on(t.last_seen_at),

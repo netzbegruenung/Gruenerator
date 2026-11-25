@@ -10,7 +10,11 @@ import {
   DASH_HEADING,
 } from '@/components/dashboard/dashboardStyles';
 
-/** Die sechs Karten von /briefing; die Id steht als `?karte=` in der URL. */
+/**
+ * Die Karten von /briefing; die Id steht als `?karte=` in der URL. Die ersten
+ * sechs zeigt die bundesweite Ansicht, `umfrage` und `landtag` nur die
+ * Land-Ansicht (`?land=`).
+ */
 export const BRIEFING_CARDS = [
   'themen',
   'keywords',
@@ -18,6 +22,8 @@ export const BRIEFING_CARDS = [
   'wichtig',
   'gruene',
   'landesverbaende',
+  'umfrage',
+  'landtag',
 ] as const;
 export type BriefingCardId = (typeof BRIEFING_CARDS)[number];
 

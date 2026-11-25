@@ -47,6 +47,34 @@ function db() {
 
 // ─── Snapshot building (from classified articles only) ───────────────
 
+/** Score every topic by its articles' primary-topic relevance; unclassified articles are skipped. */
+export function scoreTopics(articles: MonitorArticle[]): TopicScore[] {
+  const topicMap = new Map<TopicCategory, { score: number; articles: MonitorArticle[] }>();
+  for (const cat of TOPIC_CATEGORIES) {
+    topicMap.set(cat, { score: 0, articles: [] });
+  }
+
+  for (const article of articles) {
+    if (!article.primaryTopic) continue;
+    const entry = topicMap.get(article.primaryTopic);
+    if (entry) {
+      entry.score += article.topics[article.primaryTopic] ?? 0;
+      entry.articles.push(article);
+    }
+  }
+
+  return TOPIC_CATEGORIES.map((cat) => {
+    const entry = topicMap.get(cat)!;
+    const sorted = entry.articles.sort((a, b) => (b.topics[cat] ?? 0) - (a.topics[cat] ?? 0));
+    return {
+      topic: cat,
+      score: Math.round(entry.score * 10) / 10,
+      articleCount: entry.articles.length,
+      topArticles: sorted.slice(0, 10),
+    };
+  }).sort((a, b) => b.score - a.score);
+}
+
 function buildSnapshot(
   classifiedArticles: MonitorArticle[],
   allArticlesCount: number,
@@ -59,30 +87,7 @@ function buildSnapshot(
     ? classifiedArticles.filter((a) => a.locale === locale)
     : classifiedArticles;
 
-  const topicMap = new Map<TopicCategory, { score: number; articles: MonitorArticle[] }>();
-  for (const cat of TOPIC_CATEGORIES) {
-    topicMap.set(cat, { score: 0, articles: [] });
-  }
-
-  for (const article of filtered) {
-    if (!article.primaryTopic) continue;
-    const entry = topicMap.get(article.primaryTopic);
-    if (entry) {
-      entry.score += article.topics[article.primaryTopic] ?? 0;
-      entry.articles.push(article);
-    }
-  }
-
-  const topics: TopicScore[] = TOPIC_CATEGORIES.map((cat) => {
-    const entry = topicMap.get(cat)!;
-    const sorted = entry.articles.sort((a, b) => (b.topics[cat] ?? 0) - (a.topics[cat] ?? 0));
-    return {
-      topic: cat,
-      score: Math.round(entry.score * 10) / 10,
-      articleCount: entry.articles.length,
-      topArticles: sorted.slice(0, 10),
-    };
-  }).sort((a, b) => b.score - a.score);
+  const topics = scoreTopics(filtered);
 
   const deCount = classifiedArticles.filter((a) => a.locale === 'de').length;
   const atCount = classifiedArticles.filter((a) => a.locale === 'at').length;
@@ -144,6 +149,7 @@ export async function refreshMonitor(): Promise<MonitorSnapshot> {
       topics: classification?.topics ?? {},
       primaryTopic: classification?.primaryTopic ?? null,
       topNouns: classification?.topNouns ?? [],
+      lands: item.lands,
     };
     allArticles.push(article);
     if (classification?.primaryTopic) {
@@ -301,24 +307,26 @@ async function upsertArticles(articles: MonitorArticle[]): Promise<void> {
       a.primaryTopic,
       JSON.stringify(a.topics),
       JSON.stringify(a.topNouns ?? []),
+      a.lands ?? [],
     ]);
 
     // Build batch VALUES clause
     const placeholders: string[] = [];
     const params: unknown[] = [];
     for (let i = 0; i < values.length; i++) {
-      const offset = i * 9;
+      const offset = i * 10;
       placeholders.push(
-        `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}::timestamptz, $${offset + 7}, $${offset + 8}::jsonb, $${offset + 9}::jsonb)`
+        `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}::timestamptz, $${offset + 7}, $${offset + 8}::jsonb, $${offset + 9}::jsonb, $${offset + 10}::text[])`
       );
       params.push(...values[i]);
     }
 
     await db().query(
-      `INSERT INTO monitor_articles (url, title, excerpt, source, locale, published_at, primary_topic, topic_scores, top_nouns)
+      `INSERT INTO monitor_articles (url, title, excerpt, source, locale, published_at, primary_topic, topic_scores, top_nouns, lands)
        VALUES ${placeholders.join(', ')}
        ON CONFLICT (url) DO UPDATE SET
          title = EXCLUDED.title,
+         lands = EXCLUDED.lands,
          excerpt = EXCLUDED.excerpt,
          primary_topic = EXCLUDED.primary_topic,
          topic_scores = EXCLUDED.topic_scores,
