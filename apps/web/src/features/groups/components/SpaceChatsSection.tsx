@@ -1,4 +1,4 @@
-import { getContractsClient } from '@gruenerator/shared/api';
+import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
 import { projectChatThreads } from '@gruenerator/shared/groups';
 import { buildChatThreadSlug } from '@gruenerator/shared/utils';
 import { useQuery } from '@tanstack/react-query';
@@ -57,7 +57,8 @@ export function SpaceChatsSection({
     queryFn: async () => {
       const res = await getContractsClient().threads.list({ query: {} });
       // Werfen statt `[]`: eine leere Liste würde sonst als Erfolg gecacht.
-      if (res.status !== 200) throw new Error(`threads.list ${res.status}`);
+      if (res.status !== 200)
+        throw apiErrorFromResponse(res, 'Die Chats konnten nicht geladen werden.');
       return projectChatThreads(res.body, groupId);
     },
     // Neue Chats entstehen in /chat, während diese Liste abgebaut ist — das

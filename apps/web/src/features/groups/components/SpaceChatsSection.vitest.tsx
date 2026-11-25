@@ -1,10 +1,12 @@
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { delay, http, HttpResponse } from 'msw';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeAll, describe, expect, it } from 'vitest';
 
+import { shouldRetryQuery } from '../../../components/utils/queryRetry';
 import { server } from '../../../test/msw-server';
 import { axe, renderWithProviders } from '../../../test-utils';
 
@@ -162,6 +164,31 @@ describe('SpaceChatsSection', () => {
     await user.click(screen.getByRole('button', { name: /Bisherige Chats/ }));
     expect(await screen.findByText(/konnten nicht geladen werden/)).toBeInTheDocument();
     expect(screen.queryByText(/Noch keine Chats/)).not.toBeInTheDocument();
+  });
+
+  // Die Retry-Regel der App lässt 401/403/404 aus — das geht nur, wenn der
+  // geworfene Fehler den Status trägt.
+  it('does not retry a permission failure', async () => {
+    let calls = 0;
+    server.use(
+      http.get('http://localhost/api/chat-service/threads', () => {
+        calls += 1;
+        return HttpResponse.json({ error: 'nope' }, { status: 403 });
+      })
+    );
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: shouldRetryQuery, retryDelay: 0 } },
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <SpaceChatsSection groupId="g1" />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+    await userEvent.click(screen.getByRole('button', { name: /Bisherige Chats/ }));
+    expect(await screen.findByText(/konnten nicht geladen werden/)).toBeInTheDocument();
+    expect(calls).toBe(1);
   });
 
   it('shows five chats, then all of them on request', async () => {
