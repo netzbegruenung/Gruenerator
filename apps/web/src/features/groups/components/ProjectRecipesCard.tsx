@@ -12,13 +12,18 @@ import { Link } from 'react-router-dom';
 import { KnowledgeRow } from './ProjectKnowledgeList';
 import { type ShareActions } from './shareActions';
 
+import { useAuthStore } from '@/stores/authStore';
+
 // Erst beim ersten Öffnen geladen: Editor, Icon-Auswahl und Beispiel-Analyse
 // gehören nicht in das Bundle jeder Projektseite.
-const RecipeCreateDialog = lazy(() =>
-  import('../../agentura/recipes/RecipeCreateDialog').then((m) => ({
-    default: m.RecipeCreateDialog,
+const RecipeDialog = lazy(() =>
+  import('../../agentura/recipes/RecipeDialog').then((m) => ({
+    default: m.RecipeDialog,
   }))
 );
+
+/** Welcher Rezept-Dialog offen ist: anlegen oder ein eigenes bearbeiten. */
+type RecipeDialogState = { kind: 'create' } | { kind: 'edit'; mention: string };
 
 interface ProjectRecipesCardProps {
   groupId: string;
@@ -46,7 +51,8 @@ export function ProjectRecipesCard({
   onDiscuss,
   landesverband,
 }: ProjectRecipesCardProps) {
-  const [createOpen, setCreateOpen] = useState(false);
+  const [dialog, setDialog] = useState<RecipeDialogState | null>(null);
+  const userId = useAuthStore((st) => st.user?.id ?? null);
   // Was das Projekt über seinen Landesverband mitbringt (`streamContext.ts`):
   // nicht geteilt, also auch nicht zu entfernen — nur sichtbar machen.
   const shared = new Set(items.map((i) => i.slug));
@@ -73,7 +79,7 @@ export function ProjectRecipesCard({
         {canAdd && (
           <button
             type="button"
-            onClick={() => setCreateOpen(true)}
+            onClick={() => setDialog({ kind: 'create' })}
             className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-primary-600 dark:text-primary-400 hover:bg-muted"
           >
             <PiPlus aria-hidden className="size-4" />
@@ -90,16 +96,29 @@ export function ProjectRecipesCard({
         )
       ) : (
         <ul className="m-0 flex list-none flex-col p-0">
-          {items.map((item) => (
-            <KnowledgeRow
-              key={item.key}
-              item={item}
-              onUseTemplate={() => {}}
-              actions={actions}
-              onDiscuss={onDiscuss}
-              hideKind
-            />
-          ))}
+          {items.map((item) => {
+            // Ein geteiltes eigenes Rezept ist ein Verweis auf die Zeile der
+            // teilenden Person — nur sie darf es ändern, Projekt-Admins nicht.
+            // Mitgelieferte Rezepte (`system_recipes`) teilt man, besitzt sie
+            // aber nicht: dort sagt `sharedById` nichts über das Ändern.
+            const editMention =
+              item.contentType === 'user_text_forms' && userId && item.sharedById === userId
+                ? item.slug
+                : null;
+            return (
+              <KnowledgeRow
+                key={item.key}
+                item={item}
+                onUseTemplate={() => {}}
+                actions={actions}
+                onDiscuss={onDiscuss}
+                onEdit={
+                  editMention ? () => setDialog({ kind: 'edit', mention: editMention }) : null
+                }
+                hideKind
+              />
+            );
+          })}
         </ul>
       )}
       {lvRecipes.length > 0 && (
@@ -118,9 +137,14 @@ export function ProjectRecipesCard({
           ))}
         </p>
       )}
-      {createOpen && (
+      {dialog !== null && (
         <Suspense fallback={null}>
-          <RecipeCreateDialog open={createOpen} onOpenChange={setCreateOpen} projectId={groupId} />
+          <RecipeDialog
+            open
+            onOpenChange={(open) => !open && setDialog(null)}
+            projectId={groupId}
+            mention={dialog.kind === 'edit' ? dialog.mention : null}
+          />
         </Suspense>
       )}
     </section>

@@ -13,7 +13,13 @@ import {
   DropdownMenuTrigger,
 } from '@gruenerator/ui';
 import { type ReactNode, useState } from 'react';
-import { PiChatsCircle, PiDotsThreeVertical, PiMagnifyingGlass, PiX } from 'react-icons/pi';
+import {
+  PiChatsCircle,
+  PiDotsThreeVertical,
+  PiMagnifyingGlass,
+  PiPencilSimple,
+  PiX,
+} from 'react-icons/pi';
 import { Link } from 'react-router-dom';
 
 import { FEED_KIND_ICONS, feedItemHref } from '../config/groupFeedPresentation';
@@ -151,12 +157,15 @@ export function KnowledgeRow({
   onUseTemplate,
   actions,
   onDiscuss,
+  onEdit = null,
   hideKind = false,
 }: {
   item: GroupFeedItem;
   onUseTemplate: (id: string) => void;
   actions: ShareActions | null;
   onDiscuss: ProjectKnowledgeListProps['onDiscuss'];
+  /** „Bearbeiten" im Menü — nur wo die Person den Inhalt selbst ändern darf. */
+  onEdit?: (() => void) | null;
   /** In einer Karte, die nur eine Art zeigt (Rezepte), ist die Art kein Hinweis. */
   hideKind?: boolean;
 }) {
@@ -185,7 +194,7 @@ export function KnowledgeRow({
   );
   const href = feedItemHref(item);
   const canDiscuss = !!onDiscuss && !!item.share;
-  const hasMenu = canDiscuss || hasShareMenu(item, actions);
+  const hasMenu = !!onEdit || canDiscuss || hasShareMenu(item, actions);
 
   return (
     <li className="flex items-center rounded-md transition-colors hover:bg-background-alt">
@@ -217,6 +226,12 @@ export function KnowledgeRow({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            {onEdit && (
+              <DropdownMenuItem onSelect={onEdit}>
+                <PiPencilSimple aria-hidden className="mr-xs size-4" />
+                Bearbeiten
+              </DropdownMenuItem>
+            )}
             {canDiscuss && onDiscuss && (
               <DropdownMenuItem onSelect={() => onDiscuss(item)}>
                 <PiChatsCircle aria-hidden className="mr-xs size-4" />
@@ -224,7 +239,11 @@ export function KnowledgeRow({
               </DropdownMenuItem>
             )}
             {actions && (
-              <ShareMenuItems item={item} actions={actions} leadingSeparator={canDiscuss} />
+              <ShareMenuItems
+                item={item}
+                actions={actions}
+                leadingSeparator={canDiscuss || !!onEdit}
+              />
             )}
           </DropdownMenuContent>
         </DropdownMenu>
