@@ -94,6 +94,26 @@ describe('createSnapshotVersionStorage', () => {
     expect(api.getContent).toHaveBeenCalledWith({ params: { id: 'doc-1', version: 5 } });
   });
 
+  it('carries the author of a just-created version (#5583)', async () => {
+    api.create.mockResolvedValue({
+      status: 201,
+      body: { version: 3, created_at: '2026-11-09T18:39:00.000Z', created_by: 'u-1' },
+    });
+    const storage = createSnapshotVersionStorage('doc-1', () => true);
+
+    const result = await storage.create!(new Uint8Array(), 'Entwurf 1');
+
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        id: '3',
+        createdAt: new Date('2026-11-09T18:39:00.000Z').getTime(),
+        name: 'Entwurf 1',
+        by: 'u-1',
+      },
+    });
+  });
+
   it('restores on the server against the live document', async () => {
     api.restore.mockResolvedValue({ status: 200, body: { success: true, new_version: 9 } });
     const storage = createSnapshotVersionStorage('doc-1', () => true);

@@ -306,7 +306,7 @@ async function processVideoAutomatically(
               subtitles: text,
               words: precomputed.words,
             }))
-          : transcribeVideoWithWords(inputPath, 'manual', locale),
+          : transcribeVideoWithWords(inputPath, uploadId, 'manual', locale),
         needsPreScale
           ? preScaleVideo(inputPath, metadata, TARGET_RESOLUTION)
           : Promise.resolve(null),

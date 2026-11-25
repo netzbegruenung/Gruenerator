@@ -102,7 +102,7 @@ export async function startTranscriptionJob(
       return { ok: false, code: 404, error: 'Video nicht gefunden' };
     }
 
-    transcribeVideo(videoPath, subtitlePreference, locale)
+    transcribeVideo(videoPath, uploadId, subtitlePreference, locale)
       .then(async (subtitles) => {
         if (!subtitles) throw new Error('Keine Untertitel generiert');
         markUploadAsProcessed(uploadId);

@@ -91,6 +91,8 @@ export function createSnapshotVersionStorage(
         id: String(res.body.version),
         createdAt: new Date(res.body.created_at).getTime(),
         ...(name && { name }),
+        // Without it the new entry shows no author until the next reload (#5583).
+        ...(res.body.created_by && { by: res.body.created_by }),
       },
     };
   };

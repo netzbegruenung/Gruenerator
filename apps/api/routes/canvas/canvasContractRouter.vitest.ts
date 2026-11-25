@@ -36,6 +36,10 @@ vi.mock('../exports/pageConstants.js', async (importOriginal) => ({
   getServerFormat,
 }));
 
+// Once, at collection time: a cold import of the router takes longer than the
+// 5 s per-test timeout and failed whichever test happened to run first (#5963).
+const { canvasContractRouter } = await import('./canvasContractRouter.js');
+
 const CATEGORY_ERROR = 'Druckformate und digitale Formate lassen sich nicht ineinander umwandeln.';
 
 const req = { user: { id: 'user-1', email: 'u@example.org' } } as never;
@@ -55,7 +59,6 @@ const SPEC = {
 };
 
 async function fromVariant(body: Record<string, unknown>) {
-  const { canvasContractRouter } = await import('./canvasContractRouter.js');
   return (
     canvasContractRouter.fromVariant as unknown as (a: unknown) => Promise<{
       status: number;
@@ -169,7 +172,6 @@ describe('canvas.fromVariant', () => {
 describe('canvas.aiCheck', () => {
   it('returns the check result as 200', async () => {
     checkCanvasEdit.mockResolvedValue({ ok: false, issues: [{ text: 'Kontrast zu schwach.' }] });
-    const { canvasContractRouter } = await import('./canvasContractRouter.js');
     const res = await (
       canvasContractRouter.aiCheck as unknown as (a: unknown) => Promise<{
         status: number;
@@ -185,7 +187,6 @@ describe('canvas.aiCheck', () => {
 describe('canvas.replacePages', () => {
   const pages = [{ id: 'seed-0', configId: 'freeform', state: { headline: 'Neu' } }];
   const replace = async (body: Record<string, unknown>) => {
-    const { canvasContractRouter } = await import('./canvasContractRouter.js');
     return (
       canvasContractRouter.replacePages as unknown as (a: unknown) => Promise<{
         status: number;
@@ -258,7 +259,6 @@ describe('canvas.replacePages', () => {
 
 describe('canvas.resize', () => {
   const resize = async (formatId: string) => {
-    const { canvasContractRouter } = await import('./canvasContractRouter.js');
     return (
       canvasContractRouter.resize as unknown as (a: unknown) => Promise<{
         status: number;
@@ -295,7 +295,6 @@ describe('canvas.resize', () => {
 
 describe('canvas.update', () => {
   const update = async (body: Record<string, unknown>) => {
-    const { canvasContractRouter } = await import('./canvasContractRouter.js');
     return (
       canvasContractRouter.update as unknown as (a: unknown) => Promise<{
         status: number;
@@ -324,7 +323,6 @@ describe('canvas.update', () => {
 
 describe('canvas.create', () => {
   const create = async (body: Record<string, unknown>) => {
-    const { canvasContractRouter } = await import('./canvasContractRouter.js');
     return (
       canvasContractRouter.create as unknown as (a: unknown) => Promise<{
         status: number;
@@ -393,7 +391,7 @@ describe('canvas reads redact the collaborator list', () => {
   };
 
   type Handler = (a: unknown) => Promise<{ status: number; body: unknown }>;
-  const router = async () => (await import('./canvasContractRouter.js')).canvasContractRouter;
+  const router = async () => canvasContractRouter;
 
   it('opens via link and hands a viewer only their own entry', async () => {
     getCanvas.mockReset().mockResolvedValue({ kind: 'ok', canvas });

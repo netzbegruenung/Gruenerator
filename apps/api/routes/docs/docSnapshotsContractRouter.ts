@@ -88,7 +88,7 @@ async function insertSnapshot(
   state: Uint8Array,
   label: string | null,
   userId: string
-): Promise<{ version: number; created_at: string }> {
+): Promise<{ version: number; created_at: string; created_by: string | null }> {
   const rows = (await db.query(
     `INSERT INTO yjs_document_snapshots
        (document_id, snapshot_data, version, created_at, is_auto_save, label, created_by)
@@ -97,10 +97,14 @@ async function insertSnapshot(
        (SELECT COALESCE(MAX(version), 0) + 1 FROM yjs_document_snapshots WHERE document_id = $1),
        CURRENT_TIMESTAMP, false, $3, $4
      )
-     RETURNING version, created_at`,
+     RETURNING version, created_at, created_by`,
     [documentId, gzipSync(Buffer.from(state)), label, userId]
-  )) as Pick<YjsDocumentSnapshotRow, 'version' | 'created_at'>[];
-  return { version: rows[0].version, created_at: toIso(rows[0].created_at) };
+  )) as Pick<YjsDocumentSnapshotRow, 'version' | 'created_at' | 'created_by'>[];
+  return {
+    version: rows[0].version,
+    created_at: toIso(rows[0].created_at),
+    created_by: rows[0].created_by,
+  };
 }
 
 async function readSnapshotState(documentId: string, version: number): Promise<Uint8Array | null> {
