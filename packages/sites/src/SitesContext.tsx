@@ -72,7 +72,7 @@ export function useSitesPaths() {
   return useMemo(
     () => ({
       overview: basePath,
-      create: `${basePath}/neu`,
+      create: `${basePath}/erstellen`,
       site: (handle: string) => `${basePath}/${encodeURIComponent(handle)}`,
     }),
     [basePath]

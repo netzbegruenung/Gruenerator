@@ -76,7 +76,7 @@ Wenn du dir bei den Rechten unsicher bist, lass das Notebook privat — du kanns
 
 ## Verwalten
 
-Hinter der Kachel **„Meine Notebooks"** auf der Wissen-Seite erscheint jedes deiner Notebooks als Karte, zusammen mit den Notebooks, die andere über ein Projekt mit dir teilen, und denen, die du im Marktplatz gemerkt hast. Ein **Klick** auf die Karte öffnet die Notebook-Detailseite, von der aus du chatten und durchsuchen kannst. Über das **Drei-Punkte-Menü** der Karte erreichst du weitere Aktionen:
+Unter **Projekte → Deine Notebooks** findest du eigene und mit dir geteilte Notebooks. Geteilte Notebooks kannst du auch über **@** im Chat auswählen. [Projektchats](../chat/im-projekt-chatten.mdx) können die im Projekt geteilten Notebooks automatisch berücksichtigen. Die Wissen-Seite bietet weiterhin **Meine Notebooks**, darunter auch im Marktplatz gemerkte Notebooks. Ein **Klick** auf die Karte öffnet die Notebook-Detailseite, von der aus du chatten und durchsuchen kannst. Über das **Drei-Punkte-Menü** der Karte erreichst du weitere Aktionen:
 
 - **Bearbeiten** — öffnet wieder den Editor (Quellen, Details, Labels, Wolke, Docs). Auf der Bearbeiten-Seite kannst du Name und Beschreibung auch direkt im Kopfbereich ändern und alle Quellen per **„Alle Quellen aktualisieren"** neu synchronisieren.
 - **Teilen** — Untermenü mit **„Link kopieren"** und — falls du in Projekten bist — Optionen, das Notebook direkt zu einem Projekt hinzuzufügen. Die volle Sichtbarkeitssteuerung liegt dagegen im **„Teilen"**-Button auf der Bearbeiten-Seite (siehe oben).

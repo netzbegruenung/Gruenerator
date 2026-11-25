@@ -561,7 +561,7 @@ export async function streamAgenticResponse(
         : '';
     const pinnedNote = buildPinnedToolNote(finalState.mentionPinnedTool ?? null, wrapped);
     const toolSystem = withInstructionHierarchy(
-      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned, Object.keys(wrapped), sourceRegistry.carriedSize > 0, promptNotebook)}${(finalState.notebookIds?.length ?? 0) > 0 ? NOTEBOOK_BARE_TOPIC_NOTE : ''}${pinnedNote}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${preLoopEditNotes}${glossaryNote}${renderRecipeCatalog(recipeCatalog, { remaining: recipeRegistry.remaining, pinnedTitle: recipeRegistry.pinnedTitle, projectRecipeIds: finalState.projectRecipeIds ?? [] })}`
+      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned, Object.keys(wrapped), sourceRegistry.carriedSize > 0, promptNotebook, !!agentConfig.inlineSourceLinks)}${(finalState.notebookIds?.length ?? 0) > 0 ? NOTEBOOK_BARE_TOPIC_NOTE : ''}${pinnedNote}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${preLoopEditNotes}${glossaryNote}${renderRecipeCatalog(recipeCatalog, { remaining: recipeRegistry.remaining, pinnedTitle: recipeRegistry.pinnedTitle, projectRecipeIds: finalState.projectRecipeIds ?? [] })}`
     );
     const { abortSignal, toolBudgetDeadline } = createTurnClocks(
       budget,

@@ -78,7 +78,7 @@ import {
   hasCompareVerbs,
   pickSynthesisMode,
 } from './buildDocumentSources.js';
-import { heuristicExtractFilters } from './classifierFilters.js';
+import { forcedSearchFilters, heuristicExtractFilters } from './classifierFilters.js';
 import {
   ANSWER_REPEAT_PATTERN,
   heuristicClassify,
@@ -2832,7 +2832,8 @@ async function classifyWithForcedSearch(opts: {
   // Of the six fields the old call kept, two are load-bearing here and both
   // survive: `searchQuery` and `subQueries` come from the resolver,
   // `detectedFilters` from the deterministic heuristic the catch branch already
-  // used. `documentSubtype` and `targetGroupName` are read only by document-
+  // used — except the content type, which the resolver names when it sees one
+  // (`forcedSearchFilters`). `documentSubtype` and `targetGroupName` are read only by document-
   // CREATION and share paths, which a forced-search turn never reaches.
   //
   // `documentSubtype` was briefly set here, so that a search turn could tell
@@ -2862,7 +2863,7 @@ async function classifyWithForcedSearch(opts: {
     searchSources: [],
     searchQuery: optimizedQuery,
     subQueries: refined?.subQueries ?? null,
-    detectedFilters: heuristicExtractFilters(userContent),
+    detectedFilters: forcedSearchFilters(userContent, refined?.contentType ?? null),
     reasoning: refined
       ? `${reason} forces search intent; query refined`
       : `${reason} forces search intent (refine unavailable, heuristic fallback)`,

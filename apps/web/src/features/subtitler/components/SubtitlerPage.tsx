@@ -520,6 +520,8 @@ const SubtitlerPage = (): React.ReactElement => {
       setSegments([]);
       setError(null);
       setAutoSavedProjectId(null);
+      // The next video is a fresh start, not joined with the previous clips.
+      appendUploadIdsRef.current = [];
       resetSocialText();
     }, 300);
   }, [resetSocialText, uploadInfo?.uploadId, resetExport, goToStep]);
@@ -559,6 +561,12 @@ const SubtitlerPage = (): React.ReactElement => {
       console.log('[SubtitlerPage] Auto processing complete:', result);
       if (result.projectId) {
         setAutoSavedProjectId(result.projectId);
+        // Several clips were joined on the server; the local file is only
+        // the first one. Preview the saved project's (joined) video instead.
+        if (appendUploadIdsRef.current.length > 0) {
+          const videoUrl = `/api/subtitler/projects/${result.projectId}/video`;
+          setUploadInfo((prev) => (prev ? { ...prev, videoUrl } : prev));
+        }
       }
       // Ingest segments into the hoisted state. The contract segment type
       // has no `id`; the local type uses `id` for React keys in Timeline.

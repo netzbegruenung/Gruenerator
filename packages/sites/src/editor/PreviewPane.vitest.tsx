@@ -15,6 +15,7 @@ vi.mock('../SitesContext', () => ({
 vi.mock('../preview/usePreviewInteractions', () => ({
   usePreviewSelection: () => {},
   usePreviewHighlight: () => {},
+  usePreviewInsertMark: () => {},
 }));
 
 import { BASE_DRAFT } from '../draft/testDoc';

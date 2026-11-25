@@ -1,5 +1,6 @@
 import {
   type SiteBlock,
+  type SiteBlockBackground,
   type SiteBlockType,
   type SiteVariant,
   type SupportedLocale,
@@ -63,9 +64,37 @@ const ALTERNATE: Record<SupportedLocale, Record<SiteGround, SiteGround>> = {
   },
 };
 
+/** A block's own background on each country's palette; Austria has no cream, so "hell" is the tint. */
+const BACKGROUND_GROUNDS: Record<
+  SupportedLocale,
+  Record<SiteBlockBackground, Exclude<SiteGround, 'photo'>>
+> = {
+  'de-DE': { weiss: 'paper', hell: 'surface', dunkel: 'deep', leuchtend: 'vivid' },
+  'de-AT': { weiss: 'paper', hell: 'tint', dunkel: 'deep', leuchtend: 'vivid' },
+};
+
+export function backgroundGround(
+  background: SiteBlockBackground,
+  locale: SupportedLocale
+): Exclude<SiteGround, 'photo'> {
+  return BACKGROUND_GROUNDS[locale][background];
+}
+
 /**
- * The ground a block paints on its own: a banner or contact with a photo sits on the photo, and
- * so does the full-bleed hero with a portrait (without one it is the deep green).
+ * Whether a photo is the block's background: a banner or contact with a photo, or the full-bleed
+ * hero with a portrait. A chosen background has no effect then, so the editor leaves it out.
+ */
+export function blockOnPhoto(block: SiteBlock, hasPortrait: boolean): boolean {
+  if (block.type === 'hero') return block.layout === 'vollbild' && hasPortrait;
+  if (block.type === 'contact') return block.backgroundImageUrl !== '';
+  if (block.type === 'heroImage') return block.imageUrl !== '';
+  return false;
+}
+
+/**
+ * The ground a block paints on its own: a photo first, then the background chosen for the block,
+ * then the variant. A banner without its image and the full-bleed hero without a portrait fall
+ * back to the deep green.
  */
 function ownGround(
   block: SiteBlock,
@@ -73,16 +102,38 @@ function ownGround(
   locale: SupportedLocale,
   hasPortrait: boolean
 ): SiteGround {
-  if (block.type === 'hero' && block.layout === 'vollbild') return hasPortrait ? 'photo' : 'deep';
-  if (block.type === 'contact' && block.backgroundImageUrl !== '') return 'photo';
-  if (block.type === 'heroImage') return block.imageUrl !== '' ? 'photo' : 'deep';
+  if (blockOnPhoto(block, hasPortrait)) return 'photo';
+  if (block.background) return backgroundGround(block.background, locale);
+  if (block.type === 'hero' && block.layout === 'vollbild') return 'deep';
+  if (block.type === 'heroImage') return 'deep';
   return sectionGround(variant, block.type, locale);
 }
 
 /**
- * Ground per block id over the blocks the page shows. Hidden blocks (only on the editor canvas)
- * take their own ground and are skipped as neighbours, so the editor paints the others exactly
- * as the published page does.
+ * An automatic block's ground: its own, or the next one in the `ALTERNATE` chain, the first that
+ * differs from the block above and from a chosen background below. Both sides cannot always be
+ * kept apart (Germany has two light grounds); then the block above wins, as it always has.
+ */
+function autoGround(
+  own: SiteGround,
+  above: SiteGround | null,
+  below: SiteGround | null,
+  locale: SupportedLocale
+): SiteGround {
+  const second = ALTERNATE[locale][own];
+  const candidates = [own, second, ALTERNATE[locale][second]];
+  return (
+    candidates.find((ground) => ground !== above && ground !== below) ??
+    candidates.find((ground) => ground !== above) ??
+    own
+  );
+}
+
+/**
+ * Ground per block id over the blocks the page shows. A chosen background is kept as chosen;
+ * automatic blocks step aside from their neighbours so two blocks never melt into one band
+ * unless the person chose so. Hidden blocks (only on the editor canvas) take their own ground and
+ * are skipped as neighbours, so the editor paints the others exactly as the published page does.
  */
 export function blockGrounds(
   blocks: readonly SiteBlock[],
@@ -91,14 +142,24 @@ export function blockGrounds(
   hasPortrait: boolean
 ): Map<string, SiteGround> {
   const grounds = new Map<string, SiteGround>();
+  const shown = blocks.filter((block) => !block.hidden);
+  const chosen = (block: SiteBlock | undefined) =>
+    block?.background && !blockOnPhoto(block, hasPortrait)
+      ? backgroundGround(block.background, locale)
+      : null;
   let above: SiteGround | null = null;
+  let shownIndex = 0;
   for (const block of blocks) {
     const own = ownGround(block, variant, locale, hasPortrait);
     if (block.hidden) {
       grounds.set(block.id, own);
       continue;
     }
-    const ground: SiteGround = own === above ? ALTERNATE[locale][own] : own;
+    shownIndex += 1;
+    const ground: SiteGround =
+      own === 'photo' || chosen(block)
+        ? own
+        : autoGround(own, above, chosen(shown[shownIndex]), locale);
     grounds.set(block.id, ground);
     above = ground;
   }

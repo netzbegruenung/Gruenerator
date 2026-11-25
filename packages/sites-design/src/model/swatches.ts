@@ -1,6 +1,17 @@
-import { type SiteBlock, type SiteVariant, type SupportedLocale } from '@gruenerator/contracts';
+import {
+  type SiteBlock,
+  type SiteBlockBackground,
+  type SiteVariant,
+  type SupportedLocale,
+} from '@gruenerator/contracts';
 
-import { blockGrounds, HEADER_GROUND, sectionGround, type SiteGround } from './grounds.js';
+import {
+  backgroundGround,
+  blockGrounds,
+  HEADER_GROUND,
+  sectionGround,
+  type SiteGround,
+} from './grounds.js';
 
 interface Palette {
   paper: string;
@@ -66,4 +77,9 @@ export function variantPreview(
       .map((block) => band(block.id, grounds.get(block.id) ?? 'paper')),
     band('footer', sectionGround(variant, 'footer', locale)),
   ];
+}
+
+/** The colour a chosen block background paints in this country, for the editor's swatch. */
+export function backgroundSwatch(background: SiteBlockBackground, locale: SupportedLocale): string {
+  return PALETTES[locale][backgroundGround(background, locale)];
 }

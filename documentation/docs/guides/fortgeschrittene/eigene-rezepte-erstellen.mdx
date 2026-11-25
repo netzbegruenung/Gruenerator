@@ -1,18 +1,20 @@
 ---
 laender: [de, at]
 sidebar_position: 5
-description: 'Ein eigenes Rezept unter Grüneratoren erstellen — beschreiben oder manuell — und im Chat testen.'
+description: 'Ein eigenes Rezept unter Projekte anlegen, im Chat testen und bei Bedarf teilen.'
 ---
+
+import UiLabel from '@site/src/components/UiLabel';
 
 # Wie erstelle ich ein eigenes Rezept?
 
 Ein **Rezept** ist eine Schreibvorgabe für eine bestimmte Textsorte: Aufbau, Ton und Länge, einmal festgelegt und danach per `@mention` auf jeden Agenten anwendbar. Anders als ein Agent ist ein Rezept kein eigenständiges Gegenüber — es ist eine Vorlage, die du im Chat kurz aktivierst, etwa `@presse` für eine Pressemitteilung oder ein selbst gebautes `@einladung` für Einladungen zur Mitgliederversammlung.
 
-Unter **Grüneratoren** kannst du dir eigene Rezepte für Textsorten bauen, die du häufiger schreibst.
+Unter **<UiLabel id="catalog.tool-projekte" />** kannst du dir eigene Rezepte für Textsorten anlegen, die du häufiger schreibst.
 
-## Schritt 1: Deine Grüneratoren öffnen
+## Schritt 1: Deine Rezepte öffnen
 
-Öffne [Grüneratoren](../../features/marktplatz.mdx) über den gleichnamigen Eintrag in der Seitenleiste. Klicke oben rechts auf das Plus (**Neu**) und wähle **Rezept**.
+Öffne **<UiLabel id="catalog.tool-projekte" />** in der Seitenleiste und klicke neben **Deine Rezepte** auf **Neues Rezept**. Soll das Rezept sofort im Projekt liegen, öffne das Projekt und klicke unter **Rezepte** auf **+ Rezept**. Nach dem Speichern wird es mit dem Projekt geteilt.
 
 ## Schritt 2: Einen Weg wählen
 
@@ -31,7 +33,7 @@ Du kannst ein Rezept auch im Chat anlegen, etwa mit „Erstell mir ein Rezept f�
 
 Links siehst du das Formular, rechts die Vorschau. Das Formular ist nicht aufgeteilt — alle Felder stehen untereinander. Oben legst du fest:
 
-- **Name:** So erscheint das Rezept unter deinen Grüneratoren. Über die Schaltfläche daneben kannst du sein Symbol ändern.
+- **Name:** So erscheint das Rezept unter **Deine Rezepte**. Über die Schaltfläche daneben kannst du sein Symbol ändern.
 - **@mention:** Der Name, mit dem du das Rezept im Chat aufrufst (z. B. `@einladung`). Er wird beim Anlegen aus dem Namen abgeleitet und lässt sich danach nicht mehr ändern.
 - **Beschreibung:** Ein kurzer Satz, der erklärt, wofür das Rezept gedacht ist.
 
@@ -77,7 +79,7 @@ Zusätzlich kannst du dein Rezept **„Öffentlich"** listen, damit es andere im
 
 ## Als Standard-Rezept an einem eigenen Agenten hinterlegen
 
-Baust du einen eigenen Agenten, kannst du im Tab **Grundlagen** unter **Standard-Rezept (optional)** eines deiner Rezepte auswählen. Der Agent verwendet es dann automatisch, sobald du im Chat kein anderes Rezept per `@mention` wählst. Wie du einen eigenen Agenten anlegst, steht unter [Eigene Agents erstellen](./eigene-agentinnen-erstellen.mdx).
+Bei einem bestehenden eigenen Agent kannst du im Tab **Grundlagen** unter **Standard-Rezept (optional)** eines deiner Rezepte auswählen. Der Agent verwendet es dann automatisch, sobald du im Chat kein anderes Rezept per `@mention` wählst. Die Anleitung eines bestehenden Agents kannst du auch [in ein Rezept oder Projekt umwandeln](./eigene-agentinnen-erstellen.mdx).
 
 ## Tipps für die Nutzung
 
