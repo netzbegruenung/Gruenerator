@@ -415,6 +415,8 @@ const buildE2EBypassAuthData = (): AuthData => {
       anweisungen: true,
       labor_enabled: true,
       sites_enabled: true,
+      // The Sites gate (`sitesGate.tsx`) needs the unlock; the dev user's profile row has it.
+      sites_unlocked: true,
       chat: true,
       interactive_antrag_enabled: true,
       vorlagen: true,
