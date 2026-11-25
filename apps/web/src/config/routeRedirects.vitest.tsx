@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   LegacyNotebookIdRedirectComponent,
+  LegacyRecipeEditorRedirectComponent,
   RetiredStudioCategoryRedirectComponent,
   VorlagenMeineRedirectComponent,
   routes,
@@ -152,5 +153,39 @@ describe('StickerDiscoverRedirect', () => {
   it('keeps the search', () => {
     renderDiscover('/studio/sticker/entdecken?q=sonne');
     expect(screen.getByTestId('search')).toHaveTextContent('?art=sticker&q=sonne');
+  });
+});
+
+describe('LegacyRecipeEditorRedirect', () => {
+  function renderRecipeRedirectFrom(entry: string, state?: unknown) {
+    render(
+      <MemoryRouter initialEntries={[state === undefined ? entry : { pathname: entry, state }]}>
+        <Routes>
+          <Route path="/agentura/rezept/neu" element={<LegacyRecipeEditorRedirectComponent />} />
+          <Route
+            path="/agentura/rezept/:mention/bearbeiten"
+            element={<LegacyRecipeEditorRedirectComponent />}
+          />
+          <Route path="/projekte/rezept/neu" element={<LandingProbe />} />
+          <Route path="/projekte/rezept/:mention/bearbeiten" element={<LandingProbe />} />
+        </Routes>
+      </MemoryRouter>
+    );
+  }
+
+  it('keeps ?projekt= on the way to /projekte/rezept/neu', () => {
+    renderRecipeRedirectFrom('/agentura/rezept/neu?projekt=g1');
+    expect(screen.getByTestId('path')).toHaveTextContent('/projekte/rezept/neu');
+    expect(screen.getByTestId('search')).toHaveTextContent('?projekt=g1');
+  });
+
+  it('carries the chat answer from „Als Rezept speichern" across the hop', () => {
+    renderRecipeRedirectFrom('/agentura/rezept/neu', { fromAnswer: { text: 'Hallo' } });
+    expect(screen.getByTestId('state')).toHaveTextContent('{"fromAnswer":{"text":"Hallo"}}');
+  });
+
+  it('moves the edit page with its mention', () => {
+    renderRecipeRedirectFrom('/agentura/rezept/pm%2Fkurz/bearbeiten');
+    expect(screen.getByTestId('path')).toHaveTextContent('/projekte/rezept/pm%2Fkurz/bearbeiten');
   });
 });

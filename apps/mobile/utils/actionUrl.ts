@@ -14,6 +14,7 @@ export function documentIdFromUrl(url: string): string | null {
 export function actionUrlLabel(url: string): string {
   const [path = ''] = url.split(/[?#]/);
   if (documentIdFromUrl(url)) return 'Dokument öffnen';
+  if (/^\/projekte\/rezept\//.test(path)) return 'Rezept öffnen';
   if (/^\/(?:projekte|gruppen)\//.test(path)) return 'Projekt öffnen';
   if (/^\/notebooks?\//.test(path)) return 'Notebook öffnen';
   if (/^\/boards\//.test(path)) return 'Board öffnen';
@@ -21,6 +22,13 @@ export function actionUrlLabel(url: string): string {
   if (/^\/agentura\/(?:rezept|skill)\//.test(path)) return 'Rezept öffnen';
   return 'Öffnen';
 }
+
+/**
+ * Rezept anlegen und bearbeiten liegt im Web unter `/projekte/rezept/…` — ohne
+ * Bildschirm in der App, und ohne diese Ausnahme hielte `NATIVE_PATHS` „rezept"
+ * für eine Projekt-Id.
+ */
+const RECIPE_EDITOR_PATH = /^\/projekte\/rezept(?:[/?#]|$)/;
 
 /** Web paths the app has a native screen for under the same path. */
 const NATIVE_PATHS = [
@@ -58,7 +66,8 @@ export function actionUrlToRoute(url: string): Href {
   const [path = '', query = ''] = url.split(/[?#]/);
   if (path === '/studio/sticker/entdecken')
     return stickerDiscoverToMarketplaceHref(new URLSearchParams(query)) as Href;
-  if (NATIVE_PATHS.some((pattern) => pattern.test(url))) return url as Href;
+  if (!RECIPE_EDITOR_PATH.test(url) && NATIVE_PATHS.some((pattern) => pattern.test(url)))
+    return url as Href;
   return { pathname: '/(fullscreen)/web-viewer', params: { path: url } };
 }
 
@@ -66,7 +75,8 @@ export function actionUrlToRoute(url: string): Href {
  * Grüneratoren-Pfade des Webs auf ihre Seiten in der App: Übersicht, Agentura
  * (heute der Marktplatz), Detailseiten und wiederkehrende Aufgaben (Meldungen verlinken
  * `/wiederkehrend?task=<id>`). Anlegen und Bearbeiten (`/agents/new`,
- * `/agentura/rezept/neu`, `…/bearbeiten`) bleiben bewusst beim Web-Viewer —
+ * `/projekte/rezept/neu`, `…/bearbeiten`, früher unter `/agentura`) bleiben
+ * bewusst beim Web-Viewer —
  * ein Link dorthin trägt keinen Entwurf mit, den die App übernehmen könnte.
  */
 function grueneratorenRoute(url: string): Href | null {

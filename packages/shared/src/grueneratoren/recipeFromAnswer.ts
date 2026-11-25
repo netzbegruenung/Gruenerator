@@ -1,7 +1,7 @@
 /**
  * „Als Rezept speichern“: eine Chat-Antwort wird zum Beispieltext eines neuen
  * Rezepts. Die Antwort reist als Navigationszustand zum Creator
- * (`/agentura/rezept/neu`, Web) bzw. als Entwurf in den Editor-Speicher
+ * (`/projekte/rezept/neu`, Web) bzw. als Entwurf in den Editor-Speicher
  * (Mobile); der Creator lässt daraus per Entwurfs-Endpunkt Name, Beschreibung
  * und Anleitung vorschlagen und legt die Antwort als erstes Beispiel dazu.
  */

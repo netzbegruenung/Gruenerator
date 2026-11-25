@@ -17,7 +17,7 @@ import PageContainer from '@/components/common/PageContainer';
 import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
 
 /**
- * Create/edit route (`/agentura/rezept/:mention/bearbeiten`): classifies the
+ * Create/edit route (`/projekte/rezept/:mention/bearbeiten`): classifies the
  * mention (preset / Landesverbands-Rezept / custom) and hands the shared
  * single-page {@link RecipeEditor} the right starting state — an existing own
  * row in edit mode, otherwise a fresh one seeded from the classification. The
@@ -36,7 +36,7 @@ function RecipeEditorPage() {
   const { data: ownRecipes, isLoading, isError, refetch } = useOwnRecipes(true);
   // Erwähnungen werden gespeichert wie getippt, ein Link kann jede Schreibung
   // tragen — wie in `useRecipeByMention` wird deshalb ohne Groß-/Kleinschreibung
-  // verglichen. Sonst öffnet `/agentura/rezept/Presse/bearbeiten` das Anlegen
+  // verglichen. Sonst öffnet `/projekte/rezept/Presse/bearbeiten` das Anlegen
   // statt das Bearbeiten und überschreibt beim Speichern die bestehende Zeile.
   const needle = mention.toLowerCase();
   const ownForm = ownRecipes?.find((r) => r.mention.toLowerCase() === needle && !r.sharedFromGroup);

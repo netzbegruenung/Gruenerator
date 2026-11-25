@@ -1,5 +1,5 @@
 /**
- * `RecipeCreatorPage` (`/agentura/rezept/neu`) opens the shared
+ * `RecipeCreatorPage` (`/projekte/rezept/neu`) opens the shared
  * `RecipeEditor` empty — there is no start screen any more. Only „Als Rezept
  * speichern" under a chat answer still runs an AI draft first, with the answer
  * as the first example.

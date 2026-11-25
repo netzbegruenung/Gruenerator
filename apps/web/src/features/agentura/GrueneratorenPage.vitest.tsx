@@ -599,7 +599,7 @@ describe('GrueneratorenPage — „Neu"-Menü', () => {
     // Opening via keyboard already focuses the first item (Radix's roving
     // tabindex) — "Rezept".
     await userEvent.keyboard('{Enter}');
-    expect(navigate).toHaveBeenCalledWith('/agentura/rezept/neu');
+    expect(navigate).toHaveBeenCalledWith('/projekte/rezept/neu');
   });
 
   it('blendet Aufgabe und Verlauf aus, solange „Geplante Aufgaben" aus ist', async () => {
@@ -621,7 +621,7 @@ describe('GrueneratorenPage — „Neu"-Menü', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Neu' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Rezept' }));
 
-    expect(navigate).toHaveBeenCalledWith('/agentura/rezept/neu');
+    expect(navigate).toHaveBeenCalledWith('/projekte/rezept/neu');
   });
 });
 

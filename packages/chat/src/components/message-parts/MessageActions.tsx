@@ -342,7 +342,7 @@ export const MessageActions = memo(function MessageActions({
 
   /** The answer rides along as navigation state; the creator drafts the recipe from it. */
   const handleSaveAsRecipe = () => {
-    nav?.navigate('/agentura/rezept/neu', { state: { fromAnswer: { text: content } } });
+    nav?.navigate('/projekte/rezept/neu', { state: { fromAnswer: { text: content } } });
   };
 
   const documentActions = buildDocumentActions({

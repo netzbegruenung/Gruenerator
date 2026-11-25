@@ -16,7 +16,7 @@ import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired
 import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
 
 /**
- * `/agentura/rezept/neu`: öffnet den {@link RecipeEditor} leer.
+ * `/projekte/rezept/neu`: öffnet den {@link RecipeEditor} leer.
  *
  * „Als Rezept speichern“ unter einer Chat-Antwort kommt mit
  * `location.state.fromAnswer`: dann entsteht vorher ein KI-Entwurf aus der
