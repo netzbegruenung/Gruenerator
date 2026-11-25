@@ -9,6 +9,7 @@ import {
   FaTimes,
   FaDownload,
   FaFileAlt,
+  FaFilm,
 } from 'react-icons/fa';
 
 import CopyButton from '../../../components/common/CopyButton';
@@ -22,6 +23,8 @@ import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
 interface VideoSuccessScreenProps {
   onReset: () => void;
   onEditAgain: () => void;
+  /** Opens the saved project in the video editor; absent without a saved project. */
+  onOpenInEditor?: () => void;
   isLoading: boolean;
   socialText?: string;
   uploadId?: string;
@@ -83,6 +86,7 @@ const AnimatedCheckmark = () => {
 const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({
   onReset,
   onEditAgain,
+  onOpenInEditor,
   isLoading,
   socialText,
   uploadId,
@@ -274,6 +278,16 @@ const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({
                   >
                     <FaEdit />
                   </Button>
+                  {onOpenInEditor && (
+                    <Button
+                      variant="brand-outline"
+                      size="brand-icon"
+                      onClick={onOpenInEditor}
+                      title="Im Video Editor öffnen"
+                    >
+                      <FaFilm />
+                    </Button>
+                  )}
                   {(exportStore.projectId || projectId) && (
                     <Button
                       variant="brand-outline"
