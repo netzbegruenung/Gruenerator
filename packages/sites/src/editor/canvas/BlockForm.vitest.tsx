@@ -7,6 +7,9 @@ import { renderWithDraft } from '../../test/renderWithDraft';
 import { BlockForm } from './BlockForm';
 
 vi.mock('../../components/editor/common/ImageUpload', () => ({ ImageUpload: () => null }));
+vi.mock('../../SitesContext', () => ({
+  useAuth: () => ({ user: { id: 'u1', locale: 'de-DE' } }),
+}));
 
 const tile = (id: string, text: string) => ({ id, text, link: '#kontakt', imageUrl: '' });
 const BLOCKS: SiteBlock[] = [
