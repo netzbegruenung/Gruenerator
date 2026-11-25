@@ -1,5 +1,5 @@
 import { siteVariantSchema, type SiteVariant } from '@gruenerator/contracts';
-import { variantSwatches } from '@gruenerator/sites-design';
+import { variantPreview } from '@gruenerator/sites-design';
 import { ToggleGroup, ToggleGroupItem } from '@gruenerator/ui';
 
 import { useDraft, useDraftActions } from '../../../draft/SiteDraftContext';
@@ -13,6 +13,8 @@ export const VARIANT_LABELS: Record<SiteVariant, string> = {
 
 export function VariantPicker() {
   const variant = useDraft((d) => d.variant);
+  const blocks = useDraft((d) => d.blocks);
+  const hasPortrait = useDraft((d) => d.profile_image !== '');
   const { setField } = useDraftActions();
   const { user } = useAuth();
   const locale = user?.locale ?? 'de-DE';
@@ -30,16 +32,17 @@ export function VariantPicker() {
       className="flex-wrap justify-start"
     >
       {siteVariantSchema.options.map((option) => {
-        const { hero, band } = variantSwatches(option, locale);
+        const bands = variantPreview(blocks, hasPortrait, option, locale);
         return (
           <ToggleGroupItem key={option} value={option} className="h-auto gap-2 px-3 py-2">
+            {/* The page in miniature, header to footer, as this variant paints it. */}
             <span
               aria-hidden="true"
-              className="flex h-5 w-8 overflow-hidden rounded-sm border border-grey-300"
+              className="flex h-10 w-7 flex-col overflow-hidden rounded-sm border border-grey-300"
             >
-              <span className="flex-1" style={{ backgroundColor: hero.ground }} />
-              <span className="flex-1" style={{ backgroundColor: band.ground }} />
-              <span className="w-2" style={{ backgroundColor: hero.accent }} />
+              {bands.map((band) => (
+                <span key={band.key} className="flex-1" style={{ backgroundColor: band.colour }} />
+              ))}
             </span>
             {VARIANT_LABELS[option]}
           </ToggleGroupItem>
