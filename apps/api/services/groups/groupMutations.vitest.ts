@@ -259,6 +259,15 @@ describe('setGroupArchived', () => {
     expect(exec.mock.calls[1][0]).toContain('archived_at = NULL');
   });
 
+  it('closes the open collab rooms when archiving, not when restoring', async () => {
+    closeGroupCollabRooms.mockClear();
+    await setGroupArchived('g1', 'u1', true);
+    expect(closeGroupCollabRooms).toHaveBeenCalledWith('g1', null);
+    closeGroupCollabRooms.mockClear();
+    await setGroupArchived('g1', 'u1', false);
+    expect(closeGroupCollabRooms).not.toHaveBeenCalled();
+  });
+
   it('never archives the system project', async () => {
     checkMembership.mockResolvedValue({ postgres, isAdmin: true, isSystem: true });
     expect(await setGroupArchived('g1', 'u1', true)).toMatchObject({ status: 400 });

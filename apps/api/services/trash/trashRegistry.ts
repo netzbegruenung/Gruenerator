@@ -70,6 +70,8 @@ import {
 } from '../reisekosten/abrechnungService.js';
 import { getSharedMediaService, type TrashedShareRow } from '../sharedMediaService.js';
 import {
+  getTrashedUserSite,
+  listTrashedUserSites,
   purgeUserSite,
   restoreUserSite,
   trashUserSite,
@@ -114,6 +116,7 @@ import {
   restoreOwnedRow,
   trashOwnedRow,
   type OwnedRestoreResult,
+  type OwnedTrashLookup,
   type OwnedTrashResult,
   type OwnedTrashTable,
   type Trashed,
@@ -384,6 +387,12 @@ interface OwnedKindSpec<Row> {
   title(row: Trashed<Row>): string;
   subtype?(row: Trashed<Row>): string | null;
   trash(userId: string, id: string): Promise<OwnedTrashResult>;
+  /** Only where more people than the owner see a trashed row. */
+  list?(
+    userId: string,
+    opts: { limit: number; before: TrashCursor | null }
+  ): Promise<Array<Trashed<Row>>>;
+  get?(userId: string, id: string): Promise<OwnedTrashLookup<Row>>;
   /** Only where a restore can clash with more than a unique index. */
   restore?(userId: string, id: string): Promise<OwnedRestoreResult>;
   purge(id: string, cutoff: Date | null): Promise<boolean>;
@@ -400,10 +409,15 @@ function ownedRowHandler<Row>(spec: OwnedKindSpec<Row>): TrashKindHandler {
     });
   return {
     async listTrashed(userId, opts) {
-      return (await listTrashedOwnedRows<Row>(spec.table, userId, opts)).map(item);
+      return (
+        await (spec.list ?? ((u, o) => listTrashedOwnedRows<Row>(spec.table, u, o)))(userId, opts)
+      ).map(item);
     },
     async getTrashed(userId, id) {
-      const found = await getTrashedOwnedRow<Row>(spec.table, userId, id);
+      const found = await (spec.get ?? ((u, i) => getTrashedOwnedRow<Row>(spec.table, u, i)))(
+        userId,
+        id
+      );
       return typeof found === 'string' ? found : item(found);
     },
     trash: spec.trash,
@@ -455,6 +469,8 @@ const userSiteHandler = ownedRowHandler<Titled>({
   kind: 'user_site',
   table: USER_SITE_TRASH,
   title: (row) => titled(row.title, 'Unbenannte Website'),
+  list: listTrashedUserSites,
+  get: getTrashedUserSite,
   trash: trashUserSite,
   restore: restoreUserSite,
   purge: purgeUserSite,

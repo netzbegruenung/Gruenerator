@@ -1,4 +1,4 @@
-import { type SiteSummary } from '@gruenerator/contracts';
+import { type SiteListItem, type SiteSummary } from '@gruenerator/contracts';
 import { Button, SectionHeader, Skeleton } from '@gruenerator/ui';
 import { useEffect } from 'react';
 import { FiPlus } from 'react-icons/fi';
@@ -8,6 +8,7 @@ import { LoadErrorState } from '../components/common/LoadErrorState';
 import { SitesSearch } from '../components/SitesSearch';
 import { SiteTile } from '../components/SiteTile';
 import { useSiteList } from '../hooks/useSite';
+import { useSiteProjects } from '../hooks/useSiteSharing';
 import { FROM_OVERVIEW_STATE, useAuth, useSitesPaths } from '../SitesContext';
 
 const GRID = 'grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(260px,1fr))] sm:gap-4';
@@ -33,6 +34,18 @@ function OverviewSkeleton() {
   );
 }
 
+/** Sites I created (the personal quota counts these), project sites, and the rest shared with me. */
+function groupSites(sites: SiteListItem[]) {
+  const mine = sites.filter((s) => s.group === null && s.is_creator);
+  const projects = sites.filter((s) => s.group !== null);
+  const shared = sites.filter((s) => s.group === null && !s.is_creator);
+  return [
+    { id: 'sites-mine', title: 'Meine Websites', sites: mine },
+    { id: 'sites-projects', title: 'Projekte', sites: projects },
+    { id: 'sites-shared', title: 'Mit mir geteilt', sites: shared },
+  ].filter((section) => section.sites.length > 0);
+}
+
 /**
  * `/sites`, built like Projekte: a greeting, a search over the own sites, then the sites as
  * tiles. Creating happens on its own page (`/sites/erstellen`); without any site that page opens
@@ -41,6 +54,7 @@ function OverviewSkeleton() {
 export function SitesOverviewPage() {
   const { user } = useAuth();
   const { sites, publicOrigin, limit, isLoading, error, refetch } = useSiteList();
+  const projects = useSiteProjects();
   const navigate = useNavigate();
   const paths = useSitesPaths();
   const locale = user?.locale ?? 'de-DE';
@@ -52,7 +66,10 @@ export function SitesOverviewPage() {
     if (empty) void navigate(paths.create, { replace: true });
   }, [empty, navigate, paths]);
 
-  const full = !!sites && sites.length >= limit;
+  const ownCount = (sites ?? []).filter((site) => site.group === null && site.is_creator).length;
+  const canCreateInProject = (projects.data ?? []).some((p) => p.isAdmin);
+  // A full personal quota still leaves project sites to project admins.
+  const full = !!sites && ownCount >= limit && !canCreateInProject;
   const create = full ? null : () => void navigate(paths.create, { state: FROM_OVERVIEW_STATE });
   const open = (site: SiteSummary) =>
     void navigate(paths.site(site.subdomain), { state: FROM_OVERVIEW_STATE });
@@ -68,6 +85,7 @@ export function SitesOverviewPage() {
       />
     );
   } else {
+    const sections = groupSites(sites);
     body = (
       <>
         <div className="mx-auto max-w-[860px] px-4 pb-2 pt-10 max-md:pt-4">
@@ -77,45 +95,50 @@ export function SitesOverviewPage() {
           <SitesSearch sites={sites} publicOrigin={publicOrigin} onOpen={open} onCreate={create} />
         </div>
 
-        <section className="mt-12">
-          <SectionHeader
-            title="Deine Websites"
-            actions={
-              <div className="flex items-center gap-xs">
-                <span className="text-sm text-grey-600 dark:text-grey-400">
-                  {sites.length} von {limit}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Neue Website"
-                  title={full ? 'Höchstzahl erreicht' : 'Neue Website'}
-                  onClick={() => create?.()}
-                  disabled={full}
-                >
-                  <FiPlus aria-hidden className="size-[18px]" />
-                </Button>
-              </div>
-            }
-          />
-          {full && (
-            <p className="mb-md text-sm text-grey-600 dark:text-grey-400">
-              Du hast die Höchstzahl an Websites erreicht. Lösche eine, um eine neue anzulegen.
-            </p>
-          )}
-          <ul className={`m-0 list-none p-0 ${GRID}`}>
-            {sites.map((site) => (
-              <li key={site.id}>
-                <SiteTile
-                  site={site}
-                  href={paths.site(site.subdomain)}
-                  publicOrigin={publicOrigin}
-                  locale={locale}
-                />
-              </li>
-            ))}
-          </ul>
-        </section>
+        {sections.map((section, index) => (
+          <section key={section.id} aria-label={section.title} className="mt-12">
+            <SectionHeader
+              title={section.title}
+              actions={
+                index === 0 ? (
+                  <div className="flex items-center gap-xs">
+                    <span className="text-sm text-grey-600 dark:text-grey-400">
+                      {ownCount} von {limit}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Neue Website"
+                      title={full ? 'Höchstzahl erreicht' : 'Neue Website'}
+                      onClick={() => create?.()}
+                      disabled={full}
+                    >
+                      <FiPlus aria-hidden className="size-[18px]" />
+                    </Button>
+                  </div>
+                ) : undefined
+              }
+            />
+            {index === 0 && full && (
+              <p className="mb-md text-sm text-grey-600 dark:text-grey-400">
+                Du hast die Höchstzahl an Websites erreicht. Lösche eine, um eine neue anzulegen.
+              </p>
+            )}
+            <ul className={`m-0 list-none p-0 ${GRID}`}>
+              {section.sites.map((site) => (
+                <li key={site.id}>
+                  <SiteTile
+                    site={site}
+                    href={paths.site(site.subdomain)}
+                    publicOrigin={publicOrigin}
+                    locale={locale}
+                    projectName={site.group?.name ?? null}
+                  />
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
       </>
     );
   }

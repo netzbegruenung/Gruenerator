@@ -1,4 +1,4 @@
-import { type ModerationState } from '@gruenerator/contracts';
+import { type ModerationState, type SiteRole } from '@gruenerator/contracts';
 import { type InferSelectModel, sql } from 'drizzle-orm';
 import {
   boolean,
@@ -6,6 +6,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -16,7 +17,10 @@ export const userSites = pgTable(
   'user_sites',
   {
     id: uuid('id').primaryKey().defaultRandom(),
+    // "Angelegt von" — Kontingent und Freischaltung beim Anlegen, kein Sonderrecht.
     user_id: uuid('user_id'),
+    // Gesetzt: Projektseite (Admins kommen aus group_memberships).
+    group_id: uuid('group_id'),
     subdomain: text('subdomain').notNull(),
     is_published: boolean('is_published').default(false),
     site_title: text('site_title').notNull(),
@@ -53,6 +57,9 @@ export const userSites = pgTable(
     index('idx_user_sites_user_live')
       .on(t.user_id)
       .where(sql`deleted_at IS NULL`),
+    index('user_sites_group')
+      .on(t.group_id)
+      .where(sql`group_id IS NOT NULL`),
   ]
 );
 
@@ -70,3 +77,17 @@ export type UserSiteRawRow = Omit<UserSiteRow, TimestampColumns> & {
     ? string | Date | null
     : string | Date;
 };
+
+export const siteMembers = pgTable(
+  'site_members',
+  {
+    site_id: uuid('site_id').notNull(),
+    user_id: uuid('user_id').notNull(),
+    role: text('role').$type<SiteRole>().notNull(),
+    added_by: uuid('added_by'),
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.site_id, t.user_id] }), index('site_members_user').on(t.user_id)]
+);
+
+export type SiteMemberRow = InferSelectModel<typeof siteMembers>;

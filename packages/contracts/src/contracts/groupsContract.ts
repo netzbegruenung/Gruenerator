@@ -521,6 +521,7 @@ export const groupsContract = c.router({
     body: contentPermissionsBodySchema,
     responses: {
       200: groupSuccessResponseSchema,
+      400: groupErrorResponseSchema,
       401: groupErrorResponseSchema,
       403: groupErrorResponseSchema,
       404: groupErrorResponseSchema,

@@ -22,6 +22,7 @@ import { getPostgresInstance } from '../../database/services/PostgresService.js'
 import { createLogger } from '../../utils/logger.js';
 import { closeGroupCollabRooms } from '../collab/collabRooms.js';
 import { notifyGroupMembers } from '../notifications/index.js';
+import { closeSiteRooms, removeSiteSideStores } from '../sites/userSiteTrash.js';
 import {
   isRowId,
   isUniqueViolation,
@@ -218,6 +219,19 @@ export async function purgeGroup(groupId: string, cutoff: Date | null): Promise<
     )) as Array<Pick<GroupPostFileRow, 'stored_filename'>>;
     const postFiles = files.map((f) => f.stored_filename);
 
+    // Projekt-Websites fallen per FK mit dem Projekt; ihr Entwurf (Yjs) und ihre Freigaben nicht.
+    const sites = (await postgres.transactionQuery(
+      client,
+      'SELECT id FROM user_sites WHERE group_id = $1',
+      [groupId]
+    )) as Array<{ id: string }>;
+    for (const { id } of sites) {
+      await removeSiteSideStores(
+        (text, params) => postgres.transactionQuery(client, text, params as unknown[]),
+        id
+      );
+    }
+
     await postgres.transactionExec(client, 'DELETE FROM group_instructions WHERE group_id = $1', [
       groupId,
     ]);
@@ -230,9 +244,10 @@ export async function purgeGroup(groupId: string, cutoff: Date | null): Promise<
       [groupId]
     );
     await postgres.transactionExec(client, 'DELETE FROM groups WHERE id = $1', [groupId]);
-    return { group, postFiles, members: memberships.changes };
+    return { group, postFiles, members: memberships.changes, siteIds: sites.map((s) => s.id) };
   });
   if (!purged) return false;
+  await closeSiteRooms(purged.siteIds);
 
   log.info(
     `[groupTrash] purged group=${groupId} name=${JSON.stringify(purged.group.name)} ` +

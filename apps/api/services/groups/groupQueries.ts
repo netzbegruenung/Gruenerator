@@ -126,7 +126,7 @@ export async function getGroupForMember(
 /** Wie viele Inhalte (aller Typen) mit dem Projekt geteilt sind. */
 export async function countGroupContent(groupId: string): Promise<number> {
   const row = (await db.queryOne(
-    'SELECT COUNT(*)::int AS n FROM group_content_shares WHERE group_id = $1',
+    "SELECT COUNT(*)::int AS n FROM group_content_shares WHERE group_id = $1 AND content_type <> 'user_sites'",
     [groupId],
     { table: 'group_content_shares' }
   )) as { n: number } | null;

@@ -238,7 +238,7 @@ describe('routes.ts mount order', () => {
       },
       {
         path: '/api/sites/generate',
-        auth: "app.use('/api/sites', standardMutationLimiter, requireAuth, requireSitesAccess)",
+        auth: "app.use('/api/sites', standardMutationLimiter, requireAuth)",
         mount: 'mountSitesContractRouter(app)',
       },
     ];
@@ -264,11 +264,9 @@ describe('routes.ts mount order', () => {
    * sub-path, after the /api/sites auth and sites-access gate and before the contract mount.
    */
   it('gates /api/sites/generate with consent and the AI limiter before the sites contract mounts', () => {
-    const auth = firstIndexOf(
-      "app.use('/api/sites', standardMutationLimiter, requireAuth, requireSitesAccess)"
-    );
+    const auth = firstIndexOf("app.use('/api/sites', standardMutationLimiter, requireAuth)");
     const gate = firstIndexOf(
-      "app.use('/api/sites/generate', aiGenerationLimiter, requireAiConsent)"
+      "app.use('/api/sites/generate', requireSitesAccess, aiGenerationLimiter, requireAiConsent)"
     );
     const mountCall = firstIndexOf('mountSitesContractRouter(app)');
 

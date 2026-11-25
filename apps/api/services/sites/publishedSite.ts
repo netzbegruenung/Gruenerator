@@ -1,5 +1,5 @@
 import { type PublishedSiteSnapshot, publishedSiteSnapshotSchema } from '@gruenerator/contracts';
-import { and, eq, isNotNull } from 'drizzle-orm';
+import { and, eq, isNotNull, sql } from 'drizzle-orm';
 import { type NodePgDatabase } from 'drizzle-orm/node-postgres';
 
 import { userSites } from '../../database/schema/sites.js';
@@ -8,6 +8,10 @@ import { notTrashed } from '../../database/trash.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('publishedSite');
+
+/** A project's own site is only public while its project is not in the trash. */
+export const owningProjectNotTrashed = sql`(${userSites.group_id} IS NULL OR EXISTS (
+  SELECT 1 FROM groups g WHERE g.id = ${userSites.group_id} AND g.deleted_at IS NULL))`;
 
 export function publishedSiteQuery(db: Pick<NodePgDatabase, 'select'>, handle: string) {
   return db
@@ -19,7 +23,8 @@ export function publishedSiteQuery(db: Pick<NodePgDatabase, 'select'>, handle: s
         eq(userSites.is_published, true),
         eq(userSites.moderation, 'ok'),
         isNotNull(userSites.published_snapshot),
-        notTrashed(userSites)
+        notTrashed(userSites),
+        owningProjectNotTrashed
       )
     )
     .limit(1);

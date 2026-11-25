@@ -7,8 +7,9 @@ import { GenerationProgress } from '../components/common/GenerationProgress';
 import { CreateSiteScreen } from '../components/CreateSiteScreen';
 import { EditorSkeleton } from '../editor/EditorSkeleton';
 import { SiteGenerationError, type SiteGenerationInput } from '../generation/siteGenerationStream';
-import { useCreateSite, type GeneratedSiteData } from '../hooks/useSite';
+import { useCreateSite, useSiteList, type GeneratedSiteData } from '../hooks/useSite';
 import { useSiteGeneration } from '../hooks/useSiteGeneration';
+import { useSiteProjects } from '../hooks/useSiteSharing';
 import { useToast } from '../hooks/useToast';
 import { useAuth, useSitesPaths } from '../SitesContext';
 import { handleApiError, SitesApiError } from '../utils/errorHandler';
@@ -63,6 +64,14 @@ export function CreateFlow({
     suggestHandle(user?.display_name ? nameToSubdomain(user.display_name) : '', ownHandles);
   const contactEmail = user?.email ?? '';
   const [description, setDescription] = useState('');
+  const [projectId, setProjectId] = useState('');
+  // Only projects the person administers can own a site (the server checks it again).
+  const adminProjects = (useSiteProjects().data ?? []).filter((g) => g.isAdmin);
+  // With the personal quota used up only a project site is left, so the personal option goes.
+  const { sites, limit } = useSiteList();
+  const personalFull =
+    (sites ?? []).filter((site) => site.group === null && site.is_creator).length >= limit;
+  const groupId = projectId || (personalFull ? (adminProjects[0]?.id ?? '') : '');
 
   // The generated content goes straight into a new site, and its editor opens.
   // A failed create keeps the content in the retry, so a second click does not regenerate it.
@@ -76,6 +85,7 @@ export function CreateFlow({
         tagline: data.tagline,
         contact_email: data.contact_email || contactEmail,
         sections: data.sections,
+        ...(groupId ? { group_id: groupId } : {}),
       });
       toast.success('Seite erstellt', 'Deine Seite wurde erfolgreich erstellt');
       void navigate(paths.site(site.subdomain), { replace: true, state: routeState });
@@ -200,6 +210,10 @@ export function CreateFlow({
           isProcessing={isGenerating || isCreating}
           isGenerating={isGenerating}
           isGeneratingFromFlyer={isGenerating && isFlyer}
+          projects={adminProjects}
+          projectId={groupId}
+          allowPersonal={!personalFull}
+          onProjectChange={setProjectId}
         />
         {failure && (
           <div role="alert" className="mx-auto max-w-xl p-md text-center">

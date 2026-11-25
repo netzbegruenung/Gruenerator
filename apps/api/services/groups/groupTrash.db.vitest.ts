@@ -89,6 +89,7 @@ const ids: Record<'creator' | 'admin' | 'member' | 'outsider' | 'group' | 'syste
   system: randomUUID(),
 };
 const DOC = 'doc-in-projekt';
+const projectSite = randomUUID();
 
 async function counts(): Promise<Record<string, number>> {
   const out: Record<string, number> = {};
@@ -178,6 +179,25 @@ describe.skipIf(!url)('Projekte im Papierkorb (groupTrash)', () => {
       [post.rows[0].id, ids.group]
     );
     await pool.query(`INSERT INTO group_instructions (group_id) VALUES ($1)`, [ids.group]);
+    // A site the project owns, with its Yjs draft and a share into the project.
+    await pool.query(
+      `INSERT INTO user_sites (id, user_id, group_id, subdomain, site_title)
+       VALUES ($1, $2, $3, 'klima-ag', 'Klima-AG')`,
+      [projectSite, ids.creator, ids.group]
+    );
+    await pool.query(
+      `INSERT INTO yjs_document_updates (document_id, update_data) VALUES ($1, '\\x00')`,
+      [projectSite]
+    );
+    await pool.query(
+      `INSERT INTO yjs_document_snapshots (document_id, snapshot_data, version) VALUES ($1, '\\x00', 1)`,
+      [projectSite]
+    );
+    await pool.query(
+      `INSERT INTO group_content_shares (group_id, shared_by_user_id, content_type, content_id, permissions)
+       VALUES ($1, $2, 'user_sites', $3, '{"read":true}')`,
+      [ids.system, ids.creator, projectSite]
+    );
   }, 180_000);
 
   afterAll(async () => {
@@ -264,6 +284,14 @@ describe.skipIf(!url)('Projekte im Papierkorb (groupTrash)', () => {
 
       expect(await purgeGroup(ids.group, null)).toBe(true);
       expect(await deletedAt()).toBeNull();
+      const left = await pool.query<{ n: number }>(
+        `SELECT (SELECT COUNT(*) FROM user_sites WHERE id = $1)::int
+              + (SELECT COUNT(*) FROM yjs_document_updates WHERE document_id = $1)::int
+              + (SELECT COUNT(*) FROM yjs_document_snapshots WHERE document_id = $1)::int
+              + (SELECT COUNT(*) FROM group_content_shares WHERE content_id = $1::text)::int AS n`,
+        [projectSite]
+      );
+      expect(left.rows[0].n).toBe(0);
       expect(await counts()).toEqual({
         group_memberships: 0,
         group_content_shares: 0,

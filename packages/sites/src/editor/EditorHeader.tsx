@@ -48,6 +48,8 @@ interface EditorHeaderProps {
   onPreview: () => void;
   onBack?: () => void;
   previewButtonRef?: Ref<HTMLButtonElement>;
+  /** Who else is here and how to invite them; sits before undo. */
+  children?: ReactNode;
 }
 
 const iconButton = 'text-grey-600 hover:text-foreground dark:text-grey-400';
@@ -69,6 +71,7 @@ export function EditorHeader({
   onPreview,
   onBack,
   previewButtonRef,
+  children,
 }: EditorHeaderProps) {
   const history = useDraftHistory();
   useUndoShortcuts(typeof window === 'undefined' ? null : window);
@@ -134,6 +137,7 @@ export function EditorHeader({
       </div>
 
       <div className="ml-auto flex shrink-0 items-center gap-xxs">
+        {children}
         <Button
           variant="ghost"
           size="icon-sm"

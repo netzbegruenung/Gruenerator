@@ -4,8 +4,6 @@ import { useSyncExternalStore, type ReactNode } from 'react';
 import { MemoryRouter, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type * as Y from 'yjs';
-
 import { seededDoc } from '../draft/testDoc';
 
 const hoisted = vi.hoisted(() => {
@@ -50,6 +48,8 @@ vi.mock('../preview/SitePreviewFrame', () => ({ SitePreviewFrame: () => <div /> 
 
 import { EditPage } from './EditPage';
 
+import type * as Y from 'yjs';
+
 function EditAtParam() {
   return <EditPage handle={useParams<{ handle: string }>().handle ?? ''} />;
 }
@@ -83,6 +83,8 @@ const siteRow = { id: 's1', subdomain: 'anna', legal: null };
 function setSite(over: Record<string, unknown>) {
   hoisted.site.current = {
     site: null,
+    role: 'admin',
+    group: null,
     isLoading: false,
     error: null,
     refetch: hoisted.refetch,
@@ -171,5 +173,46 @@ describe('EditPage', () => {
     expect(screen.queryByText('Grünerator Sites')).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'Zurück' }));
     expect(screen.getByTestId('pfad')).toHaveTextContent('/sites');
+  });
+
+  it('an admin sees publishing and sharing, no banner', () => {
+    setSite({ site: siteRow, role: 'admin' });
+    hoisted.session.current = { state: 'ready', ydoc: seededDoc({}), provider: {}, save: 'saved' };
+    renderAt();
+    expect(screen.getByRole('button', { name: 'Veröffentlichen' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Teilen' })).toBeInTheDocument();
+    expect(screen.queryByText('Veröffentlichen können nur Admins.')).not.toBeInTheDocument();
+  });
+
+  it.each(['editor', 'viewer'])('%s sees the banner and no publish or share button', (role) => {
+    setSite({ site: siteRow, role });
+    hoisted.session.current = { state: 'ready', ydoc: seededDoc({}), provider: {}, save: 'saved' };
+    renderAt();
+    expect(screen.getByText('Veröffentlichen können nur Admins.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Veröffentlichen' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Teilen' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Weitere Aktionen' })).not.toBeInTheDocument();
+  });
+
+  it('an editor has no Einstellungen or Impressum tab; an admin has both', () => {
+    hoisted.session.current = { state: 'ready', ydoc: seededDoc({}), provider: {}, save: 'saved' };
+    setSite({ site: siteRow, role: 'editor' });
+    const view = renderAt();
+    expect(screen.getByRole('button', { name: 'Design' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Einstellungen' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Impressum' })).not.toBeInTheDocument();
+    view.unmount();
+    setSite({ site: siteRow, role: 'admin' });
+    renderAt();
+    expect(screen.getByRole('button', { name: 'Einstellungen' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Impressum' })).toBeInTheDocument();
+  });
+
+  it('a viewer has no sidebar at all', () => {
+    hoisted.session.current = { state: 'ready', ydoc: seededDoc({}), provider: {}, save: 'saved' };
+    setSite({ site: siteRow, role: 'viewer' });
+    renderAt();
+    expect(screen.queryByRole('button', { name: 'Design' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Bausteine hinzufügen' })).not.toBeInTheDocument();
   });
 });

@@ -1246,8 +1246,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountSharedTemplateContractRouter(app);
   // Vorlagen semantic search (chat @vorlagen picker). requireAuth is per-route.
   app.use('/api/vorlagen', authenticatedReadLimiter, vorlagenApiRouter);
-  app.use('/api/sites', standardMutationLimiter, requireAuth, requireSitesAccess);
-  app.use('/api/sites/generate', aiGenerationLimiter, requireAiConsent);
+  // The Sites unlock gates only what makes a new site (create and the generation that feeds
+  // it); an existing site is authorized by the caller's role on it, not by their own unlock.
+  app.use('/api/sites', standardMutationLimiter, requireAuth);
+  app.post('/api/sites/create', requireSitesAccess);
+  app.use('/api/sites/generate', requireSitesAccess, aiGenerationLimiter, requireAiConsent);
   mountSitesContractRouter(app);
   app.use('/api/flux/green-edit', aiGenerationLimiter, fluxImageEditingRoute);
   // ts-rest contract router for image editing (multi-reference). requireAuth +

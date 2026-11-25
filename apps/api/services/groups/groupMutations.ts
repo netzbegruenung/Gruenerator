@@ -391,6 +391,8 @@ export async function setGroupArchived(
       WHERE id = $1 AND deleted_at IS NULL`,
     [groupId]
   );
+  // Archiviert deckelt Projekt- und geteilte Websites auf Lesen; offene Räume behalten ihre Rechte.
+  if (archived) void closeGroupCollabRooms(groupId, null);
   return {
     status: 200,
     success: true,

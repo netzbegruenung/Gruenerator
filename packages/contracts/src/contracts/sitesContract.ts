@@ -26,6 +26,11 @@ import {
   deleteSiteResponseSchema,
   sitesErrorSchema,
   sitePublishErrorSchema,
+  siteMembersResponseSchema,
+  setSiteMemberBodySchema,
+  siteMemberErrorSchema,
+  siteGroupsResponseSchema,
+  setSiteGroupBodySchema,
 } from '../schemas/sites.js';
 
 const c = initContract();
@@ -220,5 +225,105 @@ export const sitesContract = c.router({
       500: sitesErrorSchema,
     },
     summary: 'Delete a site',
+  },
+
+  /** GET /api/sites/:id/members — everyone with access and how they got it (admin). */
+  listSiteMembers: {
+    method: 'GET',
+    path: '/api/sites/:id/members',
+    pathParams: z.object({ id: z.string().guid() }),
+    responses: {
+      200: siteMembersResponseSchema,
+      401: sitesErrorSchema,
+      403: sitesErrorSchema,
+      404: sitesErrorSchema,
+      500: sitesErrorSchema,
+    },
+    summary: 'List the people with access to a site',
+  },
+
+  /** PUT /api/sites/:id/members/:userId — set a role (admin). 409 last admin, 422 not eligible. */
+  setSiteMemberRole: {
+    method: 'PUT',
+    path: '/api/sites/:id/members/:userId',
+    pathParams: z.object({ id: z.string().guid(), userId: z.string().guid() }),
+    body: setSiteMemberBodySchema,
+    responses: {
+      200: z.object({ success: z.boolean() }),
+      401: sitesErrorSchema,
+      403: sitesErrorSchema,
+      404: sitesErrorSchema,
+      409: siteMemberErrorSchema,
+      422: siteMemberErrorSchema,
+      500: sitesErrorSchema,
+    },
+    summary: 'Set the role of a site member',
+  },
+
+  /** DELETE /api/sites/:id/members/:userId — admin, or anyone leaving the site themselves. */
+  removeSiteMember: {
+    method: 'DELETE',
+    path: '/api/sites/:id/members/:userId',
+    pathParams: z.object({ id: z.string().guid(), userId: z.string().guid() }),
+    body: c.noBody(),
+    responses: {
+      204: c.noBody(),
+      401: sitesErrorSchema,
+      403: sitesErrorSchema,
+      404: sitesErrorSchema,
+      409: siteMemberErrorSchema,
+      500: sitesErrorSchema,
+    },
+    summary: 'Remove a member from a site',
+  },
+
+  /** GET /api/sites/:id/groups — projects a personal site is shared into (admin). */
+  listSiteGroups: {
+    method: 'GET',
+    path: '/api/sites/:id/groups',
+    pathParams: z.object({ id: z.string().guid() }),
+    responses: {
+      200: siteGroupsResponseSchema,
+      401: sitesErrorSchema,
+      403: sitesErrorSchema,
+      404: sitesErrorSchema,
+      409: siteMemberErrorSchema,
+      500: sitesErrorSchema,
+    },
+    summary: 'List the projects a site is shared into',
+  },
+
+  /** PUT /api/sites/:id/groups/:groupId — share into a project or change `write` (admin). */
+  setSiteGroup: {
+    method: 'PUT',
+    path: '/api/sites/:id/groups/:groupId',
+    pathParams: z.object({ id: z.string().guid(), groupId: z.string().guid() }),
+    body: setSiteGroupBodySchema,
+    responses: {
+      200: z.object({ success: z.boolean() }),
+      401: sitesErrorSchema,
+      403: sitesErrorSchema,
+      404: sitesErrorSchema,
+      409: siteMemberErrorSchema,
+      500: sitesErrorSchema,
+    },
+    summary: 'Share a site with a project',
+  },
+
+  /** DELETE /api/sites/:id/groups/:groupId — take the site out of a project (admin). */
+  removeSiteGroup: {
+    method: 'DELETE',
+    path: '/api/sites/:id/groups/:groupId',
+    pathParams: z.object({ id: z.string().guid(), groupId: z.string().guid() }),
+    body: c.noBody(),
+    responses: {
+      204: c.noBody(),
+      401: sitesErrorSchema,
+      403: sitesErrorSchema,
+      404: sitesErrorSchema,
+      409: siteMemberErrorSchema,
+      500: sitesErrorSchema,
+    },
+    summary: 'Stop sharing a site with a project',
   },
 });
