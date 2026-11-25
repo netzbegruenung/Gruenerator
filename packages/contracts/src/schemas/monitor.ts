@@ -18,6 +18,15 @@ export const monitorLocaleSchema = z.enum(['de', 'at']);
 export type MonitorLocale = z.infer<typeof monitorLocaleSchema>;
 
 /**
+ * Bundesländer with their own /briefing view (`?land=`). The ids are the
+ * PolitPro parliament ids, so polls, `LANDESVERBAENDE` and
+ * `profiles.landesverband_id` share them. F0: stored in
+ * `monitor_articles.lands` — add, never rename.
+ */
+export const monitorLandSchema = z.enum(['hessen', 'nordrhein-westfalen', 'steiermark']);
+export type MonitorLand = z.infer<typeof monitorLandSchema>;
+
+/**
  * The fixed topic buckets the NLP service tags with (`TopicCategory` in
  * services/nlp lexicons.py). F0: values are stored in Qdrant `themes` /
  * `primary_topic` — add, never rename. The last eight came with #5670.
@@ -472,6 +481,42 @@ export const blueskyPostSchema = z.object({
 export type BlueskyPost = z.infer<typeof blueskyPostSchema>;
 
 export const blueskyFeedResponseSchema = z.array(blueskyPostSchema);
+
+// ── Land-Briefing (/briefing?land=) ──────────────────────────────────────────
+
+export const landtagDocumentSchema = z.object({
+  title: z.string(),
+  url: z.string(),
+  /** Dokumenttyp des Landtags, z. B. „Antrag auf Aktuelle Stunde". */
+  docType: z.string(),
+  parties: z.array(z.string()),
+  documentNumber: z.string().nullable(),
+  publishedAt: z.string().nullable(),
+});
+export type LandtagDocument = z.infer<typeof landtagDocumentSchema>;
+
+/**
+ * Everything one Land view of /briefing shows, in one response. Articles are
+ * the monitor's last 25 hours that carry the Land (`monitor_articles.lands`),
+ * sport excluded. `landesverband` / `landtag` are null where no source exists,
+ * which hides the card instead of showing it empty.
+ */
+export const landBriefingResponseSchema = z.object({
+  land: monitorLandSchema,
+  createdAt: z.string(),
+  totalArticles: z.number(),
+  /** How many of `totalArticles` the NLP service gave a topic. */
+  classifiedArticles: z.number(),
+  sources: z.array(z.string()),
+  topics: z.array(topicScoreSchema),
+  keywords: z.array(monitorKeywordEntrySchema),
+  important: z.array(monitorArticleSchema),
+  greens: z.array(monitorArticleSchema),
+  poll: pollDataSchema.nullable(),
+  landesverband: z.array(whatHappenedArticleSchema).nullable(),
+  landtag: z.array(landtagDocumentSchema).nullable(),
+});
+export type LandBriefing = z.infer<typeof landBriefingResponseSchema>;
 
 // ── Errors ───────────────────────────────────────────────────────────────────
 
