@@ -6,11 +6,22 @@ import { SitePreviewFrame } from '../../preview/SitePreviewFrame';
 
 /** The page width the block renders at before it is scaled down to the card. */
 const VIEWPORT = 1200;
+/** How far beyond the scroll area a card stays mounted, so short scrolls do not flicker. */
+const KEEP_ALIVE_MARGIN = '300px 0px';
+
+/** The nearest scrolling ancestor: `rootMargin` only widens the observer's own root. */
+function scrollParent(element: HTMLElement): HTMLElement | null {
+  for (let node = element.parentElement; node; node = node.parentElement) {
+    const { overflowY } = getComputedStyle(node);
+    if (overflowY === 'auto' || overflowY === 'scroll') return node;
+  }
+  return null;
+}
 
 /**
  * A block as the page shows it, with example content in the site's variant and locale, scaled
- * to the card. Rendered once the card scrolls into view; hidden from assistive tech and focus,
- * the card's button carries the name.
+ * to the card. Mounted only while the card is near the visible part of the list; hidden from
+ * assistive tech and focus, the card's button carries the name.
  */
 export function BlockThumbnail({
   type,
@@ -32,10 +43,11 @@ export function BlockThumbnail({
     const resize = new ResizeObserver(([entry]) => setWidth(entry?.contentRect.width ?? 0));
     resize.observe(element);
     if (typeof IntersectionObserver === 'undefined') return () => resize.disconnect();
-    const view = new IntersectionObserver(([entry]) => {
-      if (!entry?.isIntersecting) return;
-      setVisible(true);
-      view.disconnect();
+    // Live only near the visible part of the list: a card scrolled far away drops its frame
+    // (the box keeps its height), so the cost stays at a screenful whatever the card count.
+    const view = new IntersectionObserver(([entry]) => setVisible(entry?.isIntersecting ?? false), {
+      root: scrollParent(element),
+      rootMargin: KEEP_ALIVE_MARGIN,
     });
     view.observe(element);
     return () => {

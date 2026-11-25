@@ -6,6 +6,7 @@ import { sampleBlockSnapshot } from '../model/samples.js';
 
 import { SiteBlockPreview } from './SiteBody.js';
 
+const THUMB_SIZE = '?w=400&fmt=webp';
 const PICKABLE = SITE_BLOCK_TYPES.filter((spec) => !spec.pinned).map((spec) => spec.type);
 
 describe('SiteBlockPreview', () => {
@@ -21,9 +22,15 @@ describe('SiteBlockPreview', () => {
   });
 
   it('holds only content the editor preview accepts unchanged', () => {
+    // Cards ask for a fixed small image size; a stored page holds the bare URL, so the check
+    // runs on that.
+    const bare = (value: unknown) =>
+      JSON.parse(JSON.stringify(value).replaceAll(THUMB_SIZE, '')) as unknown;
     for (const type of PICKABLE) {
       for (const locale of ['de-DE', 'de-AT'] as const) {
-        const sample = sampleBlockSnapshot(type, locale, 'hell');
+        const sample = bare(sampleBlockSnapshot(type, locale, 'hell')) as ReturnType<
+          typeof sampleBlockSnapshot
+        >;
         // The preview schema falls back on bad values instead of throwing; equal means none did.
         const parsed = previewSiteSnapshotSchema.parse(sample);
         expect(parsed.sections.blocks.find((block) => block.type === type)).toEqual(
@@ -34,6 +41,14 @@ describe('SiteBlockPreview', () => {
         expect(parsed.social_links).toEqual(sample.social_links);
       }
     }
+  });
+
+  it('asks for card-sized images, not the srcset of the 1200px frame', () => {
+    const markup = renderToStaticMarkup(
+      <SiteBlockPreview snapshot={sampleBlockSnapshot('heroImage', 'de-DE', 'dunkel')} />
+    );
+    expect(markup).toContain(`unsplash.jpg${THUMB_SIZE.replace('&', '&amp;')}"`);
+    expect(markup).not.toContain('srcSet');
   });
 
   it('takes the variant ground of the block', () => {

@@ -7,7 +7,9 @@ import {
   type SupportedLocale,
 } from '@gruenerator/contracts';
 
-const stock = (file: string): string => `/api/image-picker/stock-image/${file}`;
+// A card shows the block at about a quarter of its width, so 400px is plenty. Inside the 1200px
+// preview frame the srcset would pick 800px or more; a fixed size skips it (`sizedSrc`).
+const stock = (file: string): string => `/api/image-picker/stock-image/${file}?w=400&fmt=webp`;
 
 export type SampleBlockType = Exclude<SiteBlockType, 'hero'>;
 
