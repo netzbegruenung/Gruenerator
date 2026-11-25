@@ -1,19 +1,7 @@
 import { type SitePublishIssue } from '@gruenerator/contracts';
-import {
-  Button,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  Popover,
-  PopoverAnchor,
-  PopoverContent,
-} from '@gruenerator/ui';
+import { Button, Popover, PopoverAnchor, PopoverContent } from '@gruenerator/ui';
 import { type HocuspocusProvider } from '@hocuspocus/provider';
 import { useRef, useState, type ReactNode } from 'react';
-import { FiChevronDown } from 'react-icons/fi';
 
 import { useDraft } from '../../draft/SiteDraftContext';
 import { settleLegalSave } from '../../hooks/legalSaveGate';
@@ -23,6 +11,7 @@ import { blockIdForPath } from '../../preview/fieldPaths';
 import { useAuth } from '../../SitesContext';
 import { useEditorStore } from '../../stores/editorStore';
 import { SitesApiError } from '../../utils/errorHandler';
+import { SiteMenu, type SiteMenuEntry } from '../SiteMenu';
 
 import { ConfirmAlert, DeleteSiteDialog } from './DeleteSiteDialog';
 import { PublishIssues } from './PublishIssues';
@@ -46,6 +35,11 @@ interface PublishControlsProps {
   provider: Pick<HocuspocusProvider, 'unsyncedChanges' | 'on' | 'off'>;
   /** Shows the published state in the canvas; offered once there is one. */
   onShowLive?: () => void;
+  /** Heads the menu: what the phone bar leaves out (preview, sharing). */
+  extraEntries?: SiteMenuEntry[];
+  /** Phone only, see `SiteMenu`. */
+  badge?: ReactNode;
+  note?: ReactNode;
 }
 
 /**
@@ -53,7 +47,14 @@ interface PublishControlsProps {
  * (status, live page, unpublish, delete), `button` the one publish action. One state behind
  * both, so an unpublish cannot start while a publish is running.
  */
-export function usePublishControls({ site, provider, onShowLive }: PublishControlsProps): {
+export function usePublishControls({
+  site,
+  provider,
+  onShowLive,
+  extraEntries = [],
+  badge,
+  note,
+}: PublishControlsProps): {
   menu: ReactNode;
   button: ReactNode;
 } {
@@ -158,6 +159,39 @@ export function usePublishControls({ site, provider, onShowLive }: PublishContro
 
   const siteName = draft.site_title.trim() || 'Website';
 
+  const entries: SiteMenuEntry[] = [
+    ...extraEntries,
+    ...(liveUrl
+      ? [
+          {
+            key: 'live-open',
+            label: 'Live-Seite öffnen',
+            onSelect: () => window.open(liveUrl, '_blank', 'noopener'),
+          },
+        ]
+      : []),
+    ...(onShowLive && site.published_snapshot
+      ? [{ key: 'live-show', label: 'Live-Stand ansehen', onSelect: onShowLive }]
+      : []),
+    ...(site.is_published
+      ? [
+          {
+            key: 'unpublish',
+            label: 'Veröffentlichung zurückziehen',
+            onSelect: () => setUnpublishOpen(true),
+            separated: true,
+          },
+        ]
+      : []),
+    {
+      key: 'delete',
+      label: 'Website löschen',
+      onSelect: () => setDeleteOpen(true),
+      destructive: true,
+      separated: !site.is_published,
+    },
+  ];
+
   const button = (
     <Popover open={issuesOpen} onOpenChange={setIssuesOpen}>
       <PopoverAnchor asChild>
@@ -194,41 +228,19 @@ export function usePublishControls({ site, provider, onShowLive }: PublishContro
 
   const menu = (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button ref={menuRef} variant="ghost" size="sm" className="min-w-0 font-semibold">
-            <span className="truncate">{siteName}</span>
-            <FiChevronDown className="text-grey-500" aria-hidden />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="min-w-64">
-          <DropdownMenuLabel className="font-normal">
-            <span className="block font-semibold">{STATUS_LABELS[status]}</span>
-            {publicOrigin && (
-              <span className="block text-xs text-grey-600 dark:text-grey-400">
-                {`${publicOrigin.replace(/^https?:\/\//, '')}/${site.subdomain}`}
-              </span>
-            )}
-          </DropdownMenuLabel>
-          {liveUrl && (
-            <DropdownMenuItem onSelect={() => window.open(liveUrl, '_blank', 'noopener')}>
-              Live-Seite öffnen
-            </DropdownMenuItem>
-          )}
-          {onShowLive && site.published_snapshot && (
-            <DropdownMenuItem onSelect={onShowLive}>Live-Stand ansehen</DropdownMenuItem>
-          )}
-          <DropdownMenuSeparator />
-          {site.is_published && (
-            <DropdownMenuItem onSelect={() => setUnpublishOpen(true)}>
-              Veröffentlichung zurückziehen
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem variant="destructive" onSelect={() => setDeleteOpen(true)}>
-            Website löschen
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <SiteMenu
+        title={siteName}
+        status={{
+          heading: STATUS_LABELS[status],
+          detail: publicOrigin
+            ? `${publicOrigin.replace(/^https?:\/\//, '')}/${site.subdomain}`
+            : null,
+        }}
+        entries={entries}
+        badge={badge}
+        note={note}
+        triggerRef={menuRef}
+      />
       <ConfirmAlert
         open={unpublishOpen}
         onOpenChange={setUnpublishOpen}

@@ -48,8 +48,10 @@ interface EditorHeaderProps {
   onPreview: () => void;
   onBack?: () => void;
   previewButtonRef?: Ref<HTMLButtonElement>;
-  /** Who else is here and how to invite them; sits before undo. */
+  /** Who else is here and how to invite them; sits before undo. On a phone the site menu has it. */
   children?: ReactNode;
+  /** Undo and redo; a viewer has nothing to undo. */
+  editable?: boolean;
 }
 
 const iconButton = 'text-grey-600 hover:text-foreground dark:text-grey-400';
@@ -72,6 +74,7 @@ export function EditorHeader({
   onBack,
   previewButtonRef,
   children,
+  editable = true,
 }: EditorHeaderProps) {
   const history = useDraftHistory();
   useUndoShortcuts(typeof window === 'undefined' ? null : window);
@@ -137,30 +140,37 @@ export function EditorHeader({
       </div>
 
       <div className="ml-auto flex shrink-0 items-center gap-xxs">
-        {children}
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={history.undo}
-          disabled={!history.canUndo}
-          aria-label="Rückgängig"
-          title="Rückgängig (⌘Z)"
-          className={iconButton}
-        >
-          <FiCornerUpLeft />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={history.redo}
-          disabled={!history.canRedo}
-          aria-label="Wiederholen"
-          title="Wiederholen (⇧⌘Z)"
-          className={cn(iconButton, 'max-sm:hidden')}
-        >
-          <FiCornerUpRight />
-        </Button>
-        <Divider />
+        {children && <div className="flex items-center gap-xxs max-md:hidden">{children}</div>}
+        {editable && (
+          <>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={history.undo}
+              disabled={!history.canUndo}
+              aria-label="Rückgängig"
+              title="Rückgängig (⌘Z)"
+              className={iconButton}
+            >
+              <FiCornerUpLeft />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={history.redo}
+              disabled={!history.canRedo}
+              aria-label="Wiederholen"
+              title="Wiederholen (⇧⌘Z)"
+              className={cn(iconButton, 'max-md:hidden')}
+            >
+              <FiCornerUpRight />
+            </Button>
+            {/* On a phone undo stands alone: preview moved into the site menu. */}
+            <span className="contents max-md:hidden">
+              <Divider />
+            </span>
+          </>
+        )}
         <Button
           ref={previewButtonRef}
           variant="ghost"
@@ -168,7 +178,7 @@ export function EditorHeader({
           onClick={onPreview}
           aria-label="Vorschau"
           title="Vorschau"
-          className={iconButton}
+          className={cn(iconButton, 'max-md:hidden')}
         >
           <FiEye />
         </Button>
