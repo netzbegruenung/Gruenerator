@@ -86,9 +86,11 @@ test.describe('Sites: Zugang und Anlegen', () => {
     const { state } = installSitesApi(page, { unlocked: true });
     await installPublicSite(context, state);
 
-    await page.goto('/sites');
+    // A cold dev server compiles the route on first visit: don't wait for `load`,
+    // and give the redirect longer than the default 5 s (flaked in run 45641172573).
+    await page.goto('/sites', { waitUntil: 'domcontentloaded' });
     // Without a site the overview hands straight over to creating one.
-    await expect(page).toHaveURL(/\/sites\/erstellen$/);
+    await expect(page).toHaveURL(/\/sites\/erstellen$/, { timeout: 15_000 });
 
     // Create: address, description, generate. The site is created right away, no review step.
     await page.getByLabel('Adresse').fill(HANDLE);
