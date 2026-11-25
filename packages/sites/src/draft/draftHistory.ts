@@ -1,5 +1,4 @@
 import { SITE_LOCAL_ORIGIN } from '@gruenerator/contracts/site-ydoc';
-import { PluginKey } from '@tiptap/pm/state';
 import * as Y from 'yjs';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 
@@ -15,14 +14,15 @@ export type DraftHistory = StoreApi<DraftHistoryState> & {
 };
 
 /**
- * Undo over the whole draft, this person's edits only. Scoped to the doc, so the rich-text
- * fragments (own roots, created per block) are covered without tracking them one by one.
- * Tracked: the draft actions (`SITE_LOCAL_ORIGIN`) and the text editors, whose Yjs binding writes
- * with a ProseMirror `PluginKey` as origin. Not tracked: the seed, and edits arriving from others.
+ * Undo over the whole draft for this person's editor actions (`SITE_LOCAL_ORIGIN`): fields,
+ * blocks, cards, order. Not tracked: the seed, edits arriving from others, and the rich-text
+ * fields. Their Yjs binding writes on its own when an editor mounts (it normalises the fragment),
+ * so tracking its origin made "Rückgängig" active on a page nobody had touched, and pressing it
+ * undid that normalisation. A rich-text field keeps its own ⌘Z while it has focus.
  */
 export function createDraftHistory(ydoc: Y.Doc): DraftHistory {
   const manager = new Y.UndoManager(ydoc, {
-    trackedOrigins: new Set<unknown>([SITE_LOCAL_ORIGIN, PluginKey]),
+    trackedOrigins: new Set<unknown>([SITE_LOCAL_ORIGIN]),
   });
   const read = (): DraftHistoryState => ({
     canUndo: manager.canUndo(),

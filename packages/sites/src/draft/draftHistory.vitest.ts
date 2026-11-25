@@ -32,14 +32,13 @@ describe('createDraftHistory', () => {
     history.destroy();
   });
 
-  it('covers text written by the rich-text editor binding', () => {
+  it('ignores what the rich-text binding writes on its own', () => {
     const ydoc = seededDoc();
     const history = createDraftHistory(ydoc);
     const fragment = ydoc.getXmlFragment('rt:block:x');
+    // y-sync normalises a fragment when its editor mounts; that is no edit to undo.
     ydoc.transact(() => fragment.insert(0, [new Y.XmlText('Hallo')]), new PluginKey('y-sync'));
-    expect(history.getState().canUndo).toBe(true);
-    history.undo();
-    expect(fragment.length).toBe(0);
+    expect(history.getState().canUndo).toBe(false);
     history.destroy();
   });
 
