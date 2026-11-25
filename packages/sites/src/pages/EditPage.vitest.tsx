@@ -4,8 +4,6 @@ import { useSyncExternalStore, type ReactNode } from 'react';
 import { MemoryRouter, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type * as Y from 'yjs';
-
 import { seededDoc } from '../draft/testDoc';
 
 const hoisted = vi.hoisted(() => {
@@ -49,6 +47,8 @@ vi.mock('../SitesContext', () => ({
 vi.mock('../preview/SitePreviewFrame', () => ({ SitePreviewFrame: () => <div /> }));
 
 import { EditPage } from './EditPage';
+
+import type * as Y from 'yjs';
 
 function EditAtParam() {
   return <EditPage handle={useParams<{ handle: string }>().handle ?? ''} />;

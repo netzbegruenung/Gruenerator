@@ -246,6 +246,8 @@ export function CreateSiteScreen({
               }
               rows={10}
               disabled={isProcessing || hasFile}
+              // The wizard step exists to fill this field; focus on entering it is the point.
+              // eslint-disable-next-line jsx-a11y/no-autofocus
               autoFocus
               className="min-h-[240px] lg:min-h-[280px] resize-y text-base"
             />
