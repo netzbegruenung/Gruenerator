@@ -19,8 +19,8 @@ Zunächst sind Parteitage **passwortgeschützt**. Das Passwort bekommst du von d
 
 Bei jeder Rede stehen zwei Wege offen:
 
-- **In Editor laden** öffnet die Rede im Video Editor. Dort schneidest du, setzt Untertitel und gestaltest das Reel.
-- **Nur untertiteln** untertitelt die **ganze Rede** auf dem Server. Du bekommst ein fertiges Video, das du mit **Herunterladen** speicherst.
+- **In Editor laden** öffnet die Rede im Video Editor. Dort kannst du [die Rede schneiden und gestalten](../guides/einsteigerinnen/video-schneiden.mdx).
+- **Nur untertiteln** untertitelt die **ganze Rede** auf dem Server. Du bekommst ein fertiges Video, das du mit **Herunterladen** speicherst. Wie du Text oder Darstellung änderst, zeigt der [Guide zu Auto-Untertitel](../guides/einsteigerinnen/reel-erstellen.mdx).
 
 Ist die Originaldatei nicht mehr vorhanden, steht „Quelle nicht mehr verfügbar“ am Projekt im Simple Reel, das du aus der Rede erstellt hast.
 

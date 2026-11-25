@@ -282,9 +282,9 @@ export const DOCS_PAGES: readonly DocPage[] = [
   },
   {
     "url": "/docs/guides/einsteigerinnen/reel-erstellen",
-    "title": "Wie erstelle ich ein Reel?",
+    "title": "Wie untertitele ich ein Video automatisch?",
     "category": "Guides",
-    "lead": "Am Ende hast du ein Video mit eingebrannten Untertiteln zum Veröffentlichen. Du brauchst dafür nur einen bereits aufgenommenen Clip. Upload, Transkription, Untertitel und Videoexport laufen automatis…"
+    "lead": "Mit Auto-Untertitel machst du aus einem oder mehreren aufgenommenen Clips ein Video mit eingebrannten Untertiteln. Das funktioniert zum Beispiel für ein Reel, eine Einladung oder einen kurzen Mitschn…"
   },
   {
     "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
@@ -321,6 +321,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "title": "Wie übersetze ich Texte und Dokumente?",
     "category": "Guides",
     "lead": "Der Übersetzer überträgt eingegebenen Text oder eine vollständige Datei mit DeepL in eine andere Sprache. Das Grünen-Glossar wird automatisch verwendet, wenn für das gewählte Sprachpaar eines hinterl…"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/video-schneiden",
+    "title": "Wie schneide und exportiere ich ein Video?",
+    "category": "Guides",
+    "lead": "Im Video Editor kannst du kurze Clips schneiden, Text einblenden und Untertitel gestalten. Am Ende hältst du ein MP4 zum Veröffentlichen in der Hand. Der Editor ist in der Beta."
   },
   {
     "url": "/docs/guides/experimentell/android-app-installieren",
@@ -1200,10 +1206,18 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/basics/tools",
     "pageTitle": "Alle Werkzeuge",
+    "heading": "Videos im Studio",
+    "anchor": "#videos-im-studio",
+    "category": "Basics",
+    "text": "Unter Neues Video wählst du Untertitel für ein fertiges Video mit eingebranntem Text oder Video Editor für Schnitt und Gestaltung in der Zeitleiste. Zum Guide für Auto-Untertitel · Zum Guide für den Video Editor KI-Schnitt erstellt einen Schnittvorschlag aus Rohmaterial. Der Einstieg erscheint derzeit für Instanz-Admins."
+  },
+  {
+    "url": "/docs/basics/tools",
+    "pageTitle": "Alle Werkzeuge",
     "heading": "Wenn du etwas nicht findest",
     "anchor": "#wenn-du-etwas-nicht-findest",
     "category": "Basics",
-    "text": "Such nach dem Namen. Die Suche im Grünerator kennt auch die gängigen Bezeichnungen — „Untertitel\" findet die Reels, „OCR\" den Scanner. Manches gibt es nur im Web. Einige Werkzeuge brauchen eine große Oberfläche. In der App siehst du die Inhalte dann, kannst sie aber nicht überall bearbeiten. Bei jedem Werkzeug oben steht, wo es läuft. Namen, Beschreibungen und Pfade stammen direkt aus dem Programmcode des Grünerators. Kommt ein Werkzeug dazu oder wird eines umbenannt, meldet sich die Doku-Prüfung automatisch, bis die Seite nachgezogen ist — sie kann also nicht stillschweigend veralten. Es gibt mehrere Grünerator-Instanzen — neben dem allgemeinen etwa eine Testumgebung und eine für die Bundesgeschäftsstelle. Einzelne Instanzen können abweichen: nicht jede bietet alle hier beschriebenen Werkzeuge, Notebooks und Agents an. Was deine Instanz anbietet, siehst du immer in ihrer eigenen Oberfläche."
+    "text": "Such nach dem Namen. Die Suche im Grünerator kennt auch die gängigen Bezeichnungen — „Untertitel\" findet Auto-Untertitel, „OCR\" den Scanner. Manches gibt es nur im Web. Einige Werkzeuge brauchen eine große Oberfläche. In der App siehst du die Inhalte dann, kannst sie aber nicht überall bearbeiten. Bei jedem Werkzeug oben steht, wo es läuft. Namen, Beschreibungen und Pfade stammen direkt aus dem Programmcode des Grünerators. Kommt ein Werkzeug dazu oder wird eines umbenannt, meldet sich die Doku-Prüfung automatisch, bis die Seite nachgezogen ist — sie kann also nicht stillschweigend veralten. Es gibt mehrere Grünerator-Instanzen — neben dem allgemeinen etwa eine Testumgebung und eine für die Bundesgeschäftsstelle. Einzelne Instanzen können abweichen: nicht jede bietet alle hier beschriebenen Werkzeuge, Notebooks und Agents an. Was deine Instanz anbietet, siehst du immer in ihrer eigenen Oberfläche."
   },
   {
     "url": "/docs/basics/wie-llms-funktionieren",
@@ -1803,7 +1817,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Features",
     "anchor": "",
     "category": "Features",
-    "text": "Hier findest du die wichtigsten Funktionen neben dem Chat. Wenn du stattdessen eine bestimmte Aufgabe erledigen willst, sind die Guides für Einsteiger*innen der kürzere Weg. Projekte — Wissen, Rezepte, Chats und Austausch an einem Ort. Office — Dokumente, Tabellen, Präsentationen und Boards, gemeinsam bearbeitbar und mit KI-Unterstützung direkt im Editor. Grüneratoren und Marktplatz — offizielle und öffentliche Agents, Rezepte, Vorlagen, Sticker und Hintergründe finden, merken und veröffentlichen. Notebooks — eigenes Wissen bündeln und durchsuchbar machen: Quellarten, Teilen, Verwaltung. Landesverbände — wie Rezepte mit dem Stil und der Wissensdatenbank eines Landesverbands arbeiten."
+    "text": "Hier findest du die wichtigsten Funktionen neben dem Chat. Wenn du stattdessen eine bestimmte Aufgabe erledigen willst, sind die Guides für Einsteiger*innen der kürzere Weg. Projekte — Wissen, Rezepte, Chats und Austausch an einem Ort. Office — Dokumente, Tabellen, Präsentationen und Boards, gemeinsam bearbeitbar und mit KI-Unterstützung direkt im Editor. Grüneratoren und Marktplatz — offizielle und öffentliche Agents, Rezepte, Vorlagen, Sticker und Hintergründe finden, merken und veröffentlichen. Notebooks — eigenes Wissen bündeln und durchsuchbar machen: Quellarten, Teilen, Verwaltung. Landesverbände — wie Rezepte mit dem Stil und der Wissensdatenbank eines Landesverbands arbeiten. Video — Clips automatisch untertiteln oder in der Zeitleiste schneiden, gestalten und exportieren."
   },
   {
     "url": "/docs/features/ki-im-editor",
@@ -2291,7 +2305,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Eine Rede weiterverwenden",
     "anchor": "#eine-rede-weiterverwenden",
     "category": "Features",
-    "text": "Bei jeder Rede stehen zwei Wege offen: In Editor laden öffnet die Rede im Video Editor. Dort schneidest du, setzt Untertitel und gestaltest das Reel. Nur untertiteln untertitelt die ganze Rede auf dem Server. Du bekommst ein fertiges Video, das du mit Herunterladen speicherst. Ist die Originaldatei nicht mehr vorhanden, steht „Quelle nicht mehr verfügbar“ am Projekt im Simple Reel, das du aus der Rede erstellt hast."
+    "text": "Bei jeder Rede stehen zwei Wege offen: In Editor laden öffnet die Rede im Video Editor. Dort kannst du die Rede schneiden und gestalten. Nur untertiteln untertitelt die ganze Rede auf dem Server. Du bekommst ein fertiges Video, das du mit Herunterladen speicherst. Wie du Text oder Darstellung änderst, zeigt der Guide zu Auto-Untertitel. Ist die Originaldatei nicht mehr vorhanden, steht „Quelle nicht mehr verfügbar“ am Projekt im Simple Reel, das du aus der Rede erstellt hast."
   },
   {
     "url": "/docs/features/parteitage",
@@ -3079,51 +3093,43 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/guides/einsteigerinnen/reel-erstellen",
-    "pageTitle": "Wie erstelle ich ein Reel?",
-    "heading": "Wie erstelle ich ein Reel?",
+    "pageTitle": "Wie untertitele ich ein Video automatisch?",
+    "heading": "Wie untertitele ich ein Video automatisch?",
     "anchor": "",
     "category": "Guides",
-    "text": "Am Ende hast du ein Video mit eingebrannten Untertiteln zum Veröffentlichen. Du brauchst dafür nur einen bereits aufgenommenen Clip. Upload, Transkription, Untertitel und Videoexport laufen automatisch; bearbeiten musst du nur, wenn du etwas ändern möchtest."
+    "text": "Mit Auto-Untertitel machst du aus einem oder mehreren aufgenommenen Clips ein Video mit eingebrannten Untertiteln. Das funktioniert zum Beispiel für ein Reel, eine Einladung oder einen kurzen Mitschnitt."
   },
   {
     "url": "/docs/guides/einsteigerinnen/reel-erstellen",
-    "pageTitle": "Wie erstelle ich ein Reel?",
-    "heading": "Damit das Reel verständlich wird",
-    "anchor": "#damit-das-reel-verständlich-wird",
+    "pageTitle": "Wie untertitele ich ein Video automatisch?",
+    "heading": "Text oder Darstellung korrigieren",
+    "anchor": "#text-oder-darstellung-korrigieren",
     "category": "Guides",
-    "text": "Kürze vor dem Upload. Das Reel-Studio untertitelt und gestaltet, schneidet aber keine Versprecher oder langen Pausen aus dem Video. Namen und Zahlen immer kontrollieren. Die Transkription ist ein Vorschlag, keine Freigabe. Untertitel sind keine Option. Sie helfen gehörlosen und schwerhörigen Menschen, Personen ohne Ton und allen, die das Video in lauter Umgebung ansehen."
+    "text": "Auf der Fertig-Seite öffnet Bearbeiten (Stift) den Untertitel-Editor. Bei einem gespeicherten Projekt erscheint daneben Im Video Editor öffnen (Filmklappe). Dort kannst du das Video weiter schneiden. Die Untertitel kommen als bearbeitbare Spur mit. Klicke auf eine Untertitel-Karte. Die Vorschau springt an die passende Stelle. Ändere den Text und drücke Enter oder klicke außerhalb des Feldes. Öffne bei Bedarf Einstellungen (Zahnrad). Dort änderst du Stil, Position und Qualität. Tiefer ist die Standardposition. Mittig setzt die Untertitel weiter nach oben. Klicke auf Download (1080p) oder Download (HD). Der Grünerator rendert deine Änderungen und öffnet wieder die Fertig-Seite."
   },
   {
     "url": "/docs/guides/einsteigerinnen/reel-erstellen",
-    "pageTitle": "Wie erstelle ich ein Reel?",
-    "heading": "Nur wenn du etwas ändern möchtest",
-    "anchor": "#nur-wenn-du-etwas-ändern-möchtest",
+    "pageTitle": "Wie untertitele ich ein Video automatisch?",
+    "heading": "Video hochladen und herunterladen",
+    "anchor": "#video-hochladen-und-herunterladen",
     "category": "Guides",
-    "text": "Klicke auf der Fertig-Seite auf das Stift-Symbol „Bearbeiten“. Text korrigieren: Klicke auf die betreffende Untertitel-Karte. Der Text wird zum Eingabefeld und die Wiedergabe springt an diese Stelle. Ändere den Text und drücke Enter oder klicke außerhalb des Feldes. Das brauchst du vor allem bei Namen, Orten, Zahlen und Abkürzungen. Darstellung ändern: Klicke unter dem Video auf das Zahnrad „Einstellungen“. Dort wählst du: Stil: Empfohlen, Klassisch, Minimal oder Grün Position: Tiefer oder Mittig Qualität: Standard („Perfekt für Reels“) oder Volle Qualität („Dauert länger“) Klicke unter dem Video auf das Download-Symbol. Das Studio rendert das Video mit deinen Änderungen neu und zeigt danach wieder die Fertig-Seite. Der Speichern-Button ist für den Download nicht nötig."
+    "text": "Öffne Neues Video und wähle Untertitel. Wähle ein oder mehrere Videos aus. Unterstützt werden MP4, MOV, AVI, MKV und WebM bis 500 MB je Datei. Bei mehreren Clips legst du unter Reihenfolge fest, wie sie aneinandergefügt werden. Du kannst sie mit den Pfeilknöpfen nach oben und unten verschieben. Klicke auf Untertitel erstellen. Der Grünerator lädt die Videos hoch, transkribiert die Tonspur und rendert das Video. Lass den Tab geöffnet, bis „Dein Video ist fertig!“ erscheint. Spiele das Ergebnis ab. Wenn die Untertitel stimmen, klicke auf Herunterladen."
   },
   {
     "url": "/docs/guides/einsteigerinnen/reel-erstellen",
-    "pageTitle": "Wie erstelle ich ein Reel?",
-    "heading": "So geht's",
-    "anchor": "#so-gehts",
-    "category": "Guides",
-    "text": "Studio öffnen. Öffne im Bereich Arbeiten das Studio und wähle dort Reels. Direkt erreichbar ist es auch unter /studio/video. Deinen Clip hochladen. Ziehe die Datei in „Video auswählen oder hierher ziehen“ oder klicke auf das Feld. Das Studio akzeptiert MP4, MOV, AVI, MKV und WebM bis 500 MB. Der Upload startet nach der Auswahl sofort. Für Instagram Reels und TikTok nimmst du am besten ein Hochkantvideo. Kurz warten. Das Studio transkribiert die Tonspur, setzt die Untertitel im empfohlenen Stil an die tiefe Standardposition, rendert das fertige Video und speichert das Projekt automatisch. Du musst nichts auswählen. Lass den Tab geöffnet, bis „Dein Video ist fertig!“ erscheint. Video prüfen und herunterladen. Spiele das Ergebnis einmal ab. Passt alles, klickst du auf das Download-Symbol — fertig."
-  },
-  {
-    "url": "/docs/guides/einsteigerinnen/reel-erstellen",
-    "pageTitle": "Wie erstelle ich ein Reel?",
+    "pageTitle": "Wie untertitele ich ein Video automatisch?",
     "heading": "Weiterlesen",
     "anchor": "#weiterlesen",
     "category": "Guides",
-    "text": "Barrierefreiheit — was gute, zugängliche Inhalte ausmacht Kennzeichnungs-Guide — wann KI-generierte oder KI-bearbeitete Medien gekennzeichnet werden müssen"
+    "text": "Wie schneide und exportiere ich ein Video? Barrierefreiheit Kennzeichnungs-Guide"
   },
   {
     "url": "/docs/guides/einsteigerinnen/reel-erstellen",
-    "pageTitle": "Wie erstelle ich ein Reel?",
+    "pageTitle": "Wie untertitele ich ein Video automatisch?",
     "heading": "Wenn es nicht klappt",
     "anchor": "#wenn-es-nicht-klappt",
     "category": "Guides",
-    "text": "Der Upload schlägt fehl? Prüfe zuerst, ob deine Datei eines der unterstützten Videoformate hat. Exportiere problematische Dateien am zuverlässigsten noch einmal als MP4. Die Untertitel sind ungenau? Öffne über das Stift-Symbol den Editor und korrigiere die betroffenen Karten. Bei sehr leiser oder überlagerter Tonspur hilft ein klarer aufgenommenes Ausgangsvideo. Der Download startet nicht? Warte, bis der Export fertig ist. Falls der automatische Download blockiert wird, erlaubt dein Browser möglicherweise erst nach einem erneuten Klick den Dateidownload."
+    "text": "Ein Name oder eine Zahl ist falsch. Korrigiere die Stelle in Bearbeiten und prüfe sie vor der Veröffentlichung noch einmal im Video. Die Bearbeitungs-Vorschau zeigt nur den ersten Clip. Öffne das gespeicherte Video noch einmal im Studio unter Deine Inhalte. Der Upload schlägt fehl. Prüfe Format und Größe. Bei einer problematischen Datei hilft häufig ein erneuter Export als MP4. Der Download startet nicht. Warte auf die Fertig-Seite und klicke dort auf Herunterladen."
   },
   {
     "url": "/docs/guides/einsteigerinnen/sharepic-erstellen",
@@ -3452,6 +3458,54 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#wenn-es-nicht-klappt",
     "category": "Guides",
     "text": "Es erscheint keine Übersetzung? Warte nach dem Tippen einen kurzen Moment. Bei mehr als 2.000 Zeichen musst du „Übersetzen“ anklicken. „Dokument übersetzen“ ist ausgegraut? Prüfe, ob eine unterstützte Datei gewählt ist und ob Ausgangs- und Zielsprache vollständig festgelegt sind. Für ein Glossar kann eine ausdrücklich gewählte Ausgangssprache nötig sein. Die Datei wird abgelehnt? Prüfe Dateiendung und Größe. Zulässige Formate und die Grenze von 30 MB stehen unter dem Upload-Feld. Das Tagesbudget ist aufgebraucht? Die Seite zeigt die verbleibenden Bäume an. Neue Übersetzungen sind wieder möglich, sobald das tägliche Budget zurückgesetzt wurde. Der Download schlägt fehl? Klicke nach der Fehlermeldung erneut auf „Herunterladen“. Das fertige Ergebnis bleibt für einen weiteren Versuch verfügbar."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/video-schneiden",
+    "pageTitle": "Wie schneide und exportiere ich ein Video?",
+    "heading": "Wie schneide und exportiere ich ein Video?",
+    "anchor": "",
+    "category": "Guides",
+    "text": "Im Video Editor kannst du kurze Clips schneiden, Text einblenden und Untertitel gestalten. Am Ende hältst du ein MP4 zum Veröffentlichen in der Hand. Der Editor ist in der Beta."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/video-schneiden",
+    "pageTitle": "Wie schneide und exportiere ich ein Video?",
+    "heading": "Ein Projekt öffnen",
+    "anchor": "#ein-projekt-öffnen",
+    "category": "Guides",
+    "text": "Öffne Neues Video, wähle Video Editor und füge einen oder mehrere Clips hinzu. Über Im Editor öffnen landest du mit automatisch erzeugten Untertiteln im Projekt. Du kannst auch Ohne Video starten: leeres Projekt öffnen wählen und deine Clips unter Uploads hinzufügen. Hast du bereits ein Video mit Auto-Untertitel bearbeitet, wähle auf der Fertig-Seite Im Video Editor öffnen."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/video-schneiden",
+    "pageTitle": "Wie schneide und exportiere ich ein Video?",
+    "heading": "Exportieren und später weiterarbeiten",
+    "anchor": "#exportieren-und-später-weiterarbeiten",
+    "category": "Guides",
+    "text": "Klicke auf Video exportieren und lass den Tab geöffnet, bis der Export fertig ist. Öffne dann die Glocke neben dem Exportknopf. Unter Letzte Exporte lädst du die MP4-Datei über das Download-Symbol herunter. Spiele sie vor dem Veröffentlichen einmal ab. Dein bearbeitbares Projekt findest du danach unter Studio → Videoprojekte."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/video-schneiden",
+    "pageTitle": "Wie schneide und exportiere ich ein Video?",
+    "heading": "In der App",
+    "anchor": "#in-der-app",
+    "category": "Guides",
+    "text": "Auf dem iPhone und iPad steht der Video Editor ab iOS beziehungsweise iPadOS 26 zur Verfügung. Auf Android hängt der Export davon ab, ob das Gerät den benötigten Video-Encoder unterstützt. Lass die App beim Export im Vordergrund."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/video-schneiden",
+    "pageTitle": "Wie schneide und exportiere ich ein Video?",
+    "heading": "Schneiden und kontrollieren",
+    "anchor": "#schneiden-und-kontrollieren",
+    "category": "Guides",
+    "text": "Ziehe den Abspielkopf in der Zeitleiste an die gewünschte Schnittstelle. Klicke mit der rechten Maustaste auf den Clip und wähle An Abspielposition teilen. Wähle das überflüssige Stück aus und lösche es. Für eine Kürzung am Anfang oder Ende kannst du auch den jeweiligen Clip-Rand ziehen. Spiele die Schnittstelle ab. Kontrolliere die Untertitel auf ihrer eigenen Spur. Über Untertitel links kannst du die Darstellung bearbeiten. Über Text fügst du zum Beispiel einen Titel hinzu."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/video-schneiden",
+    "pageTitle": "Wie schneide und exportiere ich ein Video?",
+    "heading": "Weiterlesen",
+    "anchor": "#weiterlesen",
+    "category": "Guides",
+    "text": "Wie untertitele ich ein Video automatisch? Kennzeichnungs-Guide"
   },
   {
     "url": "/docs/guides/experimentell/android-app-installieren",
