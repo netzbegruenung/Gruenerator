@@ -27,6 +27,7 @@ describe('collabRoomForShare', () => {
     ['collaborative_documents', 'doc-1', 'doc-1'],
     ['canvas_template', 'canvas-1', 'canvas-1'],
     ['chat_threads', 't-1', 'chat-t-1'],
+    ['user_sites', 'abc', 'site-abc'],
     ['user_agents', 'a-1', null],
     ['notebook_collections', 'n-1', null],
   ])('%s %s → %s', (type, id, room) => {

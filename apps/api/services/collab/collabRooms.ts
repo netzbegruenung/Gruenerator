@@ -20,6 +20,8 @@ export function collabRoomForShare(contentType: string, contentId: string): stri
       return contentId;
     case 'chat_threads':
       return `chat-${contentId}`;
+    case 'user_sites':
+      return `site-${contentId}`;
     default:
       return null;
   }
@@ -41,7 +43,7 @@ export async function closeGroupCollabRooms(groupId: string, userId: string | nu
     const shares = await getPostgresInstance().query<{ content_type: string; content_id: string }>(
       `SELECT content_type, content_id FROM group_content_shares
         WHERE group_id = $1
-          AND content_type IN ('collaborative_documents', 'canvas_template', 'chat_threads')`,
+          AND content_type IN ('collaborative_documents', 'canvas_template', 'chat_threads', 'user_sites')`,
       [groupId]
     );
     const rooms = shares

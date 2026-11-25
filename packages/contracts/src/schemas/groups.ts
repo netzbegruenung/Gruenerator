@@ -399,6 +399,8 @@ export const groupContentTypeSchema = z.enum([
   'user_text_forms',
   /** Ein mitgeliefertes Rezept (auch eines Landesverbands); `contentId` ist die Mention. */
   'system_recipes',
+  /** Eine persönliche Website (`user_sites`); `permissions.write` macht die Mitglieder zu Bearbeiter*innen. */
+  'user_sites',
 ]);
 export type GroupContentType = z.infer<typeof groupContentTypeSchema>;
 

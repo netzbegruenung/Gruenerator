@@ -21,6 +21,10 @@ export const SITE_HANDLE_MIN = 3;
 export const SITE_HANDLE_MAX = 30;
 /** Live Websites one account may have at a time; trashed ones do not count. */
 export const SITES_PER_ACCOUNT_MAX = 25;
+
+/** Rolle auf einer Website; Rangfolge admin > editor > viewer. */
+export const siteRoleSchema = z.enum(['admin', 'editor', 'viewer']);
+export type SiteRole = z.infer<typeof siteRoleSchema>;
 export const RESERVED_SITE_HANDLES: readonly string[] = [
   'www',
   'api',
