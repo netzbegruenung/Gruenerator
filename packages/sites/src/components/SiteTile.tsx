@@ -1,6 +1,11 @@
-import { readSiteVariant, type SiteSummary, type SupportedLocale } from '@gruenerator/contracts';
+import {
+  defaultSiteBlocks,
+  readSiteVariant,
+  type SiteSummary,
+  type SupportedLocale,
+} from '@gruenerator/contracts';
 import { cn } from '@gruenerator/shared/utils';
-import { variantSwatches } from '@gruenerator/sites-design';
+import { variantPreview } from '@gruenerator/sites-design';
 import {
   CardActionsMenu,
   DropdownMenuItem,
@@ -48,31 +53,33 @@ function editedLabel(updatedAt: string | null): string | null {
   })}`;
 }
 
-/** The page in miniature, in the colours of its variant: header, portrait, the themes band. */
+// The list carries no block list, so the miniature shows the standard layout in the site's colours.
+let previewIds = 0;
+const PREVIEW_BLOCKS = defaultSiteBlocks(() => `preview-${previewIds++}`);
+
+/** The page in miniature, header to footer, in the colours of its variant; the portrait on top. */
 function SiteThumbnail({ site, locale }: { site: SiteSummary; locale: SupportedLocale }) {
-  const { hero, band } = variantSwatches(readSiteVariant(site.theme), locale);
+  const hasPortrait = !!site.profile_image;
+  const bands = variantPreview(PREVIEW_BLOCKS, hasPortrait, readSiteVariant(site.theme), locale);
   return (
     <span
       aria-hidden="true"
-      className="relative flex aspect-[16/9] flex-col overflow-hidden rounded-xl bg-white shadow-[0_1px_2px_rgba(0,0,0,.06)]"
+      className="relative flex aspect-[16/9] flex-col overflow-hidden rounded-xl border border-black/5 shadow-[0_1px_2px_rgba(0,0,0,.06)]"
     >
-      <span className="h-[14%] border-b border-black/5 bg-white" />
-      <span
-        className="flex flex-1 items-center gap-3 px-4"
-        style={{ backgroundColor: hero.ground }}
-      >
-        <span className="flex flex-1 flex-col gap-1.5">
-          <span className="h-2 w-3/4 rounded-full bg-black/20" />
-          <span className="h-1.5 w-1/2 rounded-full bg-black/10" />
-          <span className="mt-1 h-3 w-12 rounded-full" style={{ backgroundColor: hero.accent }} />
-        </span>
-        <span className="size-14 shrink-0 overflow-hidden rounded-full bg-grey-200">
-          {site.profile_image && (
-            <img src={site.profile_image} alt="" className="size-full object-cover" />
-          )}
-        </span>
-      </span>
-      <span className="h-[24%]" style={{ backgroundColor: band.ground }} />
+      {bands.map((band, i) => (
+        <span
+          key={band.key}
+          className={cn(i === 1 ? 'flex-[3]' : 'flex-1')}
+          style={{ backgroundColor: band.colour }}
+        />
+      ))}
+      {hasPortrait && (
+        <img
+          src={site.profile_image ?? ''}
+          alt=""
+          className="absolute right-[10%] top-[16%] size-[34%] rounded-full border-2 border-white object-cover"
+        />
+      )}
     </span>
   );
 }
