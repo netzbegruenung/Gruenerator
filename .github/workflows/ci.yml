@@ -609,12 +609,32 @@ jobs:
       # Only pull_request trusts the cache. The merge queue and master run past
       # it: a test reading a file its turbo `inputs` do not name (see the
       # package turbo.json files) would otherwise stay green on a stale hit.
+      #
+      # `rest` runs about 20 test tasks, and turbo's default concurrency is 10
+      # on a 4-vCPU runner, each vitest with forks of its own. On a PR whose
+      # builds are cache hits, they all start at once (under `--force` the
+      # builds stagger them). Twice on #6019 the job then hit its 25 min limit
+      # without running a single post step, and GitHub kept no log (#6027).
+      # The cap keeps the runner responsive. The step limit sits below the job
+      # limit so a hang fails the step while the runner can still upload the
+      # per-task logs below, which name the task that hung.
       - name: Run tests
+        timeout-minutes: 20
         run: >-
           pnpm turbo run ${{ matrix.run && format(matrix.run, '@gruenerator/') || 'test' }}
-          ${{ matrix.run && '--concurrency=1' || matrix.pkg && format('--filter=@gruenerator/{0}', matrix.pkg) || '--filter=!@gruenerator/api --filter=!@gruenerator/web --filter=!@gruenerator/chat' }}
+          ${{ matrix.run && '--concurrency=1' || matrix.pkg && format('--filter=@gruenerator/{0}', matrix.pkg) || '--filter=!@gruenerator/api --filter=!@gruenerator/web --filter=!@gruenerator/chat --concurrency=2' }}
           ${{ github.event_name != 'pull_request' && '--force' || '' }}
           ${{ matrix.shard && format('-- --shard={0}', matrix.shard) || '' }}
+
+      - name: Upload turbo task logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: turbo-logs-${{ strategy.job-index }}
+          path: |
+            **/.turbo/turbo-*.log
+            !**/node_modules/**
+          retention-days: 7
 
   # Stable check name for the matrix above (check names are F0). `skipped`
   # counts only when the plan itself succeeded and found no shard with work.

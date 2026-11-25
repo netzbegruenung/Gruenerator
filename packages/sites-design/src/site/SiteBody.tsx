@@ -66,7 +66,12 @@ export function SiteBody({
   const blocks = visibleBlocks(snapshot, mode, Boolean(edit));
   const shown = blocks.filter((block) => !block.hidden);
   const anchors = blockAnchors(blocks);
-  const grounds = blockGrounds(blocks, snapshot.variant, snapshot.locale);
+  const grounds = blockGrounds(
+    blocks,
+    snapshot.variant,
+    snapshot.locale,
+    snapshot.profile_image !== ''
+  );
   const ctx: SectionContext = {
     snapshot,
     mode,
@@ -95,6 +100,32 @@ export function SiteBody({
         </Fragment>
       ))}
     </SiteShell>
+  );
+}
+
+/**
+ * One block on its own, without header and footer, on the ground it takes as a page's first
+ * block: the block picker's preview card. Static, never editable.
+ */
+export function SiteBlockPreview({ snapshot }: { snapshot: PublishedSiteSnapshot }) {
+  const block = snapshot.sections.blocks[0];
+  if (!block) return null;
+  const blocks = [block];
+  const anchor = blockAnchors(blocks).get(block.id) ?? block.id;
+  const ctx: SectionContext = {
+    snapshot,
+    mode: 'preview',
+    copy: siteCopy(snapshot.locale),
+    blocks,
+    liveAnchors: [`#${anchor}`],
+    edit: null,
+  };
+  const ground =
+    blockGrounds(blocks, snapshot.variant, snapshot.locale, snapshot.profile_image !== '').get(
+      block.id
+    ) ?? 'paper';
+  return (
+    <div data-ground="paper">{renderBlock(ctx, { block, anchor, ground, first: true }, null)}</div>
   );
 }
 

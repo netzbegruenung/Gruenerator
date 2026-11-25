@@ -1,4 +1,5 @@
-export { SiteBody } from './site/SiteBody.js';
+export { SiteBlockPreview, SiteBody } from './site/SiteBody.js';
+export { sampleBlockSnapshot, type SampleBlockType } from './model/samples.js';
 export { type SiteEditSlots } from './site/layout.js';
 export { SiteLegalBody } from './site/SiteLegalBody.js';
 export { InstagramConsent } from './site/InstagramConsent.js';
@@ -18,7 +19,8 @@ export {
   visibleBlocks,
   type SiteRenderMode,
 } from './model/visibility.js';
-export { variantSwatches, type SiteSwatch } from './model/swatches.js';
+export { backgroundSwatch, variantPreview } from './model/swatches.js';
+export { blockOnPhoto } from './model/grounds.js';
 export { sizedSrc } from './model/images.js';
 export { type SiteDocumentKind } from './model/meta.js';
 export { type LegalDocumentKind } from './legal/types.js';

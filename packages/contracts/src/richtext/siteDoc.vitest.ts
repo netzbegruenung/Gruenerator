@@ -142,7 +142,13 @@ const blocks = (): SiteBlock[] => [
     hidden: true,
     items: [{ id: 'a1', imageUrl: '', text: 'Mitmachen', link: '#kontakt' }],
   },
-  { id: 'feed', type: 'socialFeed', title: 'Instagram', instagramUsername: 'anna' },
+  {
+    id: 'feed',
+    type: 'socialFeed',
+    title: 'Instagram',
+    instagramUsername: 'anna',
+    background: 'dunkel',
+  },
   { id: 'contact', type: 'contact', title: 'Kontakt', backgroundImageUrl: '' },
 ];
 
@@ -304,6 +310,23 @@ describe('block operations', () => {
     const originalAfter = block(after, 'themes');
     expect(originalAfter?.type === 'themes' && originalAfter.items[0]?.title).toBe('Klima');
     expect(originalAfter?.type === 'themes' && originalAfter.items[0]?.content).toEqual(rich);
+  });
+
+  it('sets, keeps on a copy and clears a block background', () => {
+    const ydoc = seeded();
+    expect(setSiteBlockField(ydoc, 'about', 'about', { background: 'hell' })).toBe(true);
+    expect(block(decodeSiteDraft(ydoc), 'about')).toMatchObject({ background: 'hell' });
+    const copyId = duplicateSiteBlock(ydoc, 'about');
+    expect(block(decodeSiteDraft(ydoc), copyId!)).toMatchObject({ background: 'hell' });
+    expect(setSiteBlockField(ydoc, 'about', 'about', { background: null })).toBe(true);
+    expect(block(decodeSiteDraft(ydoc), 'about')).not.toHaveProperty('background');
+  });
+
+  it('reads an unknown background as automatic', () => {
+    const ydoc = seeded();
+    const map = ydoc.getMap(SITE_YDOC_KEYS.blocks).get('about') as Y.Map<unknown>;
+    map.set('background', 'lila');
+    expect(block(decodeSiteDraft(ydoc), 'about')).not.toHaveProperty('background');
   });
 
   it('duplicates the about text', () => {

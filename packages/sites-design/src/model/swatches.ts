@@ -1,21 +1,25 @@
-import { type SiteVariant, type SupportedLocale } from '@gruenerator/contracts';
+import {
+  type SiteBlock,
+  type SiteBlockBackground,
+  type SiteVariant,
+  type SupportedLocale,
+} from '@gruenerator/contracts';
 
-import { sectionGround, type SiteGround } from './grounds.js';
-
-export interface SiteSwatch {
-  ground: string;
-  accent: string;
-}
+import {
+  backgroundGround,
+  blockGrounds,
+  HEADER_GROUND,
+  sectionGround,
+  type SiteGround,
+} from './grounds.js';
 
 interface Palette {
   paper: string;
   surface: string;
+  tint: string;
   deep: string;
   deeper: string;
   vivid: string;
-  highlight: string;
-  accentLight: string;
-  vividAccent: string;
   scrim: string;
 }
 
@@ -25,58 +29,57 @@ const PALETTES: Record<SupportedLocale, Palette> = {
   'de-DE': {
     paper: '#ffffff',
     surface: '#f5f1e9',
+    tint: '#ffffff',
     deep: '#005538',
     deeper: '#00261a',
     vivid: '#00cc4f',
-    highlight: '#beff60',
-    accentLight: '#008939',
-    vividAccent: '#005538',
     scrim: '#00261a',
   },
   'de-AT': {
     paper: '#ffffff',
     surface: '#ffffff',
+    // tokens.css mixes it: color-mix(in srgb, #56af31 15%, #ffffff).
+    tint: '#e6f3e0',
     deep: '#257639',
     deeper: '#1b6630',
     vivid: '#56af31',
-    highlight: '#fcec00',
-    accentLight: '#e4007c',
-    vividAccent: '#000000',
     scrim: '#1b6630',
   },
 };
 
 export const SWATCH_PALETTES = PALETTES;
 
-function swatch(palette: Palette, ground: SiteGround): SiteSwatch {
-  switch (ground) {
-    case 'paper':
-    case 'surface':
-      return { ground: palette[ground], accent: palette.accentLight };
-    case 'tint':
-      // Only the about section uses the tint; hero and band never do, so no palette entry is mirrored.
-      return { ground: palette.paper, accent: palette.accentLight };
-    case 'deep':
-    case 'deeper':
-      return { ground: palette[ground], accent: palette.highlight };
-    case 'vivid':
-      return { ground: palette.vivid, accent: palette.vividAccent };
-    case 'photo':
-      return { ground: palette.scrim, accent: palette.highlight };
-  }
+/** A photo ground shows the image under its scrim; the swatch takes the scrim colour. */
+function groundColour(palette: Palette, ground: SiteGround): string {
+  return ground === 'photo' ? palette.scrim : palette[ground];
 }
 
 /**
- * Leading ground and accent of the page top (the header: the hero is neutral in every variant),
- * and the same for the themes band, as the page paints them.
+ * The page in miniature: one band per part from top to bottom (header, each shown block, footer),
+ * painted as the page paints them in this variant. Keyed by block id, so a list keeps its rows.
  */
-export function variantSwatches(
+export function variantPreview(
+  blocks: readonly SiteBlock[],
+  hasPortrait: boolean,
   variant: SiteVariant,
   locale: SupportedLocale
-): { hero: SiteSwatch; band: SiteSwatch } {
+): { key: string; colour: string }[] {
   const palette = PALETTES[locale];
-  return {
-    hero: swatch(palette, sectionGround(variant, 'header', locale)),
-    band: swatch(palette, sectionGround(variant, 'themes', locale)),
-  };
+  const grounds = blockGrounds(blocks, variant, locale, hasPortrait);
+  const band = (key: string, ground: SiteGround) => ({
+    key,
+    colour: groundColour(palette, ground),
+  });
+  return [
+    band('header', HEADER_GROUND),
+    ...blocks
+      .filter((block) => !block.hidden)
+      .map((block) => band(block.id, grounds.get(block.id) ?? 'paper')),
+    band('footer', sectionGround(variant, 'footer', locale)),
+  ];
+}
+
+/** The colour a chosen block background paints in this country, for the editor's swatch. */
+export function backgroundSwatch(background: SiteBlockBackground, locale: SupportedLocale): string {
+  return PALETTES[locale][backgroundGround(background, locale)];
 }

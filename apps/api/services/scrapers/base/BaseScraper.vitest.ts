@@ -4,11 +4,17 @@
  * Antwort — ohne `acceptStatus` würde jedes unveränderte PDF dreimal angefragt
  * und der Lauf danach mit „HTTP 304" abbrechen, statt es zu überspringen.
  */
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { createServer, type Server } from 'node:http';
+import { type AddressInfo } from 'node:net';
+
+import { describe, it, expect, vi, afterEach, beforeAll, afterAll } from 'vitest';
 
 import { BaseScraper, HttpStatusError, isGoneStatus } from './BaseScraper.js';
 
 import type { ScraperResult } from '../types.js';
+
+/** Captured before any test stubs `fetch`. */
+const realFetch = globalThis.fetch;
 
 class TestScraper extends BaseScraper {
   constructor() {
@@ -140,5 +146,48 @@ describe('isGoneStatus', () => {
 
   it('leaves our problems ours: a missing credential and a broken host', () => {
     expect([401, 500, 502, 429].map(isGoneStatus)).toEqual([false, false, false, false]);
+  });
+});
+
+describe('response body deadline (#6031)', () => {
+  let server: Server;
+  let base: string;
+
+  beforeAll(async () => {
+    server = createServer((req, res) => {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.write('<html>');
+      if (req.url === '/stalls') return; // headers sent, body never finishes
+      let sent = 0;
+      const tick = setInterval(() => {
+        res.write('<p>chunk</p>');
+        if (++sent === 6) {
+          clearInterval(tick);
+          res.end('</html>');
+        }
+      }, 80);
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  });
+
+  afterAll(async () => {
+    server.closeAllConnections();
+    await new Promise((resolve) => server.close(resolve));
+  });
+
+  it('aborts a body that stops arriving instead of hanging', async () => {
+    vi.stubGlobal('fetch', realFetch);
+    const response = await new TestScraper().fetch(`${base}/stalls`, { timeout: 200 });
+    await expect(response.text()).rejects.toThrow();
+  });
+
+  it('lets a slow but steady body finish past the timeout', async () => {
+    vi.stubGlobal('fetch', realFetch);
+    const response = await new TestScraper().fetch(`${base}/steady`, { timeout: 250 });
+    // ~480 ms in total, never more than 80 ms between chunks.
+    const html = await response.text();
+    expect(html.endsWith('</html>')).toBe(true);
+    expect(response.url).toBe(`${base}/steady`);
   });
 });

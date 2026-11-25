@@ -21,6 +21,8 @@ import {
   runWithDecisionJournal,
 } from '../../../../utils/decisionJournal.js';
 
+import { INLINE_SOURCE_URL_RULE, SOURCE_LINK_RULE } from './sourceLinkRule.js';
+
 import type * as productKnowledge from '../../../../services/chat/productKnowledge.js';
 import type { ChatGraphState, TurnMaterialItem } from '../types.js';
 
@@ -903,6 +905,31 @@ describe('Blockliste — Auswahl und Reihenfolge', () => {
     );
     expect(loop).not.toContain('RECHERCHE-METHODE');
     expect(loop).toContain('Form und Umfang gibt die oben aktive Textform vor');
+  });
+});
+
+// #5615: mit inlineSourceLinks stehen die URLs im Quellenblock — die Regel
+// darf sie dann nicht verbieten und stattdessen `quelle:N` verlangen.
+describe('Quellenlinks im Einzelpfad', () => {
+  it('verlinkt bei inlineSourceLinks die echte URL statt quelle:N', async () => {
+    const base = makeState();
+    const state = makeState({
+      intent: 'search',
+      ...withSources,
+      agentConfig: { ...base.agentConfig, inlineSourceLinks: true },
+    } as never);
+    const prompt = await buildSystemMessage(state);
+    expect(prompt).toContain('Quelle-URL:');
+    expect(prompt).toContain(INLINE_SOURCE_URL_RULE);
+    expect(prompt).not.toContain(SOURCE_LINK_RULE);
+  });
+
+  it('bleibt sonst bei quelle:N ohne URLs', async () => {
+    const prompt = await buildSystemMessage(
+      makeState({ intent: 'search', ...withSources } as never)
+    );
+    expect(prompt).not.toContain('Quelle-URL:');
+    expect(prompt).toContain(SOURCE_LINK_RULE);
   });
 });
 

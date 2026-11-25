@@ -16,6 +16,7 @@ import {
   defaultSiteBlock,
   readSiteVariant,
   SITE_BLOCKS_MAX,
+  siteBlockBackgroundSchema,
   siteBlockSpec,
   siteBlockTypeSchema,
   siteHeaderStyleSchema,
@@ -160,7 +161,7 @@ function readField(fields: Y.Map<unknown>, key: SiteFieldKey): SiteFieldValues[S
 // ── Block layout in the doc ─────────────────────────────────────────────────
 
 /** Plain fields each block type keeps as single keys of its Y.Map (rich text lives apart). */
-const BLOCK_SCALARS: { [T in SiteBlockType]: readonly string[] } = {
+const OWN_SCALARS: { [T in SiteBlockType]: readonly string[] } = {
   hero: ['layout'],
   about: ['title'],
   heroImage: ['imageUrl', 'imageFocus', 'title', 'subtitle'],
@@ -169,6 +170,12 @@ const BLOCK_SCALARS: { [T in SiteBlockType]: readonly string[] } = {
   socialFeed: ['title', 'instagramUsername'],
   contact: ['title', 'backgroundImageUrl', 'backgroundFocus'],
 };
+
+/** Every block type also keeps its own background; absent means the variant decides. */
+const blockScalars = (type: SiteBlockType): readonly string[] => [
+  'background',
+  ...OWN_SCALARS[type],
+];
 
 type ListType = 'themes' | 'actions';
 const ITEM_SCALARS: { [T in ListType]: readonly string[] } = {
@@ -195,6 +202,10 @@ function readScalar(key: string, value: unknown, fallback: unknown): unknown {
   if (key.endsWith('Focus')) return readFocus(value) ?? undefined;
   if (key === 'layout') {
     const parsed = siteHeroLayoutSchema.safeParse(value);
+    return parsed.success ? parsed.data : undefined;
+  }
+  if (key === 'background') {
+    const parsed = siteBlockBackgroundSchema.safeParse(value);
     return parsed.success ? parsed.data : undefined;
   }
   if (typeof fallback === 'boolean') return typeof value === 'boolean' ? value : fallback;
@@ -244,7 +255,7 @@ function decodeBlock(ydoc: Y.Doc, id: string, map: YBlock): SiteBlock | null {
   const type = blockType(map);
   if (!type) return null;
   const block = defaultSiteBlock(type, () => id) as Record<string, unknown>;
-  readScalars(block, map, BLOCK_SCALARS[type]);
+  readScalars(block, map, blockScalars(type));
   // `hidden` comes from the doc only, never from the type's defaults.
   delete block['hidden'];
   if (map.get('hidden') === true && !siteBlockSpec(type).pinned) block['hidden'] = true;
@@ -272,7 +283,7 @@ function writeBlock(ydoc: Y.Doc, block: SiteBlock): YBlock {
   const map = new Y.Map<unknown>();
   map.set('type', block.type);
   if (block.hidden) map.set('hidden', true);
-  writeScalars(map, block, BLOCK_SCALARS[block.type]);
+  writeScalars(map, block, blockScalars(block.type));
   blocksMap(ydoc).set(block.id, map);
   if (block.type === 'about') seedFragment(getBlockFragment(ydoc, block.id), block.content);
   if (block.type === 'themes' || block.type === 'actions') {
@@ -529,7 +540,7 @@ export function setSiteBlockField<T extends SiteBlockType>(
 ): boolean {
   const live = liveBlock(ydoc, id);
   if (!live || live.type !== type) return false;
-  const keys = BLOCK_SCALARS[type].filter((key) => key in patch);
+  const keys = blockScalars(type).filter((key) => key in patch);
   ydoc.transact(() => writeScalars(live.map, patch, keys), SITE_LOCAL_ORIGIN);
   return true;
 }

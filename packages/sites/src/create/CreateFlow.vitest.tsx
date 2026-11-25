@@ -27,7 +27,7 @@ vi.mock('../SitesContext', () => ({
   useAuth: () => ({ user: { display_name: 'Anna', email: 'a@b.de', locale: 'de-DE' } }),
   useSitesPaths: () => ({
     overview: '/sites',
-    create: '/sites/neu',
+    create: '/sites/erstellen',
     site: (handle: string) => `/sites/${handle}`,
   }),
 }));
@@ -79,9 +79,9 @@ function Where() {
 
 function render(ui: ReactElement) {
   return rtlRender(
-    <MemoryRouter initialEntries={['/sites/neu']}>
+    <MemoryRouter initialEntries={['/sites/erstellen']}>
       <Routes>
-        <Route path="/sites/neu" element={ui} />
+        <Route path="/sites/erstellen" element={ui} />
         <Route path="/sites/:handle" element={<Where />} />
       </Routes>
     </MemoryRouter>
@@ -131,6 +131,18 @@ describe('CreateFlow', () => {
       })
     );
     expect(await screen.findByTestId('pfad')).toHaveTextContent('/sites/anna');
+  });
+
+  it("suggests an address past the account's own ones", async () => {
+    m.generate.mockResolvedValue(generated);
+    const user = userEvent.setup();
+    render(<CreateFlow ownHandles={['anna', 'anna-2']} />);
+    await user.click(screen.getByLabelText('Beschreibung'));
+    await user.paste('x'.repeat(80));
+    await user.click(screen.getByRole('button', { name: 'Generieren' }));
+    await waitFor(() =>
+      expect(m.createSite).toHaveBeenCalledWith(expect.objectContaining({ subdomain: 'anna-3' }))
+    );
   });
 
   it('shows the flyer message while a flyer runs', () => {

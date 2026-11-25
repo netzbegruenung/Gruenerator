@@ -200,7 +200,9 @@ export function attachedDocsQuery(state: ChatGraphState): string {
 export async function retrieveAttachedDocuments(
   state: ChatGraphState,
   query: string,
-  opts?: { sources?: DocumentSource[] }
+  /** `contentType`: nur der Vorab-Abruf reicht die Art des Turns durch — ein
+   *  Werkzeugaufruf des Modells sucht mit dem, was das Modell angibt. */
+  opts?: { sources?: DocumentSource[]; contentType?: readonly string[] }
 ): Promise<SearchResult[]> {
   const sources = opts?.sources ?? retrievableAttachedSources(state);
   if (sources.length === 0 || !query) return [];
@@ -221,7 +223,10 @@ export async function retrieveAttachedDocuments(
     query,
     sources,
     state.agentConfig,
-    { ...(isLoopRerankEnabled() && { rerankChunks: true }) }
+    {
+      ...(isLoopRerankEnabled() && { rerankChunks: true }),
+      ...(opts?.contentType && { contentType: opts.contentType }),
+    }
   );
   const flat = Object.values(fanout.perSourceResults).flat();
   flat.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));

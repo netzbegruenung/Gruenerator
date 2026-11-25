@@ -39,3 +39,31 @@ export function heuristicExtractFilters(query: string): SubcategoryFilters | nul
 
   return Object.keys(filters).length > 0 ? filters : null;
 }
+
+/**
+ * Filters of a forced-search turn. The resolver's content type wins over the
+ * heuristic's: it saw the conversation, so a follow-up without a type word of
+ * its own („suche nur im notebook" after „was haben wir beschlossen") keeps the
+ * Beschluss filter. The heuristic reads only this message and stays the
+ * fallback for a resolver that failed or named no type.
+ */
+export function forcedSearchFilters(
+  userContent: string,
+  refinedContentType: string | null
+): SubcategoryFilters | null {
+  const heuristic = heuristicExtractFilters(userContent);
+  return refinedContentType ? { ...heuristic, content_type: refinedContentType } : heuristic;
+}
+
+/**
+ * The content type a turn asked for, as the list `lvContentType` takes —
+ * `undefined` when it asked for none.
+ */
+export function contentTypesOf(
+  filters: SubcategoryFilters | null | undefined
+): readonly string[] | undefined {
+  const raw = filters?.content_type;
+  if (raw === undefined) return undefined;
+  const list = typeof raw === 'string' ? [raw] : raw;
+  return list.length > 0 ? list : undefined;
+}

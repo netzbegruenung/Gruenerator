@@ -22,6 +22,12 @@ export interface EditorSelection {
 /** The sidebar panel for the selection: the block's form or its image. */
 export type ElementPanel = 'details' | 'image';
 
+/** Where a block from the picker would land: right after `afterBlockId`, shown on the canvas. */
+export interface InsertPreview {
+  afterBlockId: string;
+  label: string;
+}
+
 interface EditorState {
   selection: EditorSelection | null;
   /** The panel shown for the selection; null shows only the toolbar. */
@@ -31,6 +37,8 @@ interface EditorState {
   /** A field to focus once its form is mounted (publish issues jump there). */
   focusedField: FocusedField | null;
   highlightedElement: FocusedField | null;
+  /** The picker card under the pointer or focus; null when none is. */
+  insertPreview: InsertPreview | null;
 
   select: (selection: EditorSelection | null) => void;
   openElementPanel: (panel: ElementPanel | null) => void;
@@ -39,6 +47,7 @@ interface EditorState {
   focusPath: (panel: EditorPanel, path: string) => void;
   setHighlightedElement: (element: FocusedField | null) => void;
   clearFocus: () => void;
+  setInsertPreview: (preview: InsertPreview | null) => void;
 }
 
 const ITEM_ID = /^blocks\.[^.]+\.items\.([^.]+)\./;
@@ -58,6 +67,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   sidebarTab: null,
   focusedField: null,
   highlightedElement: null,
+  insertPreview: null,
 
   select: (selection) =>
     set((state) => {
@@ -100,4 +110,6 @@ export const useEditorStore = create<EditorState>((set) => ({
   setHighlightedElement: (element) => set({ highlightedElement: element }),
 
   clearFocus: () => set({ focusedField: null, highlightedElement: null }),
+
+  setInsertPreview: (insertPreview) => set({ insertPreview }),
 }));

@@ -13,6 +13,18 @@ globalThis.ResizeObserver ??= class {
   unobserve() {}
   disconnect() {}
 };
+// framer-motion's viewport hooks (TypingAnimation in the overview search) construct one on mount.
+globalThis.IntersectionObserver ??= class {
+  readonly root = null;
+  readonly rootMargin = '';
+  readonly thresholds: readonly number[] = [];
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+  takeRecords() {
+    return [];
+  }
+} as unknown as typeof IntersectionObserver;
 Element.prototype.scrollIntoView ??= () => {};
 // The editor sidebar (@ggraphic/editor-chrome) picks desktop or mobile layout via matchMedia,
 // which jsdom lacks. Default to desktop; tests that need the phone layout stub it themselves.
