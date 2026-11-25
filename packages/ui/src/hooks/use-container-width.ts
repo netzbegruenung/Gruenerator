@@ -18,10 +18,19 @@ export function useIsNarrowerThan(
   threshold: number
 ): boolean {
   const [narrow, setNarrow] = React.useState(false);
+  // A child's layout effect runs before React attaches its parent's ref, so a
+  // panel measuring the surface it sits in finds `ref.current === null` on
+  // mount. Without a retry it never measured and stayed "wide" — on phones the
+  // notebook's source panel rendered as a 440px column instead of a sheet.
+  const [retry, setRetry] = React.useState(0);
 
   useIsomorphicLayoutEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!el) {
+      if (retry > 2) return;
+      const frame = requestAnimationFrame(() => setRetry((n) => n + 1));
+      return () => cancelAnimationFrame(frame);
+    }
 
     const measure = () => setNarrow(el.clientWidth < threshold);
     measure();
@@ -29,7 +38,7 @@ export function useIsNarrowerThan(
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [ref, threshold]);
+  }, [ref, threshold, retry]);
 
   return narrow;
 }
