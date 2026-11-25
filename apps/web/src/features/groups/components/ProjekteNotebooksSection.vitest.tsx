@@ -9,12 +9,13 @@ import type { NotebookCollection } from '@/types/notebook';
 
 import useSidebarFavouritesStore from '@/stores/sidebarFavouritesStore';
 
+// Only the fields the tile reads; the full row type carries ~30 more.
 const shared = {
   id: 'nb-1',
   name: 'Klimaplan',
   access_source: 'group',
   shared_via_groups: ['Grüne NRW'],
-} as NotebookCollection;
+} as unknown as NotebookCollection;
 
 describe('NotebookTile', () => {
   it('offers favourites on a shared notebook, without the owner actions', async () => {
