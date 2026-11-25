@@ -13,6 +13,7 @@ import {
   type MentionableFetch,
 } from '@gruenerator/chat';
 import { getGlobalApiClient, stripApiPrefix } from '@gruenerator/shared/api';
+import { MENTION_RECIPES_KEY } from '@gruenerator/shared/grueneratoren';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
@@ -103,7 +104,7 @@ export function useMentionablesSync(): void {
     ...common,
   });
   useQuery({ queryKey: ['mention-user-agents'], queryFn: () => syncUserAgents(get), ...common });
-  useQuery({ queryKey: ['mention-textforms'], queryFn: () => syncTextforms(get), ...common });
+  useQuery({ queryKey: MENTION_RECIPES_KEY, queryFn: () => syncTextforms(get), ...common });
   useQuery({ queryKey: ['mention-boards'], queryFn: () => syncBoards(get), ...common });
   useQuery({ queryKey: ['mention-docs'], queryFn: () => syncDocs(get), ...common });
   useQuery({ queryKey: ['mention-sheets'], queryFn: () => syncSheets(get), ...common });

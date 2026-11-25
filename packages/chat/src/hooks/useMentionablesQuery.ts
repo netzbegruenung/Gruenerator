@@ -17,6 +17,7 @@ import {
   type SharepicVorlage,
 } from '@gruenerator/contracts';
 import { ApiError } from '@gruenerator/shared/api';
+import { MENTION_RECIPES_KEY } from '@gruenerator/shared/grueneratoren';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
 
@@ -122,7 +123,7 @@ export function useUserAgentsQuery() {
 export function useTextformsQuery() {
   const get = useMentionableFetch();
   return useQuery<TextformMentionable[]>({
-    queryKey: ['mention-textforms'],
+    queryKey: MENTION_RECIPES_KEY,
     queryFn: () => syncTextforms(get),
     staleTime: STALE_TIME,
     retry: 1,
