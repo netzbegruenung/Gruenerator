@@ -11,9 +11,7 @@ In etwa zehn Minuten legst du ein eigenes Notebook an, das eure Dokumente bünde
 
 ## So geht's
 
-1. **Zur Wissen-Seite.** Öffne **Wissen** (`/wissen`) — dort liegen alle Notebooks an einem Ort. Neben der Überschrift **„Deine Notebooks"** steht der Link **„Neues erstellen"**; ein Klick öffnet den Editor. Hast du noch keins, führt auch die Kachel **„Meine Notebooks"** dorthin. Sobald du eins besitzt, klappt sie die Liste deiner Notebooks auf.
-
-   ![Die Notebook-Leiste auf der Wissen-Seite mit der Karte „Neues erstellen" in der Mitte](/img/guides/wissen-notebook-leiste.webp)
+1. **Editor öffnen.** Im Arbeiten-Tab steht neben **„Zuletzt"** der Knopf **„Neu erstellen"**; dort wählst du **Notebook**, und der Editor öffnet sich (`/notebooks/neu`). Deine fertigen Notebooks findest du danach im Marktplatz unter **Notebooks**, neben den offiziellen.
 
 2. **Dateien hochladen.** Der Editor führt dich durch drei Schritte: **Quellen → Details → Überprüfen**. Im ersten wählst du die Kachel **Dateien hochladen** und ziehst deine Dokumente ins Fenster oder suchst sie im Dateibrowser. Sie sammeln sich als Vorschau **„Bereit zum Hochladen"**, wo du einzelne wieder entfernen kannst, dann startest du mit **„Hochladen"**.
 

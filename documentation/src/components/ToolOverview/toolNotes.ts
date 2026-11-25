@@ -32,11 +32,11 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
     readMore: { label: 'Office', href: '/docs/features/office' },
   },
   canvas: {
-    note: 'Alles Visuelle auf einer Seite: oben die Werkzeuge, darunter deine Mediathek mit allen Videos, Sharepics, KI-Bildern, Uploads und Audios — per Ziehen hochladen, filtern, durchsuchen, Titel und Alt-Text pflegen, teilen oder in den Papierkorb legen. Sharepics und KI-Bilder entstehen im Chat und landen von selbst hier.',
+    note: 'Alles Visuelle auf einer Seite: oben die Werkzeuge, darunter deine Mediathek mit allen Videos, Sharepics, KI-Bildern, Uploads und Audios — per Ziehen hochladen, filtern, durchsuchen, Titel und Alt-Text pflegen, teilen oder in den Papierkorb verschieben. Sharepics und KI-Bilder entstehen im Chat und landen von selbst hier.',
     platform: ['web', 'desktop', 'mobile'],
   },
   wissen: {
-    note: 'Recherche und Notebooks: eigene Quellensammlungen anlegen, durchsuchen und im Chat als Grundlage verwenden. Von hier aus geht es zum Briefing mit der Lage des Tages und zu den Umfragen.',
+    note: 'Quellensammlungen durchsuchen und im Chat als Grundlage verwenden. Die Kachel führt in den Marktplatz, zu deinen und zu den offiziellen wie Programmen und Beschlüssen.',
     platform: ['web', 'desktop', 'mobile'],
   },
 
