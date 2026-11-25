@@ -21,6 +21,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@ggraphic/editor-chrome": "0.1.0-alpha.0",
     "@gruenerator/collab": "workspace:*",
     "@gruenerator/contracts": "workspace:*",
     "@gruenerator/shared": "workspace:*",
