@@ -83,6 +83,7 @@ describe('AdminPage', () => {
       'Parteitage',
       'Vorlagen',
       'Meldungen',
+      'Content-Sync',
       'Landesverbände',
     ]);
   });
@@ -105,6 +106,7 @@ describe('AdminPage', () => {
     ]);
     expect(screen.queryByRole('tab', { name: 'Vorlagen' })).toBeNull();
     expect(screen.queryByRole('tab', { name: 'Landesverbände' })).toBeNull();
+    expect(screen.queryByRole('tab', { name: 'Content-Sync' })).toBeNull();
   });
 
   it('öffnet auf den Nutzenden, den einzigen Reiter, den jede Instanz hat', async () => {

@@ -191,7 +191,7 @@ jobs:
           # 22.18, and a cached older 22.x would otherwise be picked silently.
           node-version: '>=22.18.0 <23'
 
-      - name: Run LV sync (sends own email if anything changed)
+      - name: Run LV sync (mails only if switched on in the admin panel)
         id: sync
         continue-on-error: true
         run: |
@@ -371,6 +371,9 @@ jobs:
           BREVO_SMTP_PASS: ${{ secrets.BREVO_SMTP_PASS }}
           EMAIL_FROM: ${{ vars.EMAIL_FROM || 'Grünerator <info@gruenerator.eu>' }}
           CONTENT_SYNC_EMAIL: ${{ vars.CONTENT_SYNC_EMAIL }}
+          # The digest asks the API whether mails are switched on (admin panel).
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          CONTENT_SYNC_API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}
           SYNC_SUMMARY_PATH: ${{ github.workspace }}/sync-summary.json
         run: |
           ARGS="--dir ${{ github.workspace }}/summaries/"

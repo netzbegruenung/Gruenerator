@@ -28,6 +28,10 @@ import { loadLandesverbandContacts } from '../../config/landesverbaendeConfig.js
 import { sendContentSyncEmail } from '../../services/email/emailService.js';
 import { upsertSyncEvents } from '../../services/monitor/ContentSyncEventsService.js';
 import { getContentStatsMarkdown } from '../../services/scrapers/contentStats.js';
+import {
+  isContentSyncEmailEnabled,
+  recordContentSyncRun,
+} from '../../services/scrapers/contentSyncRunLog.js';
 import { drainExtractionStats } from '../../services/scrapers/extractionRecorder.js';
 import { drainSyncEvents } from '../../services/scrapers/syncEventRecorder.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
@@ -471,7 +475,9 @@ async function runScopedLandesverband(
   // ohnehin eine Mail raus, stehen sie drin; siehe ContentSyncSourceResult.
   const hasChanges = result.stored + result.updated + result.errors > 0;
   if (!opts.dryRun) {
-    if (!hasChanges) {
+    if (!(await isContentSyncEmailEnabled())) {
+      log.info(`Per-LV run ${landesverband}: mails are off in the admin panel — skipping email`);
+    } else if (!hasChanges) {
       log.info(
         `Per-LV run ${landesverband}: no new/updated docs and no hard errors — skipping email` +
           (result.deadLinks > 0 ? ` (${result.deadLinks} dead link(s), not a reason to write)` : '')
@@ -578,6 +584,14 @@ async function executeSyncRun(
   fallbackEmail: string | undefined
 ): Promise<SyncOutcome> {
   const startTime = Date.now();
+  const runIdentity = {
+    sourceId,
+    landesverband: landesverband ?? null,
+    recent: opts.recent,
+    dryRun: opts.dryRun,
+    runUrl: runUrl ?? null,
+    startedAt: new Date(startTime),
+  };
 
   try {
     log.info(`Content sync started: ${lockKey}`);
@@ -630,6 +644,21 @@ async function executeSyncRun(
     }
     const skipReasons = skipReasonCounts(result.skipReasons);
 
+    await recordContentSyncRun({
+      ...runIdentity,
+      name,
+      status: 'success',
+      stored: result.stored,
+      updated: result.updated,
+      skipped: result.skipped,
+      errors: result.errors,
+      deadLinks: result.deadLinks ?? 0,
+      failureMessage: null,
+      errorSamples: result.errorSamples ?? [],
+      deadLinkSamples: result.deadLinkSamples ?? [],
+      durationMs,
+    });
+
     return {
       status: 200,
       body: {
@@ -660,6 +689,20 @@ async function executeSyncRun(
     await persistRecordedEvents();
     drainAndLogExtraction(lockKey);
     log.error(`Content sync failed: ${lockKey} — ${err.message}`);
+    await recordContentSyncRun({
+      ...runIdentity,
+      name: landesverband ? `Landesverband ${landesverband}` : sourceId,
+      status: 'failed',
+      stored: 0,
+      updated: 0,
+      skipped: 0,
+      errors: 0,
+      deadLinks: 0,
+      failureMessage: err.message,
+      errorSamples: [],
+      deadLinkSamples: [],
+      durationMs,
+    });
     return {
       status: 500,
       body: { success: false, sourceId, error: toUserFacingMessage(err), durationMs },
@@ -776,6 +819,10 @@ export const contentSyncContractRouter = s.router(contentSyncContract, {
 
   listSources: async () => {
     return { status: 200 as const, body: { sources: [...contentSyncSourceSchema.options] } };
+  },
+
+  getSettings: async () => {
+    return { status: 200 as const, body: { emailEnabled: await isContentSyncEmailEnabled() } };
   },
 
   getStats: async () => {

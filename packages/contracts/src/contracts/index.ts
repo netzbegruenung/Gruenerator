@@ -65,6 +65,7 @@ export { feedbackContract } from './feedbackContract.js';
 export { newsletterContract } from './newsletterContract.js';
 export { contentReportContract } from './contentReportContract.js';
 export { adminReportsContract } from './adminReportsContract.js';
+export { adminContentSyncContract } from './adminContentSyncContract.js';
 export { modelPreferencesContract } from './modelPreferencesContract.js';
 export { imageModelPreferenceContract } from './imageModelPreferenceContract.js';
 export { mcpServersContract } from './mcpServersContract.js';
