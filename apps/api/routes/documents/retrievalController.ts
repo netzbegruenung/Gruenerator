@@ -33,6 +33,12 @@ import { getPostgresDocumentService } from '../../services/document-services/Pos
 import { listProjectSharedContent } from '../../services/groups/projectSharedContent.js';
 import { resolveReaderSource } from '../../services/notebook/notebookSources.js';
 import { notAvailableForRemote } from '../../services/notebook/remoteSources/errors.js';
+import {
+  findSystemPdfSource,
+  loadSystemOriginal,
+  type SystemPdfSource,
+} from '../../services/notebook/systemOriginals.js';
+import { getSystemMediaStorage } from '../../services/systemMedia/storage.js';
 import { createLogger } from '../../utils/logger.js';
 import { fromParam, type DocumentId } from '../../utils/types/branded.js';
 import { checkNotebookAccess } from '../notebook/notebookAccess.js';
@@ -355,11 +361,20 @@ async function respondWithDocumentChunks(
 
     let documentTitle = 'Dokument';
     let ownerUserId = userId;
-    // Only manual uploads keep their file (documentOriginals.ts); the panel
-    // shows „PDF öffnen" for those and links to GET /:id/original.
+    // Manual uploads keep their file (documentOriginals.ts); scraped system
+    // PDFs are fetched on first view (systemOriginals.ts). The panel shows
+    // „PDF öffnen" for both and links to GET /:id/original.
     let original: { mimetype: string | null } | null = null;
 
-    if (!systemConfig) {
+    if (systemConfig) {
+      const pdf = await findSystemPdfSource(systemConfig.qdrantCollection, id).catch(
+        (error: unknown) => {
+          log.warn(`[GET chunks] PDF source lookup failed for ${id}: ${String(error)}`);
+          return null;
+        }
+      );
+      original = pdf ? { mimetype: 'application/pdf' } : null;
+    } else {
       // Zitate aus geteilten und öffentlichen Notebooks zeigen auf Quellen
       // fremder Eigentümer*innen — dieselbe Zugriffsregel wie der Reader.
       const source = await resolveReaderSource(
@@ -446,6 +461,14 @@ router.get(
         return;
       }
       const notebookId = typeof req.query.notebookId === 'string' ? req.query.notebookId : null;
+      const systemConfig = notebookId ? getSystemCollectionConfig(notebookId) : null;
+      if (systemConfig) {
+        if (isRemoteCollection(systemConfig)) return notFound();
+        const pdf = await findSystemPdfSource(systemConfig.qdrantCollection, req.params.id);
+        if (!pdf) return notFound();
+        await sendSystemOriginal(res, pdf, req.params.id, notFound);
+        return;
+      }
       const source = await resolveReaderSource(
         { documentId: req.params.id, notebookId: notebookId || null, userId },
         { db: getPostgresInstance(), helper: notebookHelper, access: checkNotebookAccess }
@@ -480,6 +503,55 @@ router.get(
     }
   }
 );
+
+function pdfFilename(url: string): string {
+  const name = decodeURIComponent(new URL(url).pathname.split('/').pop() ?? '');
+  return /\.pdf$/i.test(name) ? name : 'dokument.pdf';
+}
+
+/**
+ * A scraped system PDF. Same access rule as its chunks (login; the files are
+ * public party documents). Range requests work for the stored copy, so the
+ * viewer loads a long Wahlprogramm page by page.
+ */
+async function sendSystemOriginal(
+  res: Response,
+  pdf: SystemPdfSource,
+  documentId: string,
+  notFound: () => void
+): Promise<void> {
+  const original = await loadSystemOriginal(pdf).catch((error: unknown) => {
+    log.warn(`[GET /:id/original] fetching ${pdf.url} failed: ${String(error)}`);
+    return null;
+  });
+  if (!original) return notFound();
+
+  res.set(originalResponseHeaders(pdfFilename(pdf.url), 'application/pdf'));
+  if (original.kind === 'fresh') {
+    res.set('Cache-Control', 'private, no-cache');
+    res.send(original.bytes);
+    return;
+  }
+  const absolute = getSystemMediaStorage().resolveLocalPath(original.key);
+  if (!absolute) return notFound();
+  res.sendFile(
+    absolute,
+    {
+      // Content-addressed: the bytes behind this key never change.
+      cacheControl: false,
+      headers: { 'Cache-Control': 'private, max-age=86400' },
+      // The key is ours and validated; only a dev checkout under `.worktrees/` has a dot segment.
+      dotfiles: 'allow',
+    },
+    (err) => {
+      if (!err || res.headersSent) return;
+      log.warn(`[GET /:id/original] sendFile failed for ${documentId}: ${err.message}`);
+      res.removeHeader('Content-Disposition');
+      res.type('json');
+      notFound();
+    }
+  );
+}
 
 const bulkDeleteSchema = z.object({
   ids: z.array(z.string()).min(1),

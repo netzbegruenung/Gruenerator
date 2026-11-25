@@ -34,6 +34,11 @@ vi.mock('../../database/services/PostgresService.js', () => ({
 }));
 vi.mock('../notebook/notebookAccess.js', () => ({ checkNotebookAccess }));
 vi.mock('./helpers.js', () => ({ enrichDocumentWithPreview: vi.fn() }));
+const findSystemPdfSource = vi.fn();
+vi.mock('../../services/notebook/systemOriginals.js', () => ({
+  findSystemPdfSource,
+  loadSystemOriginal: vi.fn(),
+}));
 
 async function startApp(): Promise<{ base: string; close: () => void }> {
   const { default: router } = await import('./retrievalController.js');
@@ -63,6 +68,7 @@ beforeEach(() => {
     .mockResolvedValue([{ user_id: 'owner-1', title: 'Entwurf', source_url: null }]);
   checkNotebookAccess.mockReset().mockResolvedValue({ exists: true, canRead: true });
   isDocumentInCollection.mockReset().mockResolvedValue(true);
+  findSystemPdfSource.mockReset().mockResolvedValue(null);
 });
 
 describe('GET /api/documents/chunks — Query-Transport', () => {
@@ -210,13 +216,40 @@ describe('GET /api/documents/:id/chunks — gespeichertes Original', () => {
     }
   });
 
-  it('meldet für Systemsammlungen kein Original', async () => {
+  it('meldet für ein Systemdokument ohne PDF kein Original', async () => {
     const { base, close } = await startApp();
     try {
       const body = (await (
         await fetch(`${base}/api/documents/doc-1/chunks?collectionId=grundsatz-system`)
       ).json()) as { has_original: boolean };
       expect(body.has_original).toBe(false);
+      expect(findSystemPdfSource).toHaveBeenCalledWith('grundsatz_documents', 'doc-1');
+    } finally {
+      close();
+    }
+  });
+
+  it('meldet ein gescraptes PDF einer Systemsammlung als Original', async () => {
+    findSystemPdfSource.mockResolvedValue({ url: 'https://lv.example/a.pdf', fileHash: null });
+    const { base, close } = await startApp();
+    try {
+      const body = (await (
+        await fetch(`${base}/api/documents/doc-1/chunks?collectionId=grundsatz-system`)
+      ).json()) as { has_original: boolean; original_mimetype: string | null };
+      expect(body.has_original).toBe(true);
+      expect(body.original_mimetype).toBe('application/pdf');
+    } finally {
+      close();
+    }
+  });
+
+  it('liefert die Chunks auch, wenn die PDF-Suche scheitert', async () => {
+    findSystemPdfSource.mockRejectedValue(new Error('content qdrant unavailable'));
+    const { base, close } = await startApp();
+    try {
+      const res = await fetch(`${base}/api/documents/doc-1/chunks?collectionId=grundsatz-system`);
+      expect(res.status).toBe(200);
+      expect(((await res.json()) as { has_original: boolean }).has_original).toBe(false);
     } finally {
       close();
     }
