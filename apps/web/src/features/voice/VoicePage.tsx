@@ -16,6 +16,7 @@ import {
   SheetHeader,
   SheetTitle,
   toast,
+  useMeasuredCornerReservation,
 } from '@gruenerator/ui';
 import { AudioLines, ChevronDown, ChevronRight, History, SlidersHorizontal } from 'lucide-react';
 import { useCallback, useRef, useState } from 'react';
@@ -75,6 +76,13 @@ const VoicePage = ({ embedded = false }: { embedded?: boolean }) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const isPhone = useMediaQuery(PHONE_QUERY);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Nur auf dem Handy liegt die Leiste an der Unterkante; auf dem Desktop
+  // berührt sie keine Ecke und meldet von selbst nichts an (#6068).
+  const submitBarRef = useRef<HTMLDivElement>(null);
+  useMeasuredCornerReservation(submitBarRef, {
+    corner: ['bottom-left', 'bottom-right'],
+    axis: 'vertical',
+  });
   const generate = useGenerateSpeech();
 
   const def = VOICE_PRESETS[preset];
@@ -310,7 +318,10 @@ const VoicePage = ({ embedded = false }: { embedded?: boolean }) => {
 
         {/* On a phone the button is pinned to the bottom edge, so it stays in
             reach while the text scrolls; the page pads for it. */}
-        <div className="flex items-center justify-end gap-md max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:z-20 max-sm:flex-col-reverse max-sm:gap-xxs max-sm:border-t max-sm:border-grey-200 max-sm:bg-background-pure max-sm:px-md max-sm:pt-sm max-sm:pb-[calc(0.75rem+env(safe-area-inset-bottom))] dark:max-sm:border-grey-700">
+        <div
+          ref={submitBarRef}
+          className="flex items-center justify-end gap-md max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:z-20 max-sm:flex-col-reverse max-sm:gap-xxs max-sm:border-t max-sm:border-grey-200 max-sm:bg-background-pure max-sm:px-md max-sm:pt-sm max-sm:pb-[calc(0.75rem+env(safe-area-inset-bottom))] dark:max-sm:border-grey-700"
+        >
           <p className="m-0 text-xs text-muted-foreground" aria-live="polite">
             {estimatedSeconds > 0
               ? `≈ ${formatAudioDuration(estimatedSeconds)} Min. Audio`

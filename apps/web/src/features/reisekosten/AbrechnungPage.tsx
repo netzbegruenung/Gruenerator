@@ -18,8 +18,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   Skeleton,
+  useMeasuredCornerReservation,
 } from '@gruenerator/ui';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   PiArrowLeft,
   PiCalendarBlank,
@@ -61,6 +62,13 @@ function Editor({ abrechnung }: { abrechnung: Abrechnung }) {
   const formular = useFormular(state.rateKey);
   const [exportOpen, setExportOpen] = useState(false);
   const [mailOpen, setMailOpen] = useState(false);
+  // Die Leiste klebt unten über die ganze Breite; der Support-Knopf rückt
+  // darüber, statt „Exportieren" zu verdecken (#6068).
+  const bottomBarRef = useRef<HTMLDivElement>(null);
+  useMeasuredCornerReservation(bottomBarRef, {
+    corner: ['bottom-left', 'bottom-right'],
+    axis: 'vertical',
+  });
 
   const computed = useMemo(() => computeReisekosten(state), [state]);
   const findings = useMemo(
@@ -183,7 +191,10 @@ function Editor({ abrechnung }: { abrechnung: Abrechnung }) {
         <ExperimentHinweis />
       </div>
 
-      <div className="sticky bottom-0 z-10 w-full bg-background-pure px-[clamp(1rem,4vw,2rem)] py-3.5 shadow-[0_-1px_0_rgba(20,40,30,.06),0_-8px_24px_rgba(20,40,30,.06)] dark:shadow-[0_-1px_0_var(--color-grey-700)]">
+      <div
+        ref={bottomBarRef}
+        className="sticky bottom-0 z-10 w-full bg-background-pure px-[clamp(1rem,4vw,2rem)] py-3.5 shadow-[0_-1px_0_rgba(20,40,30,.06),0_-8px_24px_rgba(20,40,30,.06)] dark:shadow-[0_-1px_0_var(--color-grey-700)]"
+      >
         <div className="mx-auto flex max-w-[1180px] flex-wrap items-center gap-5">
           <div className="flex min-w-0 flex-[1_1_280px] items-center gap-3">
             <DatumKachel
