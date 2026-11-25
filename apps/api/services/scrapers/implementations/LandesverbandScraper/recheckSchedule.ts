@@ -77,6 +77,13 @@ export function isFreshlyIndexed(
     return !(stale && bucketToday);
   }
 
-  const age = ageMs(payload.indexed_at, now);
-  return age !== null && age >= 0 && age < RECHECK_AFTER_MS;
+  // Counted from the last look, not the last embedding: an unchanged re-fetch
+  // only bumps `checked_at` (DocumentProcessor never rewrites `indexed_at`
+  // then). Keyed on `indexed_at` alone, every young page past three days was
+  // re-fetched on every hourly run forever — on a slow site (HE, ~20 s per
+  // page) that pushed the run past the 50-min sync timeout (#6007).
+  const ages = [ageMs(payload.indexed_at, now), ageMs(payload.checked_at, now)].filter(
+    (a): a is number => a !== null && a >= 0
+  );
+  return ages.length > 0 && Math.min(...ages) < RECHECK_AFTER_MS;
 }
