@@ -50,6 +50,8 @@ export const createDocSnapshotBodySchema = z
 export const createdDocSnapshotSchema = z.object({
   version: z.number().int(),
   created_at: z.string(),
+  /** Same field as in the list; the version sidebar shows it as the author. */
+  created_by: z.string().nullable(),
 });
 
 export const docSnapshotContentSchema = z.object({
