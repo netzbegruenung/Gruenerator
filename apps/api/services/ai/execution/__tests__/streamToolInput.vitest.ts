@@ -66,7 +66,8 @@ describe('execute with onToolInputText', () => {
     expect(result.tool_calls).toEqual([
       { id: 'call_1', name: 'create_site_content', input: toolCall.input },
     ]);
-    expect(result.metadata?.usage?.total_tokens).toBe(1200);
+    const usage = (result.metadata as { usage?: { total_tokens?: number } } | undefined)?.usage;
+    expect(usage?.total_tokens).toBe(1200);
   });
 
   it('starts over when a second tool call begins', async () => {

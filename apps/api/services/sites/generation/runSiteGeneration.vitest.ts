@@ -58,6 +58,11 @@ function run(
 }
 
 const text = { kind: 'text', description: 'x'.repeat(60) } as const;
+
+/** The step order without the live drafts, which have their own tests below. */
+const withoutDrafts = (events: SiteGenerationEvent[]) => events.filter((e) => e.type !== 'partial');
+const drafts = (events: SiteGenerationEvent[]) =>
+  events.flatMap((e) => (e.type === 'partial' ? [e.content] : []));
 const flyer = { kind: 'flyer', pdf: Buffer.from('%PDF-1.4') } as const;
 
 beforeEach(() => {
@@ -70,8 +75,9 @@ beforeEach(() => {
 
 describe('runSiteGeneration', () => {
   it('runs the text path as write then images', async () => {
-    const { events, done } = run(text);
+    const { events: all, done } = run(text);
     await done;
+    const events = withoutDrafts(all);
     expect(events.map((e) => e.type)).toEqual(['start', 'step', 'step', 'done']);
     expect(events[0]).toEqual({ type: 'start', steps: ['write', 'images'] });
     expect(events[1]).toEqual({ type: 'step', step: 'write' });
@@ -87,8 +93,9 @@ describe('runSiteGeneration', () => {
   });
 
   it('runs the flyer path through all four steps', async () => {
-    const { events, done } = run(flyer);
+    const { events: all, done } = run(flyer);
     await done;
+    const events = withoutDrafts(all);
     expect(events[0]).toEqual({
       type: 'start',
       steps: ['extract', 'analyze', 'write', 'images'],
@@ -176,5 +183,43 @@ describe('runSiteGeneration', () => {
     const last = events.at(-1);
     expect(last?.type).toBe('done');
     if (last?.type === 'done') expect(last.content.hero_image.imageUrl).toBe('');
+  });
+});
+
+describe('runSiteGeneration — live drafts', () => {
+  it('forwards what the model has written so far, throttled', async () => {
+    mocks.writeSiteContent.mockImplementation(
+      async (input: { onPartial?: (p: Record<string, unknown>) => void }) => {
+        input.onPartial?.({ hero: { heading: 'Lena' } });
+        // Same tick, inside DRAFT_INTERVAL_MS: dropped.
+        input.onPartial?.({ hero: { heading: 'Lena Hoffmann' } });
+        return { ok: true, data: content };
+      }
+    );
+    const { events, done } = run(text);
+    await done;
+    expect(drafts(events)[0]).toEqual({ hero: { heading: 'Lena' } });
+    expect(drafts(events)).not.toContainEqual({ hero: { heading: 'Lena Hoffmann' } });
+  });
+
+  it('never sends the contact e-mail or an action link in a draft', async () => {
+    const { events, done } = run(text);
+    await done;
+    expect(drafts(events).length).toBeGreaterThan(0);
+    for (const draft of drafts(events)) {
+      expect(JSON.stringify(draft)).not.toContain('konto@y.de');
+      expect(JSON.stringify(draft)).not.toContain('#kontakt');
+    }
+  });
+
+  it('shows each image as it is picked, all before done', async () => {
+    const { events, done } = run(text);
+    await done;
+    const doneAt = events.findIndex((e) => e.type === 'done');
+    const lastDraftAt = events.map((e) => e.type).lastIndexOf('partial');
+    expect(lastDraftAt).toBeLessThan(doneAt);
+    expect(drafts(events).at(-1)?.themes?.[0]?.imageUrl).toBe(
+      '/api/image-picker/stock-image/a.jpg'
+    );
   });
 });
