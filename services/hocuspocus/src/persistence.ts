@@ -10,6 +10,7 @@ import { countCanvasPages } from './canvasPageCount.js';
 import {
   boardPreview,
   detectPreviewKind,
+  videoPosterShareToken,
   presentationPreviewHtml,
   sheetPreviewHtml,
   type BoardPreview,
@@ -414,7 +415,11 @@ export class PostgresPersistence {
   async updateContentPreview(documentId: string, ydoc: Y.Doc): Promise<void> {
     try {
       const kind = detectPreviewKind(ydoc);
-      if (kind === 'site' || kind === 'video') return;
+      if (kind === 'site') return;
+      if (kind === 'video') {
+        await this.storeVideoPreview(documentId, ydoc);
+        return;
+      }
 
       if (kind !== 'blocknote') {
         await this.storeTypedPreview(documentId, ydoc, kind);
@@ -493,6 +498,25 @@ export class PostgresPersistence {
   }
 
   /**
+   * Video projects keep `{ posterShareToken }` JSON in `content`: the share
+   * token of the clip the project opens on, whose poster the Studio shows as
+   * the project's tile (`listMediathek`). Nothing else reads that column for
+   * subtype `video`.
+   */
+  private async storeVideoPreview(documentId: string, ydoc: Y.Doc): Promise<string> {
+    const preview = JSON.stringify({ posterShareToken: videoPosterShareToken(ydoc) });
+    await this.db(
+      `UPDATE collaborative_documents
+       SET content = $2
+       WHERE id = $1
+         AND document_subtype = 'video'
+         AND content IS DISTINCT FROM $2`,
+      [documentId, preview]
+    );
+    return preview;
+  }
+
+  /**
    * Boards keep `{ board_type, is_archived }` JSON in `content`, so the
    * preview is merged into that object instead of replacing the column.
    * Non-JSON legacy content is treated as absent.
@@ -535,7 +559,8 @@ export class PostgresPersistence {
       Y.applyUpdate(ydoc, state);
 
       const kind = detectPreviewKind(ydoc);
-      if (kind === 'site' || kind === 'video') return null;
+      if (kind === 'site') return null;
+      if (kind === 'video') return await this.storeVideoPreview(documentId, ydoc);
       if (kind !== 'blocknote') {
         return await this.storeTypedPreview(documentId, ydoc, kind);
       }
