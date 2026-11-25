@@ -11,8 +11,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useFirstName } from '../../../hooks/useFirstName';
 import { ADOPT_OPEN_THREAD_STATE } from '../../chat/adoptOpenThread';
 
-import { WORKPLACE_PRESETS } from './workplacePresets';
-
 import { cn } from '@/utils/cn';
 
 export function NavigateToChatOnSend() {
@@ -166,7 +164,6 @@ const ChatInnerReady: React.FC<ChatInnerProps> = ({
         variant={variant}
         onNavigate={handleNavigate}
         firstName={firstName}
-        presets={WORKPLACE_PRESETS}
         requireProfileHydration
         enablePastedTextAttachments
       />

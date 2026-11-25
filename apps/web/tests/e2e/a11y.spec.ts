@@ -397,8 +397,9 @@ const OVERLAYS = [
     name: 'Plusmenü (Desktop-Dropdown)',
     route: '/chat',
     viewport: { width: 1280, height: 720 },
-    // Radix' DropdownMenuContent
-    scope: '[role="menu"]',
+    // Radix' DropdownMenuContent as a whole: with the search field it is a
+    // dialog around the `role="menu"`, and the field must be scanned too.
+    scope: '[data-radix-menu-content]',
     oeffnen: (page: Page) => page.getByRole('button', { name: 'Aktionen und Modus' }).click(),
     // `scrollable-region-focusable` trifft hier zu und ist trotzdem kein
     // Hindernis. Der Befund stimmt im DOM: `DropdownMenuContent` trägt

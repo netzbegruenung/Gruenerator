@@ -19,6 +19,7 @@ import {
   presentationToolMentionables,
   sheetToolMentionables,
   visibleToolMentionables,
+  type ConnectorStatus,
   type Mentionable,
 } from './mentionables';
 
@@ -109,6 +110,39 @@ export function creationMentionables(): Mentionable[] {
     ...boardToolMentionables,
   ];
 }
+
+/**
+ * The creation entries shown flat at the menu's top level instead of behind
+ * „Erstellen ▸" — the visual products a chat is least likely to be asked for
+ * by typing. Entries missing on this surface (Sharepic is web-only) are skipped.
+ */
+const FEATURED_CREATION_MENTIONS: readonly string[] = ['sharepic', 'bildgenerieren'];
+
+export function featuredCreationMentionables(): Mentionable[] {
+  const all = creationMentionables();
+  return FEATURED_CREATION_MENTIONS.flatMap((m) => all.find((x) => x.mention === m) ?? []);
+}
+
+/**
+ * The rest of „Erstellen", in two groups: things that make something new, and
+ * `processing` intents (Zusammenfassung, Rechnen) that work over what is
+ * already there — they used to sit unsorted between Sharepic and PDF.
+ */
+export function moreCreationGroups(): { create: Mentionable[]; analyse: Mentionable[] } {
+  const rest = creationMentionables().filter(
+    (m) => !FEATURED_CREATION_MENTIONS.includes(m.mention)
+  );
+  return {
+    create: rest.filter((m) => m.intentCategory !== 'processing'),
+    analyse: rest.filter((m) => m.intentCategory === 'processing'),
+  };
+}
+
+/** What a connector row says when the server needs something first. */
+export const CONNECTOR_STATUS_LABEL: Record<ConnectorStatus, string> = {
+  needs_approval: 'Freigabe nötig',
+  needs_login: 'Anmeldung nötig',
+};
 
 /** Connected MCP servers, pinnable to hold their scope across follow-ups. */
 export function connectorMentionables(): Mentionable[] {

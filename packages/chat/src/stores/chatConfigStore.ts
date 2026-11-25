@@ -216,6 +216,11 @@ export interface ChatConfig {
    */
   onOpenSourceDocument?: (target: ResearchDocumentParams & { title: string }) => void;
   /**
+   * Opens the host's connector settings in place. The plus menu's „Konnektoren
+   * verwalten" row is hidden when unset — a route would leave the open chat.
+   */
+  onOpenConnectorSettings?: () => void;
+  /**
    * Speichert die Rolle, mit der neue Chats starten, in den Konto-Einstellungen
    * der Person (`profile.activeRole`). Injiziert, weil die Nutzer-Voreinstellungen
    * in der Host-App liegen; ohne sie merkt sich der Composer die Wahl nur für
@@ -380,6 +385,7 @@ interface ChatConfigStore extends ResolvedChatConfig {
   /** Href des Chunk-Inspektors zu einer Zitation; null/unset blendet ihn aus. */
   chunkInspectorHref?: ChatConfig['chunkInspectorHref'];
   onOpenSourceDocument?: ChatConfig['onOpenSourceDocument'];
+  onOpenConnectorSettings?: ChatConfig['onOpenConnectorSettings'];
   voice?: ChatConfig['voice'];
   /** threadId → context-getter, populated by host surfaces (e.g. docs editor). */
   contextProviders: Map<string, ChatRequestContextProvider>;
@@ -487,6 +493,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
   wolkeConnectUrl: undefined,
   chunkInspectorHref: undefined,
   onOpenSourceDocument: undefined,
+  onOpenConnectorSettings: undefined,
   contextProviders: new Map(),
   documentEditHandlers: new Map(),
   editorOpsHandlers: new Map(),
@@ -521,6 +528,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       wolkeConnectUrl: config?.wolkeConnectUrl,
       chunkInspectorHref: config?.chunkInspectorHref,
       onOpenSourceDocument: config?.onOpenSourceDocument,
+      onOpenConnectorSettings: config?.onOpenConnectorSettings,
       voice: config?.voice,
     });
   },

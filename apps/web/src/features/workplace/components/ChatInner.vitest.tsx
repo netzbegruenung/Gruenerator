@@ -27,9 +27,6 @@ vi.mock('@gruenerator/chat', () => ({
 
 vi.mock('../../../hooks/useFirstName', () => ({ useFirstName: () => 'Test' }));
 
-// Builds its list from the agent registry at import time; irrelevant here.
-vi.mock('./workplacePresets', () => ({ WORKPLACE_PRESETS: [] }));
-
 const { NavigateToChatOnSend } = await import('./ChatInner');
 
 describe('NavigateToChatOnSend', () => {
