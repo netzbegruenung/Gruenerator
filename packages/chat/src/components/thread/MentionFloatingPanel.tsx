@@ -30,7 +30,11 @@ export function MentionFloatingPanel({
       }}
       modal={false}
     >
-      <PopoverPrimitive.Anchor className="block h-0 w-full" />
+      {/* The anchor covers the whole composer (`.composer-root` is `relative`), so
+          a flip from `top` to `bottom` lands below the composer instead of over
+          the line being typed. A zero-height anchor at the top of the input made
+          the start page (composer high on screen, no room above) cover it. */}
+      <PopoverPrimitive.Anchor className="pointer-events-none absolute inset-0" />
       <PopoverPrimitive.Portal>
         <PopoverPrimitive.Content
           side="top"
@@ -47,7 +51,7 @@ export function MentionFloatingPanel({
           }}
           role={role}
           aria-label={ariaLabel}
-          className={`mention-popover z-[1020] flex max-h-(--radix-popover-content-available-height) max-w-(--radix-popover-content-available-width) flex-col overflow-hidden rounded-xl border border-border bg-background shadow-lg ${width} ${className}`.trim()}
+          className={`mention-popover z-[1020] flex max-h-[min(22rem,var(--radix-popover-content-available-height))] max-w-(--radix-popover-content-available-width) flex-col overflow-hidden rounded-xl border border-border bg-background shadow-lg ${width} ${className}`.trim()}
         >
           {children}
         </PopoverPrimitive.Content>

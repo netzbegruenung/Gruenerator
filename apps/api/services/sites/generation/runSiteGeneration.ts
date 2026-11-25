@@ -10,7 +10,7 @@ import imagePickerService from '../../image/ImageSelectionService.js';
 import { type Locale } from '../../localization/index.js';
 import { AiProviderError } from '../../providers/providerErrors.js';
 
-import { attachImages } from './content.js';
+import { attachImages, toSiteDraft } from './content.js';
 import { analyzeFlyer } from './flyer/analyzeFlyer.js';
 import { extractFlyerText } from './flyer/extractFlyerText.js';
 import { type FlyerHints } from './prompt.js';
@@ -47,6 +47,14 @@ function failureMessage(err: unknown, fallback: string): string {
   return err instanceof AiProviderError ? toUserFacingMessage(err, fallback) : fallback;
 }
 
+/**
+ * At most one draft per this many ms. Gemma writes a site in ~190 argument
+ * chunks over 10–20 s; a frame per chunk would re-render the preview ~15 times a
+ * second for no visible gain. A dropped frame costs nothing: the next one, or
+ * the images step right after, carries everything before it.
+ */
+export const DRAFT_INTERVAL_MS = 150;
+
 const STOCK_IMAGE_PREFIX = '/api/image-picker/stock-image/';
 // A candidate's site must not show alcohol (the catalog's pub photo was picked as contact background).
 const SITE_EXCLUDED_TAGS = ['beer', 'wine', 'alcohol'] as const;
@@ -80,6 +88,15 @@ export async function runSiteGeneration(
   };
   const fail = (message: string, retryable: boolean): void =>
     send({ type: 'error', message, retryable });
+  let lastDraftAt = 0;
+  const sendDraft = (raw: unknown, force = false): void => {
+    const now = Date.now();
+    if (!force && now - lastDraftAt < DRAFT_INTERVAL_MS) return;
+    const content = toSiteDraft(raw);
+    if (!content) return;
+    lastDraftAt = now;
+    send({ type: 'partial', content });
+  };
 
   try {
     send({
@@ -125,7 +142,14 @@ export async function runSiteGeneration(
     }
 
     if (!begin('write')) return;
-    const written = await writeSiteContent({ description, hints, email, locale, signal });
+    const written = await writeSiteContent({
+      description,
+      hints,
+      email,
+      locale,
+      signal,
+      onPartial: (partial) => sendDraft(partial),
+    });
     if (signal.aborted) return;
     if (!written.ok) {
       log.error('site content failed: %s', written.error);
@@ -134,7 +158,12 @@ export async function runSiteGeneration(
     }
 
     if (!begin('images')) return;
-    const content = await attachImages(written.data, pickImage);
+    // The validated text before the first image arrives, so the preview never
+    // shows a draft that validation later changed (cut lists, greeting).
+    sendDraft(written.data, true);
+    const content = await attachImages(written.data, pickImage, (withImages) =>
+      sendDraft(withImages, true)
+    );
     send({ type: 'done', content });
   } catch (err) {
     if (signal.aborted) return;

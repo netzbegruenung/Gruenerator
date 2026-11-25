@@ -443,3 +443,46 @@ describe('aiObject — confirm, the async second gate', () => {
     expect(confirm).toHaveBeenCalledWith({ title: 'ok' }, 2, expect.any(Number));
   });
 });
+
+describe('aiObject — onPartial, the draft while the model writes', () => {
+  /** Plays the provider: reports argument text through the envelope's hook, then answers. */
+  function streamingThen(texts: string[], response: unknown) {
+    executeProvider.mockReset();
+    executeProvider.mockImplementationOnce(
+      async (_provider: string, _id: string, request: Record<string, any>) => {
+        for (const text of texts) request.onToolInputText?.(text);
+        // Let the lenient parses settle before the call returns.
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        return response;
+      }
+    );
+  }
+
+  it('hands the lenient parse of the arguments so far to the listener', async () => {
+    streamingThen(['{"title":"Fact', '{"title":"Fact Sheet"'], toolCall({ title: 'Fact Sheet' }));
+    const drafts: Record<string, unknown>[] = [];
+
+    const result = await aiObject({ ...base, onPartial: (draft) => drafts.push(draft) });
+
+    expect(result).toEqual({ ok: true, data: { title: 'Fact Sheet' } });
+    expect(drafts.at(-1)).toEqual({ title: 'Fact Sheet' });
+    expect(drafts.every((d) => typeof d === 'object' && !Array.isArray(d))).toBe(true);
+  });
+
+  it('puts no streaming hook on the envelope when nobody listens', async () => {
+    answering(toolCall({ title: 'X' }));
+
+    await aiObject(base);
+
+    expect(requestAt(0).onToolInputText).toBeUndefined();
+  });
+
+  it('ignores argument text that does not parse to an object', async () => {
+    streamingThen(['"just a string"', '[1,2'], toolCall({ title: 'X' }));
+    const drafts: unknown[] = [];
+
+    await aiObject({ ...base, onPartial: (draft) => drafts.push(draft) });
+
+    expect(drafts).toEqual([]);
+  });
+});

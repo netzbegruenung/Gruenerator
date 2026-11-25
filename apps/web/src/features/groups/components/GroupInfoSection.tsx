@@ -80,6 +80,7 @@ import { ProjectCloudSourcesCard } from './ProjectCloudSourcesCard';
 import { ProjectInstructionsCard } from './ProjectInstructionsCard';
 import { ProjectKnowledgeList } from './ProjectKnowledgeList';
 import { ProjectLandesverbandSelect } from './ProjectLandesverbandSelect';
+import { ProjectRecipesExclusiveSwitch } from './ProjectRecipesExclusiveSwitch';
 import { ProjectMembersCard } from './ProjectMembersCard';
 import { ProjectRecipesCard } from './ProjectRecipesCard';
 import { ProjectTasksCard } from './ProjectTasksCard';
@@ -98,6 +99,7 @@ export interface GroupInfo {
   group_type?: 'standard' | 'personal';
   is_system?: boolean;
   landesverband?: LandesverbandId | null | undefined;
+  recipes_exclusive?: boolean | null | undefined;
   archived_at?: string | null;
   color?: string | null;
 }
@@ -199,7 +201,9 @@ const GroupInfoSection = memo(
     onErrorMessage,
   }: GroupInfoSectionProps) => {
     const navigate = useNavigate();
-    const { members, isLoadingMembers } = useGroupMembers(groupId, { isActive: true });
+    const { members, isLoadingMembers, isErrorMembers } = useGroupMembers(groupId, {
+      isActive: true,
+    });
     const [membersDialogOpen, setMembersDialogOpen] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
@@ -564,6 +568,14 @@ const GroupInfoSection = memo(
                   {...(onErrorMessage && { onErrorMessage })}
                 />
                 {!isSystem && (
+                  <ProjectRecipesExclusiveSwitch
+                    groupId={groupId}
+                    checked={data?.groupInfo?.recipes_exclusive === true}
+                    {...(onSuccessMessage && { onSuccessMessage })}
+                    {...(onErrorMessage && { onErrorMessage })}
+                  />
+                )}
+                {!isSystem && (
                   <div className="flex flex-col gap-xs">
                     <span className="text-xs font-medium text-grey-600 dark:text-grey-300">
                       Farbe der Kachel
@@ -616,7 +628,10 @@ const GroupInfoSection = memo(
                 <p className="text-[15px] text-muted-foreground mt-xs m-0">
                   {isSystem
                     ? 'Für alle im Grünerator'
-                    : `Projekt · ${memberCount} ${memberCount === 1 ? 'Mitglied' : 'Mitglieder'}`}
+                    : // Ohne geladene Liste keine Zahl — „0 Mitglieder" wäre falsch.
+                      isLoadingMembers || isErrorMembers
+                      ? 'Projekt'
+                      : `Projekt · ${memberCount} ${memberCount === 1 ? 'Mitglied' : 'Mitglieder'}`}
                 </p>
                 {isTeam && data?.groupInfo?.description && (
                   <p className="m-0 mt-xs line-clamp-2 whitespace-pre-wrap text-sm text-muted-foreground">

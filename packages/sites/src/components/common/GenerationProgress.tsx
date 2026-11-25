@@ -1,8 +1,9 @@
 import { type SiteGenerationStep } from '@gruenerator/contracts';
 import { Button } from '@gruenerator/ui';
-import { useEffect, useRef } from 'react';
 
 import { SITE_GENERATION_STEP_LABELS } from '../../generation/stepLabels';
+
+import { useGenerationFocus } from './useGenerationFocus';
 
 interface GenerationProgressProps {
   message: string;
@@ -16,26 +17,7 @@ interface GenerationProgressProps {
  * edit already takes shape behind it. Takes the focus while it runs and hands it back afterwards.
  */
 export function GenerationProgress({ message, steps, current, onCancel }: GenerationProgressProps) {
-  const cardRef = useRef<HTMLElement>(null);
-  // Read during the first render, while the control that started the run still has the focus.
-  const returnFocusTo = useRef<Element | null>(document.activeElement);
-
-  useEffect(() => {
-    cardRef.current?.focus();
-    const target = returnFocusTo.current;
-    return () => {
-      if (target instanceof HTMLElement && target.isConnected) target.focus();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!onCancel) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onCancel();
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [onCancel]);
+  const cardRef = useGenerationFocus<HTMLElement>(onCancel);
 
   const currentIndex = current ? steps.indexOf(current) : -1;
   // The running step counts as half done, so the bar is never empty while work is under way.

@@ -90,7 +90,7 @@ import {
   extractDomain,
   resolveCollectionName,
 } from './citationUtils.js';
-import { contentTypesOf } from './classifierFilters.js';
+import { collectionFilterParams, contentTypesOf } from './classifierFilters.js';
 import { retrieveConnectFile } from './connectRetrieval.js';
 import { retrieveWolkeFile } from './wolkeRetrieval.js';
 
@@ -804,7 +804,7 @@ export async function executeDocumentSearchParallel(
   const uniqueCollections = [...new Set(collectionsToSearch)];
   const queries = subQueries?.length ? subQueries : [query];
 
-  const searchFilters = filters || undefined;
+  const scoped = collectionFilterParams(filters, agentConfig.defaultFilter?.content_type);
 
   const collectedErrors: SearchErrorEntry[] = [];
   const searchPromises = uniqueCollections.flatMap((collection) =>
@@ -813,13 +813,8 @@ export async function executeDocumentSearchParallel(
         query: sq,
         collection,
         limit: 3,
+        ...scoped,
       };
-      if (searchFilters != null) {
-        params.filters = searchFilters;
-      }
-      if (agentConfig.defaultFilter?.content_type?.length) {
-        params.lvContentType = agentConfig.defaultFilter.content_type;
-      }
       return executeDirectSearch(params).catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
         log.warn(`[Search] Collection ${collection} failed for query "${sq}": ${msg}`);
@@ -1848,13 +1843,8 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
               query: sq,
               collection,
               limit: perCollectionLimit,
+              ...collectionFilterParams(detectedFilters, agentConfig.defaultFilter?.content_type),
             };
-            if (detectedFilters != null) {
-              params.filters = detectedFilters;
-            }
-            if (agentConfig.defaultFilter?.content_type?.length) {
-              params.lvContentType = agentConfig.defaultFilter.content_type;
-            }
             return executeDirectSearch(params).catch((err: unknown) => {
               const msg = err instanceof Error ? err.message : String(err);
               log.warn(`[Search] Collection ${collection} failed for query "${sq}": ${msg}`);

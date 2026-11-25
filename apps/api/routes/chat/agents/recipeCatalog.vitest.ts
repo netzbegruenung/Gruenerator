@@ -615,3 +615,117 @@ describe('resolveRecipe', () => {
     expect(await resolveRecipe({ mention: 'gibtsnicht', userId: null })).toBeNull();
   });
 });
+
+describe('Projekt-Rezepte verdrängen gleichartige', () => {
+  const HESSEN_LGS = [
+    { ebene: 'land', rolle: 'Mitarbeiter*in Landesgeschäftsstelle', bundesland: 'Hessen' },
+  ] as const;
+  // Der Live-Fall vom 25.11.2026: Projekt mit „PM Hessen (Partei)", Person mit
+  // Hessen-Rolle, das Modell lud „PM Hessen (Fraktion)".
+  const PROJECT = ['presse-hessen-partei', 'insta-hessen', 'beschluss-hessen'];
+
+  it('drops every other press recipe once the project brings one', async () => {
+    const mentions = (
+      await buildRecipeCatalog({
+        userLocale: 'de-DE',
+        userId: null,
+        roles: HESSEN_LGS,
+        projectRecipeRefs: PROJECT,
+      })
+    ).map((e) => e.mention);
+    expect(mentions).toContain('presse-hessen-partei');
+    expect(mentions).not.toContain('presse-hessen-fraktion');
+    expect(mentions).not.toContain('presse');
+    expect(mentions).not.toContain('instagram');
+    // Andere Textsorten und Methoden bleiben.
+    expect(mentions).toContain('facebook');
+    expect(mentions).toContain('linkedin');
+    expect(mentions).toContain('bundestagsrecherche');
+  });
+
+  it('leaves the catalogue alone outside a project', async () => {
+    const mentions = (
+      await buildRecipeCatalog({ userLocale: 'de-DE', userId: null, roles: HESSEN_LGS })
+    ).map((e) => e.mention);
+    expect(mentions).toContain('presse-hessen-fraktion');
+    expect(mentions).toContain('presse-hessen-partei');
+    expect(mentions).toContain('presse');
+  });
+
+  it('lets a project user recipe with a text type shadow the system ones', async () => {
+    listMentionableTextForms.mockResolvedValue([
+      {
+        id: '11111111-1111-4111-8111-111111111111',
+        mention: 'pm-kv-kassel',
+        title: 'PM KV Kassel',
+        description: 'Pressemitteilungen des Kreisverbands Kassel.',
+        iconKey: null,
+        category: 'presse',
+        textType: 'presse',
+        kind: 'recipe',
+        sharedFromGroup: 'KV Kassel',
+        ownerName: 'Alex',
+        isPublic: false,
+      },
+    ]);
+    const mentions = (
+      await buildRecipeCatalog({
+        userLocale: 'de-DE',
+        userId: 'u1',
+        roles: HESSEN_LGS,
+        projectRecipeRefs: ['11111111-1111-4111-8111-111111111111'],
+      })
+    ).map((e) => e.mention);
+    expect(mentions).toContain('pm-kv-kassel');
+    expect(mentions).not.toContain('presse');
+    expect(mentions).not.toContain('presse-hessen-fraktion');
+    expect(mentions).toContain('instagram');
+  });
+
+  it('keeps a user recipe without text type from shadowing anything', async () => {
+    listMentionableTextForms.mockResolvedValue([
+      {
+        id: '22222222-2222-4222-8222-222222222222',
+        mention: 'vereinsbrief',
+        title: 'Vereinsbrief',
+        description: null,
+        iconKey: null,
+        category: null,
+        textType: null,
+        kind: 'recipe',
+        sharedFromGroup: 'KV Kassel',
+        ownerName: 'Alex',
+        isPublic: false,
+      },
+    ]);
+    const mentions = (
+      await buildRecipeCatalog({
+        userLocale: 'de-DE',
+        userId: 'u1',
+        roles: HESSEN_LGS,
+        projectRecipeRefs: ['22222222-2222-4222-8222-222222222222'],
+      })
+    ).map((e) => e.mention);
+    expect(mentions).toContain('vereinsbrief');
+    expect(mentions).toContain('presse');
+    expect(mentions).toContain('presse-hessen-fraktion');
+  });
+
+  it('offers only project text recipes, plus methods, when the project says so', async () => {
+    const mentions = (
+      await buildRecipeCatalog({
+        userLocale: 'de-DE',
+        userId: null,
+        roles: HESSEN_LGS,
+        projectRecipeRefs: PROJECT,
+        projectRecipesExclusive: true,
+      })
+    ).map((e) => e.mention);
+    expect(mentions).toEqual(
+      expect.arrayContaining(['presse-hessen-partei', 'insta-hessen', 'beschluss-hessen'])
+    );
+    expect(mentions).not.toContain('facebook');
+    expect(mentions).not.toContain('presse-hessen-fraktion');
+    expect(mentions).toContain('bundestagsrecherche');
+  });
+});

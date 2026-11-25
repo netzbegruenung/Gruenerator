@@ -37,7 +37,10 @@ const hit = { source: 'Beschluss', url: 'https://x/1', excerpt: 'Hitzeschutz', r
 const answer = (results: unknown[]) => ({ collection: 'hessen', results });
 
 const universal = { userId: 'u1' } as AgentConfig;
-const lvAgent = { userId: 'u1', defaultFilter: { content_type: ['presse'] } } as AgentConfig;
+const lvAgent = {
+  userId: 'u1',
+  defaultFilter: { content_type: ['presse'] },
+} as unknown as AgentConfig;
 
 const paramsAt = (i: number) => direct.mock.calls[i]?.[0] as Record<string, unknown>;
 
