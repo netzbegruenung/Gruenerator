@@ -13,6 +13,7 @@ import { jsonBody } from './middleware/jsonBody.js';
 import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
 import { requireAiConsent } from './middleware/requireAiConsent.js';
 import { requireInstanceAdminMiddleware } from './middleware/requireInstanceAdminMiddleware.js';
+import { mountAdminContentSyncContractRouter } from './routes/admin/adminContentSyncContractRouter.js';
 import { mountAdminReportsContractRouter } from './routes/admin/adminReportsContractRouter.js';
 import { mountAdminStatsContractRouter } from './routes/admin/adminStatsContractRouter.js';
 import { mountChunkInspectorContractRouter } from './routes/admin/chunkInspectorContractRouter.js';
@@ -1023,6 +1024,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Präfix, requireInstanceAdmin pro Handler.
   app.use('/api/auth/admin/reports', requireAuth);
   mountAdminReportsContractRouter(app);
+  app.use('/api/auth/admin/content-sync', requireAuth);
+  mountAdminContentSyncContractRouter(app);
   // Per-user external MCP server registry (EXPERIMENTAL). requireAuth at the
   // prefix — every route is user-scoped and handles user-entered credentials.
   app.use('/api/mcp/servers', requireAuth);

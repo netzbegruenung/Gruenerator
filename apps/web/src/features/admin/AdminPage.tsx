@@ -13,6 +13,7 @@ import RequireAdmin from './components/RequireAdmin';
 import LandesverbandAssignmentTab from './landesverband-assignment/LandesverbandAssignmentTab';
 import AgentsTab from './tabs/AgentsTab';
 import AppUpdatesTab from './tabs/AppUpdatesTab';
+import ContentSyncTab from './tabs/ContentSyncTab';
 import GlossarTab from './tabs/GlossarTab';
 import ParteitageTab from './tabs/ParteitageTab';
 import ReportsTab from './tabs/ReportsTab';
@@ -129,7 +130,17 @@ function buildTabs(instanceId: typeof CURRENT_INSTANCE): AdminTab[] {
     render: () => <ReportsTab />,
   });
 
+  // Der Sync läuft dort, wo Landesverbands-Inhalte geführt werden; die
+  // stündlichen Läufe sind Landesverbands-Läufe.
   if (hasLandesverbandContentIn(instanceId)) {
+    tabs.push({
+      value: 'content-sync',
+      label: 'Content-Sync',
+      title: 'Content-Sync',
+      description:
+        'Die letzten 200 Läufe der Scraper: was neu kam, was fehlschlug. Die stündlichen Landesverband-Läufe stehen einzeln drin, aufbewahrt werden 90 Tage.',
+      render: () => <ContentSyncTab />,
+    });
     tabs.push({
       value: 'landesverbaende',
       label: 'Landesverbände',

@@ -276,6 +276,7 @@ const NAMESPACES = {
   newsletter: { contract: 'newsletterContract', opts: 'plain' },
   contentReports: { contract: 'contentReportContract', opts: 'plain' },
   adminReports: { contract: 'adminReportsContract', opts: 'plain' },
+  adminContentSync: { contract: 'adminContentSyncContract', opts: 'plain' },
   translation: { contract: 'translationContract', opts: 'plain' },
   modelPreferences: { contract: 'modelPreferencesContract', opts: 'plain' },
   imageModelPreference: { contract: 'imageModelPreferenceContract', opts: 'plain' },

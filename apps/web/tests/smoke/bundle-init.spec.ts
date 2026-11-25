@@ -82,6 +82,12 @@ for (const route of ROUTES) {
         })
     );
 
+    // index.html loads react-scan from unpkg on every localhost host, and the
+    // preview server is one. An unpinned third-party script is not part of
+    // the bundle: its latest release kept Firefox from reaching networkidle
+    // on /login (run 45568850041). Same block as tests/e2e/fixtures/apiFixtures.ts.
+    await page.route('**/react-scan/**', (route) => route.abort());
+
     page.on('pageerror', (err) => {
       const msg = `${err.name}: ${err.message}`;
       if ([...CHUNK_INIT_PATTERNS, ...PAGE_ONLY_PATTERNS].some((p) => p.test(msg))) {

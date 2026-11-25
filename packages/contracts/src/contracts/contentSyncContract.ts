@@ -14,6 +14,7 @@
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
 
+import { contentSyncSettingsSchema } from '../schemas/adminContentSync.js';
 import {
   contentStatsResponseSchema,
   contentSyncAcceptedSchema,
@@ -79,6 +80,20 @@ export const contentSyncContract = c.router(
         200: contentStatsResponseSchema,
       },
       summary: 'Render the content-stats docs page from live Qdrant counts (admin token)',
+    },
+
+    /**
+     * GET /api/internal/content-sync/settings — the admin-panel mail switch.
+     * The nightly digest runs in CI without database access and asks here
+     * whether it may send.
+     */
+    getSettings: {
+      method: 'GET',
+      path: '/api/internal/content-sync/settings',
+      responses: {
+        200: contentSyncSettingsSchema,
+      },
+      summary: 'Content-sync settings, e.g. whether report mails are on (admin token)',
     },
   },
   { pathPrefix: '' }
