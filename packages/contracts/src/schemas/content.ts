@@ -174,17 +174,31 @@ export const mediathekMediaItemSchema = z.object({
 });
 
 /**
- * Everything the user has in the Mediathek: their media files, their Reels and
- * the editable canvas Sharepics, as one list ordered by date.
+ * A Video-Editor project. Only in the Mediathek, not in `/api/content`:
+ * `href` opens the editor, the tile shows the poster of the clip it opens on.
+ */
+export const mediathekVideoProjectItemSchema = contentItemBaseSchema.extend({
+  kind: z.literal('videoProject'),
+  /** Null until the project holds a Mediathek clip with a poster (or an image). */
+  thumbnailUrl: z.string().nullable(),
+});
+
+/**
+ * Everything the user has in the Mediathek: their media files (minus uploaded
+ * videos, which are raw material of the Video Editor), their Reels, their
+ * Video-Editor projects and the editable canvas Sharepics, as one list ordered
+ * by date.
  */
 export const mediathekItemSchema = z.discriminatedUnion('kind', [
   mediathekMediaItemSchema,
   videoContentItemSchema,
   canvasContentItemSchema,
+  mediathekVideoProjectItemSchema,
 ]);
 
 export type MediathekItem = z.infer<typeof mediathekItemSchema>;
 export type MediathekMediaItem = z.infer<typeof mediathekMediaItemSchema>;
+export type MediathekVideoProjectItem = z.infer<typeof mediathekVideoProjectItemSchema>;
 
 export const mediathekQuerySchema = z.object({
   typ: mediathekFilterSchema.optional(),
