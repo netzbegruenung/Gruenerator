@@ -20,8 +20,6 @@ import {
   getLandesverbandHubBySlug,
   getSystemAgent,
   resolveAgentSlug,
-  isLandesverbandIdentifier,
-  resolveSkillMention,
 } from '@gruenerator/shared/agents';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useContainerWidth, useIsNarrowerThan } from '@gruenerator/ui';
@@ -44,7 +42,7 @@ import { usePublicUserAgents, useSharedUserAgents, useUserAgents } from '@/featu
 import { isAdoptOpenThreadState } from '@/features/chat/adoptOpenThread';
 import ChatHero from '@/features/chat/ChatHero';
 import { LandesverbandHub } from '@/features/chat/LandesverbandHub';
-import { readRecipeDeepLink, useRecipeDeepLink } from '@/features/chat/useRecipeDeepLink';
+import { useRecipeDeepLink } from '@/features/chat/useRecipeDeepLink';
 import { useGroupDetails } from '@/features/groups/hooks/useGroups';
 import { useScheduledTasksEnabled } from '@/features/recurring-tasks/useScheduledTasksEnabled';
 import { resolveChatBackground } from '@/features/workplace/chatBackgrounds';
@@ -270,28 +268,11 @@ function ChatPage() {
   // eine Instanz, die einen Landesverband wirklich sperrt, bekäme seine Landing
   // samt drei funktionsfähiger Agenten trotzdem.
   const hub = slug ? getLandesverbandHubBySlug(slug, CURRENT_INSTANCE) : null;
-  // Rezept-Deeplink: `/chat?rezept=<mention>&rezeptId=<id>`. Der alte Link
-  // `?skill=<mention>` (z. B. presse-bayern) aktiviert jetzt dasselbe — beide
-  // lesen `readRecipeDeepLink`. Die Erwähnung wird unten aktiviert; trifft sie
-  // ein Systemrezept, löst die Agentenauflösung daraus zusätzlich den Agenten
-  // auf, damit sein Willkommensbildschirm statt der Standardbegrüßung rendert.
-  // Niedrigste Priorität in der Kette: ein ausdrückliches ?agent= oder der
-  // Pfad-Slug gewinnt.
-  const recipeLink = hub ? { mention: null, recipeId: null } : readRecipeDeepLink(searchParams);
-  const rezeptParam = recipeLink.mention;
-  const rezeptIdParam = recipeLink.recipeId;
-  // Ausnahme: ein Landesverbands-Rezept bleibt auf dem Universal-Agenten — der
-  // Link ist dasselbe wie `@<rezept>` tippen, und Notebook und Filter des
-  // Landesverbands bringt das Rezept serverseitig mit (`ChatGraph.ts`). Seit
-  // 11/2026 stehen die LV-Rezepte vor den LV-Agenten (Hub, Seitenleiste).
-  const skillOwner = rezeptParam ? resolveSkillMention(rezeptParam) : null;
-  const resolvedFromSkill =
-    skillOwner && !isLandesverbandIdentifier(skillOwner) ? skillOwner : null;
   // Path-based /agents/:slug is the canonical form; ?agent= is legacy but
   // still wins when explicitly set so old deep links keep their behavior.
   const agentParam = hub
     ? null
-    : (searchParams.get('agent') ?? (slug ? resolveAgentSlug(slug) : null) ?? resolvedFromSkill);
+    : (searchParams.get('agent') ?? (slug ? resolveAgentSlug(slug) : null));
   const rawModeParam = searchParams.get('mode');
   const modeParam =
     rawModeParam === 'search' || rawModeParam === 'notebook' || rawModeParam === 'eigener'
@@ -305,9 +286,7 @@ function ChatPage() {
   // context and switches to a new thread on mount) from racing the thread
   // resolution.
   const effectiveViewMode =
-    agentParam || threadSlug || modeParam || rezeptParam || adoptOpenThread
-      ? 'thread'
-      : chatViewMode;
+    agentParam || threadSlug || modeParam || adoptOpenThread ? 'thread' : chatViewMode;
 
   useDocumentTitle(hub ? hub.name : effectiveViewMode === 'thread' ? currentThreadTitle : null);
 
@@ -373,13 +352,12 @@ function ChatPage() {
     userAgentsSettled,
   ]);
 
-  // `?rezept=<mention>` aktiviert das Rezept für den nächsten Turn — dieselbe
-  // Wirkung, die eine `@`-Erwähnung im Composer hat. `rezeptId` trägt die
-  // Zeilen-ID eigener/geteilter/öffentlicher Rezepte mit, damit das Backend
-  // über die ID auflöst statt über die Erwähnung; für ein Systemrezept bleibt
-  // sie leer. Der Hook steht NACH der Agentenauflösung und hält das Rezept
-  // nach, solange der Parameter lebt — warum das nötig ist, steht dort.
-  useRecipeDeepLink(rezeptParam, rezeptIdParam);
+  // `/chat?rezept=<mention>&rezeptId=<id>` (alt: `?skill=`) öffnet den
+  // normalen neuen Chat mit dem Rezept als @-Chip im Composer — wie ein
+  // Rezept-Starter. Kein Agentenwechsel: der Chip wird beim Senden zu
+  // `@<rezept>`, und der Parser löst Rezept und Agent daraus auf wie bei einer
+  // getippten Erwähnung. Ein Landesverbands-Hub-Slug gewinnt.
+  useRecipeDeepLink(!hub);
 
   // "Neuer Chat in diesem Projekt" arrives as /chat?projekt=<groupId>. File the
   // freshly created thread into that Projekt, reusing the same thread-groupId

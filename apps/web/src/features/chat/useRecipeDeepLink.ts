@@ -1,37 +1,10 @@
-import { useAgentStore } from '@gruenerator/chat';
-import { useEffect } from 'react';
+import { useAgentStore, useRecipeMentionRequest } from '@gruenerator/chat';
+import { useCallback, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 /**
- * Hält das Rezept aus `/chat?rezept=<mention>&rezeptId=<id>` aktiv, solange der
- * Parameter in der URL steht.
- *
- * Einmal setzen genügt nicht. Trifft der Deeplink ein Systemrezept, löst
- * `ChatPage` daraus zusätzlich einen Agenten auf; der `AgentSwitchListener` in
- * `packages/chat` bemerkt den Wechsel von `selectedAgentId` erst im NÄCHSTEN
- * Commit und ruft dann `resetThreadContext()`, das `activeSkillMention` und
- * `activeRecipeId` mit abräumt. Das Rezept wäre damit weg, bevor jemand tippt —
- * eigene Rezepte überlebten bisher nur zufällig, weil der Listener bei
- * `chatViewMode === 'thread'` und einem Wechsel auf `null` vorher aussteigt.
- *
- * Deshalb wird hier nicht gesetzt, sondern nachgehalten: der Effekt hängt am
- * gespeicherten Wert und trägt das Rezept wieder ein, sobald der Store LEER
- * ist. Nur leer — steht dort eine andere Erwähnung, hat die Person sie selbst
- * gewählt (ein anderes Rezept im Composer), und die gehört ihr, nicht dem
- * Deeplink.
- *
- * Die eine Unschärfe, die bleibt: entfernt jemand die Erwähnung vor dem
- * Absenden von Hand (`removePillMention` setzt ebenfalls `null`), ist das von
- * einem `resetThreadContext()` hier nicht zu unterscheiden — der Store trägt
- * keine Herkunft, und einen „schon gesendet"-Zeitpunkt sieht dieser Hook nicht.
- * Der Deeplink trägt sich dann erneut ein. Bewusst so entschieden: der Weg
- * heraus ist derselbe Klick noch einmal, nachdem der Parameter aus der URL
- * gefallen ist — während der umgekehrte Fehler (Systemrezept verliert beim
- * Öffnen still seinen Stil) niemandem auffällt.
- */
-/**
  * Liest das Rezept aus der URL. `?skill=<mention>` ist der alte Link (F0:
- * ausgelieferte Links bleiben gültig) und aktiviert jetzt ebenfalls das Rezept
- * — früher löste er nur den Agenten auf und ließ den Rumpf ungenutzt. Alle
+ * ausgelieferte Links bleiben gültig) und aktiviert ebenfalls das Rezept. Alle
  * Erzeuger schreiben `?rezept=`; `?rezept=` gewinnt, wenn beide stehen.
  */
 export function readRecipeDeepLink(searchParams: URLSearchParams): {
@@ -42,14 +15,37 @@ export function readRecipeDeepLink(searchParams: URLSearchParams): {
   return { mention, recipeId: mention ? searchParams.get('rezeptId') : null };
 }
 
-export function useRecipeDeepLink(rezeptParam: string | null, rezeptIdParam: string | null): void {
-  const storedMention = useAgentStore((s) => s.activeSkillMention);
+const RECIPE_PARAMS = ['rezept', 'rezeptId', 'skill'] as const;
+
+/**
+ * `/chat?rezept=<mention>&rezeptId=<id>` öffnet den normalen neuen Chat mit dem
+ * Rezept als @-Chip im Composer — dasselbe, was ein Klick auf einen
+ * Rezept-Starter unter dem Composer tut. Danach fällt der Parameter aus der
+ * URL: der Chip gehört ab dann der Person, sie kann ihn entfernen.
+ *
+ * Erst im leeren Chat (`overview`) anfragen. Stünde die Ansicht noch auf einem
+ * Thread, ginge der Chip an dessen Composer, der beim Umschalten verschwindet.
+ */
+export function useRecipeDeepLink(enabled: boolean): void {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { mention, recipeId } = readRecipeDeepLink(searchParams);
+  const active = enabled && mention !== null;
+  const inOverview = useAgentStore((s) => s.chatViewMode === 'overview');
 
   useEffect(() => {
-    if (!rezeptParam) return;
-    if (storedMention !== null) return;
-    const store = useAgentStore.getState();
-    store.setActiveSkillMention(rezeptParam, rezeptIdParam);
-    store.setChatViewMode('thread');
-  }, [rezeptParam, rezeptIdParam, storedMention]);
+    if (active && !inOverview) useAgentStore.getState().setChatViewMode('overview');
+  }, [active, inOverview]);
+
+  const dropParams = useCallback(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        RECIPE_PARAMS.forEach((p) => next.delete(p));
+        return next;
+      },
+      { replace: true }
+    );
+  }, [setSearchParams]);
+
+  useRecipeMentionRequest(active && inOverview ? { mention, recipeId } : null, dropParams);
 }
