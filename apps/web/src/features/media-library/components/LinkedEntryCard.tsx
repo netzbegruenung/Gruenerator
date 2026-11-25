@@ -25,10 +25,17 @@ export interface LinkedEntryCardProps {
   onDelete: (entry: LinkedEntry) => void;
 }
 
+/** The line under the title. */
+const KIND_LABEL: Record<LinkedEntry['kind'], string> = {
+  video: 'Reel',
+  videoProject: 'Videoprojekt',
+  canvas: 'Sharepic',
+};
+
 /**
- * A Reel or an editable canvas Sharepic in the Mediathek: same card as a media
- * file, but it opens its editor instead of the detail dialog — there is no file
- * behind it to download or describe.
+ * A Reel, a Video-Editor project or an editable canvas Sharepic in the
+ * Mediathek: same card as a media file, but it opens its editor instead of the
+ * detail dialog — there is no file behind it to download or describe.
  */
 export const LinkedEntryCard = memo(function LinkedEntryCard({
   entry,
@@ -57,7 +64,7 @@ export const LinkedEntryCard = memo(function LinkedEntryCard({
           />
         ) : (
           <span className="select-none text-4xl" aria-hidden>
-            {entry.kind === 'video' ? '🎬' : '🖼'}
+            {entry.kind === 'canvas' ? '🖼' : '🎬'}
           </span>
         )}
 
@@ -94,7 +101,7 @@ export const LinkedEntryCard = memo(function LinkedEntryCard({
           {entry.title}
         </h3>
         <p className="m-0 truncate text-sm text-grey-600 dark:text-grey-400">
-          {entry.kind === 'video' ? 'Reel' : 'Sharepic'} · {formatMediaDate(entry.date)}
+          {KIND_LABEL[entry.kind]} · {formatMediaDate(entry.date)}
         </p>
       </div>
     </InteractiveCard>

@@ -19,7 +19,6 @@ import { CANVAS_TOOLS, filterWorkplaceTools } from '../../config/workplaceToolsC
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import { useFirstName } from '../../hooks/useFirstName';
 import { useGridColumns } from '../../hooks/useGridColumns';
-import VideoProjectsSection from '../image-studio/components/VideoProjectsSection';
 import { SubscribedCollectionSection } from '../marketplace/SubscribedCollectionSection';
 import { LinkedEntryCard } from '../media-library/components/LinkedEntryCard';
 import { MediaCard } from '../media-library/components/MediaCard';
@@ -181,7 +180,7 @@ function Studio(): JSX.Element {
         showTrashUndo({ kind: 'shared_media', id: entry.item.shareToken, title: entry.item.title });
       } else {
         showTrashUndo({
-          kind: entry.kind === 'canvas' ? 'collaborative_document' : 'subtitler_project',
+          kind: entry.kind === 'video' ? 'subtitler_project' : 'collaborative_document',
           id: entry.id,
           title: entry.title,
         });
@@ -260,9 +259,6 @@ function Studio(): JSX.Element {
         <StudioChatNotice />
 
         <SubscribedCollectionSection show="assets" />
-
-        {/* Video-Editor projects live outside the Mediathek query; the section hides when empty. */}
-        <VideoProjectsSection />
 
         <UploadQueueList queue={queue} progress={progress} onDismiss={dismiss} />
 

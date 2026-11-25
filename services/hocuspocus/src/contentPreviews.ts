@@ -16,8 +16,9 @@ import * as Y from 'yjs';
  */
 // Duplicated from @gruenerator/contracts `SITE_YDOC_KEYS.meta` (siteYdoc.ts).
 const SITE_META = 'siteMeta';
-// Duplicated from the video editor's Y.Doc root type (videoMeta).
+// Duplicated from the video editor's Y.Doc root types (videoMeta, videoOverlays).
 const VIDEO_META = 'videoMeta';
+const VIDEO_OVERLAYS = 'videoOverlays';
 const SHEET_META = 'sheetMeta';
 const SHEET_SNAPSHOT = 'snapshot';
 const PRESENTATION_SLIDES = 'slides';
@@ -169,4 +170,36 @@ export function boardPreview(ydoc: Y.Doc): BoardPreview | null {
   }
 
   return preview.columns || preview.notes ? preview : null;
+}
+
+/** The editor plays clips and images from `/api/share/<token>/preview|stream|download`. */
+const SHARE_SRC = /^\/api\/share\/([A-Za-z0-9_-]+)\//;
+
+interface VideoOverlayLike {
+  type?: unknown;
+  src?: unknown;
+  from?: unknown;
+  row?: unknown;
+}
+
+/**
+ * The share token of the clip or image a video project opens on — the earliest
+ * on the timeline, the top track on a tie. The Studio shows that file's poster
+ * as the project's tile; null when the project holds no Mediathek media.
+ */
+export function videoPosterShareToken(ydoc: Y.Doc): string | null {
+  if (!ydoc.share.has(VIDEO_OVERLAYS)) return null;
+  let best: { token: string; from: number; row: number } | null = null;
+  for (const raw of ydoc.getMap<unknown>(VIDEO_OVERLAYS).values()) {
+    const overlay = raw as VideoOverlayLike | null;
+    if (overlay?.type !== 'video' && overlay?.type !== 'image') continue;
+    const match = typeof overlay.src === 'string' ? SHARE_SRC.exec(overlay.src) : null;
+    if (!match) continue;
+    const from = typeof overlay.from === 'number' ? overlay.from : Infinity;
+    const row = typeof overlay.row === 'number' ? overlay.row : Infinity;
+    if (!best || from < best.from || (from === best.from && row < best.row)) {
+      best = { token: match[1]!, from, row };
+    }
+  }
+  return best?.token ?? null;
 }
