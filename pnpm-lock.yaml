@@ -2314,6 +2314,9 @@ importers:
 
   packages/sites:
     dependencies:
+      '@ggraphic/editor-chrome':
+        specifier: 0.1.0-alpha.0
+        version: 0.1.0-alpha.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@gruenerator/collab':
         specifier: workspace:*
         version: link:../collab

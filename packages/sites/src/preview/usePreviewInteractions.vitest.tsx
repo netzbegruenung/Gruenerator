@@ -29,7 +29,7 @@ beforeEach(() => {
   useEditorStore.setState({
     selection: null,
     elementPanel: null,
-    dialog: null,
+    sidebarTab: null,
     focusedField: null,
     highlightedElement: null,
   });
@@ -122,15 +122,20 @@ describe('usePreviewHighlight', () => {
 });
 
 describe('focusPath', () => {
-  it('opens the section form for a section field and the dialog for settings or legal', () => {
+  it('opens the block form for a block field and the sidebar tab for settings or legal', () => {
     const { focusPath } = useEditorStore.getState();
     act(() => focusPath('ac', 'blocks.ac.items.t2.link'));
     expect(useEditorStore.getState()).toMatchObject({
       selection: { blockId: 'ac', itemId: 't2', path: 'blocks.ac.items.t2.link' },
       elementPanel: 'details',
-      dialog: null,
+      sidebarTab: null,
     });
     act(() => focusPath('legal', 'legal.name'));
-    expect(useEditorStore.getState().dialog).toBe('legal');
+    expect(useEditorStore.getState()).toMatchObject({
+      sidebarTab: 'impressum',
+      elementPanel: null,
+    });
+    act(() => focusPath('settings', 'subdomain'));
+    expect(useEditorStore.getState().sidebarTab).toBe('einstellungen');
   });
 });

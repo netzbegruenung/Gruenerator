@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 
+import { type SidebarTabId } from '../editor/sidebar/tabs';
+
 /** A block's form (by block id), or the settings and Impressum outside the page. */
 export type EditorPanel = 'settings' | 'legal' | (string & {});
 
@@ -17,22 +19,22 @@ export interface EditorSelection {
   path: string | null;
 }
 
-/** The floating panel next to the page: a section's details or its image. */
+/** The sidebar panel for the selection: the block's form or its image. */
 export type ElementPanel = 'details' | 'image';
 
 interface EditorState {
   selection: EditorSelection | null;
   /** The panel shown for the selection; null shows only the toolbar. */
   elementPanel: ElementPanel | null;
-  /** Settings or Impressum dialog. */
-  dialog: 'settings' | 'legal' | null;
+  /** The rail tab open in the sidebar. Never open together with `elementPanel`: one panel. */
+  sidebarTab: SidebarTabId | null;
   /** A field to focus once its form is mounted (publish issues jump there). */
   focusedField: FocusedField | null;
   highlightedElement: FocusedField | null;
 
   select: (selection: EditorSelection | null) => void;
   openElementPanel: (panel: ElementPanel | null) => void;
-  openDialog: (dialog: 'settings' | 'legal' | null) => void;
+  openSidebarTab: (tab: SidebarTabId | null) => void;
   /** Opens the form that holds `path` and focuses the field there. */
   focusPath: (panel: EditorPanel, path: string) => void;
   setHighlightedElement: (element: FocusedField | null) => void;
@@ -53,7 +55,7 @@ const sameSelection = (a: EditorSelection | null, b: EditorSelection | null): bo
 export const useEditorStore = create<EditorState>((set) => ({
   selection: null,
   elementPanel: null,
-  dialog: null,
+  sidebarTab: null,
   focusedField: null,
   highlightedElement: null,
 
@@ -65,22 +67,31 @@ export const useEditorStore = create<EditorState>((set) => ({
       return { selection, elementPanel: keepPanel ? state.elementPanel : null };
     }),
 
-  openElementPanel: (elementPanel) => set({ elementPanel }),
+  openElementPanel: (elementPanel) =>
+    set((state) => ({
+      elementPanel,
+      sidebarTab: elementPanel === null ? state.sidebarTab : null,
+    })),
 
-  openDialog: (dialog) => set({ dialog }),
+  openSidebarTab: (sidebarTab) =>
+    set((state) => ({
+      sidebarTab,
+      elementPanel: sidebarTab === null ? state.elementPanel : null,
+    })),
 
   focusPath: (panel, path) =>
     set(
       panel === 'settings' || panel === 'legal'
         ? {
-            dialog: panel === 'settings' ? 'settings' : 'legal',
+            sidebarTab: panel === 'settings' ? 'einstellungen' : 'impressum',
+            elementPanel: null,
             focusedField: { panel, path },
             highlightedElement: { panel, path },
           }
         : {
             selection: { blockId: panel, itemId: itemIdOf(path), path },
             elementPanel: 'details',
-            dialog: null,
+            sidebarTab: null,
             focusedField: { panel, path },
             highlightedElement: { panel, path },
           }

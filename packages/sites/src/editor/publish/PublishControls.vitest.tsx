@@ -87,7 +87,7 @@ describe('PublishControls', () => {
     hoisted.toast.error.mockReset();
     hoisted.toast.success.mockReset();
     hoisted.publicOrigin.current = 'https://grsites.de';
-    useEditorStore.setState({ focusedField: null, selection: null, dialog: null });
+    useEditorStore.setState({ focusedField: null, selection: null, sidebarTab: null });
   });
   afterEach(async () => {
     vi.useRealTimers();

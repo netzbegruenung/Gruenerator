@@ -14,6 +14,19 @@ globalThis.ResizeObserver ??= class {
   disconnect() {}
 };
 Element.prototype.scrollIntoView ??= () => {};
+// The editor sidebar (@ggraphic/editor-chrome) picks desktop or mobile layout via matchMedia,
+// which jsdom lacks. Default to desktop; tests that need the phone layout stub it themselves.
+window.matchMedia ??= (query: string) =>
+  ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  }) as MediaQueryList;
 
 // ProseMirror measures the caret through Range geometry, which jsdom does not implement.
 const emptyRect = () => new DOMRect();
