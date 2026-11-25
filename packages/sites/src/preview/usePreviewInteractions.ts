@@ -77,3 +77,21 @@ export function usePreviewHighlight(doc: Document | null): void {
     return () => observer.disconnect();
   }, [doc, blockId, itemId, path]);
 }
+
+/**
+ * Marks the block a new one from the picker would follow, so the canvas shows where it lands,
+ * and scrolls it into view. The mark is a `data-editor-insert-after` label (EDITOR_FRAME_CSS).
+ */
+export function usePreviewInsertMark(doc: Document | null): void {
+  const preview = useEditorStore((s) => s.insertPreview);
+  useEffect(() => {
+    if (!doc || !preview) return;
+    const selector = `[data-block-id="${CSS.escape(preview.afterBlockId)}"]`;
+    const block = doc.querySelector(selector);
+    if (!block) return;
+    block.setAttribute('data-editor-insert-after', preview.label);
+    const reduce = doc.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    block.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
+    return () => block.removeAttribute('data-editor-insert-after');
+  }, [doc, preview]);
+}

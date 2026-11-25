@@ -8,5 +8,10 @@ export function CreateSitePage({ onBack }: { onBack?: () => void }) {
   const { sites } = useSiteList();
   const backToOverview = useBackToOverview();
   const hasSites = sites !== null && sites.length > 0;
-  return <CreateFlow onBack={hasSites ? backToOverview : onBack} />;
+  return (
+    <CreateFlow
+      onBack={hasSites ? backToOverview : onBack}
+      ownHandles={sites?.map((site) => site.subdomain)}
+    />
+  );
 }

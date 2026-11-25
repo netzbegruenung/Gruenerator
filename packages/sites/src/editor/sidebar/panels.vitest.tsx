@@ -4,7 +4,12 @@ import { screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { axe } from 'vitest-axe';
 
+vi.mock('../../SitesContext', () => ({
+  useAuth: () => ({ user: { id: 'u1', locale: 'de-DE' } }),
+}));
+
 import { BASE_DRAFT } from '../../draft/testDoc';
+import { useEditorStore } from '../../stores/editorStore';
 import { renderWithDraft } from '../../test/renderWithDraft';
 
 import { BlocksPanel } from './BlocksPanel';
@@ -162,6 +167,24 @@ describe('BlocksPanel', () => {
     expect(onAdded).toHaveBeenCalledWith(instagram()[0]?.id);
     expect(screen.getByRole('button', { name: /^Instagram/ })).toBeDisabled();
     expect(screen.getByRole('button', { name: /^Themen/ })).toBeEnabled();
+  });
+
+  it('marks on the canvas where a pointed-at block would land', async () => {
+    const about = BASE_DRAFT.blocks.find((b) => b.type === 'about');
+    const { user } = renderWithDraft(
+      <BlocksPanel selectedBlockId={about?.id ?? null} onAdded={() => {}} />
+    );
+    const themes = screen.getByRole('button', { name: /^Themen/ });
+    await user.hover(themes);
+    expect(useEditorStore.getState().insertPreview).toEqual({
+      afterBlockId: about?.id,
+      label: 'Themen kommt hier hin',
+    });
+    await user.unhover(themes);
+    expect(useEditorStore.getState().insertPreview).toBeNull();
+    // A hidden block comes back in place; there is nothing to mark.
+    await user.hover(screen.getByRole('button', { name: /^Instagram/ }));
+    expect(useEditorStore.getState().insertPreview).toBeNull();
   });
 
   it('greys out everything on a full page', () => {

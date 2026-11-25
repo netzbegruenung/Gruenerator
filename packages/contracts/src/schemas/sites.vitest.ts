@@ -86,8 +86,9 @@ describe('checkSiteHandle', () => {
     'rejects %s as invalid',
     (raw) => expect(checkSiteHandle(raw)).toEqual({ ok: false, reason: 'invalid' })
   );
-  it.each(['impressum', 'datenschutz', 'api', 'WWW'])('rejects %s as reserved', (raw) =>
-    expect(checkSiteHandle(raw)).toEqual({ ok: false, reason: 'reserved' })
+  it.each(['impressum', 'datenschutz', 'api', 'WWW', 'neu', 'erstellen'])(
+    'rejects %s as reserved',
+    (raw) => expect(checkSiteHandle(raw)).toEqual({ ok: false, reason: 'reserved' })
   );
 });
 

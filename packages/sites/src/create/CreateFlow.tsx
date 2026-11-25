@@ -15,6 +15,18 @@ import { handleApiError, SitesApiError } from '../utils/errorHandler';
 import { nameToSubdomain } from '../utils/sanitization';
 import { validators } from '../utils/validation';
 
+const HANDLE_MAX = 30;
+
+/** The name-based suggestion, counted past the account's own addresses (`anna`, `anna-2`, …). */
+function suggestHandle(base: string, own: readonly string[]): string {
+  if (!base || !own.includes(base)) return base;
+  for (let n = 2; ; n++) {
+    const suffix = `-${n}`;
+    const candidate = `${base.slice(0, HANDLE_MAX - suffix.length)}${suffix}`;
+    if (!own.includes(candidate)) return candidate;
+  }
+}
+
 async function isOwnSite(handle: string): Promise<boolean> {
   try {
     const res = await getContractsClient().sites.getSiteByHandle({ params: { handle } });
@@ -24,7 +36,14 @@ async function isOwnSite(handle: string): Promise<boolean> {
   }
 }
 
-export function CreateFlow({ onBack }: { onBack?: () => void }) {
+export function CreateFlow({
+  onBack,
+  ownHandles = [],
+}: {
+  onBack?: () => void;
+  /** The account's own addresses, so the suggested one is not already taken by itself. */
+  ownHandles?: readonly string[];
+}) {
   const { user } = useAuth();
   const { publicOrigin, createSite, isCreating } = useCreateSite();
   const navigate = useNavigate();
@@ -38,7 +57,8 @@ export function CreateFlow({ onBack }: { onBack?: () => void }) {
 
   const [subdomainInput, setSubdomainInput] = useState<string | null>(null);
   const subdomain =
-    subdomainInput ?? (user?.display_name ? nameToSubdomain(user.display_name) : '');
+    subdomainInput ??
+    suggestHandle(user?.display_name ? nameToSubdomain(user.display_name) : '', ownHandles);
   const contactEmail = user?.email ?? '';
   const [description, setDescription] = useState('');
 
