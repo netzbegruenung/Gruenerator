@@ -316,9 +316,10 @@ export class DocumentProcessor {
    * PDFs with processUndatedPdfs and every Wolke file pass `publishedAt: null`;
    * neither is a year-only guess over a stored date (`date_precision: 'year'`,
    * or the `-06-15` regex for callers that pass no precision). A refused date
-   * takes its `date_precision` with it, so the pair stays consistent. Young pages
-   * are re-fetched on every run past RECHECK_AFTER_MS (this branch never bumps
-   * `indexed_at`), so a bare `checked_at` is only rewritten once it is a day old.
+   * takes its `date_precision` with it, so the pair stays consistent. This
+   * branch never bumps `indexed_at`; the freshness gate therefore counts
+   * RECHECK_AFTER_MS from `checked_at`, which is only rewritten once it is a
+   * day old.
    */
   async #refreshStoredPayload(
     targetCollection: string,
