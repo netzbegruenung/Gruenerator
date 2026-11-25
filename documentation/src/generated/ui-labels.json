@@ -223,7 +223,7 @@
   "catalog.tool-notebooks": {
     "title": "Notebooks",
     "subtitle": "Wissensmanagement & Recherche",
-    "path": "/notebooks"
+    "path": "/marktplatz?art=notebooks"
   },
   "catalog.tool-parteitage": {
     "title": "Parteitage",
@@ -487,9 +487,9 @@
     "subtitle": "Mehr Werkzeuge"
   },
   "workplace.wissen": {
-    "title": "Wissen",
-    "subtitle": "Recherche & Notebooks",
-    "path": "/wissen"
+    "title": "Notebooks",
+    "subtitle": "Programme & Beschlüsse befragen",
+    "path": "/marktplatz?art=notebooks"
   },
   "workplace.zeichenzaehler": {
     "title": "Zeichenzähler",
