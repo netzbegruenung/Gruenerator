@@ -1,6 +1,7 @@
 import { requestThreadListReload } from '@gruenerator/chat';
 import { type TrashKind } from '@gruenerator/contracts';
 import { GROUPS_QUERY_KEY } from '@gruenerator/shared/groups';
+import { MENTION_RECIPES_KEY } from '@gruenerator/shared/grueneratoren';
 import { MEDIA_LIBRARY_QUERY_KEY } from '@gruenerator/shared/media-library';
 import { type QueryClient, type QueryKey } from '@tanstack/react-query';
 
@@ -38,7 +39,7 @@ const BY_KIND: Record<TrashKind, readonly QueryKey[]> = {
   subtitler_project: [],
   user_agent: [['user-agents'], ['mention-user-agents']],
   user_template: [['userTemplates'], ['profileData'], ['user-templates', 'docs-and-boards']],
-  user_text_form: [['text-forms'], ['mention-textforms']],
+  user_text_form: [['text-forms'], MENTION_RECIPES_KEY],
   custom_prompt: [['mention-custom-agents']],
   user_site: [['sites']],
   recurring_task: [['recurring-tasks']],

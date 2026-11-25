@@ -16,12 +16,27 @@ import {
   type TextForm,
   type TextFormType,
 } from '@gruenerator/contracts';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { ApiError, getContractsClient } from '../api/index.js';
 
 const OWN_RECIPES_KEY = ['text-forms'];
 const PUBLIC_RECIPES_KEY = ['text-forms', 'public'];
+
+/**
+ * The chat composer's `@`-mention list of recipes (`useTextformsQuery` in
+ * packages/chat, `useMentionablesSync` on mobile). It is a separate cache from
+ * `OWN_RECIPES_KEY` — and `['text-forms']` does not prefix-match it — so a
+ * mutation that only invalidated the page list left a freshly created recipe
+ * missing from `@` until the page was reloaded.
+ */
+export const MENTION_RECIPES_KEY = ['mention-textforms'] as const;
+
+/** Every list a recipe write changes: the page list and the `@`-mention list. */
+function invalidateRecipeLists(queryClient: QueryClient): void {
+  void queryClient.invalidateQueries({ queryKey: OWN_RECIPES_KEY });
+  void queryClient.invalidateQueries({ queryKey: MENTION_RECIPES_KEY });
+}
 
 /**
  * The server's own sentence, when it sent one. Shared with
@@ -179,9 +194,7 @@ export function useSaveRecipe() {
         throw new ApiError(res.status, textFormErrorMessage(res.body, res.status));
       return res.body.form;
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: OWN_RECIPES_KEY });
-    },
+    onSuccess: () => invalidateRecipeLists(queryClient),
   });
 }
 
@@ -193,9 +206,7 @@ export function useDeleteRecipe() {
       if (res.status !== 200)
         throw new ApiError(res.status, textFormErrorMessage(res.body, res.status));
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: OWN_RECIPES_KEY });
-    },
+    onSuccess: () => invalidateRecipeLists(queryClient),
   });
 }
 
@@ -210,9 +221,7 @@ export function useShareRecipeWithGroup() {
       if (res.status !== 200)
         throw new ApiError(res.status, textFormErrorMessage(res.body, res.status));
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: OWN_RECIPES_KEY });
-    },
+    onSuccess: () => invalidateRecipeLists(queryClient),
   });
 }
 
@@ -227,8 +236,6 @@ export function useUnshareRecipeFromGroup() {
       if (res.status !== 200)
         throw new ApiError(res.status, textFormErrorMessage(res.body, res.status));
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: OWN_RECIPES_KEY });
-    },
+    onSuccess: () => invalidateRecipeLists(queryClient),
   });
 }
