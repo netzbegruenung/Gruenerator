@@ -13,6 +13,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const resolveReaderSource = vi.fn();
 
 vi.mock('../../services/notebook/notebookSources.js', () => ({ resolveReaderSource }));
+
+const findSystemPdfSource = vi.fn();
+const loadSystemOriginal = vi.fn();
+vi.mock('../../services/notebook/systemOriginals.js', () => ({
+  findSystemPdfSource,
+  loadSystemOriginal,
+}));
+const systemMediaRoot = fs.mkdtempSync(path.join(os.tmpdir(), '.system-media-'));
+vi.mock('../../services/systemMedia/storage.js', () => ({
+  getSystemMediaStorage: () => ({
+    resolveLocalPath: (key: string) => path.join(systemMediaRoot, key),
+  }),
+}));
 vi.mock('../../services/document-services/DocumentSearchService/index.js', () => ({
   DocumentSearchService: class {},
 }));
@@ -145,5 +158,51 @@ describe('GET /api/documents/:id/original', () => {
       source({ path: '../../etc/passwd', filename: 'x.pdf', mimetype: null })
     );
     expect((await get()).status).toBe(404);
+  });
+});
+
+describe('GET /api/documents/:id/original for a scraped system PDF', () => {
+  const pdfSource = {
+    url: 'https://lv.example/files/Wahlprogramm%202026.pdf',
+    fileHash: 'f'.repeat(64),
+  };
+
+  beforeEach(() => {
+    findSystemPdfSource.mockReset().mockResolvedValue(pdfSource);
+    loadSystemOriginal.mockReset();
+  });
+
+  it('serves the stored copy with range support, looked up by collection', async () => {
+    fs.mkdirSync(path.join(systemMediaRoot, 'scraped-pdf'), { recursive: true });
+    fs.writeFileSync(path.join(systemMediaRoot, 'scraped-pdf/f.pdf'), '%PDF-1.7 stored');
+    loadSystemOriginal.mockResolvedValue({ kind: 'stored', key: 'scraped-pdf/f.pdf', size: 15 });
+
+    const res = await get('?notebookId=grundsatz-system');
+
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe('%PDF-1.7 stored');
+    expect(res.headers.get('content-type')).toBe('application/pdf');
+    expect(res.headers.get('content-disposition')).toContain('Wahlprogramm 2026.pdf');
+    expect(res.headers.get('accept-ranges')).toBe('bytes');
+    expect(res.headers.get('cache-control')).toBe('private, max-age=86400');
+    expect(findSystemPdfSource).toHaveBeenCalledWith('grundsatz_documents', 'd1');
+    expect(loadSystemOriginal).toHaveBeenCalledWith(pdfSource);
+    expect(resolveReaderSource).not.toHaveBeenCalled();
+  });
+
+  it('serves fresh bytes uncached', async () => {
+    loadSystemOriginal.mockResolvedValue({ kind: 'fresh', bytes: Buffer.from('%PDF-1.7 fresh') });
+    const res = await get('?notebookId=grundsatz-system');
+    expect(await res.text()).toBe('%PDF-1.7 fresh');
+    expect(res.headers.get('cache-control')).toBe('private, no-cache');
+  });
+
+  it('404 when the document has no PDF or the source is gone', async () => {
+    findSystemPdfSource.mockResolvedValue(null);
+    expect((await get('?notebookId=grundsatz-system')).status).toBe(404);
+
+    findSystemPdfSource.mockResolvedValue(pdfSource);
+    loadSystemOriginal.mockRejectedValue(new Error('HTTP 404'));
+    expect((await get('?notebookId=grundsatz-system')).status).toBe(404);
   });
 });
