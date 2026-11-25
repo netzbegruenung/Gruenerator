@@ -34,6 +34,11 @@ vi.mock('./ownedRowTrash.js', async (importOriginal) => ({
   trashOwnedRow: (...a: unknown[]) => trashOwnedRow(...a),
 }));
 
+const requireSiteRole = vi.fn();
+vi.mock('../sites/siteAccess.js', () => ({
+  requireSiteRole: (...a: unknown[]) => requireSiteRole(...a),
+}));
+
 const { TRASH_KINDS, TRASH_RETENTION_DAYS, purgeAtFor, toTrashItem, trashHandlerFor } =
   await import('./trashRegistry.js');
 const { compareTrashKey, decodeTrashCursor, encodeTrashCursor, trashKeysetWhere } =
@@ -121,13 +126,14 @@ describe('user_site handler', () => {
 
   it('closes the lower-cased site room after a trash, and not after a refusal', async () => {
     closeCollabRooms.mockReset().mockResolvedValue(undefined);
-    trashOwnedRow.mockResolvedValueOnce('ok');
+    requireSiteRole.mockResolvedValueOnce({ role: 'admin', groupId: null, creatorId: 'u1' });
     expect(await trashHandlerFor('user_site').trash('u1', ID)).toBe('ok');
+    expect(requireSiteRole).toHaveBeenCalledWith(ID, 'u1', 'admin');
     expect(closeCollabRooms).toHaveBeenCalledWith([`site-${ID.toLowerCase()}`]);
 
     closeCollabRooms.mockClear();
-    trashOwnedRow.mockResolvedValueOnce('not_found');
-    expect(await trashHandlerFor('user_site').trash('u1', ID)).toBe('not_found');
+    requireSiteRole.mockResolvedValueOnce('forbidden');
+    expect(await trashHandlerFor('user_site').trash('u1', ID)).toBe('forbidden');
     expect(closeCollabRooms).not.toHaveBeenCalled();
   });
 });
