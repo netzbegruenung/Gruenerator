@@ -890,13 +890,20 @@ export const siteSummarySchema = siteSchema.pick({
   theme: true,
 });
 export type SiteSummary = z.infer<typeof siteSummarySchema>;
+/** A list entry: the summary plus the caller's role and the project a project site belongs to. */
+export const siteListItemSchema = siteSummarySchema.extend({
+  role: siteRoleSchema,
+  group: z.object({ id: z.string(), name: z.string() }).nullable(),
+});
+export type SiteListItem = z.infer<typeof siteListItemSchema>;
 export const siteListResponseSchema = z.object({
-  sites: z.array(siteSummarySchema),
+  sites: z.array(siteListItemSchema),
   public_origin: z.string().nullable(),
   limit: z.number().int(),
 });
 export const siteByHandleResponseSchema = z.object({
   site: siteSchema,
+  role: siteRoleSchema,
   public_origin: z.string().nullable(),
 });
 
@@ -912,6 +919,8 @@ export const createSiteBodySchema = z.object({
   background_image: urlField.optional(),
   sections: siteSectionsSchema.optional(),
   legal: siteLegalDraftSchema.optional(),
+  /** Creates a project site: needs project admin and the caller's own Sites unlock. */
+  group_id: z.string().guid().optional(),
 });
 export type CreateSiteBody = z.infer<typeof createSiteBodySchema>;
 
