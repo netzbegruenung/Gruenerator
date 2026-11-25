@@ -57,3 +57,20 @@ describe('enrichRequest', () => {
     expect(params).toEqual([['t1'], 'u1']);
   });
 });
+
+describe('formatSavedTexts', () => {
+  it('leaves no tag behind for nested or split tags', () => {
+    const { formatted } = new RequestEnricher().formatSavedTexts([
+      {
+        id: 't1',
+        title: 'T',
+        content: '<p>Hallo</p> <scr<script>ipt>alert(1)</scr</script>ipt> <<b>b>Welt',
+        document_type: 'text',
+      } as never,
+    ]);
+
+    expect(formatted[0]).not.toMatch(/<\/?\s*script/i);
+    expect(formatted[0]).toContain('Hallo');
+    expect(formatted[0]).toContain('Welt');
+  });
+});
