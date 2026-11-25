@@ -45,23 +45,22 @@ const PROTECTED_RESOURCE_METADATA_URL = `${resourceUrl.origin}/.well-known/oauth
   resourceUrl.pathname === '/' ? '' : resourceUrl.pathname
 }`;
 
-const limiter =
-  process.env.DISABLE_RATE_LIMITS === 'true'
-    ? (_req: Request, _res: Response, next: NextFunction) => next()
-    : rateLimit({
-        windowMs: 60 * 1000,
-        max: env.MCP_SERVER_RATE_LIMIT,
-        standardHeaders: true,
-        legacyHeaders: false,
-        // IP-keyed on purpose: bucketing by the (attacker-controlled)
-        // Authorization header would give every token guess a fresh window.
-        keyGenerator: (req: Request) => (req.ip ? ipKeyGenerator(req.ip) : 'anonymous'),
-        message: {
-          jsonrpc: '2.0',
-          error: { code: JSONRPC_RATE_LIMITED, message: 'Zu viele Anfragen – bitte kurz warten.' },
-          id: null,
-        },
-      });
+const limiter = env.DISABLE_RATE_LIMITS
+  ? (_req: Request, _res: Response, next: NextFunction) => next()
+  : rateLimit({
+      windowMs: 60 * 1000,
+      max: env.MCP_SERVER_RATE_LIMIT,
+      standardHeaders: true,
+      legacyHeaders: false,
+      // IP-keyed on purpose: bucketing by the (attacker-controlled)
+      // Authorization header would give every token guess a fresh window.
+      keyGenerator: (req: Request) => (req.ip ? ipKeyGenerator(req.ip) : 'anonymous'),
+      message: {
+        jsonrpc: '2.0',
+        error: { code: JSONRPC_RATE_LIMITED, message: 'Zu viele Anfragen – bitte kurz warten.' },
+        id: null,
+      },
+    });
 
 function unauthorized(res: Response): void {
   res

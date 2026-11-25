@@ -740,6 +740,16 @@ if (!parsed.success) {
 
 export const env = parsed.data;
 
+// DISABLE_RATE_LIMITS is a dev convenience. In production it is ignored (not fatal:
+// taking the API down is worse than keeping the limits on). `env.DISABLE_RATE_LIMITS`
+// is the single effective value; never read process.env.DISABLE_RATE_LIMITS directly.
+if (env.NODE_ENV === 'production' && env.DISABLE_RATE_LIMITS) {
+  console.error(
+    'SECURITY: DISABLE_RATE_LIMITS=true is set in production and is IGNORED — rate limits stay enabled. Remove the variable.'
+  );
+  env.DISABLE_RATE_LIMITS = false;
+}
+
 if (process.env.GREENPT_SEARCH_ENABLED !== undefined) {
   console.warn(
     `GREENPT_SEARCH_ENABLED is ignored since 29.09.2026 — the engine order is WEB_SEARCH_CHAIN (now: ${env.WEB_SEARCH_CHAIN.join(',')}). Remove the variable.`
