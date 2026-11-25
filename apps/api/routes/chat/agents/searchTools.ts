@@ -345,7 +345,7 @@ function institutionNamed(host: string, haystack: string): boolean {
  * Austria's material sits in two Qdrant collections is ours to know, not the
  * planner's.
  */
-function searchCollectionOrBundle(params: {
+export function searchCollectionOrBundle(params: {
   query: string;
   collection: string;
   limit: number;

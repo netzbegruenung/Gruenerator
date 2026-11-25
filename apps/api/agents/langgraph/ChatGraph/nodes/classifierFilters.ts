@@ -67,3 +67,23 @@ export function contentTypesOf(
   const list = typeof raw === 'string' ? [raw] : raw;
   return list.length > 0 ? list : undefined;
 }
+
+/**
+ * `detectedFilters` as the per-collection params of `executeDirectSearch`.
+ *
+ * `content_type` speaks the Landesverband vocabulary (`beschluss`, `presse`);
+ * as a plain filter it went to every collection and emptied the ones that
+ * don't carry those values. As `lvContentType` it only touches
+ * `landesverbaende_documents`. An agent's pinned type wins, as on the loop path.
+ */
+export function collectionFilterParams(
+  filters: SubcategoryFilters | null | undefined,
+  pinnedContentType: readonly string[] | undefined
+): { filters?: SubcategoryFilters; lvContentType?: readonly string[] } {
+  const lvContentType = pinnedContentType?.length ? pinnedContentType : contentTypesOf(filters);
+  const { content_type: _scoped, ...rest } = filters ?? {};
+  return {
+    ...(Object.keys(rest).length > 0 && { filters: rest }),
+    ...(lvContentType && { lvContentType }),
+  };
+}

@@ -9,6 +9,9 @@ const MAX_FAVOURITES = 6;
 /** Ein Projekt in den Favoriten: `projekt:<groupId>` neben den Werkzeug-Ids. */
 export const projektFavouriteId = (groupId: string): string => `projekt:${groupId}`;
 
+/** Ein eigenes oder geteiltes Notebook in den Favoriten: `notebook:<collectionId>`. System-Notebooks behalten ihre Registry-Id. */
+export const notebookFavouriteId = (collectionId: string): string => `notebook:${collectionId}`;
+
 // Pinned ids survive tool renames in localStorage: map them onto the current
 // ids on rehydrate so the star state and favourites-first ordering keep
 // matching the renamed tiles. The alias map lives in the registry.
