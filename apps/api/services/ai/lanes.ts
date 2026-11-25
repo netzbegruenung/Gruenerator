@@ -20,6 +20,7 @@
 
 import {
   GEMMA_31B_ALTERNATE,
+  GEMMA_31B_ON_CORTECS,
   GEMMA_31B_ON_MELIOUS_ECO,
   GEMMA_31B_ON_MELIOUS_SPEED,
   GEMMA_31B_PRIMARY,
@@ -162,9 +163,19 @@ export const AI_LANES = {
   //   alphabetically, and one run looped to the token limit.
   website: { provider: 'melious', model: GEMMA_31B_ON_MELIOUS_ECO, structuredMode: 'tool' },
 
-  // — Flyer text → structured analysis. Was on `default` without a row, same model,
-  //   now said out loud.
-  'flyer-analysis': { provider: 'mistral', model: MISTRAL_LARGE, structuredMode: 'tool' },
+  // — Flyer text → structured analysis. Gemma 4 on Cortecs since 25.11.2026, named
+  //   by host on purpose, not via GEMMA_31B_ALTERNATE: Melious (`:eco` and
+  //   `:balanced`) answered this tool call with HTTP 503 for every flyer without
+  //   an e-mail address (9/9: 7 on `:eco`, 2 on `:balanced`; the same text with
+  //   an address went through), while
+  //   Cortecs answered 8/8 valid, 10–22 s, ~0.03 ct per flyer (Mistral Large 4:
+  //   6.5–70 s, 0.3–0.7 ct). Swapping primary and alternate must not move this
+  //   row back onto Melious.
+  'flyer-analysis': {
+    provider: GEMMA_31B_ON_CORTECS.provider,
+    model: GEMMA_31B_ON_CORTECS.model,
+    structuredMode: 'tool',
+  },
 
   // — Artefakte über erzwungene Tool-Calls (aiObject). These had no
   //   lane at all, so both tables put them on `default` — GPT-OSS, which
