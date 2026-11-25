@@ -171,3 +171,54 @@ describe('GET /api/documents/:id/chunks — Quellen geteilter Notebooks', () => 
     }
   });
 });
+
+describe('GET /api/documents/:id/chunks — gespeichertes Original', () => {
+  it('meldet ein gespeichertes Original samt Dateiart', async () => {
+    dbQuery.mockResolvedValue([
+      {
+        user_id: 'user-1',
+        title: 'Antrag',
+        source_url: null,
+        file_path: 'user-1/doc-1.pdf',
+        filename: 'Antrag.pdf',
+        metadata: { mimetype: 'application/pdf' },
+      },
+    ]);
+    const { base, close } = await startApp();
+    try {
+      const body = (await (await fetch(`${base}/api/documents/doc-1/chunks`)).json()) as {
+        has_original: boolean;
+        original_mimetype: string | null;
+      };
+      expect(body.has_original).toBe(true);
+      expect(body.original_mimetype).toBe('application/pdf');
+    } finally {
+      close();
+    }
+  });
+
+  it('meldet kein Original ohne gespeicherte Datei', async () => {
+    dbQuery.mockResolvedValue([{ user_id: 'user-1', title: 'Antrag', source_url: null }]);
+    const { base, close } = await startApp();
+    try {
+      const body = (await (await fetch(`${base}/api/documents/doc-1/chunks`)).json()) as {
+        has_original: boolean;
+      };
+      expect(body.has_original).toBe(false);
+    } finally {
+      close();
+    }
+  });
+
+  it('meldet für Systemsammlungen kein Original', async () => {
+    const { base, close } = await startApp();
+    try {
+      const body = (await (
+        await fetch(`${base}/api/documents/doc-1/chunks?collectionId=grundsatz-system`)
+      ).json()) as { has_original: boolean };
+      expect(body.has_original).toBe(false);
+    } finally {
+      close();
+    }
+  });
+});

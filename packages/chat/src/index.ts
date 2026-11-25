@@ -246,7 +246,6 @@ export {
   type ComposerOption,
   ComposerOptionPicker,
 } from './components/thread/ComposerOptionPicker';
-export { type ComposerPreset } from './components/thread/PlusMenu';
 export { FileMentionPopover } from './components/thread/FileMentionPopover';
 export { DocumentChatPicker } from './components/thread/DocumentChatPicker';
 export { SkillLibraryModal } from './components/skills/SkillLibraryModal';
@@ -314,7 +313,12 @@ export {
   useCitationPanel,
   type CitationPanelSource,
 } from './context/CitationPanelContext';
-export { CitationSidePanel } from './components/message-parts/CitationSidePanel';
+export {
+  CitationSidePanel,
+  type CitationOriginalViewer,
+  type CitationOriginalViewerProps,
+  type CitationPdfMark,
+} from './components/message-parts/CitationSidePanel';
 
 // Layout & UI Components
 export { ChatLayout } from './components/ChatLayout';

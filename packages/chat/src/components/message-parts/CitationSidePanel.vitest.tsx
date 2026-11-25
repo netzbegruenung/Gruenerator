@@ -11,14 +11,18 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CitationPanelProvider, useCitationPanel } from '../../context/CitationPanelContext';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { axe } from '../../test-utils';
 
-import { CitationSidePanel } from './CitationSidePanel';
+import {
+  CitationSidePanel,
+  type CitationOriginalViewer,
+  type CitationOriginalViewerProps,
+} from './CitationSidePanel';
 
 import type { CitationPanelSource } from '../../context/CitationPanelContext';
 
@@ -53,7 +57,15 @@ function OpenOnMount({ sources, at }: { sources: CitationPanelSource[]; at: numb
   return null;
 }
 
-function Harness({ sources, at = 0 }: { sources: CitationPanelSource[]; at?: number }) {
+function Harness({
+  sources,
+  at = 0,
+  originalViewer,
+}: {
+  sources: CitationPanelSource[];
+  at?: number;
+  originalViewer?: CitationOriginalViewer;
+}) {
   const [client] = useState(
     () => new QueryClient({ defaultOptions: { queries: { retry: false } } })
   );
@@ -61,7 +73,7 @@ function Harness({ sources, at = 0 }: { sources: CitationPanelSource[]; at?: num
     <QueryClientProvider client={client}>
       <CitationPanelProvider>
         <OpenOnMount sources={sources} at={at} />
-        <CitationSidePanel containerRef={{ current: null }} />
+        <CitationSidePanel containerRef={{ current: null }} originalViewer={originalViewer} />
       </CitationPanelProvider>
     </QueryClientProvider>
   );
@@ -74,7 +86,11 @@ interface TestChunk {
   pageNumber?: number;
 }
 
-function chunksResponse(documentId: string, chunks: TestChunk[] = CHUNKS) {
+function chunksResponse(
+  documentId: string,
+  chunks: TestChunk[] = CHUNKS,
+  extra: Record<string, unknown> = {}
+) {
   return new Response(
     JSON.stringify({
       success: true,
@@ -82,6 +98,7 @@ function chunksResponse(documentId: string, chunks: TestChunk[] = CHUNKS) {
       document_title: 'Fraktionshandbuch',
       chunk_count: chunks.length,
       chunks,
+      ...extra,
     }),
     { status: 200, headers: { 'Content-Type': 'application/json' } }
   );
@@ -106,8 +123,10 @@ describe('CitationSidePanel — Darstellung', () => {
   it('sagt, wo im Dokument die Passage steht', async () => {
     render(<Harness sources={[source()]} />);
     // Die API liefert Seitenzahlen; bis hierher wurden sie geholt und verworfen.
-    expect(await screen.findByText('Abschnitt 2 von 3 · Seite 14')).toBeInTheDocument();
+    expect(await screen.findByText('Seite 14')).toBeInTheDocument();
     expect(screen.getByText('PDF · Kommunalpolitik')).toBeInTheDocument();
+    // Die Chunk-Zählung ist eine Indexgröße, keine Angabe für Lesende.
+    expect(screen.queryByText(/Abschnitt \d+ von/)).not.toBeInTheDocument();
   });
 
   it('trennt die Passage von ihrer Umgebung', async () => {
@@ -128,7 +147,7 @@ describe('CitationSidePanel — Darstellung', () => {
     await user.click(screen.getByRole('button', { name: /Weiter/ }));
 
     expect(await screen.findByText('Zitat 2 von 2')).toBeInTheDocument();
-    expect(screen.getByText('Abschnitt 3 von 3 · Seite 15')).toBeInTheDocument();
+    expect(screen.getByText('Seite 15')).toBeInTheDocument();
   });
 
   it('blendet den Blätterfuß bei einer einzigen Quelle aus', async () => {
@@ -254,5 +273,153 @@ describe('CitationSidePanel — Abruf-URL', () => {
       '/api/documents/doc-1/chunks?collectionId=grundsatz-system',
       expect.objectContaining({ method: 'GET' })
     );
+  });
+});
+
+describe('CitationSidePanel — gespeichertes Original', () => {
+  it('öffnet das hochgeladene PDF auf der Seite der zitierten Stelle', async () => {
+    useChatConfigStore.getState().configure({
+      fetch: async () =>
+        chunksResponse('doc-1', CHUNKS, {
+          has_original: true,
+          original_mimetype: 'application/pdf',
+        }),
+    });
+    render(<Harness sources={[source({ sourceUrl: undefined, collectionId: 'nb-1' })]} />);
+    const link = await screen.findByRole('link', { name: 'PDF öffnen, Seite 14' });
+    expect(link).toHaveAttribute('href', '/api/documents/doc-1/original?notebookId=nb-1#page=14');
+    expect(link).toHaveAttribute('target', '_blank');
+    // Dateiart und Seite stehen im Knopf, nicht noch einmal daneben.
+    expect(screen.getByText('Kommunalpolitik')).toBeInTheDocument();
+    expect(screen.queryByText('Seite 14')).not.toBeInTheDocument();
+  });
+
+  it('nennt die Dateiart aus dem Titel, wenn der MIME-Typ zu lang ist', async () => {
+    useChatConfigStore.getState().configure({
+      fetch: async () =>
+        chunksResponse('doc-1', [{ index: 1, text: 'Text', tokens: 1 }], {
+          has_original: true,
+          original_mimetype:
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        }),
+    });
+    render(<Harness sources={[source({ documentTitle: 'Satzung.docx', sourceUrl: undefined })]} />);
+    expect(await screen.findByRole('link', { name: 'DOCX öffnen' })).toBeInTheDocument();
+  });
+
+  it('zeigt keinen Knopf ohne gespeichertes Original', async () => {
+    render(<Harness sources={[source()]} />);
+    await screen.findByText('Zitierte Passage');
+    const originals = screen
+      .queryAllByRole('link')
+      .filter((a) => a.getAttribute('href')?.includes('/original'));
+    expect(originals).toHaveLength(0);
+  });
+});
+
+describe('CitationSidePanel — PDF-Ansicht', () => {
+  const seen: CitationOriginalViewerProps[] = [];
+  function StubViewer(props: CitationOriginalViewerProps) {
+    seen.push(props);
+    return (
+      <div data-testid="pdf-viewer">
+        <button type="button" onClick={props.onShowText}>
+          zurück zum Text
+        </button>
+      </div>
+    );
+  }
+  const viewer: CitationOriginalViewer = { component: StubViewer };
+
+  beforeEach(() => {
+    seen.length = 0;
+    localStorage.clear();
+    useChatConfigStore.getState().configure({
+      fetch: async () =>
+        chunksResponse('doc-1', CHUNKS, {
+          has_original: true,
+          original_mimetype: 'application/pdf',
+        }),
+    });
+  });
+
+  it('startet im Text und wechselt auf Wunsch zur PDF', async () => {
+    const user = userEvent.setup();
+    const sources = [
+      source({ sourceUrl: undefined, collectionId: 'nb-1' }),
+      source({ citationId: 2, documentId: 'doc-2', collectionId: 'nb-1' }),
+      source({ citationId: 3, chunkIndex: 2, citedText: undefined, collectionId: 'nb-1' }),
+    ];
+    render(<Harness sources={sources} originalViewer={viewer} />);
+
+    const pdf = await screen.findByRole('button', { name: 'PDF', pressed: false });
+    expect(screen.getByText('Zitierte Passage')).toBeVisible();
+    await user.click(pdf);
+
+    expect(await screen.findByTestId('pdf-viewer')).toBeInTheDocument();
+    const props = seen.at(-1)!;
+    expect(props.url).toBe('/api/documents/doc-1/original?notebookId=nb-1');
+    // Only the citations into this document, each with what to search for.
+    expect(props.marks).toEqual([
+      {
+        citationId: 1,
+        page: 14,
+        texts: ['informellen Spielregeln machen', CHUNKS[1]!.text],
+      },
+      { citationId: 3, page: 15, texts: [CHUNKS[2]!.text] },
+    ]);
+    expect(props.activeIndex).toBe(0);
+    expect(localStorage.getItem('gruenerator.citationPanel.view')).toBe('pdf');
+  });
+
+  it('springt aus der PDF zurück in den Text', async () => {
+    const user = userEvent.setup();
+    localStorage.setItem('gruenerator.citationPanel.view', 'pdf');
+    render(<Harness sources={[source({ sourceUrl: undefined })]} originalViewer={viewer} />);
+    await user.click(await screen.findByRole('button', { name: 'zurück zum Text' }));
+    expect(screen.queryByTestId('pdf-viewer')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Text', pressed: true })).toBeInTheDocument();
+  });
+
+  it('bietet keine PDF-Ansicht für andere Dateiarten', async () => {
+    useChatConfigStore.getState().configure({
+      fetch: async () =>
+        chunksResponse('doc-1', CHUNKS, {
+          has_original: true,
+          original_mimetype: 'text/plain',
+        }),
+    });
+    render(<Harness sources={[source({ documentTitle: 'notiz.txt' })]} originalViewer={viewer} />);
+    await screen.findByText('Zitierte Passage');
+    expect(screen.queryByRole('button', { name: 'PDF' })).not.toBeInTheDocument();
+  });
+});
+
+describe('CitationSidePanel — schmale Fläche', () => {
+  // The panel measures the surface it sits in. React attaches the parent's ref
+  // only after the child's layout effect, so a first measurement finds `null`;
+  // without a retry the panel stayed a 440px column on phones.
+  function SurfaceHarness({ sources }: { sources: CitationPanelSource[] }) {
+    const [client] = useState(
+      () => new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    );
+    const surfaceRef = useRef<HTMLDivElement>(null);
+    return (
+      <QueryClientProvider client={client}>
+        <CitationPanelProvider>
+          <OpenOnMount sources={sources} at={0} />
+          <div ref={surfaceRef}>
+            <CitationSidePanel containerRef={surfaceRef} />
+          </div>
+        </CitationPanelProvider>
+      </QueryClientProvider>
+    );
+  }
+
+  it('wird auf einer schmalen Fläche zum Sheet, auch wenn die Fläche später gemessen wird', async () => {
+    render(<SurfaceHarness sources={[source()]} />);
+    // jsdom reports every clientWidth as 0, i.e. narrower than any threshold.
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
   });
 });

@@ -355,6 +355,9 @@ async function respondWithDocumentChunks(
 
     let documentTitle = 'Dokument';
     let ownerUserId = userId;
+    // Only manual uploads keep their file (documentOriginals.ts); the panel
+    // shows „PDF öffnen" for those and links to GET /:id/original.
+    let original: { mimetype: string | null } | null = null;
 
     if (!systemConfig) {
       // Zitate aus geteilten und öffentlichen Notebooks zeigen auf Quellen
@@ -369,6 +372,7 @@ async function respondWithDocumentChunks(
       }
       documentTitle = source.title;
       ownerUserId = source.ownerUserId;
+      original = source.original ? { mimetype: source.original.mimetype } : null;
     }
 
     const result = await documentSearchService.getDocumentChunks(
@@ -386,6 +390,8 @@ async function respondWithDocumentChunks(
       document_title: documentTitle,
       chunk_count: result.chunkCount,
       chunks: result.chunks,
+      has_original: original !== null,
+      original_mimetype: original?.mimetype ?? null,
     });
   } catch (error) {
     log.error('[GET chunks] Error:', error);

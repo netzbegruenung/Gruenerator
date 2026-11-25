@@ -119,7 +119,12 @@ describe.skipIf(!url)('Sites routes by role (DB)', () => {
 
   afterAll(async () => {
     await pool?.end();
-    await adminPool.query(`DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`);
+    // No WITH (FORCE): pool.end() resolves once it has *asked* every client to
+    // close, not once the sockets are gone. FORCE then kills those backends
+    // mid-close, the FATAL 57P01 lands on the idle-error listener of the
+    // already-removed client, and the pool (no 'error' listener) rethrows it
+    // as an uncaught exception (#6086). A plain DROP waits for exiting sessions.
+    await adminPool.query(`DROP DATABASE IF EXISTS ${dbName}`);
     await adminPool.end();
   }, 60_000);
 

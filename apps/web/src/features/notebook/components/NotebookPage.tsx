@@ -14,6 +14,7 @@ import {
   supportsSourceTier,
   useAgentStore,
   type CategoryFilterConfig,
+  type CitationOriginalViewer,
   type CategoryFilterField,
   type NotebookMessageMetadata,
 } from '@gruenerator/chat';
@@ -477,13 +478,25 @@ export const NotebookPageContent = ({
               </div>
             </AuiIf>
           </ThreadPrimitive.Root>
-          <CitationSidePanel containerRef={surfaceRef} />
+          <CitationSidePanel containerRef={surfaceRef} originalViewer={citationPdfViewer} />
         </div>
       </CitationPanelProvider>
     </NotebookChatProvider>
   );
 
   return <ErrorBoundary>{chatContent}</ErrorBoundary>;
+};
+
+/**
+ * PDF.js and the viewer load on first use (or when the pointer reaches „PDF"),
+ * never with the notebook page itself.
+ */
+const loadCitationPdfViewer = () => import('../citation-pdf/CitationPdfViewer');
+const citationPdfViewer: CitationOriginalViewer = {
+  component: React.lazy(loadCitationPdfViewer),
+  preload: () => {
+    void loadCitationPdfViewer().then((m) => m.preloadPdfJs());
+  },
 };
 
 /** The conversation named by `?thread=` is on its way: its shape, not a blank page. */

@@ -124,7 +124,12 @@ export interface Mentionable {
    * skill/function split and keeps its name.
    */
   intentCategory?: string;
+  /** MCP servers only: what the server needs before it works fully. */
+  connectorStatus?: ConnectorStatus;
 }
+
+/** See `connectorStatusOf` in `mentionableSync`. */
+export type ConnectorStatus = 'needs_approval' | 'needs_login';
 
 /**
  * A user-authored or saved custom prompt. No `sharedFromGroup`: `custom_prompts`
@@ -850,6 +855,7 @@ export interface McpServerMentionable {
   id: string;
   name: string;
   description?: string | null;
+  status?: ConnectorStatus | null;
 }
 
 let dynamicMcpServerMentionables: Mentionable[] = [];
@@ -889,6 +895,7 @@ export function setMcpServerMentionables(servers: McpServerMentionable[]): void 
       icon: PiPlugsConnected,
       backgroundColor: mcpBrandColor(srv.name),
       mention: slug,
+      ...(srv.status ? { connectorStatus: srv.status } : {}),
     };
   });
   rebuildMentionableMap();
