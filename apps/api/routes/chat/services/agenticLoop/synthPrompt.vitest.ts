@@ -13,6 +13,11 @@ import { describe, it, expect } from 'vitest';
 
 import { createRecipeRegistry } from './recipeRegistry.js';
 import { createSourceRegistry } from './sourceRegistry.js';
+import {
+  INLINE_SOURCE_URL_RULE,
+  SOURCE_LINK_RULE,
+} from '../../../../agents/langgraph/ChatGraph/nodes/sourceLinkRule.js';
+
 import { buildConnectorNotes, buildRepairSystem, type SynthPromptContext } from './synthPrompt.js';
 import { type PersistedStep } from './types.js';
 
@@ -31,6 +36,7 @@ function fakeState(overrides: Record<string, unknown> = {}): ChatGraphState {
     userLocale: 'de-DE',
     mcpServerScope: null,
     messages: [],
+    agentConfig: {},
     ...overrides,
   } as unknown as ChatGraphState;
 }
@@ -99,6 +105,21 @@ describe('buildRepairSystem — Schreiber-Notizen der Werkzeuge', () => {
     const prompt = buildRepairSystem('[1] Antrag', ctx({ steps }));
     expect(prompt).not.toContain('Planer-Text');
     expect(prompt).not.toContain('ANWEISUNG DER WERKZEUGE');
+  });
+});
+
+describe('buildRepairSystem — Quellenlinks (#5615)', () => {
+  it('verlinkt Quellen sonst als quelle:N', () => {
+    const prompt = buildRepairSystem('[1] Antrag <https://example.org/a>', ctx());
+    expect(prompt).toContain(SOURCE_LINK_RULE);
+    expect(prompt).not.toContain(INLINE_SOURCE_URL_RULE);
+  });
+
+  it('verlinkt bei inlineSourceLinks die echte URL statt quelle:N', () => {
+    const state = fakeState({ agentConfig: { inlineSourceLinks: true } });
+    const prompt = buildRepairSystem('[1] Antrag <https://example.org/a>', ctx({ state }));
+    expect(prompt).toContain(INLINE_SOURCE_URL_RULE);
+    expect(prompt).not.toContain(SOURCE_LINK_RULE);
   });
 });
 

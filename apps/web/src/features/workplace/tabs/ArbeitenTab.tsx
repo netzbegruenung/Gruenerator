@@ -8,6 +8,7 @@ import {
   BriefingSection,
   MEDIA_GRID,
   MEDIA_TOOLS,
+  MarketplaceSection,
   ToolCardsSection,
 } from '../components/ArbeitenSections';
 import { InfoTilesSection } from '../components/InfoTilesSection';
@@ -26,7 +27,7 @@ import { cn } from '@/utils/cn';
 const RecentlyCreatedSection = lazy(() => import('../components/RecentlyCreatedSection'));
 
 // "Arbeiten": a hero, then one column of sections on a shared grid — Zuletzt,
-// Mehr Produktivität mit dem Grünerator, Apps & Newsletter, Gestalte grüne Inhalte, Bleib informiert.
+// Mehr Produktivität mit dem Grünerator, Apps & Newsletter, Gestalte grüne Inhalte, Bleib informiert, Marktplatz.
 // With tabs the hero is the greeting and search; on the one-page layout it is the
 // chat greeting and composer (see OnePageStart).
 const ArbeitenTab = () => {
@@ -70,6 +71,7 @@ const ArbeitenTab = () => {
         <AppsNewsletterSection />
         <StudioSection />
         <BriefingSection />
+        <MarketplaceSection />
         <InfoTilesSection />
       </div>
     </PageContainer>

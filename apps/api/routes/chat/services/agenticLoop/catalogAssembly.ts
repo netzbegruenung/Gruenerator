@@ -19,6 +19,7 @@ import {
   agentNotebookDocIds,
   searchScopedDocuments,
 } from '../../../../agents/langgraph/ChatGraph/nodes/agentNotebookScope.js';
+import { contentTypesOf } from '../../../../agents/langgraph/ChatGraph/nodes/classifierFilters.js';
 import { lastUserText } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { executeMultiDocFanout } from '../../../../agents/langgraph/ChatGraph/nodes/searchNode.js';
 import { namedProjectDocs } from '../../../../services/groups/projectCollabDocs.js';
@@ -920,7 +921,11 @@ export async function seedAttachedDocuments(params: {
     const query = attachedDocsQuery(params.state);
     if (!query) return NOTHING_SEEDED;
 
-    const retrieved = await retrieveAttachedDocuments(params.state, query, { sources });
+    const contentType = contentTypesOf(params.state.detectedFilters);
+    const retrieved = await retrieveAttachedDocuments(params.state, query, {
+      sources,
+      ...(contentType && { contentType }),
+    });
     // Ein Tabellenauszug als Quelle [N] stach das berechnete Ergebnis aus: der
     // Schreiber hatte es zweimal im Prompt und zitierte trotzdem die grösste
     // Buchung aus dem Auszug (live 27.10.2026, B-0142 statt B-0060).
@@ -962,7 +967,16 @@ export async function seedAttachedDocuments(params: {
               type: 'tool-result' as const,
               toolCallId,
               toolName: params.toolName,
-              output: { type: 'text' as const, value: block },
+              // Mit der Art, sonst sieht der Planer nicht, dass schon gefiltert
+              // wurde, und sucht dieselbe Frage mit Filter noch einmal (live
+              // 25.11.2026). Im Ergebnis und nicht im Aufruf: `dokumente_lesen`
+              // hat kein solches Argument.
+              output: {
+                type: 'text' as const,
+                value: contentType
+                  ? `Gefiltert auf Inhaltstyp ${contentType.join('/')}.\n\n${block}`
+                  : block,
+              },
             },
           ],
         },

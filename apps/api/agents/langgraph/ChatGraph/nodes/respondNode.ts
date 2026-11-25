@@ -89,7 +89,7 @@ import { lastUserText } from './classifierHeuristics.js';
 import { looksLikeDocsHelpQuestion, looksLikeGeltungsfrage } from './classifierSignals.js';
 import { resolveEffectiveRecipeMention } from './effectiveRecipeMention.js';
 import { stripQuotedSpans } from './fastPathGuards.js';
-import { SOURCE_LINK_RULE } from './sourceLinkRule.js';
+import { sourceLinkRule } from './sourceLinkRule.js';
 import { buildVisualBlocksGuidance } from './visualBlocksGuidance.js';
 
 import type {
@@ -2206,7 +2206,7 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
 7. Setze die Referenz direkt nach der Aussage, z.B.: "Die Grünen fordern ein Tempolimit [1]." Stützen mehrere Quellen dieselbe Aussage, fasse sie in EINER Klammer zusammen: [1, 3].
 8. Erfinde KEINE zusätzlichen Quellen oder Quellenverweise über [${sourceCount}] hinaus.
 9. ${SOURCE_HEDGING_RULE}
-10. ${SOURCE_LINK_RULE}`;
+10. ${sourceLinkRule(agentConfig.inlineSourceLinks)}`;
   }
 
   const today = formatGermanDate();
