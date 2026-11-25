@@ -182,6 +182,30 @@ describe.skipIf(!url)('Rollenauflösung für Websites (siteAccess)', () => {
     expect(await getSiteRole(s, person)).toBe('viewer');
   });
 
+  it('project site ignores a share row for a non-member of the owning project', async () => {
+    const owner = await mkGroup();
+    const other = await mkGroup();
+    const s = await mkSite({ groupId: owner });
+    await join(other, 'member');
+    await share(s, other, { read: true, write: true });
+    expect(await getSiteRole(s, person)).toBeNull();
+  });
+
+  it('share with read false gives nothing', async () => {
+    const g = await mkGroup();
+    const s = await mkSite();
+    await join(g, 'member');
+    await share(s, g, { read: false, write: true });
+    expect(await getSiteRole(s, person)).toBeNull();
+  });
+
+  it("moderation 'removed' caps a project admin of a project site at viewer", async () => {
+    const g = await mkGroup();
+    const s = await mkSite({ groupId: g, moderation: 'removed' });
+    await join(g, 'admin');
+    expect(await getSiteRole(s, person)).toBe('viewer');
+  });
+
   it('trashed site gives nothing', async () => {
     const s = await mkSite();
     await member(s, 'admin');

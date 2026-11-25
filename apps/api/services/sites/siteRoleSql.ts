@@ -33,7 +33,7 @@ candidates AS (
   UNION ALL
   SELECT CASE
            WHEN g.archived_at IS NOT NULL THEN 'viewer'
-           WHEN (gcs.permissions->>'write')::boolean IS TRUE THEN 'editor'
+           WHEN gcs.permissions->>'write' = 'true' THEN 'editor'
            ELSE 'viewer'
          END AS role
     FROM site
@@ -41,7 +41,7 @@ candidates AS (
    INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $2 AND gm.is_active = TRUE
    INNER JOIN groups g ON g.id = gm.group_id AND g.deleted_at IS NULL AND g.is_system = FALSE
    WHERE site.group_id IS NULL
-     AND COALESCE((gcs.permissions->>'read')::boolean, true) = true
+     AND COALESCE(gcs.permissions->>'read', 'true') <> 'false'
 )
 SELECT CASE WHEN site.moderation = 'removed' THEN 'viewer' ELSE c.role END AS role,
        site.group_id,
