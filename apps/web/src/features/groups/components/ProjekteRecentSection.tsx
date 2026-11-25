@@ -19,7 +19,7 @@ type RecentNotebook =
  * „Zuletzt" oben auf `/projekte`: die zuletzt genutzten Projekte und Notebooks
  * gemischt — eigene, geteilte und System-Notebooks —, nach dem letzten Öffnen
  * bzw. Chat. Was nie genutzt wurde, steht nur in den Abschnitten darunter bzw.
- * auf `/wissen`; ohne Nutzung bleibt die Reihe ganz weg.
+ * im Marktplatz; ohne Nutzung bleibt die Reihe ganz weg.
  */
 export function ProjekteRecentSection({ projekte }: { projekte: GroupSummary[] }) {
   const { data: projectUsage } = useItemUsage('project');

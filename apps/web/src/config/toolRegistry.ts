@@ -146,11 +146,13 @@ const TOOLS = [
     theme: true,
   },
   {
+    // Id `wissen` ist F1 (angeheftete Favoriten); die Seite /wissen gibt es
+    // nicht mehr, Notebooks liegen im Marktplatz.
     id: 'wissen',
-    title: 'Wissen',
-    path: '/wissen',
+    title: 'Notebooks',
+    path: '/marktplatz?art=notebooks',
     icon: { navigation: 'notebooks' },
-    tile: { group: 'bereiche', description: 'Recherche & Notebooks' },
+    tile: { group: 'bereiche', description: 'Programme & Beschlüsse befragen' },
     favourite: true,
     theme: true,
   },
@@ -502,7 +504,7 @@ const TOOLS = [
   {
     id: 'tool-notebooks',
     title: 'Notebooks',
-    path: '/notebooks',
+    path: '/marktplatz?art=notebooks',
     icon: { navigation: 'notebooks' },
     search: {
       subtitle: 'Wissensmanagement & Recherche',
@@ -618,7 +620,7 @@ export const LEGACY_TOOL_ID_ALIASES: Record<string, ToolId> = {
 // Legacy ids kept ONLY so already-pinned favourites still resolve — they are
 // part of the sidebar resolution map but never of the visible default set, so
 // the global search never surfaces them (their paths are mere redirects to
-// /office respectively /wissen). Includes the former ids of the /projekte tool
+// /office respectively the Notebooks in the Marktplatz). Includes the former ids of the /projekte tool
 // (Gruppen → Spaces → Projekte renames).
 const LEGACY_FAVOURITE_ITEMS: readonly {
   id: string;
@@ -635,7 +637,12 @@ const LEGACY_FAVOURITE_ITEMS: readonly {
     path: '/presentations',
     icon: { navigation: 'presentations' },
   },
-  { id: 'notebooks', title: 'Wissen', path: '/wissen', icon: { navigation: 'notebooks' } },
+  {
+    id: 'notebooks',
+    title: 'Notebooks',
+    path: '/marktplatz?art=notebooks',
+    icon: { navigation: 'notebooks' },
+  },
   { id: 'gruppen', title: 'Projekte', path: '/projekte', icon: { navigation: 'projekte' } },
   { id: 'spaces', title: 'Projekte', path: '/projekte', icon: { navigation: 'projekte' } },
   // The Grüneratoren tile left the Arbeiten strip for the Marktplatz (the overview is in the sidebar).

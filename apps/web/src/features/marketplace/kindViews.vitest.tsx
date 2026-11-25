@@ -2,11 +2,13 @@
  * #4732: a preview that 404s used to leave an empty tile, indistinguishable
  * from one still loading. The kind icon now stands in.
  */
+import { type MarketplaceItemOf } from '@gruenerator/contracts';
 import { fireEvent, render } from '@testing-library/react';
 import { PiSticker } from 'react-icons/pi';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
-import { chatPathOf, VisualImage } from './kindViews';
+import { chatPathOf, KIND_VIEWS, VisualImage } from './kindViews';
 
 const visual = (src: string | null) =>
   ({ type: 'image', src, cutout: true, icon: <PiSticker /> }) as const;
@@ -48,5 +50,38 @@ describe('chatPathOf', () => {
   it('always links a recipe as /chat?rezept=', () => {
     expect(chatPathOf(recipeItem(null))).toBe('/chat?rezept=presse');
     expect(chatPathOf(recipeItem('row-1'))).toBe('/chat?rezept=presse&rezeptId=row-1');
+  });
+});
+
+// Seit /wissen weg ist, öffnet der Marktplatz die System-Notebooks.
+describe('notebook kind', () => {
+  const item = (ref: string, slug: string) =>
+    ({ kind: 'notebook', ref, notebook: { slug } }) as MarketplaceItemOf<'notebook'>;
+
+  it('opens a system notebook on its own page, a public one by slug', () => {
+    const Actions = KIND_VIEWS.notebook.PrimaryActions;
+    const system = render(
+      <MemoryRouter>
+        <Actions item={item('bayern-notebook', 'bayern-notebook')} />
+      </MemoryRouter>
+    );
+    expect(system.getByRole('link')).toHaveAttribute('href', '/notebooks/bayern');
+    system.unmount();
+
+    const own = render(
+      <MemoryRouter>
+        <Actions item={item('11111111-2222-3333-4444-555555555555', 'klima-Ab3xK9')} />
+      </MemoryRouter>
+    );
+    expect(own.getByRole('link')).toHaveAttribute('href', '/notebooks/klima-Ab3xK9');
+  });
+
+  it('shows a system notebook with its cover, a public one with the plain icon', () => {
+    expect(KIND_VIEWS.notebook.visual(item('bayern-notebook', 'bayern-notebook')).type).toBe(
+      'image'
+    );
+    expect(KIND_VIEWS.notebook.visual(item('11111111-2222-3333-4444-555555555555', 'x')).type).toBe(
+      'icon'
+    );
   });
 });
