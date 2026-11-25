@@ -16,9 +16,9 @@ import {
 import {
   BookOpen,
   Check,
+  ChevronLeft,
+  ChevronRight,
   ExternalLink,
-  FileText,
-  Globe,
   LayoutTemplate,
   Library,
   MessageSquare,
@@ -26,11 +26,10 @@ import {
   Plug,
   PlusIcon,
   Settings,
-  Telescope,
   Wand2,
   Zap,
 } from 'lucide-react';
-import { memo, useState } from 'react';
+import { memo, useRef, useState } from 'react';
 
 import { useRecipeLibrary } from '../../hooks/useRecipeLibrary';
 import {
@@ -38,7 +37,6 @@ import {
   COMPOSER_TOOLS,
   composerModeDef,
   type ComposerIconKey,
-  type ComposerToolIconKey,
 } from '../../lib/composerControls';
 import { resolveMentionable, type Mentionable } from '../../lib/mentionables';
 import {
@@ -67,6 +65,7 @@ import { useUserProfileStore } from '../../stores/userProfileStore';
 import { SkillLibraryModal } from '../skills/SkillLibraryModal';
 
 import { useChatDensity } from './chatDensityContext';
+import { TOOL_ICONS } from './composerToolIcons';
 
 export interface ComposerPreset {
   key: string;
@@ -92,18 +91,7 @@ interface PlusMenuProps {
 
 const activeClass = 'bg-primary-50 text-primary-700 dark:bg-primary-500/10 dark:text-primary-300';
 
-/**
- * Semantic icon key → component, for the switch group. The keys live in the
- * shared `COMPOSER_TOOLS` registry (which must stay renderer-agnostic so React
- * Native can read it); this map is web's half of that contract.
- */
-const TOOL_ICONS: Record<ComposerToolIconKey, React.ComponentType<{ className?: string }>> = {
-  globe: Globe,
-  research: Telescope,
-  document: FileText,
-};
-
-/** Web's half of the `COMPOSER_MODES` icon contract, like `TOOL_ICONS` below it. */
+/** Web's half of the `COMPOSER_MODES` icon contract, like `TOOL_ICONS`. */
 const MODE_ICONS: Record<ComposerIconKey, React.ComponentType<{ className?: string }>> = {
   chat: MessageSquare,
   notebook: BookOpen,
@@ -114,6 +102,8 @@ const CHAT_MODE = composerModeDef('chat');
 const EIGENER_MODE = composerModeDef('eigener');
 const ChatModeIcon = MODE_ICONS[CHAT_MODE.icon];
 const EigenerModeIcon = MODE_ICONS[EIGENER_MODE.icon];
+
+type MobilePanel = 'rezepte' | 'rollen' | 'konnektoren' | 'erstellen' | 'vorlagen';
 
 /** Grey secondary text next to a row's label. */
 const Hint = ({ children }: { children: React.ReactNode }) => (
@@ -133,6 +123,9 @@ export const PlusMenu = memo(function PlusMenu({
 }: PlusMenuProps) {
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Mobile only: which section the sheet has drilled into (null = top level).
+  const [mobilePanel, setMobilePanel] = useState<MobilePanel | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const isCompact = useChatDensity() === 'compact';
   const { items: libraryItems } = useRecipeLibrary();
   const favorites = libraryItems.filter((i) => i.kind === 'recipe').map((i) => i.ref.toLowerCase());
@@ -222,9 +215,22 @@ export const PlusMenu = memo(function PlusMenu({
     setThreadMode('eigener');
   };
 
+  // Every open starts at the top level, wherever the last one was left.
+  const handleOpenChange = (open: boolean) => {
+    setMenuOpen(open);
+    if (!open) setMobilePanel(null);
+  };
+
   const handleMobileAction = (action: () => void) => {
-    setMenuOpen(false);
+    handleOpenChange(false);
     action();
+  };
+
+  // Moving between levels swaps the sheet's whole content; without moving the
+  // focus it is left on a button that no longer exists.
+  const showMobilePanel = (panel: MobilePanel | null) => {
+    setMobilePanel(panel);
+    requestAnimationFrame(() => panelRef.current?.querySelector('button')?.focus());
   };
 
   const isRoleActive = (roleIndex: number): boolean => {
@@ -459,7 +465,33 @@ export const PlusMenu = memo(function PlusMenu({
     </>
   );
 
-  const mobileContent = (
+  // ── Mobile sheet: two levels ───────────────────────────────────────────────
+  // The top level mirrors the desktop menu (attach row, one row per section,
+  // the switches); a section row swaps the sheet to that section's list. All
+  // sections expanded at once ran to ~40 rows, with the switches last.
+  const drillRow = (
+    panel: MobilePanel,
+    icon: React.ReactNode,
+    label: string,
+    hint?: string | null
+  ) => (
+    <ResponsiveMenuItem
+      icon={icon}
+      onClick={() => showMobilePanel(panel)}
+      active={
+        (panel === 'rollen' && threadMode === 'eigener') ||
+        (panel === 'konnektoren' && !!pinnedConnector)
+      }
+    >
+      <span className="flex items-center gap-2">
+        <span className="flex-1 truncate">{label}</span>
+        {hint && <Hint>{hint}</Hint>}
+        <ChevronRight className="h-4 w-4 shrink-0 text-foreground-muted" aria-hidden="true" />
+      </span>
+    </ResponsiveMenuItem>
+  );
+
+  const mobileTopLevel = (
     <>
       <ResponsiveMenuSection title="Hinzufügen">
         <ResponsiveMenuItem
@@ -470,125 +502,28 @@ export const PlusMenu = memo(function PlusMenu({
         </ResponsiveMenuItem>
       </ResponsiveMenuSection>
 
-      <ResponsiveMenuSection title="Rezepte">
-        {allQuickSkills.map((skill) => {
-          const Icon = skill.icon;
-          return (
-            <ResponsiveMenuItem
-              key={skill.mention}
-              icon={Icon ? <Icon className="h-4 w-4 text-secondary-600" /> : null}
-              onClick={() => handleMobileAction(() => onInsertMention(skill))}
-            >
-              {skill.title}
-            </ResponsiveMenuItem>
-          );
-        })}
-        <ResponsiveMenuItem
-          icon={<Library />}
-          onClick={() => {
-            setMenuOpen(false);
-            setLibraryOpen(true);
-          }}
-        >
-          Alle Rezepte durchsuchen…
-        </ResponsiveMenuItem>
-        {onOpenSkillsPage && (
-          <ResponsiveMenuItem
-            icon={<ExternalLink />}
-            onClick={() => {
-              setMenuOpen(false);
-              onOpenSkillsPage();
-            }}
-          >
-            Zur Rezept-Bibliothek
-          </ResponsiveMenuItem>
-        )}
-      </ResponsiveMenuSection>
-
-      {showModes && (
-        <ResponsiveMenuSection title={COMPOSER_MODES_TITLE}>
-          <ResponsiveMenuItem
-            icon={<ChatModeIcon />}
-            active={threadMode === 'chat'}
-            onClick={() => handleMobileAction(selectChatMode)}
-          >
-            {CHAT_MODE.label}
-          </ResponsiveMenuItem>
-          {hasRoles ? (
-            roles.map((role, i) => (
-              <ResponsiveMenuItem
-                key={`role-${i}`}
-                icon={<EigenerModeIcon />}
-                active={isRoleActive(i)}
-                onClick={() => handleMobileAction(() => selectRole(i))}
-              >
-                {role.rolle}
-              </ResponsiveMenuItem>
-            ))
-          ) : (
-            <ResponsiveMenuItem
-              icon={<EigenerModeIcon />}
-              active={threadMode === 'eigener'}
-              disabled={!hasCustomPrompt}
-              onClick={() => handleMobileAction(selectEigener)}
-            >
-              {eigenerBadgeLabel}
-            </ResponsiveMenuItem>
+      <ResponsiveMenuSection title="Bereiche">
+        {drillRow('rezepte', <Wand2 />, 'Rezepte')}
+        {showModes &&
+          drillRow(
+            'rollen',
+            <EigenerModeIcon />,
+            COMPOSER_MODES_TITLE,
+            threadMode === 'eigener' ? eigenerBadgeLabel : null
           )}
-          {onNavigate && (
-            <ResponsiveMenuItem
-              icon={<Settings />}
-              onClick={() => handleMobileAction(() => onNavigate('/dein-gruenerator'))}
-            >
-              Rollen einrichten
-            </ResponsiveMenuItem>
+        {mcpConnectors.length > 0 &&
+          drillRow(
+            'konnektoren',
+            <Plug />,
+            'Konnektoren',
+            activeConnectorCount > 0 ? `${activeConnectorCount} an` : null
           )}
-        </ResponsiveMenuSection>
-      )}
-
-      {mcpConnectors.length > 0 && (
-        <ResponsiveMenuSection title="Konnektoren">
-          {mcpConnectors.map((connector) => (
-            <ResponsiveMenuItem
-              key={connector.identifier}
-              icon={<Plug />}
-              active={pinnedConnector?.id === connectorId(connector)}
-              onClick={() => handleMobileAction(() => togglePinnedConnector(connector))}
-            >
-              {connector.title}
-            </ResponsiveMenuItem>
-          ))}
-        </ResponsiveMenuSection>
-      )}
-
-      <ResponsiveMenuSection title="Erstellen">
-        {creationItems.map((tool) => {
-          const Icon = tool.icon;
-          return (
-            <ResponsiveMenuItem
-              key={`${tool.type}:${tool.mention}`}
-              icon={Icon ? <Icon className="h-4 w-4 text-secondary-600" /> : null}
-              onClick={() => handleMobileAction(() => onInsertMention(tool))}
-            >
-              {tool.title}
-            </ResponsiveMenuItem>
-          );
-        })}
+        {drillRow('erstellen', <Zap />, 'Erstellen')}
+        {presets &&
+          presets.length > 0 &&
+          onApplyPreset &&
+          drillRow('vorlagen', <LayoutTemplate />, 'Vorlagen')}
       </ResponsiveMenuSection>
-
-      {presets && presets.length > 0 && onApplyPreset && (
-        <ResponsiveMenuSection title="Vorlagen">
-          {presets.map((preset) => (
-            <ResponsiveMenuItem
-              key={preset.key}
-              icon={<LayoutTemplate />}
-              onClick={() => handleMobileAction(() => onApplyPreset(preset.text))}
-            >
-              {preset.title}
-            </ResponsiveMenuItem>
-          ))}
-        </ResponsiveMenuSection>
-      )}
 
       {showModes && (
         <ResponsiveMenuSection title="Werkzeuge">
@@ -633,13 +568,155 @@ export const PlusMenu = memo(function PlusMenu({
     </>
   );
 
+  const mobilePanelContent: Record<MobilePanel, { title: string; body: React.ReactNode }> = {
+    rezepte: {
+      title: 'Rezepte',
+      body: (
+        <>
+          {allQuickSkills.map((skill) => {
+            const Icon = skill.icon;
+            return (
+              <ResponsiveMenuItem
+                key={skill.mention}
+                icon={Icon ? <Icon className="h-4 w-4 text-secondary-600" /> : null}
+                onClick={() => handleMobileAction(() => onInsertMention(skill))}
+              >
+                {skill.title}
+              </ResponsiveMenuItem>
+            );
+          })}
+          <ResponsiveMenuItem
+            icon={<Library />}
+            onClick={() => {
+              handleOpenChange(false);
+              setLibraryOpen(true);
+            }}
+          >
+            Alle Rezepte durchsuchen…
+          </ResponsiveMenuItem>
+          {onOpenSkillsPage && (
+            <ResponsiveMenuItem
+              icon={<ExternalLink />}
+              onClick={() => handleMobileAction(onOpenSkillsPage)}
+            >
+              Zur Rezept-Bibliothek
+            </ResponsiveMenuItem>
+          )}
+        </>
+      ),
+    },
+    rollen: {
+      title: COMPOSER_MODES_TITLE,
+      body: (
+        <>
+          <ResponsiveMenuItem
+            icon={<ChatModeIcon />}
+            active={threadMode === 'chat'}
+            onClick={() => handleMobileAction(selectChatMode)}
+          >
+            {CHAT_MODE.label}
+          </ResponsiveMenuItem>
+          {hasRoles ? (
+            roles.map((role, i) => (
+              <ResponsiveMenuItem
+                key={`role-${i}`}
+                icon={<EigenerModeIcon />}
+                active={isRoleActive(i)}
+                onClick={() => handleMobileAction(() => selectRole(i))}
+              >
+                {role.rolle}
+              </ResponsiveMenuItem>
+            ))
+          ) : (
+            <ResponsiveMenuItem
+              icon={<EigenerModeIcon />}
+              active={threadMode === 'eigener'}
+              disabled={!hasCustomPrompt}
+              onClick={() => handleMobileAction(selectEigener)}
+            >
+              {eigenerBadgeLabel}
+            </ResponsiveMenuItem>
+          )}
+          {onNavigate && (
+            <ResponsiveMenuItem
+              icon={<Settings />}
+              onClick={() => handleMobileAction(() => onNavigate('/dein-gruenerator'))}
+            >
+              Rollen einrichten
+            </ResponsiveMenuItem>
+          )}
+        </>
+      ),
+    },
+    konnektoren: {
+      title: 'Konnektoren',
+      body: mcpConnectors.map((connector) => (
+        <ResponsiveMenuItem
+          key={connector.identifier}
+          icon={<Plug />}
+          active={pinnedConnector?.id === connectorId(connector)}
+          onClick={() => handleMobileAction(() => togglePinnedConnector(connector))}
+        >
+          {connector.title}
+        </ResponsiveMenuItem>
+      )),
+    },
+    erstellen: {
+      title: 'Erstellen',
+      body: creationItems.map((tool) => {
+        const Icon = tool.icon;
+        return (
+          <ResponsiveMenuItem
+            key={`${tool.type}:${tool.mention}`}
+            icon={Icon ? <Icon className="h-4 w-4 text-secondary-600" /> : null}
+            onClick={() => handleMobileAction(() => onInsertMention(tool))}
+          >
+            {tool.title}
+          </ResponsiveMenuItem>
+        );
+      }),
+    },
+    vorlagen: {
+      title: 'Vorlagen',
+      body: (presets ?? []).map((preset) => (
+        <ResponsiveMenuItem
+          key={preset.key}
+          icon={<LayoutTemplate />}
+          onClick={() => handleMobileAction(() => onApplyPreset?.(preset.text))}
+        >
+          {preset.title}
+        </ResponsiveMenuItem>
+      )),
+    },
+  };
+
+  const activePanel = mobilePanel ? mobilePanelContent[mobilePanel] : null;
+  const mobileContent = (
+    <div ref={panelRef}>
+      {activePanel ? (
+        <>
+          <ResponsiveMenuItem
+            icon={<ChevronLeft />}
+            onClick={() => showMobilePanel(null)}
+            className="mb-1 font-semibold"
+          >
+            {activePanel.title}
+          </ResponsiveMenuItem>
+          {activePanel.body}
+        </>
+      ) : (
+        mobileTopLevel
+      )}
+    </div>
+  );
+
   const showModeBadge = showModes && threadMode === 'eigener';
 
   return (
     <>
       <ResponsiveMenu
         open={menuOpen}
-        onOpenChange={setMenuOpen}
+        onOpenChange={handleOpenChange}
         sheetTitle="Aktionen"
         dropdownClassName="w-[22rem]"
         trigger={

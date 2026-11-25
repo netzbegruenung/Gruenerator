@@ -30,7 +30,7 @@ import { useChatCollaborationContext } from '../../context/ChatCollaborationCont
 import { useMentionablesQuery } from '../../hooks/useMentionablesQuery';
 import { handleAttachmentAddError } from '../../lib/attachmentErrorHandler';
 import { getCaretCoords } from '../../lib/caretPosition';
-import { showsSearchDepth } from '../../lib/composerControls';
+import { COMPOSER_TOOLS, showsSearchDepth } from '../../lib/composerControls';
 import { connectorBrandIcon } from '../../lib/connectorBrand';
 import {
   registerDocumentSlug,
@@ -69,6 +69,7 @@ import { CloudFileBrowser, type CloudSelection, type CloudSourceHint } from './C
 import { ComposerMentionPills } from './ComposerMentionPills';
 import { ComposerQueueList } from './ComposerQueueList';
 import { ComposerToken } from './ComposerToken';
+import { TOOL_ICONS } from './composerToolIcons';
 import { FileMentionPopover } from './FileMentionPopover';
 import { MentionPopover } from './MentionPopover';
 import { ModelPicker } from './ModelPicker';
@@ -444,6 +445,8 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   const isMistral = useAgentStore((s) => s.selectedProvider === 'mistral');
   const pinnedConnector = useAgentStore((s) => s.pinnedConnector);
   const setPinnedConnector = useAgentStore((s) => s.setPinnedConnector);
+  const enabledTools = useAgentStore((s) => s.enabledTools);
+  const toggleTool = useAgentStore((s) => s.toggleTool);
   // Set while /chat/<slug> is still opening its thread; main is the draft until
   // then, so typing or sending would start a new thread (#5701). The input's
   // autoFocus re-runs once `disabled` drops.
@@ -1032,6 +1035,26 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     />
   ) : null;
 
+  // A switched-off search toggle holds for every message and thread until the
+  // page reloads, and the only other place it shows is inside the plus menu —
+  // so name it here, with the × switching it back on. Switches at their
+  // default stay invisible.
+  const disabledToolChips = showToolToggles
+    ? COMPOSER_TOOLS.flatMap((tool) =>
+        tool.kind === 'toggle' && enabledTools[tool.key] === false
+          ? [
+              <ComposerToken
+                key={tool.key}
+                icon={TOOL_ICONS[tool.icon]}
+                label={`Ohne ${tool.label}`}
+                removeLabel={`${tool.label} wieder einschalten`}
+                onRemove={() => toggleTool(tool.key)}
+              />,
+            ]
+          : []
+      )
+    : null;
+
   const modelPickerNode = <>{showModelPicker ? <ModelPicker /> : null}</>;
 
   const composerInput = (
@@ -1223,7 +1246,14 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
             {hiddenUploadButton}
             {plusMenuNode}
             {slots?.leading}
-            {pinnedConnectorChip}
+            {/* Mobil eine eigene Zeile über der Eingabe, aus demselben Grund
+                wie die Pills darunter; ab `sm` löst sich der Wrapper auf. */}
+            {(pinnedConnectorChip || (disabledToolChips && disabledToolChips.length > 0)) && (
+              <div className="flex flex-wrap items-center gap-1 max-sm:order-first max-sm:basis-full max-sm:px-1 max-sm:pt-1.5 sm:contents">
+                {pinnedConnectorChip}
+                {disabledToolChips}
+              </div>
+            )}
             {/* Bis `sm` nehmen die Pills per order/basis eine eigene Zeile über
                 der Eingabezeile ein (wie in der Card-Variante) — inline ließen
                 die shrink-0-Pills der Textarea nur wenige Zeichen Breite. */}
@@ -1261,6 +1291,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
                 {plusMenuNode}
                 {slots?.leading}
                 {pinnedConnectorChip}
+                {disabledToolChips}
                 {showToolToggles && <SearchDepthToggleSlot />}
                 {toolbarExtra}
               </div>

@@ -201,6 +201,50 @@ describe('switch group on the mobile sheet', () => {
   });
 });
 
+describe('mobile sheet levels', () => {
+  // All sections used to sit expanded in one sheet (~40 rows, the switches
+  // last). The top level now mirrors the desktop menu and a section row opens
+  // that section's list.
+  beforeEach(() => {
+    window.innerWidth = 500;
+  });
+
+  it('shows section rows and the switches, not the section contents', async () => {
+    const user = userEvent.setup();
+    renderMenu();
+    await user.click(screen.getByRole('button', { name: 'Aktionen und Modus' }));
+
+    expect(await screen.findByRole('button', { name: /Erstellen/ })).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: /Websuche/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Sharepic' })).toBeNull();
+  });
+
+  it('opens a section, inserts from it, and starts at the top level next time', async () => {
+    const user = userEvent.setup();
+    renderMenu();
+    const trigger = screen.getByRole('button', { name: 'Aktionen und Modus' });
+    await user.click(trigger);
+    await user.click(await screen.findByRole('button', { name: /Erstellen/ }));
+
+    expect(screen.queryByRole('switch', { name: /Websuche/ })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Sharepic' }));
+    expect(onInsertMention).toHaveBeenCalledWith(expect.objectContaining({ title: 'Sharepic' }));
+
+    await user.click(trigger);
+    expect(await screen.findByRole('switch', { name: /Websuche/ })).toBeInTheDocument();
+  });
+
+  it('goes back to the top level from a section', async () => {
+    const user = userEvent.setup();
+    renderMenu();
+    await user.click(screen.getByRole('button', { name: 'Aktionen und Modus' }));
+    await user.click(await screen.findByRole('button', { name: /Rezepte/ }));
+
+    await user.click(screen.getByRole('button', { name: 'Rezepte' }));
+    expect(await screen.findByRole('switch', { name: /Websuche/ })).toBeInTheDocument();
+  });
+});
+
 describe('notebook mode', () => {
   it('is no longer offered anywhere in the menu', async () => {
     const user = userEvent.setup();
