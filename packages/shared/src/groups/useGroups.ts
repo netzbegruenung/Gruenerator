@@ -79,6 +79,9 @@ export const useGroupMembers = (groupId: string | null | undefined) =>
     },
     enabled: !!groupId,
     staleTime: 2 * 60 * 1000,
+    // Wer per Einladung dazukommt, tut das auf einem anderen Gerät — keine
+    // Mutation hier invalidiert dafür. Wie bei den Details: beim Öffnen neu laden.
+    refetchOnMount: 'always',
   });
 
 /** Anweisungen des Projekts, für alle Mitglieder lesbar. */

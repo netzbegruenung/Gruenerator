@@ -1,7 +1,12 @@
-import { marketplaceHref } from '@gruenerator/shared/marketplace';
-import { Button, SectionHeader } from '@gruenerator/ui';
+import { type MarketplaceItemOf } from '@gruenerator/contracts';
+import {
+  marketplaceHref,
+  useMarketplaceKind,
+  useMarketplaceSave,
+} from '@gruenerator/shared/marketplace';
+import { Button, DropdownMenuItem, SectionHeader, toast } from '@gruenerator/ui';
 import { useMemo } from 'react';
-import { PiBooks, PiPlus, PiStorefront } from 'react-icons/pi';
+import { PiBookmarkSimple, PiBooks, PiPlus, PiStorefront } from 'react-icons/pi';
 import { Link } from 'react-router-dom';
 
 import { getToolTheme } from '../../../config/toolTheme';
@@ -44,6 +49,65 @@ export function useMyNotebooks() {
     };
   }, [query.data, sharedQuery.data]);
   return { ...lists, loading: query.isLoading, failed: query.isError };
+}
+
+type SavedNotebook = MarketplaceItemOf<'notebook'>;
+
+/**
+ * Im Marktplatz gemerkte Notebooks (öffentliche und System-Notebooks), ohne
+ * die, die schon als eigene oder geteilte dastehen. Nur die erste Seite des
+ * Marktplatzes (24), wie früher auf /wissen.
+ */
+function useSavedNotebooks(shownIds: ReadonlySet<string>) {
+  const query = useMarketplaceKind({
+    kind: 'notebook',
+    scope: 'saved',
+    origin: null,
+    q: '',
+    sort: 'neu',
+    platform: 'web',
+  });
+  const items = useMemo(
+    () =>
+      query.items.filter(
+        (item): item is SavedNotebook =>
+          // `saved` fällt beim Entmerken sofort, die Liste lädt erst danach neu.
+          item.kind === 'notebook' && item.saved && !shownIds.has(item.ref)
+      ),
+    [query.items, shownIds]
+  );
+  return { items, loading: query.isLoading };
+}
+
+/** Kachel eines gemerkten Notebooks: „Nicht mehr merken" im Menü, System-Notebooks auch „Zu Favoriten". */
+function SavedNotebookTile({ item }: { item: SavedNotebook }) {
+  const save = useMarketplaceSave();
+  return (
+    <TileCard
+      href={`/notebooks/${item.notebook.slug}`}
+      title={item.title}
+      tone={getToolTheme('projekte') ?? FALLBACK_TONE}
+      badge={<PiBooks aria-hidden className="size-5" />}
+      meta={[item.authorName ? `Gemerkt · von ${item.authorName}` : 'Gemerkt']}
+      description={item.description}
+      menu={
+        <>
+          {/* Die Seitenleiste löst nur Registry-Ids und eigene/geteilte Notebooks auf. */}
+          {item.origin !== 'oeffentlich' && <FavouriteMenuItem favouriteId={item.ref} />}
+          <DropdownMenuItem
+            onClick={() =>
+              save.mutate(item, {
+                onError: () => toast.error('Merken konnte nicht geändert werden.'),
+              })
+            }
+          >
+            <PiBookmarkSimple />
+            Nicht mehr merken
+          </DropdownMenuItem>
+        </>
+      }
+    />
+  );
 }
 
 /** Notebook-Kachel: dieselbe wie Projekte und Rezepte; das Menü nur am eigenen. */
@@ -106,12 +170,14 @@ export function SystemNotebookTile({
 }
 
 /**
- * „Deine Notebooks" auf `/projekte`: eigene Notebooks und die, die andere in
- * ein gemeinsames Projekt geteilt haben — dieselbe Kachel wie Projekte und
- * Rezepte.
+ * „Deine Notebooks" auf `/projekte`: eigene Notebooks, die, die andere in
+ * ein gemeinsames Projekt geteilt haben, und die im Marktplatz gemerkten —
+ * dieselbe Kachel wie Projekte und Rezepte.
  */
 export function ProjekteNotebooksSection() {
   const { own, shared, loading, failed } = useMyNotebooks();
+  const shownIds = useMemo(() => new Set([...own, ...shared].map((c) => c.id)), [own, shared]);
+  const saved = useSavedNotebooks(shownIds);
 
   const actions = (
     <>
@@ -131,7 +197,7 @@ export function ProjekteNotebooksSection() {
   return (
     <section aria-label="Deine Notebooks" className="mt-xl">
       <SectionHeader title="Deine Notebooks" actions={actions} />
-      {own.length + shared.length > 0 ? (
+      {own.length + shared.length + saved.items.length > 0 ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] sm:gap-4">
           {own.map((c) => (
             <NotebookTile key={c.id} collection={c} isOwn />
@@ -139,13 +205,16 @@ export function ProjekteNotebooksSection() {
           {shared.map((c) => (
             <NotebookTile key={c.id} collection={c} isOwn={false} />
           ))}
+          {saved.items.map((item) => (
+            <SavedNotebookTile key={item.key} item={item} />
+          ))}
         </div>
       ) : (
         // „Noch keine" nur aus einer bestätigt leeren Liste.
         <p className="m-0 py-md text-sm text-grey-500 dark:text-grey-400">
           {failed
             ? 'Deine Notebooks konnten nicht geladen werden.'
-            : loading
+            : loading || saved.loading
               ? 'Notebooks werden geladen…'
               : 'Noch keine Notebooks. Ein Notebook beantwortet Fragen aus deinen eigenen Dokumenten.'}
         </p>

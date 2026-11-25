@@ -1,8 +1,12 @@
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
-import { screen } from '@testing-library/react';
-import { http, HttpResponse } from 'msw';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { delay, http, HttpResponse } from 'msw';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeAll, describe, expect, it } from 'vitest';
 
+import { shouldRetryQuery } from '../../../components/utils/queryRetry';
 import { server } from '../../../test/msw-server';
 import { axe, renderWithProviders } from '../../../test-utils';
 
@@ -107,6 +111,84 @@ describe('SpaceChatsSection', () => {
     expect(items[1]).not.toHaveTextContent('Team');
     expect(items[2]).toHaveTextContent('Team');
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  // App-Defaults (App.tsx): 5 min staleTime, 15 min gcTime. Ein Chat, der
+  // angelegt wird, während die Liste nicht montiert ist (man ist dafür in
+  // /chat), muss beim Zurückkommen da sein — nicht erst nach einem Reload.
+  it('shows a chat created while the list was unmounted when it mounts again', async () => {
+    let rows = [thread('t1', 'Alter Chat', '2026-11-01T10:00:00Z', 'g1')];
+    server.use(
+      http.get('http://localhost/api/chat-service/threads', () => HttpResponse.json(rows))
+    );
+    const client = new QueryClient({
+      defaultOptions: { queries: { staleTime: 5 * 60_000, gcTime: 15 * 60_000, retry: false } },
+    });
+    const ui = (
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <SpaceChatsSection groupId="g1" />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+    const first = render(ui);
+    expect(await screen.findByRole('button', { name: /Bisherige Chats\s*1/ })).toBeInTheDocument();
+    first.unmount();
+
+    rows = [thread('t2', 'Neu im Projekt', '2026-11-12T10:00:00Z', 'g1'), ...rows];
+    render(ui);
+    expect(await screen.findByRole('button', { name: /Bisherige Chats\s*2/ })).toBeInTheDocument();
+  });
+
+  it('does not claim „no chats" while the list is still loading', async () => {
+    server.use(
+      http.get('http://localhost/api/chat-service/threads', async () => {
+        await delay('infinite');
+        return HttpResponse.json([]);
+      })
+    );
+    const { user } = renderWithProviders(<SpaceChatsSection groupId="g1" />);
+    const toggle = screen.getByRole('button', { name: /Bisherige Chats/ });
+    expect(toggle).not.toHaveTextContent(/\d/);
+    await user.click(toggle);
+    expect(screen.queryByText(/Noch keine Chats/)).not.toBeInTheDocument();
+  });
+
+  it('says the list failed instead of showing it as empty', async () => {
+    server.use(
+      http.get('http://localhost/api/chat-service/threads', () =>
+        HttpResponse.json({ error: 'boom' }, { status: 500 })
+      )
+    );
+    const { user } = renderWithProviders(<SpaceChatsSection groupId="g1" />);
+    await user.click(screen.getByRole('button', { name: /Bisherige Chats/ }));
+    expect(await screen.findByText(/konnten nicht geladen werden/)).toBeInTheDocument();
+    expect(screen.queryByText(/Noch keine Chats/)).not.toBeInTheDocument();
+  });
+
+  // Die Retry-Regel der App lässt 401/403/404 aus — das geht nur, wenn der
+  // geworfene Fehler den Status trägt.
+  it('does not retry a permission failure', async () => {
+    let calls = 0;
+    server.use(
+      http.get('http://localhost/api/chat-service/threads', () => {
+        calls += 1;
+        return HttpResponse.json({ error: 'nope' }, { status: 403 });
+      })
+    );
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: shouldRetryQuery, retryDelay: 0 } },
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <SpaceChatsSection groupId="g1" />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+    await userEvent.click(screen.getByRole('button', { name: /Bisherige Chats/ }));
+    expect(await screen.findByText(/konnten nicht geladen werden/)).toBeInTheDocument();
+    expect(calls).toBe(1);
   });
 
   it('shows five chats, then all of them on request', async () => {
