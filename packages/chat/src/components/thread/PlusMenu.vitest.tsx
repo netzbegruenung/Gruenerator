@@ -238,7 +238,7 @@ describe('menu search', () => {
     renderMenu();
     const menu = await openMenu(user);
 
-    await user.type(within(menu).getByRole('searchbox', { name: 'Im Menü suchen' }), 'rechnen');
+    await user.type(screen.getByRole('searchbox', { name: 'Im Menü suchen' }), 'rechnen');
 
     expect(within(menu).queryByRole('menuitem', { name: /Rezepte/ })).toBeNull();
     await user.click(within(menu).getByRole('menuitem', { name: 'Rechnen' }));
@@ -250,13 +250,41 @@ describe('menu search', () => {
     renderMenu();
     const menu = await openMenu(user);
 
-    await user.type(within(menu).getByRole('searchbox', { name: 'Im Menü suchen' }), 'xyzxyz');
+    await user.type(screen.getByRole('searchbox', { name: 'Im Menü suchen' }), 'xyzxyz');
     expect(within(menu).getByText(/Nichts gefunden/)).toBeInTheDocument();
 
     await user.keyboard('{Escape}');
     const again = await openMenu(user);
-    expect(within(again).getByRole('searchbox', { name: 'Im Menü suchen' })).toHaveValue('');
+    expect(screen.getByRole('searchbox', { name: 'Im Menü suchen' })).toHaveValue('');
     expect(within(again).getByRole('menuitem', { name: /Rezepte/ })).toBeInTheDocument();
+  });
+
+  it('keeps the field next to the menu, not inside it', async () => {
+    // A `role="menu"` may own only items, groups and separators; the axe lane
+    // failed `aria-required-children` while the input sat inside it.
+    const user = userEvent.setup();
+    renderMenu();
+    const menu = await openMenu(user);
+    const field = screen.getByRole('searchbox', { name: 'Im Menü suchen' });
+
+    expect(menu).not.toContainElement(field);
+    expect(screen.getByRole('dialog')).toContainElement(field);
+    expect(screen.getByRole('dialog')).toContainElement(menu);
+  });
+
+  it('moves from the field to the first or the last entry with the arrows', async () => {
+    const user = userEvent.setup();
+    renderMenu();
+    const menu = await openMenu(user);
+    const items = [...menu.querySelectorAll<HTMLElement>('[role^="menuitem"]')];
+    expect(items.length).toBeGreaterThan(1);
+
+    await user.keyboard('{ArrowUp}');
+    expect(items[items.length - 1]).toHaveFocus();
+
+    screen.getByRole('searchbox', { name: 'Im Menü suchen' }).focus();
+    await user.keyboard('{ArrowDown}');
+    expect(items[0]).toHaveFocus();
   });
 });
 

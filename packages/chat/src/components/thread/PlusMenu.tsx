@@ -152,7 +152,9 @@ const ConnectorStatusNote = ({ connector }: { connector: Mentionable }) =>
 /**
  * Filters the whole menu, ChatGPT-style. Keys stay in the field — Radix's
  * menu typeahead would otherwise jump to an item on every letter — except
- * ArrowDown (into the results), Tab and Escape. Escape closes the menu even
+ * ArrowDown/ArrowUp (into the list), Tab and Escape. The field sits next to
+ * the `role="menu"`, not in it: a menu may own only items, groups and
+ * separators (axe `aria-required-children`), so the dropdown is a dialog. Escape closes the menu even
  * with a query: Radix listens for it on the document in the capture phase.
  */
 const MenuSearchField = ({
@@ -164,9 +166,7 @@ const MenuSearchField = ({
   onChange: (value: string) => void;
   autoFocus?: boolean;
 }) => (
-  // `role="group"`: a menu may own only items, groups and separators, so a bare
-  // input inside `role="menu"` fails `aria-required-children` (axe lane).
-  <div role="group" aria-label="Menüsuche" className="relative px-1 pb-1">
+  <div className="relative px-1 pb-1">
     <Search
       className="pointer-events-none absolute top-1/2 left-3.5 h-3.5 w-3.5 -translate-y-1/2 text-foreground-muted"
       aria-hidden="true"
@@ -182,12 +182,14 @@ const MenuSearchField = ({
       autoFocus={autoFocus}
       onChange={(e) => onChange(e.target.value)}
       onKeyDown={(e) => {
-        if (e.key === 'ArrowDown') {
+        // Down → first entry, up → last, as Radix does from the container.
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
           e.preventDefault();
-          e.currentTarget
-            .closest('[role="menu"]')
-            ?.querySelector<HTMLElement>('[role^="menuitem"]')
-            ?.focus();
+          e.stopPropagation();
+          const items = e.currentTarget
+            .closest('[data-radix-menu-content]')
+            ?.querySelectorAll<HTMLElement>('[role="menu"] [role^="menuitem"]');
+          (e.key === 'ArrowDown' ? items?.[0] : items?.[items.length - 1])?.focus();
           return;
         }
         if (e.key !== 'Escape' && e.key !== 'Tab') e.stopPropagation();
@@ -226,7 +228,9 @@ const MenuSearch = ({
   return (
     <>
       <MenuSearchField value={query} onChange={setQuery} autoFocus={autoFocus} />
-      {sections ? renderResults(trimmed, sections) : children}
+      <div role="menu" aria-orientation="vertical" aria-label="Aktionen">
+        {sections ? renderResults(trimmed, sections) : children}
+      </div>
     </>
   );
 };
@@ -955,6 +959,7 @@ export const PlusMenu = memo(function PlusMenu({
         onOpenChange={handleOpenChange}
         sheetTitle="Aktionen"
         dropdownClassName="w-[22rem]"
+        dropdownRole="dialog"
         trigger={
           <button
             type="button"

@@ -17,6 +17,10 @@ interface ResponsiveMenuProps {
   dropdownSide?: 'top' | 'bottom' | 'left' | 'right';
   dropdownAlign?: 'start' | 'center' | 'end';
   dropdownClassName?: string;
+  /** `'dialog'` when the desktop content holds more than menu items (e.g. a
+   * search field): a `role="menu"` may own only items, groups and separators.
+   * The content then renders its own `role="menu"` around the items. */
+  dropdownRole?: 'menu' | 'dialog';
   sheetTitle?: string;
 }
 
@@ -29,6 +33,7 @@ function ResponsiveMenu({
   dropdownSide = 'top',
   dropdownAlign = 'start',
   dropdownClassName,
+  dropdownRole = 'menu',
   sheetTitle,
 }: ResponsiveMenuProps) {
   const isMobile = useIsMobile();
@@ -57,6 +62,8 @@ function ResponsiveMenu({
         side={dropdownSide}
         align={dropdownAlign}
         className={cn('w-48', dropdownClassName)}
+        // Radix sets these on the content; a dialog may not carry an orientation.
+        {...(dropdownRole === 'dialog' && { role: 'dialog', 'aria-orientation': undefined })}
       >
         {desktopContent}
       </DropdownMenuContent>
