@@ -122,6 +122,19 @@ describe('ProjectKnowledgeList', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it('puts the add button next to the search, also while the list is empty', () => {
+    renderWithProviders(
+      <ProjectKnowledgeList
+        items={[]}
+        onUseTemplate={vi.fn()}
+        actions={null}
+        onDiscuss={null}
+        addMenu={<button type="button">Zum Projekt hinzufügen</button>}
+      />
+    );
+    expect(screen.getByRole('button', { name: 'Zum Projekt hinzufügen' })).toBeInTheDocument();
+  });
+
   it('shows the members’ role on documents and lets the manager change it', async () => {
     const doc = make({
       id: 'c1',
