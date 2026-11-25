@@ -88,7 +88,7 @@ test.describe('Sites: Zugang und Anlegen', () => {
 
     await page.goto('/sites');
     // Without a site the overview hands straight over to creating one.
-    await expect(page).toHaveURL(/\/sites\/neu$/);
+    await expect(page).toHaveURL(/\/sites\/erstellen$/);
 
     // Create: address, description, generate. The site is created right away, no review step.
     await page.getByLabel('Adresse').fill(HANDLE);

@@ -1,59 +1,50 @@
 import { type SiteSummary } from '@gruenerator/contracts';
-import { Badge, Button, Skeleton } from '@gruenerator/ui';
+import { Button, SectionHeader, Skeleton } from '@gruenerator/ui';
 import { useEffect } from 'react';
 import { FiPlus } from 'react-icons/fi';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
-import { BackButton } from '../components/common/BackButton';
 import { LoadErrorState } from '../components/common/LoadErrorState';
+import { SitesSearch } from '../components/SitesSearch';
+import { SiteTile } from '../components/SiteTile';
 import { useSiteList } from '../hooks/useSite';
-import { FROM_OVERVIEW_STATE, useSitesPaths } from '../SitesContext';
-import { formatAddress } from '../utils/siteAddress';
+import { FROM_OVERVIEW_STATE, useAuth, useSitesPaths } from '../SitesContext';
 
-/** Shaped like the card grid below, so the list lands in place. */
+const GRID = 'grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(260px,1fr))] sm:gap-4';
+
+function firstName(displayName: string | undefined): string | null {
+  const first = displayName?.trim().split(/\s+/)[0];
+  return first || null;
+}
+
+/** Shaped like the page below, so the list lands in place. */
 function OverviewSkeleton() {
   return (
-    <div
-      role="status"
-      aria-label="Websites werden geladen"
-      aria-busy="true"
-      className="min-h-full px-md py-xl lg:px-xl"
-    >
-      <div className="mx-auto w-full max-w-[960px]">
-        <div className="mb-lg flex items-center gap-sm">
-          <Skeleton className="h-8 flex-1 max-w-56 bg-grey-200 dark:bg-grey-700" />
-          <Skeleton className="ml-auto h-9 w-36 bg-grey-200 dark:bg-grey-700" />
-        </div>
-        <div className="grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-3">
-          {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-28 rounded-lg bg-grey-200 dark:bg-grey-700" />
-          ))}
-        </div>
+    <div role="status" aria-label="Websites werden geladen" aria-busy="true">
+      <Skeleton className="mx-auto mt-10 h-9 w-72 bg-grey-200 dark:bg-grey-700" />
+      <Skeleton className="mx-auto mt-10 h-[60px] w-full max-w-[760px] rounded-full bg-grey-200 dark:bg-grey-700" />
+      <Skeleton className="mb-4 mt-12 h-7 w-44 bg-grey-200 dark:bg-grey-700" />
+      <div className={GRID}>
+        {[0, 1, 2].map((i) => (
+          <Skeleton key={i} className="h-64 rounded-2xl bg-grey-200 dark:bg-grey-700" />
+        ))}
       </div>
     </div>
   );
 }
 
-function statusLabel(site: SiteSummary): string {
-  if (site.moderation !== 'ok') return 'Ausgeblendet';
-  return site.is_published ? 'Veröffentlicht' : 'Entwurf';
-}
-
-function editedLabel(updatedAt: string | null): string | null {
-  if (!updatedAt) return null;
-  const date = new Date(updatedAt);
-  if (Number.isNaN(date.getTime())) return null;
-  return `Zuletzt bearbeitet am ${date.toLocaleDateString('de-DE', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })}`;
-}
-
-export function SitesOverviewPage({ onBack }: { onBack?: () => void }) {
+/**
+ * `/sites`, built like Projekte: a greeting, a search over the own sites, then the sites as
+ * tiles. Creating happens on its own page (`/sites/erstellen`); without any site that page opens
+ * straight away.
+ */
+export function SitesOverviewPage() {
+  const { user } = useAuth();
   const { sites, publicOrigin, limit, isLoading, error, refetch } = useSiteList();
   const navigate = useNavigate();
   const paths = useSitesPaths();
+  const locale = user?.locale ?? 'de-DE';
+  const name = firstName(user?.display_name);
 
   // Without any site the overview has nothing to show: the first visit starts creating.
   const empty = sites !== null && sites.length === 0;
@@ -61,74 +52,78 @@ export function SitesOverviewPage({ onBack }: { onBack?: () => void }) {
     if (empty) void navigate(paths.create, { replace: true });
   }, [empty, navigate, paths]);
 
-  if (isLoading || empty) return <OverviewSkeleton />;
-  if (error || !sites) {
-    return (
+  const full = !!sites && sites.length >= limit;
+  const create = full ? null : () => void navigate(paths.create, { state: FROM_OVERVIEW_STATE });
+  const open = (site: SiteSummary) =>
+    void navigate(paths.site(site.subdomain), { state: FROM_OVERVIEW_STATE });
+
+  let body;
+  if (isLoading || empty) {
+    body = <OverviewSkeleton />;
+  } else if (error || !sites) {
+    body = (
       <LoadErrorState
         title="Deine Websites konnten nicht geladen werden"
         onRetry={() => void refetch()}
       />
     );
+  } else {
+    body = (
+      <>
+        <div className="mx-auto max-w-[860px] px-4 pb-2 pt-10 max-md:pt-4">
+          <h1 className="m-0 text-center font-[Raleway,PT_Sans,Arial,sans-serif] text-[30px] font-extrabold tracking-[-.02em] text-foreground-heading [text-wrap:balance] [overflow-wrap:anywhere] max-sm:text-[21px]">
+            {name ? `Deine Websites, ${name}` : 'Deine Websites'}
+          </h1>
+          <SitesSearch sites={sites} publicOrigin={publicOrigin} onOpen={open} onCreate={create} />
+        </div>
+
+        <section className="mt-12">
+          <SectionHeader
+            title="Deine Websites"
+            actions={
+              <div className="flex items-center gap-xs">
+                <span className="text-sm text-grey-600 dark:text-grey-400">
+                  {sites.length} von {limit}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Neue Website"
+                  title={full ? 'Höchstzahl erreicht' : 'Neue Website'}
+                  onClick={() => create?.()}
+                  disabled={full}
+                >
+                  <FiPlus aria-hidden className="size-[18px]" />
+                </Button>
+              </div>
+            }
+          />
+          {full && (
+            <p className="mb-md text-sm text-grey-600 dark:text-grey-400">
+              Du hast die Höchstzahl an Websites erreicht. Lösche eine, um eine neue anzulegen.
+            </p>
+          )}
+          <ul className={`m-0 list-none p-0 ${GRID}`}>
+            {sites.map((site) => (
+              <li key={site.id}>
+                <SiteTile
+                  site={site}
+                  href={paths.site(site.subdomain)}
+                  publicOrigin={publicOrigin}
+                  locale={locale}
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
+      </>
+    );
   }
 
-  const full = sites.length >= limit;
-
   return (
-    <div className="min-h-full px-md py-xl lg:px-xl">
-      <div className="mx-auto w-full max-w-[960px]">
-        <div className="mb-lg flex flex-wrap items-center gap-sm">
-          {onBack && <BackButton onBack={onBack} />}
-          <h1 className="m-0 flex-1 text-[length:var(--font-size-2xl)] font-semibold text-primary-800 dark:text-primary-300">
-            Deine Websites
-          </h1>
-          <span className="text-sm text-grey-600 dark:text-grey-400">
-            {sites.length} von {limit}
-          </span>
-          <Button
-            onClick={() => void navigate(paths.create, { state: FROM_OVERVIEW_STATE })}
-            disabled={full}
-          >
-            <FiPlus aria-hidden="true" />
-            Neue Website
-          </Button>
-        </div>
-        {full && (
-          <p className="mb-md text-sm text-grey-600 dark:text-grey-400">
-            Du hast die Höchstzahl an Websites erreicht. Lösche eine, um eine neue anzulegen.
-          </p>
-        )}
-
-        <ul className="m-0 grid list-none grid-cols-1 gap-md p-0 sm:grid-cols-2 lg:grid-cols-3">
-          {sites.map((site) => {
-            const edited = editedLabel(site.updated_at);
-            return (
-              <li key={site.id}>
-                <Link
-                  to={paths.site(site.subdomain)}
-                  state={FROM_OVERVIEW_STATE}
-                  className="flex h-full flex-col gap-xs rounded-lg border border-grey-200 bg-background p-md text-inherit no-underline transition-colors hover:border-primary-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 dark:border-grey-700"
-                >
-                  <span className="flex items-start justify-between gap-sm">
-                    <span className="text-base font-semibold text-foreground">
-                      {site.site_title}
-                    </span>
-                    <Badge variant={site.is_published ? 'default' : 'secondary'}>
-                      {statusLabel(site)}
-                    </Badge>
-                  </span>
-                  <span className="break-all text-sm text-grey-600 dark:text-grey-400">
-                    {formatAddress(publicOrigin, site.subdomain)}
-                  </span>
-                  {edited && (
-                    <span className="mt-auto text-xs text-grey-600 dark:text-grey-400">
-                      {edited}
-                    </span>
-                  )}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+    <div className="min-h-dvh bg-[image:radial-gradient(ellipse_55%_45%_at_50%_30%,#EAF3F8_0%,#F5F9FB_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_30%,#111D24_0%,#0C1418_55%,#080D10_100%)]">
+      <div className="mx-auto w-full max-w-[1200px] px-lg pb-xl pt-8 max-md:px-md max-md:pt-sm">
+        {body}
       </div>
     </div>
   );
