@@ -73,7 +73,7 @@ import { TOOL_ICONS } from './composerToolIcons';
 import { FileMentionPopover } from './FileMentionPopover';
 import { MentionPopover } from './MentionPopover';
 import { ModelPicker } from './ModelPicker';
-import { PlusMenu, type ComposerPreset } from './PlusMenu';
+import { PlusMenu } from './PlusMenu';
 import { VorlagenMentionPopover } from './VorlagenMentionPopover';
 import { WebMentionPopover } from './WebMentionPopover';
 
@@ -93,9 +93,6 @@ interface GrueneratorComposerProps {
    * (e.g. NotebookChatProvider) so auto-mode resolves to the surface's
    * implicit thread mode. */
   insideAgent?: boolean;
-  /** Surface-specific prompt presets, shown as a "Vorlagen" submenu in the
-   * plus menu (e.g. the workplace example prompts). */
-  presets?: ComposerPreset[];
   /** 'card' (default): textarea with toolbar row below. 'pill': slim
    * single-row composer — plus menu, input, model picker and send inline —
    * that grows with the textarea (workplace hero). */
@@ -426,7 +423,6 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   showToolToggles = true,
   showModelPicker = true,
   insideAgent = false,
-  presets,
   variant = 'card',
   slots,
   requireProfileHydration = false,
@@ -993,20 +989,6 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     [onNavigate]
   );
 
-  const handleApplyPreset = useCallback(
-    (text: string) => {
-      composerRuntime.setText(text);
-      requestAnimationFrame(() => {
-        const textarea = textareaRef.current;
-        if (textarea) {
-          textarea.setSelectionRange(text.length, text.length);
-          textarea.focus();
-        }
-      });
-    },
-    [composerRuntime]
-  );
-
   const isPill = variant === 'pill';
 
   const hiddenUploadButton = (
@@ -1023,7 +1005,6 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
       includeModes={showToolToggles}
       insideAgent={insideAgent}
       firstName={firstName ?? null}
-      {...(presets && presets.length > 0 && { presets, onApplyPreset: handleApplyPreset })}
       {...(onNavigate ? { onNavigate, onOpenSkillsPage: handleOpenSkillsPage } : {})}
     />
   ) : null;

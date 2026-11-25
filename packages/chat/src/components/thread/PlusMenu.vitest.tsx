@@ -84,11 +84,21 @@ beforeEach(() => {
   });
 });
 
+// The switches sit under one „Werkzeuge" row: three top-level rows pushed the
+// menu past the space above the centred hero composer.
+async function openTools(user: ReturnType<typeof userEvent.setup>) {
+  const menu = await openMenu(user);
+  await user.hover(within(menu).getByRole('menuitem', { name: /Werkzeuge/ }));
+  // The submenu renders in its own portal, outside the root menu.
+  await screen.findByRole('menuitemcheckbox', { name: /Websuche/ });
+  return document.body;
+}
+
 describe('switch group', () => {
   it('renders the sticky settings as checked switch rows', async () => {
     const user = userEvent.setup();
     renderMenu();
-    const menu = await openMenu(user);
+    const menu = await openTools(user);
 
     for (const label of ['Websuche', 'Dokumentensuche']) {
       const row = within(menu).getByRole('menuitemcheckbox', { name: new RegExp(label) });
@@ -99,9 +109,9 @@ describe('switch group', () => {
   it('turning Websuche off writes through to enabledTools', async () => {
     const user = userEvent.setup();
     renderMenu();
-    const menu = await openMenu(user);
+    const menu = await openTools(user);
 
-    await user.click(within(menu).getByRole('menuitemcheckbox', { name: /Websuche/ }));
+    fireEvent.click(within(menu).getByRole('menuitemcheckbox', { name: /Websuche/ }));
 
     // `research` is the user-facing key; `web` is the second backend gate it
     // drives in lockstep. Both must fall, or the auto web search keeps running
@@ -113,14 +123,10 @@ describe('switch group', () => {
   it('keeps the menu open so a second switch can be flipped', async () => {
     const user = userEvent.setup();
     renderMenu();
-    const menu = await openMenu(user);
+    const menu = await openTools(user);
 
-    await user.click(within(menu).getByRole('menuitemcheckbox', { name: /Websuche/ }));
-    await user.click(
-      within(await screen.findByRole('menu')).getByRole('menuitemcheckbox', {
-        name: /Dokumentensuche/,
-      })
-    );
+    fireEvent.click(within(menu).getByRole('menuitemcheckbox', { name: /Websuche/ }));
+    fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: /Dokumentensuche/ }));
 
     expect(useAgentStore.getState().enabledTools.research).toBe(false);
     expect(useAgentStore.getState().enabledTools.search).toBe(false);
@@ -129,11 +135,11 @@ describe('switch group', () => {
   it('Tiefenrecherche inserts a mention instead of flipping a setting', async () => {
     const user = userEvent.setup();
     renderMenu();
-    const menu = await openMenu(user);
+    const menu = await openTools(user);
 
     // A plain menuitem, NOT a checkbox — it applies to this message only.
     const row = within(menu).getByRole('menuitem', { name: /Tiefenrecherche/ });
-    await user.click(row);
+    fireEvent.click(row);
 
     expect(onInsertMention).toHaveBeenCalledTimes(1);
     const inserted = onInsertMention.mock.calls[0]?.[0] as Mentionable;
@@ -146,7 +152,18 @@ describe('switch group', () => {
     renderMenu({ includeModes: false });
     const menu = await openMenu(user);
 
-    expect(within(menu).queryByRole('menuitemcheckbox', { name: /Websuche/ })).toBeNull();
+    expect(within(menu).queryByRole('menuitem', { name: /Werkzeuge/ })).toBeNull();
+  });
+
+  it('names a switched-off tool on the Werkzeuge row', async () => {
+    useAgentStore.setState((s) => ({ enabledTools: { ...s.enabledTools, research: false } }));
+    const user = userEvent.setup();
+    renderMenu();
+    const menu = await openMenu(user);
+
+    expect(within(menu).getByRole('menuitem', { name: /Werkzeuge/ })).toHaveTextContent(
+      'Websuche aus'
+    );
   });
 });
 

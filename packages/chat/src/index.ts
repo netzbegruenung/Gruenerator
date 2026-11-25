@@ -246,7 +246,6 @@ export {
   type ComposerOption,
   ComposerOptionPicker,
 } from './components/thread/ComposerOptionPicker';
-export { type ComposerPreset } from './components/thread/PlusMenu';
 export { FileMentionPopover } from './components/thread/FileMentionPopover';
 export { DocumentChatPicker } from './components/thread/DocumentChatPicker';
 export { SkillLibraryModal } from './components/skills/SkillLibraryModal';

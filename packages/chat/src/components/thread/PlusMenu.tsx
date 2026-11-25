@@ -23,7 +23,6 @@ import {
   ChevronRight,
   ExternalLink,
   FolderOpen,
-  LayoutTemplate,
   Library,
   MessageSquare,
   Paperclip,
@@ -33,6 +32,7 @@ import {
   Settings,
   Upload,
   Wand2,
+  Wrench,
   Zap,
 } from 'lucide-react';
 import { createElement, memo, useRef, useState } from 'react';
@@ -78,12 +78,6 @@ import { SkillLibraryModal } from '../skills/SkillLibraryModal';
 import { useChatDensity } from './chatDensityContext';
 import { TOOL_ICONS } from './composerToolIcons';
 
-export interface ComposerPreset {
-  key: string;
-  title: string;
-  text: string;
-}
-
 interface PlusMenuProps {
   onInsertMention: (mentionable: Mentionable) => void;
   /** Opens the file panel (cloud, documents, notebooks — and upload again). */
@@ -92,9 +86,6 @@ interface PlusMenuProps {
    * "Datei hinzufügen" row that goes through the panel. */
   onUploadFromDevice?: () => void;
   onOpenSkillsPage?: () => void;
-  /** Surface-specific prompt presets shown as a "Vorlagen" submenu. */
-  presets?: ComposerPreset[];
-  onApplyPreset?: (text: string) => void;
   /** Include the thread-scoped sections (Rollen, and the switch group) that only
    * make sense on a full chat surface. Assistant surfaces pass false. */
   includeModes?: boolean;
@@ -117,7 +108,7 @@ const EIGENER_MODE = composerModeDef('eigener');
 const ChatModeIcon = MODE_ICONS[CHAT_MODE.icon];
 const EigenerModeIcon = MODE_ICONS[EIGENER_MODE.icon];
 
-type MobilePanel = 'rezepte' | 'rollen' | 'konnektoren' | 'erstellen' | 'vorlagen';
+type MobilePanel = 'rezepte' | 'rollen' | 'konnektoren' | 'erstellen';
 
 /** Grey secondary text next to a row's label. */
 const Hint = ({ children }: { children: React.ReactNode }) => (
@@ -173,7 +164,9 @@ const MenuSearchField = ({
   onChange: (value: string) => void;
   autoFocus?: boolean;
 }) => (
-  <div className="relative px-1 pb-1">
+  // `role="group"`: a menu may own only items, groups and separators, so a bare
+  // input inside `role="menu"` fails `aria-required-children` (axe lane).
+  <div role="group" aria-label="Menüsuche" className="relative px-1 pb-1">
     <Search
       className="pointer-events-none absolute top-1/2 left-3.5 h-3.5 w-3.5 -translate-y-1/2 text-foreground-muted"
       aria-hidden="true"
@@ -243,8 +236,6 @@ export const PlusMenu = memo(function PlusMenu({
   onOpenFileBrowser,
   onUploadFromDevice,
   onOpenSkillsPage,
-  presets,
-  onApplyPreset,
   includeModes = false,
   onNavigate,
   firstName,
@@ -599,59 +590,63 @@ export const PlusMenu = memo(function PlusMenu({
           </DropdownMenuSubContent>
         </DropdownMenuSub>
       )}
-
-      {presets && presets.length > 0 && onApplyPreset && (
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
-            <LayoutTemplate className="h-3.5 w-3.5" />
-            Vorlagen
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="max-h-[24rem] overflow-y-auto">
-            {presets.map((preset) => (
-              <DropdownMenuItem key={preset.key} onClick={() => onApplyPreset(preset.text)}>
-                {preset.title}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-      )}
     </>
   );
 
   // ── Group 3: switches ──────────────────────────────────────────────────────
+  // One "Werkzeuge" row with a submenu: three top-level rows made the menu
+  // taller than the space above the centred hero composer. The switches can sit
+  // one level down because a switched-off one is named in the composer itself
+  // ("Ohne Websuche ×"); the hint here says the same when the menu is open.
   // A `toggle` row keeps the menu open (`onSelect` preventDefault) because
   // flipping two of these in a row is the normal case; a `once` row closes it,
   // since it has just written into the composer.
+  const switchedOffTools = COMPOSER_TOOLS.filter(
+    (tool) => tool.kind === 'toggle' && enabledTools[tool.key] === false
+  );
+  const toolsHint =
+    switchedOffTools.length === 0
+      ? null
+      : switchedOffTools.length === 1
+        ? `${switchedOffTools[0].label} aus`
+        : `${switchedOffTools.length} aus`;
   const desktopToolItems = showModes ? (
-    <>
-      {COMPOSER_TOOLS.map((tool) => {
-        const Icon = TOOL_ICONS[tool.icon];
-        if (tool.kind === 'toggle') {
+    <DropdownMenuSub>
+      <DropdownMenuSubTrigger>
+        <Wrench className="h-3.5 w-3.5" />
+        <span className="flex-1 truncate">Werkzeuge</span>
+        {toolsHint && <Hint>{toolsHint}</Hint>}
+      </DropdownMenuSubTrigger>
+      <DropdownMenuSubContent className="w-80">
+        {COMPOSER_TOOLS.map((tool) => {
+          const Icon = TOOL_ICONS[tool.icon];
+          if (tool.kind === 'toggle') {
+            return (
+              <DropdownMenuCheckboxItem
+                key={tool.key}
+                indicatorSide="right"
+                checked={enabledTools[tool.key] !== false}
+                onCheckedChange={() => toggleTool(tool.key)}
+                onSelect={(e) => e.preventDefault()}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                <span className="flex-1">{tool.label}</span>
+                <Hint>{tool.description}</Hint>
+              </DropdownMenuCheckboxItem>
+            );
+          }
+          const mentionable = resolveMentionable(tool.mention);
+          if (!mentionable) return null;
           return (
-            <DropdownMenuCheckboxItem
-              key={tool.key}
-              indicatorSide="right"
-              checked={enabledTools[tool.key] !== false}
-              onCheckedChange={() => toggleTool(tool.key)}
-              onSelect={(e) => e.preventDefault()}
-            >
+            <DropdownMenuItem key={tool.mention} onClick={() => onInsertMention(mentionable)}>
               <Icon className="h-3.5 w-3.5" />
               <span className="flex-1">{tool.label}</span>
               <Hint>{tool.description}</Hint>
-            </DropdownMenuCheckboxItem>
+            </DropdownMenuItem>
           );
-        }
-        const mentionable = resolveMentionable(tool.mention);
-        if (!mentionable) return null;
-        return (
-          <DropdownMenuItem key={tool.mention} onClick={() => onInsertMention(mentionable)}>
-            <Icon className="h-3.5 w-3.5" />
-            <span className="flex-1">{tool.label}</span>
-            <Hint>{tool.description}</Hint>
-          </DropdownMenuItem>
-        );
-      })}
-    </>
+        })}
+      </DropdownMenuSubContent>
+    </DropdownMenuSub>
   ) : null;
 
   const desktopContent = (
@@ -793,10 +788,6 @@ export const PlusMenu = memo(function PlusMenu({
             threadMode === 'eigener' ? eigenerBadgeLabel : null
           )}
         {showConnectors && drillRow('konnektoren', <Plug />, 'Konnektoren', connectorsHint)}
-        {presets &&
-          presets.length > 0 &&
-          onApplyPreset &&
-          drillRow('vorlagen', <LayoutTemplate />, 'Vorlagen')}
       </ResponsiveMenuSection>
 
       {includeModes && insideAgent && onNavigate && (
@@ -932,18 +923,6 @@ export const PlusMenu = memo(function PlusMenu({
           )}
         </>
       ),
-    },
-    vorlagen: {
-      title: 'Vorlagen',
-      body: (presets ?? []).map((preset) => (
-        <ResponsiveMenuItem
-          key={preset.key}
-          icon={<LayoutTemplate />}
-          onClick={() => handleMobileAction(() => onApplyPreset?.(preset.text))}
-        >
-          {preset.title}
-        </ResponsiveMenuItem>
-      )),
     },
   };
 
