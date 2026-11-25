@@ -56,6 +56,7 @@ export function PreviewDialog({
               if (value) setDevice(value as PreviewDevice);
             }}
             aria-label="Gerätegröße"
+            className="max-md:hidden"
           >
             {DEVICES.map(([value, label]) => (
               <ToggleGroupItem key={value} value={value}>
