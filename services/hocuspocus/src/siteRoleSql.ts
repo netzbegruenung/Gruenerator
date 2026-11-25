@@ -1,6 +1,8 @@
 /**
  * Verbatim copy of `SITE_ROLE_SQL` in `apps/api/services/sites/siteRoleSql.ts` (this service has no
  * runtime dependency on apps/api). `siteRoleSql.vitest.ts` in apps/api compares both; edit together.
+ * Project admin is `gm.role = 'admin'` (groupMembership.ts in the API also counts `groups.created_by`;
+ * equivalent today, since creating a project inserts an admin membership that cannot change).
  * Takes `$1` site id, `$2` user id; returns at most one row `{ role, group_id, user_id }`.
  */
 export const SITE_ROLE_SQL = `

@@ -8,6 +8,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   hydrateGroupContent,
+  notifyContentShared,
   shareContentToGroup,
   type HydrateGroupContentDeps,
   type ShareContentDeps,
@@ -338,6 +339,18 @@ describe('shareContentToGroup', () => {
         actionUrl: '/projekte/g1?beitrag=s-new',
       })
     );
+  });
+});
+
+describe('notifyContentShared', () => {
+  it('stays silent for a Website: the feed hides it, the link would dead-end', async () => {
+    const { deps } = fakeDeps();
+    notifyContentShared(
+      { groupId: 'g1', userId: 'u1', contentType: 'user_sites', contentId: 's1' },
+      deps
+    );
+    await new Promise((r) => setTimeout(r, 0));
+    expect(deps.notify).not.toHaveBeenCalled();
   });
 });
 

@@ -3,7 +3,7 @@ import { type SiteRole } from '@gruenerator/contracts';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 
-import { SITE_ROLE_SQL } from './siteRoleSql.js';
+import { SITE_ROLE_SQL, SITE_ROLES_BATCH_SQL } from './siteRoleSql.js';
 
 const RANK: Record<SiteRole, number> = { viewer: 1, editor: 2, admin: 3 };
 
@@ -20,6 +20,19 @@ async function loadRole(siteId: string, userId: string): Promise<RoleRow | null>
 
 export async function getSiteRole(siteId: string, userId: string): Promise<SiteRole | null> {
   return (await loadRole(siteId, userId))?.role ?? null;
+}
+
+/** `getSiteRole` for many sites in one query; sites without a role are absent from the map. */
+export async function getSiteRoles(
+  siteIds: string[],
+  userId: string
+): Promise<Map<string, SiteRole>> {
+  if (siteIds.length === 0) return new Map();
+  const rows = await getPostgresInstance().query<{ id: string; role: SiteRole }>(
+    SITE_ROLES_BATCH_SQL,
+    [siteIds, userId]
+  );
+  return new Map(rows.map((row) => [row.id, row.role]));
 }
 
 export function hasRole(actual: SiteRole | null, min: SiteRole): boolean {

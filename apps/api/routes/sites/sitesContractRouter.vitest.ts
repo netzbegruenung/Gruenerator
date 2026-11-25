@@ -30,7 +30,9 @@ const requireSiteRoleMock = vi.hoisted(() =>
     return RANK[a.role] >= RANK[min] ? a : ('forbidden' as const);
   })
 );
-const getSiteRoleMock = vi.hoisted(() => vi.fn<(...a: unknown[]) => Promise<string | null>>());
+const getSiteRolesMock = vi.hoisted(() =>
+  vi.fn<(...a: unknown[]) => Promise<Map<string, string>>>()
+);
 const resolvePublishLocaleMock = vi.hoisted(() =>
   vi.fn<(...a: unknown[]) => Promise<'de-DE' | 'de-AT'>>()
 );
@@ -60,7 +62,7 @@ vi.mock('../../services/collab/hocuspocusInternal.js', () => ({
 vi.mock('../../config/env.js', () => ({ env: envMock }));
 vi.mock('../../services/sites/siteAccess.js', () => ({
   requireSiteRole: requireSiteRoleMock,
-  getSiteRole: getSiteRoleMock,
+  getSiteRoles: getSiteRolesMock,
 }));
 const members = vi.hoisted(() => ({
   listSiteMembers: vi.fn(),
@@ -180,7 +182,9 @@ beforeEach(() => {
     fn.mockReset();
   }
   requireSiteRoleMock.mockClear();
-  getSiteRoleMock.mockReset().mockResolvedValue('admin');
+  getSiteRolesMock
+    .mockReset()
+    .mockImplementation(async (ids) => new Map((ids as string[]).map((id) => [id, 'admin'])));
   resolvePublishLocaleMock.mockReset().mockResolvedValue('de-DE');
   entitledMock.mockReset().mockResolvedValue(true);
   envMock.SITES_HOST = 'grsites.de';
@@ -616,7 +620,12 @@ describe('sitesContract', () => {
   });
 
   it('listSites returns summaries with role and project, newest first, with the limit', async () => {
-    getSiteRoleMock.mockResolvedValueOnce('admin').mockResolvedValueOnce('editor');
+    getSiteRolesMock.mockResolvedValueOnce(
+      new Map([
+        [SITE_ID, 'admin'],
+        ['second', 'editor'],
+      ])
+    );
     queryMock.mockResolvedValueOnce([
       row(),
       row({
@@ -648,7 +657,7 @@ describe('sitesContract', () => {
   });
 
   it('listSites drops a candidate the resolver gives no role', async () => {
-    getSiteRoleMock.mockResolvedValueOnce(null);
+    getSiteRolesMock.mockResolvedValueOnce(new Map());
     queryMock.mockResolvedValueOnce([row()]);
     expect((await call('listSites', {})).body.sites).toEqual([]);
   });

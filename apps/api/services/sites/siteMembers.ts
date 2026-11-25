@@ -119,7 +119,7 @@ export async function setSiteMemberRole(
          SELECT 1
            FROM group_memberships a
           INNER JOIN group_memberships t ON t.group_id = a.group_id AND t.user_id = $3 AND t.is_active = TRUE
-          INNER JOIN groups g ON g.id = a.group_id AND g.deleted_at IS NULL AND g.is_system = FALSE
+          INNER JOIN groups g ON g.id = a.group_id AND g.deleted_at IS NULL AND g.archived_at IS NULL AND g.is_system = FALSE
           WHERE a.user_id = $4 AND a.is_active = TRUE
           LIMIT 1`,
         [siteId, targetId, targetId, actorId]

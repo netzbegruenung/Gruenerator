@@ -51,7 +51,7 @@ import {
   removeGroupShare,
 } from '../../services/groups/groupShareWriter.js';
 import { resolvePublishLocale } from '../../services/sites/publishLocale.js';
-import { getSiteRole, requireSiteRole } from '../../services/sites/siteAccess.js';
+import { getSiteRoles, requireSiteRole } from '../../services/sites/siteAccess.js';
 import { ensureSiteDraft, readSiteDraft, siteRoom } from '../../services/sites/siteDraftDoc.js';
 import { toSite } from '../../services/sites/siteMapper.js';
 import {
@@ -223,10 +223,13 @@ export const sitesContractRouter = s.router(sitesContract, {
           ORDER BY us.updated_at DESC, us.id`,
         [userId]
       );
-      const roles = await Promise.all(rows.map((row) => getSiteRole(row.id, userId)));
+      const roles = await getSiteRoles(
+        rows.map((row) => row.id),
+        userId
+      );
       const sites: SiteListItem[] = [];
-      rows.forEach((row, index) => {
-        const role = roles[index];
+      rows.forEach((row) => {
+        const role = roles.get(row.id);
         if (!role) return;
         const site = toSite(row);
         sites.push({

@@ -39,7 +39,7 @@ vi.mock('../../database/services/PostgresService.js', async (importOriginal) => 
 vi.mock('./userSiteTrash.js', () => ({ closeSiteRooms: vi.fn(async () => {}) }));
 
 const { listSiteMembers, setSiteMemberRole, removeSiteMember } = await import('./siteMembers.js');
-const { getSiteRole } = await import('./siteAccess.js');
+const { getSiteRole, getSiteRoles } = await import('./siteAccess.js');
 
 const a = randomUUID();
 const b = randomUUID();
@@ -158,6 +158,16 @@ describe.skipIf(!url)('Mitglieder einer Website (siteMembers)', () => {
       await setSiteMemberRole({ siteId: s, actorId: a, targetId: b, role: 'editor' }, spy)
     ).toBe('ok');
     expect(await roleOf(s, b)).toBe('editor');
+  });
+
+  it('a shared archived project does not make the target eligible', async () => {
+    const s = await mkSite();
+    await member(s, a, 'admin');
+    const g = await sharedProject([a, b]);
+    await pool.query('UPDATE groups SET archived_at = NOW() WHERE id = $1', [g]);
+    expect(
+      await setSiteMemberRole({ siteId: s, actorId: a, targetId: b, role: 'editor' }, spy)
+    ).toBe('not_eligible');
   });
 
   it('parallel mutual demotion leaves exactly one ok and at least one admin', async () => {
@@ -291,6 +301,21 @@ describe.skipIf(!url)('Mitglieder einer Website (siteMembers)', () => {
         (await listSiteMembers(sites[1])).map((m) => [m.userId, m.role])
       );
       expect(projectRoles).toMatchObject({ [pAdm2]: 'admin', [pMem2]: 'editor' });
+    });
+
+    it('batch roles equal getSiteRole for every site and person', async () => {
+      const sites = await build();
+      for (const u of [...people, a, b, c]) {
+        const batch = await getSiteRoles(sites, u);
+        for (const s of sites) {
+          expect(batch.get(s) ?? null, `person ${u} site ${s}`).toBe(await getSiteRole(s, u));
+        }
+      }
+      await pool.query("UPDATE user_sites SET moderation = 'removed'");
+      for (const u of people) {
+        const batch = await getSiteRoles(sites, u);
+        for (const s of sites) expect(batch.get(s) ?? null).toBe(await getSiteRole(s, u));
+      }
     });
 
     it('matches getSiteRole when the site is removed by moderation', async () => {

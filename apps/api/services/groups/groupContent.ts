@@ -306,6 +306,8 @@ export function notifyContentShared(
   deps: Pick<ShareContentDeps, 'postgres' | 'notify'> = defaultDeps()
 ): void {
   const { groupId, userId, sharerName, contentType, contentId } = input;
+  // A shared Website is access, not a feed post: the feed hides it, so a link to it would dead-end.
+  if (contentType === 'user_sites') return;
   void Promise.resolve()
     .then(() =>
       deps.postgres.queryOne<{
