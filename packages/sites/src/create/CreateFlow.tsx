@@ -1,7 +1,7 @@
 import { getContractsClient } from '@gruenerator/shared/api';
 import { Button } from '@gruenerator/ui';
-import { useState, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { GenerationProgress } from '../components/common/GenerationProgress';
 import { CreateSiteScreen } from '../components/CreateSiteScreen';
@@ -10,7 +10,7 @@ import { SiteGenerationError, type SiteGenerationInput } from '../generation/sit
 import { useCreateSite, type GeneratedSiteData } from '../hooks/useSite';
 import { useSiteGeneration } from '../hooks/useSiteGeneration';
 import { useToast } from '../hooks/useToast';
-import { FROM_OVERVIEW_STATE, useAuth, useSitesPaths } from '../SitesContext';
+import { useAuth, useSitesPaths } from '../SitesContext';
 import { handleApiError, SitesApiError } from '../utils/errorHandler';
 import { nameToSubdomain } from '../utils/sanitization';
 import { validators } from '../utils/validation';
@@ -36,29 +36,18 @@ async function isOwnSite(handle: string): Promise<boolean> {
   }
 }
 
-/**
- * `/sites`: the create composer under the page's heading, the page's own content below.
- * Generating replaces the whole page with the editor skeleton, so the editor lands in place.
- */
 export function CreateFlow({
-  header,
-  children,
-  disabledReason = null,
+  onBack,
   ownHandles = [],
-  className,
 }: {
-  /** Layout of the page around the composer; the generation skeleton stays full-bleed. */
-  className?: string;
-  header?: ReactNode;
+  onBack?: () => void;
   /** The account's own addresses, so the suggested one is not already taken by itself. */
   ownHandles?: readonly string[];
-  children?: ReactNode;
-  /** Why nothing can be created right now (the account is full). */
-  disabledReason?: string | null;
 }) {
   const { user } = useAuth();
   const { publicOrigin, createSite, isCreating } = useCreateSite();
   const navigate = useNavigate();
+  const routeState: unknown = useLocation().state;
   const paths = useSitesPaths();
   const { generate, cancel, steps, current, isGenerating, isFlyer } = useSiteGeneration();
   const toast = useToast();
@@ -73,8 +62,7 @@ export function CreateFlow({
   const contactEmail = user?.email ?? '';
   const [description, setDescription] = useState('');
 
-  // The generated content goes straight into a new site, and its editor opens on top of the
-  // overview, so back returns to it.
+  // The generated content goes straight into a new site, and its editor opens.
   // A failed create keeps the content in the retry, so a second click does not regenerate it.
   const createFromGenerated = async (data: GeneratedSiteData) => {
     setFailure(null);
@@ -88,13 +76,13 @@ export function CreateFlow({
         sections: data.sections,
       });
       toast.success('Seite erstellt', 'Deine Seite wurde erfolgreich erstellt');
-      void navigate(paths.site(site.subdomain), { state: FROM_OVERVIEW_STATE });
+      void navigate(paths.site(site.subdomain), { replace: true, state: routeState });
     } catch (err) {
       console.error('Create failed:', err);
       // A first attempt can have stored the site before failing; then the address is taken
       // by this account, and the editor opens instead.
       if (err instanceof SitesApiError && err.status === 400 && (await isOwnSite(handle))) {
-        void navigate(paths.site(handle), { state: FROM_OVERVIEW_STATE });
+        void navigate(paths.site(handle), { replace: true, state: routeState });
         return;
       }
       handleApiError(err, toast);
@@ -173,8 +161,7 @@ export function CreateFlow({
           />
         </EditorSkeleton>
       )}
-      <div hidden={isGenerating} className={className}>
-        {header}
+      <div hidden={isGenerating}>
         <CreateSiteScreen
           subdomain={subdomain}
           publicOrigin={publicOrigin}
@@ -183,8 +170,10 @@ export function CreateFlow({
           onDescriptionChange={setDescription}
           onGenerate={handleGenerate}
           onFlyerUpload={handleFlyerUpload}
+          onBack={onBack}
           isProcessing={isGenerating || isCreating}
-          disabledReason={disabledReason}
+          isGenerating={isGenerating}
+          isGeneratingFromFlyer={isGenerating && isFlyer}
         />
         {failure && (
           <div role="alert" className="mx-auto max-w-xl p-md text-center">
@@ -192,7 +181,6 @@ export function CreateFlow({
             {failure.retry && <Button onClick={failure.retry}>Noch einmal versuchen</Button>}
           </div>
         )}
-        {children}
       </div>
     </>
   );

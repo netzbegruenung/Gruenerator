@@ -22,10 +22,10 @@ const m = vi.hoisted(() => ({
 }));
 
 vi.mock('../SitesContext', () => ({
-  FROM_OVERVIEW_STATE: { fromOverview: true },
   useAuth: () => ({ user: { display_name: 'Anna', email: 'a@b.de', locale: 'de-DE' } }),
   useSitesPaths: () => ({
     overview: '/sites',
+    create: '/sites/erstellen',
     site: (handle: string) => `/sites/${handle}`,
   }),
 }));
@@ -65,20 +65,14 @@ vi.mock('../components/CreateSiteScreen', () => ({
 import { CreateFlow } from './CreateFlow';
 
 function Where() {
-  const location = useLocation();
-  const state = location.state as { fromOverview?: boolean } | null;
-  return (
-    <span data-testid="pfad" data-from-overview={String(state?.fromOverview === true)}>
-      {location.pathname}
-    </span>
-  );
+  return <span data-testid="pfad">{useLocation().pathname}</span>;
 }
 
 function render(ui: ReactElement) {
   return rtlRender(
-    <MemoryRouter initialEntries={['/sites']}>
+    <MemoryRouter initialEntries={['/sites/erstellen']}>
       <Routes>
-        <Route path="/sites" element={ui} />
+        <Route path="/sites/erstellen" element={ui} />
         <Route path="/sites/:handle" element={<Where />} />
       </Routes>
     </MemoryRouter>
@@ -126,14 +120,6 @@ describe('CreateFlow', () => {
       })
     );
     expect(await screen.findByTestId('pfad')).toHaveTextContent('/sites/anna');
-  });
-
-  it('opens the new site on top of the overview, so back returns to it', async () => {
-    m.generate.mockResolvedValue(generated);
-    await fillAndGenerate();
-    const where = await screen.findByTestId('pfad');
-    expect(where).toHaveTextContent('/sites/anna');
-    expect(where).toHaveAttribute('data-from-overview', 'true');
   });
 
   it("suggests an address past the account's own ones", async () => {

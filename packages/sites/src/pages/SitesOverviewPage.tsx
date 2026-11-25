@@ -1,10 +1,14 @@
-import { SectionHeader, Skeleton } from '@gruenerator/ui';
+import { type SiteSummary } from '@gruenerator/contracts';
+import { Button, SectionHeader, Skeleton } from '@gruenerator/ui';
+import { useEffect } from 'react';
+import { FiPlus } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
 
 import { LoadErrorState } from '../components/common/LoadErrorState';
+import { SitesSearch } from '../components/SitesSearch';
 import { SiteTile } from '../components/SiteTile';
-import { CreateFlow } from '../create/CreateFlow';
 import { useSiteList } from '../hooks/useSite';
-import { useAuth, useSitesPaths } from '../SitesContext';
+import { FROM_OVERVIEW_STATE, useAuth, useSitesPaths } from '../SitesContext';
 
 const GRID = 'grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(260px,1fr))] sm:gap-4';
 
@@ -13,87 +17,114 @@ function firstName(displayName: string | undefined): string | null {
   return first || null;
 }
 
+/** Shaped like the page below, so the list lands in place. */
+function OverviewSkeleton() {
+  return (
+    <div role="status" aria-label="Websites werden geladen" aria-busy="true">
+      <Skeleton className="mx-auto mt-10 h-9 w-72 bg-grey-200 dark:bg-grey-700" />
+      <Skeleton className="mx-auto mt-10 h-[60px] w-full max-w-[760px] rounded-full bg-grey-200 dark:bg-grey-700" />
+      <Skeleton className="mb-4 mt-12 h-7 w-44 bg-grey-200 dark:bg-grey-700" />
+      <div className={GRID}>
+        {[0, 1, 2].map((i) => (
+          <Skeleton key={i} className="h-64 rounded-2xl bg-grey-200 dark:bg-grey-700" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /**
- * `/sites`: create and overview on one page, like Projekte and Office — a heading, the create
- * composer, then the own sites as tiles. Without a site the composer is the whole page.
+ * `/sites`, built like Projekte: a greeting, a search over the own sites, then the sites as
+ * tiles. Creating happens on its own page (`/sites/erstellen`); without any site that page opens
+ * straight away.
  */
 export function SitesOverviewPage() {
   const { user } = useAuth();
   const { sites, publicOrigin, limit, isLoading, error, refetch } = useSiteList();
+  const navigate = useNavigate();
   const paths = useSitesPaths();
   const locale = user?.locale ?? 'de-DE';
   const name = firstName(user?.display_name);
-  const hasSites = !!sites && sites.length > 0;
+
+  // Without any site the overview has nothing to show: the first visit starts creating.
+  const empty = sites !== null && sites.length === 0;
+  useEffect(() => {
+    if (empty) void navigate(paths.create, { replace: true });
+  }, [empty, navigate, paths]);
+
   const full = !!sites && sites.length >= limit;
+  const create = full ? null : () => void navigate(paths.create, { state: FROM_OVERVIEW_STATE });
+  const open = (site: SiteSummary) =>
+    void navigate(paths.site(site.subdomain), { state: FROM_OVERVIEW_STATE });
 
-  const title = hasSites
-    ? name
-      ? `Deine Websites, ${name}`
-      : 'Deine Websites'
-    : 'Deine Kandidat*innen-Seite';
+  let body;
+  if (isLoading || empty) {
+    body = <OverviewSkeleton />;
+  } else if (error || !sites) {
+    body = (
+      <LoadErrorState
+        title="Deine Websites konnten nicht geladen werden"
+        onRetry={() => void refetch()}
+      />
+    );
+  } else {
+    body = (
+      <>
+        <div className="mx-auto max-w-[860px] px-4 pb-2 pt-10 max-md:pt-4">
+          <h1 className="m-0 text-center font-[Raleway,PT_Sans,Arial,sans-serif] text-[30px] font-extrabold tracking-[-.02em] text-foreground-heading [text-wrap:balance] [overflow-wrap:anywhere] max-sm:text-[21px]">
+            {name ? `Deine Websites, ${name}` : 'Deine Websites'}
+          </h1>
+          <SitesSearch sites={sites} publicOrigin={publicOrigin} onOpen={open} onCreate={create} />
+        </div>
 
-  const header = (
-    <div className="mx-auto max-w-[860px] px-4 pb-2 pt-10 max-md:pt-4">
-      <h1 className="mb-2 text-center font-[Raleway,PT_Sans,Arial,sans-serif] text-[30px] font-extrabold tracking-[-.02em] text-foreground-heading [text-wrap:balance] [overflow-wrap:anywhere] max-sm:text-[21px]">
-        {title}
-      </h1>
-      <p className="mb-8 text-center text-[15px] text-grey-600 [text-wrap:balance] dark:text-grey-400 max-sm:text-sm">
-        Beschreib dich oder lade einen Flyer hoch, die KI baut daraus deine Website.
-      </p>
-    </div>
-  );
-
-  return (
-    <div className="min-h-dvh bg-[image:radial-gradient(ellipse_55%_45%_at_50%_30%,#EAF3F8_0%,#F5F9FB_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_30%,#111D24_0%,#0C1418_55%,#080D10_100%)]">
-      <CreateFlow
-        className="mx-auto w-full max-w-[1200px] px-lg pb-xl pt-8 max-md:px-md max-md:pt-sm"
-        header={header}
-        ownHandles={sites?.map((s) => s.subdomain)}
-        disabledReason={
-          full
-            ? `Du hast die Höchstzahl von ${limit} Websites erreicht. Lösche eine, um eine neue anzulegen.`
-            : null
-        }
-      >
-        {isLoading ? (
-          <section aria-label="Websites werden geladen" aria-busy="true" className="mt-12">
-            <Skeleton className="mb-4 h-7 w-44 bg-grey-200 dark:bg-grey-700" />
-            <div className={GRID}>
-              {[0, 1, 2].map((i) => (
-                <Skeleton key={i} className="h-64 rounded-2xl bg-grey-200 dark:bg-grey-700" />
-              ))}
-            </div>
-          </section>
-        ) : error || !sites ? (
-          <LoadErrorState
-            title="Deine Websites konnten nicht geladen werden"
-            onRetry={() => void refetch()}
-          />
-        ) : hasSites ? (
-          <section className="mt-12">
-            <SectionHeader
-              title="Deine Websites"
-              actions={
+        <section className="mt-12">
+          <SectionHeader
+            title="Deine Websites"
+            actions={
+              <div className="flex items-center gap-xs">
                 <span className="text-sm text-grey-600 dark:text-grey-400">
                   {sites.length} von {limit}
                 </span>
-              }
-            />
-            <ul className={`m-0 list-none p-0 ${GRID}`}>
-              {sites.map((site) => (
-                <li key={site.id}>
-                  <SiteTile
-                    site={site}
-                    href={paths.site(site.subdomain)}
-                    publicOrigin={publicOrigin}
-                    locale={locale}
-                  />
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-      </CreateFlow>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Neue Website"
+                  title={full ? 'Höchstzahl erreicht' : 'Neue Website'}
+                  onClick={() => create?.()}
+                  disabled={full}
+                >
+                  <FiPlus aria-hidden className="size-[18px]" />
+                </Button>
+              </div>
+            }
+          />
+          {full && (
+            <p className="mb-md text-sm text-grey-600 dark:text-grey-400">
+              Du hast die Höchstzahl an Websites erreicht. Lösche eine, um eine neue anzulegen.
+            </p>
+          )}
+          <ul className={`m-0 list-none p-0 ${GRID}`}>
+            {sites.map((site) => (
+              <li key={site.id}>
+                <SiteTile
+                  site={site}
+                  href={paths.site(site.subdomain)}
+                  publicOrigin={publicOrigin}
+                  locale={locale}
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
+      </>
+    );
+  }
+
+  return (
+    <div className="min-h-dvh bg-[image:radial-gradient(ellipse_55%_45%_at_50%_30%,#EAF3F8_0%,#F5F9FB_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_30%,#111D24_0%,#0C1418_55%,#080D10_100%)]">
+      <div className="mx-auto w-full max-w-[1200px] px-lg pb-xl pt-8 max-md:px-md max-md:pt-sm">
+        {body}
+      </div>
     </div>
   );
 }

@@ -1,6 +1,5 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { type ReactNode } from 'react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -12,20 +11,9 @@ vi.mock('../SitesContext', () => ({
   useAuth: () => ({ user: { display_name: 'Anna Beispiel', locale: 'de-DE' } }),
   useSitesPaths: () => ({
     overview: '/sites',
+    create: '/sites/erstellen',
     site: (handle: string) => `/sites/${handle}`,
   }),
-}));
-// The create flow has its own tests; here it only shows where it sits and whether it is locked.
-vi.mock('../create/CreateFlow', () => ({
-  CreateFlow: (p: { header: ReactNode; children: ReactNode; disabledReason: string | null }) => (
-    <div>
-      {p.header}
-      <div data-testid="composer" data-locked={String(!!p.disabledReason)}>
-        {p.disabledReason}
-      </div>
-      {p.children}
-    </div>
-  ),
 }));
 
 import { SitesOverviewPage } from './SitesOverviewPage';
@@ -99,28 +87,54 @@ describe('SitesOverviewPage', () => {
     expect(where).toHaveAttribute('data-from-overview', 'true');
   });
 
-  it('greets by first name above the composer once there are sites', () => {
+  it('opens the create flow from the button', async () => {
+    setList([summary('anna')]);
+    renderOverview();
+    await userEvent.click(screen.getByRole('button', { name: 'Neue Website' }));
+    expect(screen.getByTestId('pfad')).toHaveTextContent('/sites/erstellen');
+  });
+
+  it('goes straight to creating when there is no site yet', () => {
+    setList([]);
+    renderOverview();
+    const where = screen.getByTestId('pfad');
+    expect(where).toHaveTextContent('/sites/erstellen');
+    expect(where).toHaveAttribute('data-from-overview', 'false');
+  });
+
+  it('disables a new site at the limit', () => {
+    setList([summary('a1'), summary('a2')], 2);
+    renderOverview();
+    expect(screen.getByRole('button', { name: 'Neue Website' })).toBeDisabled();
+    expect(screen.getByText(/Höchstzahl an Websites/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Neue Website erstellen' })).toBeNull();
+  });
+
+  it('greets by first name', () => {
     setList([summary('anna')]);
     renderOverview();
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Deine Websites, Anna');
-    expect(screen.getByTestId('composer')).toHaveAttribute('data-locked', 'false');
   });
 
-  it('stays on the page without a site: the composer is the whole page', () => {
-    setList([]);
+  it('finds a site by address and opens it from the search', async () => {
+    setList([summary('anna'), summary('kreistag-berta', { site_title: 'Berta für den Kreistag' })]);
     renderOverview();
-    expect(screen.queryByTestId('pfad')).toBeNull();
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
-      'Deine Kandidat*innen-Seite'
-    );
-    expect(screen.getByTestId('composer')).toBeInTheDocument();
-    expect(screen.queryByRole('list')).toBeNull();
+    const user = userEvent.setup();
+    await user.type(screen.getByRole('searchbox', { name: 'Websites durchsuchen' }), 'kreistag');
+    expect(screen.queryByRole('button', { name: /Seite anna/ })).toBeNull();
+    await user.click(screen.getByRole('button', { name: /Berta für den Kreistag/ }));
+    const where = screen.getByTestId('pfad');
+    expect(where).toHaveTextContent('/sites/kreistag-berta');
+    expect(where).toHaveAttribute('data-from-overview', 'true');
   });
 
-  it('locks the composer at the limit and says why', () => {
-    setList([summary('a1'), summary('a2')], 2);
+  it('offers creating from the search, also without a match', async () => {
+    setList([summary('anna')]);
     renderOverview();
-    expect(screen.getByTestId('composer')).toHaveAttribute('data-locked', 'true');
-    expect(screen.getByText(/Höchstzahl von 2 Websites/)).toBeInTheDocument();
+    const user = userEvent.setup();
+    await user.type(screen.getByRole('searchbox', { name: 'Websites durchsuchen' }), 'zzz');
+    expect(screen.getByText('Keine Website gefunden.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Neue Website erstellen.*Beschreibung/ }));
+    expect(screen.getByTestId('pfad')).toHaveTextContent('/sites/erstellen');
   });
 });
