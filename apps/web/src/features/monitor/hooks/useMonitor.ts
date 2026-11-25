@@ -8,11 +8,13 @@ import {
   type EuGreensData,
   type EuGreensHistoryData,
   type KeywordArticlesResult,
+  type LandBriefing,
   type MeinungsbildData,
   type MeinungsbildEstimate,
   type MeinungsbildIssue,
   type MonitorArticle,
   type MonitorHistoryEntry,
+  type MonitorLand,
   type MonitorLocale,
   type MonitorSnapshot,
   type PollData,
@@ -229,6 +231,21 @@ export function usePollParliaments() {
       throw monitorError(res, 'Parlamente konnten nicht geladen werden.');
     },
     staleTime: 60 * 60 * 1000,
+  });
+}
+
+/** One Land view of /briefing; `null` keeps the query idle. */
+export function useLandBriefing(land: MonitorLand | null) {
+  return useQuery({
+    queryKey: ['monitor', 'land', land],
+    queryFn: async (): Promise<LandBriefing> => {
+      if (!land) throw new Error('Kein Land ausgewählt.');
+      const res = await getContractsClient().monitor.landBriefing({ params: { land } });
+      if (res.status === 200) return res.body;
+      throw monitorError(res, 'Das Land-Briefing konnte nicht geladen werden.');
+    },
+    enabled: !!land,
+    staleTime: 5 * 60 * 1000,
   });
 }
 

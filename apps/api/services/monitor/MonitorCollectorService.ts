@@ -6,9 +6,10 @@ import { createLogger } from '../../utils/logger.js';
 import { scrapeBlueskyAccounts } from './BlueskyScraper.js';
 import { fetchArticlesFromEventRegistry, fetchGrueneArticles } from './EventRegistryService.js';
 import { decodeFeedBytes, fixDoubleEscapedEntities } from './feedDecoding.js';
+import { landsOf } from './laender.js';
 import { KNOWN_NEWS_SITEMAPS, KNOWN_RSS_FEEDS } from './rssFeeds.js';
 
-import type { MonitorLocale } from './types.js';
+import type { MonitorLand, MonitorLocale } from './types.js';
 import type RSSParser from 'rss-parser';
 
 const log = createLogger('MonitorCollector');
@@ -21,6 +22,9 @@ export interface CollectedMonitorItem {
   publishedAt: string | null;
   locale: MonitorLocale;
 }
+
+/** A collected item with the Bundesländer it belongs to (`laender.ts`). */
+export type TaggedMonitorItem = CollectedMonitorItem & { lands: MonitorLand[] };
 
 const AT_DOMAINS = new Set([
   'orf.at',
@@ -44,8 +48,9 @@ const AT_DOMAINS = new Set([
   'vol.at',
 ]);
 
+/** `domain` is a `rssFeeds.ts` key; section feeds carry a path (`kleinezeitung.at/steiermark`). */
 function getLocale(domain: string): MonitorLocale {
-  return AT_DOMAINS.has(domain) ? 'at' : 'de';
+  return AT_DOMAINS.has(domain.split('/')[0]) ? 'at' : 'de';
 }
 
 // LSR-konform: nur Headline + Link aus RSS übernehmen. content/contentSnippet
@@ -192,16 +197,16 @@ async function fetchNewsSitemap(
   }
 }
 
-export async function collectArticles(hoursBack = 24): Promise<CollectedMonitorItem[]> {
+export async function collectArticles(hoursBack = 24): Promise<TaggedMonitorItem[]> {
   const since = new Date(Date.now() - hoursBack * 60 * 60 * 1000);
   const allDomains = Object.keys(KNOWN_RSS_FEEDS);
 
+  const sitemapEntries = Object.entries(KNOWN_NEWS_SITEMAPS);
+  const feedKeys = [...allDomains, ...sitemapEntries.map(([domain]) => domain)];
   const [rssResults, erDe, erAt, grueneDe, grueneAt, bskyPosts] = await Promise.all([
     Promise.allSettled([
       ...allDomains.map((domain) => fetchFeed(domain, KNOWN_RSS_FEEDS[domain], since)),
-      ...Object.entries(KNOWN_NEWS_SITEMAPS).map(([domain, url]) =>
-        fetchNewsSitemap(domain, url, since)
-      ),
+      ...sitemapEntries.map(([domain, url]) => fetchNewsSitemap(domain, url, since)),
     ]),
     fetchArticlesFromEventRegistry('de'),
     fetchArticlesFromEventRegistry('at'),
@@ -215,14 +220,19 @@ export async function collectArticles(hoursBack = 24): Promise<CollectedMonitorI
 
   const urlMap = new Map<string, CollectedMonitorItem>();
 
+  // The feed an URL came from, for Landes-Rubrik attribution. Kept per URL, so a
+  // later source that overwrites the item (Event Registry) keeps the Rubrik.
+  const feedKeyByUrl = new Map<string, string>();
+
   // RSS first (title+link only)
-  for (const result of rssResults) {
+  rssResults.forEach((result, i) => {
     if (result.status === 'fulfilled') {
       for (const item of result.value) {
         urlMap.set(item.url, item);
+        feedKeyByUrl.set(item.url, feedKeys[i]);
       }
     }
-  }
+  });
 
   // EventRegistry political articles overwrite RSS (have body text)
   for (const item of [...erDe, ...erAt]) {
@@ -239,7 +249,10 @@ export async function collectArticles(hoursBack = 24): Promise<CollectedMonitorI
     urlMap.set(item.url, item);
   }
 
-  const allItems = [...urlMap.values()];
+  const allItems: TaggedMonitorItem[] = [...urlMap.values()].map((item) => ({
+    ...item,
+    lands: landsOf(item, feedKeyByUrl.get(item.url) ?? null),
+  }));
   const deCount = allItems.filter((a) => a.locale === 'de').length;
   const atCount = allItems.filter((a) => a.locale === 'at').length;
   const erCount = erDe.length + erAt.length;

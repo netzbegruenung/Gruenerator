@@ -28,6 +28,7 @@ import {
   internalSyncEventsResponseSchema,
   meinungsbildResponseSchema,
   monitorErrorResponseSchema,
+  monitorLandSchema,
   monitorHistoryQuerySchema,
   monitorHistoryResponseSchema,
   monitorInstagramRefreshResponseSchema,
@@ -36,6 +37,7 @@ import {
   monitorSearchQuerySchema,
   keywordArticlesQuerySchema,
   keywordArticlesResponseSchema,
+  landBriefingResponseSchema,
   monitorSearchResponseSchema,
   monitorSnapshotSchema,
   pollDataSchema,
@@ -237,6 +239,18 @@ export const monitorContract = c.router(
         500: monitorErrorResponseSchema,
       },
       summary: 'Articles added to notebooks by the content sync',
+    },
+
+    /** GET /api/monitor/land/:land — one Land view of /briefing (`?land=`). */
+    landBriefing: {
+      method: 'GET',
+      path: '/api/monitor/land/:land',
+      pathParams: z.object({ land: monitorLandSchema }),
+      responses: {
+        200: landBriefingResponseSchema,
+        500: monitorErrorResponseSchema,
+      },
+      summary: 'Briefing for one Bundesland',
     },
 
     /** GET /api/monitor/bluesky — recent posts of the party account (server-side proxy). */

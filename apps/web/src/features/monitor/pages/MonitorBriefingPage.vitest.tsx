@@ -212,3 +212,122 @@ describe('MonitorBriefingPage', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 });
+
+const landBriefing = (land: string, overrides: Record<string, unknown> = {}) => ({
+  land,
+  createdAt: '2026-11-25T16:30:00.000Z',
+  totalArticles: 70,
+  classifiedArticles: 14,
+  sources: ['WDR', 'Kölner Stadt-Anzeiger', 'Rheinische Post'],
+  topics: [
+    { topic: 'bildung', score: 2, articleCount: 4, topArticles: [] },
+    { topic: 'sicherheit', score: 1, articleCount: 2, topArticles: [] },
+  ],
+  keywords: [
+    { keyword: 'haushalt', count: 6, topic: null },
+    { keyword: 'pflege', count: 4, topic: null },
+  ],
+  important: [1, 2, 3, 4].map((i) => article(i, `Haushaltswoche ${i}`)),
+  greens: [article(5, 'Grüne in NRW schicken Sönke Wortmann zur Bundesversammlung')],
+  poll: {
+    polls: [{ institute: 'Infratest dimap', date: '2026-11-12', parties: {} }],
+    lastElection: null,
+    average: {
+      CDU: 29.3,
+      AfD: 18.7,
+      GRÜNE: 16.9,
+      SPD: 16.2,
+      'DIE LINKE': 7.5,
+      FDP: 3.2,
+      Sonstige: 8.2,
+    },
+    scrapedAt: '2026-11-25T16:00:00.000Z',
+  },
+  landesverband: [{ ...lvArticle, landesverband: 'NRW', title: 'Neubaur ist Spitzenkandidatin' }],
+  landtag: [
+    {
+      title: 'Pflegereform und Sozialraumbudget',
+      url: 'https://landtag.nrw.de/a.pdf',
+      docType: 'Antrag auf Aktuelle Stunde',
+      parties: ['SPD'],
+      documentNumber: '18/22231',
+      publishedAt: '2026-11-23T12:00:00.000Z',
+    },
+  ],
+  ...overrides,
+});
+
+function serveLand(body: ReturnType<typeof landBriefing>) {
+  server.use(http.get(`${API}/land/:land`, () => HttpResponse.json(body)));
+}
+
+describe('MonitorBriefingPage — Land view (?land=)', () => {
+  it('names the Land in title and lead, and only counts topics with three articles', async () => {
+    serveLand(landBriefing('nordrhein-westfalen'));
+    renderWithProviders(<MonitorBriefingContent />, {
+      route: '/briefing?land=nordrhein-westfalen',
+    });
+
+    expect(
+      await screen.findByRole('heading', { name: 'Briefing Nordrhein-Westfalen', level: 1 })
+    ).toBeVisible();
+    expect(await screen.findByText(/die Nachrichten in NRW\./)).toHaveTextContent(
+      'Heute bestimmt Bildung die Nachrichten in NRW. Über die Grünen gab es heute kaum Berichte.'
+    );
+    expect(screen.getByText(/^Stand \d\d:\d\d · 70 Artikel aus 3 Quellen$/)).toBeInTheDocument();
+  });
+
+  it('shows the poll in place of the X trends, Greens first in the accent', async () => {
+    serveLand(landBriefing('nordrhein-westfalen'));
+    renderWithProviders(<MonitorBriefingContent />, {
+      route: '/briefing?land=nordrhein-westfalen',
+    });
+
+    const toggle = await screen.findByRole('button', { name: 'Umfrage' });
+    const body = document.getElementById(toggle.getAttribute('aria-controls') ?? '')!;
+    expect(await within(body).findByText('GRÜNE')).toHaveClass('font-bold');
+    expect(within(body).queryByText('Sonstige')).not.toBeInTheDocument();
+    expect(within(body).getByText(/zuletzt Infratest dimap/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'X-Trends' })).not.toBeInTheDocument();
+  });
+
+  it('adds Landesverband and Landtag where the Land has them', async () => {
+    serveLand(landBriefing('nordrhein-westfalen'));
+    renderWithProviders(<MonitorBriefingContent />, {
+      route: '/briefing?land=nordrhein-westfalen',
+    });
+
+    expect(await screen.findByText('Neubaur ist Spitzenkandidatin')).toBeInTheDocument();
+    expect(screen.getByText('Pflegereform und Sozialraumbudget')).toBeInTheDocument();
+    expect(screen.getByText(/Antrag auf Aktuelle Stunde · SPD/)).toBeInTheDocument();
+  });
+
+  it('drops the cards a Land has no source for', async () => {
+    serveLand(landBriefing('steiermark', { landesverband: null, landtag: null }));
+    renderWithProviders(<MonitorBriefingContent />, { route: '/briefing?land=steiermark' });
+
+    expect(
+      await screen.findByRole('heading', { name: 'Briefing Steiermark', level: 1 })
+    ).toBeVisible();
+    await screen.findByRole('button', { name: 'Heute wichtig' });
+    expect(screen.queryByRole('button', { name: 'Landesverband' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Landtag' })).not.toBeInTheDocument();
+  });
+
+  it('falls back to the national view for an unknown Land', async () => {
+    serve();
+    renderWithProviders(<MonitorBriefingContent />, { route: '/briefing?land=bayern' });
+
+    expect(await screen.findByRole('heading', { name: 'Briefing', level: 1 })).toBeVisible();
+    expect(await screen.findByText(/die Nachrichten\./)).toBeInTheDocument();
+  });
+
+  it('has no axe violations', async () => {
+    serveLand(landBriefing('nordrhein-westfalen'));
+    const { container } = renderWithProviders(<MonitorBriefingContent />, {
+      route: '/briefing?land=nordrhein-westfalen',
+    });
+    await screen.findByText(/die Nachrichten in NRW\./);
+    expect(await axe(container)).toHaveNoViolations();
+  });
+});

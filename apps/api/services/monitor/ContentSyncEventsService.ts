@@ -250,7 +250,12 @@ async function scrollLvPayloads(
   while (scanned < SCROLL_MAX_PER_SCROLL) {
     const result = await client.scroll(LV_COLLECTION, {
       // Instagram posts share the corpus but belong to the notebook overview only.
-      filter: { must, must_not: [{ key: 'content_type', match: { value: 'instagram' } }] },
+      // Party-conference amendments are not news either: one Antragsgrün sync put
+      // 1,055 NRW amendments into a single month (measured 2026-11-25).
+      filter: {
+        must,
+        must_not: [{ key: 'content_type', match: { any: ['instagram', 'aenderungsantrag'] } }],
+      },
       limit: SCROLL_PAGE,
       with_payload: true,
       with_vector: false,

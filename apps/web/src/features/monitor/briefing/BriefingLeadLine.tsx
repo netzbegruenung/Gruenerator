@@ -55,10 +55,13 @@ export function BriefingLeadLine({
   lead,
   pending,
   onOpen,
+  place = null,
 }: {
   lead: BriefingLead | null;
   pending: boolean;
   onOpen: (card: BriefingCardId) => void;
+  /** Ortsangabe der Land-Ansicht: „… die Nachrichten in Hessen." */
+  place?: string | null;
 }) {
   if (pending) {
     return (
@@ -73,7 +76,8 @@ export function BriefingLeadLine({
   return (
     <p className={LINE}>
       Heute {lead.news.length > 1 ? 'bestimmen' : 'bestimmt'}{' '}
-      <TopicButtons topics={lead.news} card="themen" onOpen={onOpen} /> die Nachrichten.
+      <TopicButtons topics={lead.news} card="themen" onOpen={onOpen} /> die Nachrichten
+      {place ? ` ${place}` : ''}.
       {lead.greens === 'quiet' ? (
         ' Über die Grünen gab es heute kaum Berichte.'
       ) : Array.isArray(lead.greens) ? (
