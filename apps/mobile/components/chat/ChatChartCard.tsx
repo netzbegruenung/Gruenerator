@@ -1,3 +1,4 @@
+import { CHART_PALETTE } from '@gruenerator/contracts';
 import { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Circle, Line as SvgLine, Path, Rect, Text as SvgText } from 'react-native-svg';
@@ -7,13 +8,9 @@ import { spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 import type { Theme } from '../../theme/colors';
 import type { ChartData } from '@gruenerator/chat';
 
-/** Same brand fallback palette as web's ChatChart — used when the backend
- *  payload carries no explicit `colors`. */
-const BRAND_COLORS = ['#52907A', '#A8841C', '#5B87A8', '#C0703A', '#8A72B0', '#6A9583'];
-
 function colorAt(colors: string[] | undefined, index: number): string {
   if (colors && colors.length > 0) return colors[index % colors.length];
-  return BRAND_COLORS[index % BRAND_COLORS.length];
+  return CHART_PALETTE[index % CHART_PALETTE.length];
 }
 
 function toNumber(value: string | number | undefined): number {

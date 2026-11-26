@@ -35,7 +35,8 @@ export interface ChatChartData {
   data: Array<Record<string, string | number>>;
   xKey: string;
   yKeys: string[];
-  colors?: string[];
+  /** In draw order; the caller fills them (`chartForDisplay` in contracts). */
+  colors: string[];
   /** bar/area: stack the series. */
   stacked?: boolean;
   /** bar/area: stack and normalise each x position to 100 %. */
@@ -46,13 +47,8 @@ export interface ChatChartData {
 
 const percentTick = (value: number) => `${Math.round(value * 100)} %`;
 
-// Mid tones only: the old first colour, #005538, sat at ~1.3:1 on the dark
-// chat background and the line all but vanished. Each of these keeps at least
-// 3:1 (WCAG 1.4.11) against both the light and the dark card.
-const DEFAULT_COLORS = ['#52907A', '#A8841C', '#5B87A8', '#C0703A', '#8A72B0', '#6A9583'];
-
 export function ChatChart({ data }: { data: ChatChartData }) {
-  const colors = data.colors?.length ? data.colors : DEFAULT_COLORS;
+  const { colors } = data;
 
   const seriesConfig: ChartConfig = {};
   data.yKeys.forEach((key, i) => {
