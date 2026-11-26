@@ -10,6 +10,7 @@ import {
 } from '@gruenerator/contracts';
 import { SKILL_CATEGORY_LABELS, SKILL_CATEGORY_ORDER } from '@gruenerator/shared/agents';
 import { isApiErrorWithStatus } from '@gruenerator/shared/api';
+import { groupContentKey } from '@gruenerator/shared/groups';
 import {
   classifyRecipeMention,
   effectiveMention,
@@ -19,9 +20,11 @@ import {
   useDeleteRecipe,
   useOwnRecipes,
   useSaveRecipe,
+  useShareRecipeWithGroup,
   type RecipeFormState,
 } from '@gruenerator/shared/grueneratoren';
 import { slugifyName } from '@gruenerator/shared/utils';
+import { useQueryClient } from '@tanstack/react-query';
 import { router, Stack, useLocalSearchParams, usePreventRemove } from 'expo-router';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -144,8 +147,10 @@ function useEditorSource(param: string): Source {
 
 export function RecipeEditorScreen() {
   const theme = useTheme();
-  const params = useLocalSearchParams<{ mention?: string }>();
+  const params = useLocalSearchParams<{ mention?: string; projekt?: string }>();
   const param = typeof params.mention === 'string' ? params.mention.trim() : '';
+  // Aus der Rezepte-Karte eines Projekts: das neue Rezept wird beim Speichern dorthin geteilt.
+  const projekt = typeof params.projekt === 'string' && params.projekt ? params.projekt : null;
   const source = useEditorSource(param);
   const hydrated = useRecipeDraftHydrated();
 
@@ -156,6 +161,7 @@ export function RecipeEditorScreen() {
         target={recipeEditorTarget(param || null)}
         mode={source.mode}
         initial={source.initial}
+        projectId={source.mode === 'create' ? projekt : null}
       />
     );
   }
@@ -203,15 +209,20 @@ function EditorForm({
   target,
   mode,
   initial,
+  projectId,
 }: {
   target: string;
   mode: Mode;
   initial: RecipeFormState;
+  /** Nur beim Anlegen: dieses Projekt bekommt das Rezept nach dem Speichern geteilt. */
+  projectId: string | null;
 }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { lvIds } = useUserLandesverbaende();
   const saveMut = useSaveRecipe();
+  const shareMut = useShareRecipeWithGroup();
+  const queryClient = useQueryClient();
   const deleteMut = useDeleteRecipe();
 
   const [restored] = useState(() => shouldKeepDraft(useRecipeEditorStore.getState(), target));
@@ -274,6 +285,7 @@ function EditorForm({
     !liveBlocker &&
     !examples.blockReason &&
     !saveMut.isPending &&
+    !shareMut.isPending &&
     !deleteMut.isPending;
 
   // Ungespeicherte Änderungen: vor dem Verlassen nachfragen. Wer schon geht
@@ -312,6 +324,22 @@ function EditorForm({
     );
   });
 
+  // Wie im Web: das Rezept gehört der Person. Scheitert nur das Teilen, bleibt es
+  // gespeichert und lässt sich vom Rezept aus („Teilen“) nachholen.
+  const shareIntoProject = async (mention: string, title: string, groupId: string) => {
+    let failure: string | null = null;
+    try {
+      await shareMut.mutateAsync({ mention, groupId });
+      void queryClient.invalidateQueries({ queryKey: groupContentKey(groupId) });
+    } catch (err) {
+      failure = err instanceof Error ? err.message : 'unbekannter Fehler';
+    }
+    router.dismissTo({ pathname: '/(focused)/projekte/[id]', params: { id: groupId } });
+    if (failure) {
+      Alert.alert(`„${title}“ gespeichert, aber nicht ins Projekt geteilt`, failure);
+    }
+  };
+
   const handleSave = async () => {
     if (!canSave) return;
     setMentionError(null);
@@ -322,6 +350,10 @@ function EditorForm({
       });
       leavingRef.current = true;
       clear();
+      if (projectId) {
+        await shareIntoProject(saved.mention, saved.title, projectId);
+        return;
+      }
       router.dismissTo(detailHref(saved.mention));
     } catch (err) {
       // 400/403/409 betreffen die Erwähnung: vergeben, Preset, oder LV nicht zugeteilt.
@@ -385,7 +417,7 @@ function EditorForm({
         options={{
           title: mode === 'create' ? 'Neues Rezept' : 'Rezept bearbeiten',
           headerRight: () =>
-            saveMut.isPending ? (
+            saveMut.isPending || shareMut.isPending ? (
               <ActivityIndicator color={theme.textGreen} accessibilityLabel="Wird gespeichert" />
             ) : (
               <Pressable

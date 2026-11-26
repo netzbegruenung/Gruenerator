@@ -27,7 +27,7 @@ import { ScreenScaffold } from '../../../../components/navigation/ScreenScaffold
 import { buildAddActions } from '../../../../components/projekte/addMenu';
 import { GroupCommentsSheet } from '../../../../components/projekte/GroupCommentsSheet';
 import { GroupFeedCard } from '../../../../components/projekte/GroupFeedCard';
-import { knowledgeItems } from '../../../../components/projekte/knowledgeMenu';
+import { knowledgeItems, recipeItems } from '../../../../components/projekte/knowledgeMenu';
 import { canWritePost } from '../../../../components/projekte/postRules';
 import { ProjectChatComposer } from '../../../../components/projekte/ProjectChatComposer';
 import { ProjectCloudSourcesCard } from '../../../../components/projekte/ProjectCloudSourcesCard';
@@ -35,6 +35,8 @@ import { ProjectInstructionsCard } from '../../../../components/projekte/Project
 import { ProjectKnowledgeList } from '../../../../components/projekte/ProjectKnowledgeList';
 import { ProjectLinks } from '../../../../components/projekte/ProjectLinks';
 import { ProjectMembersPreview } from '../../../../components/projekte/ProjectMembersPreview';
+import { ProjectRecipesCard } from '../../../../components/projekte/ProjectRecipesCard';
+import { ProjectTasksCard } from '../../../../components/projekte/ProjectTasksCard';
 import { useProjekteTone } from '../../../../components/projekte/projekteTone';
 import { openGroupFeedItem, useBearerToken, useGroupFeed } from '../../../../hooks/useGroupContent';
 import { useGroupDetails, useGroupMembers } from '../../../../hooks/useGroups';
@@ -52,7 +54,7 @@ import { goBackOr } from '../../../../utils/navigation';
 /**
  * Ein Projekt, eine Seite ohne Reiter (wie im Web): oben der neue Chat und die
  * bisherigen Chats, darunter der Austausch (Beiträge und Freigaben, über die
- * gesprochen wird — Angeheftetes oben), dann Anweisungen, Wissen, Links und
+ * gesprochen wird — Angeheftetes oben), dann Anweisungen, Geplant, Rezepte, Wissen, Links und
  * Mitglieder. Über „+“ im Kopf legt man Inhalte hinein, über „+“ im Austausch
  * schreibt man einen Beitrag. Wer geteilt hat (oder Admin ist), ändert über
  * „…“ bzw. langes Drücken die Rolle, die Notiz oder die Freigabe; Admins heften
@@ -134,6 +136,7 @@ export default function ProjektDetailScreen() {
     [items, discussed, focusShareId, query]
   );
   const knowledge = useMemo(() => knowledgeItems(items), [items]);
+  const recipes = useMemo(() => recipeItems(items), [items]);
   const members = membersQuery.data ?? [];
   const showChats = canAdd && !isSystem;
   const chatsQuery = useProjectChats(id, showChats);
@@ -353,6 +356,9 @@ export default function ProjektDetailScreen() {
 
         <View style={styles.padded}>
           {!isSystem && id ? <ProjectInstructionsCard groupId={id} /> : null}
+          {!isSystem && id ? (
+            <ProjectTasksCard groupId={id} archived={!!group.archived_at} />
+          ) : null}
           {feedQuery.isPending ? (
             <SkeletonRows count={3} leading={44} />
           ) : feedQuery.isError ? (
@@ -362,12 +368,26 @@ export default function ProjektDetailScreen() {
               </Text>
             </Pressable>
           ) : (
-            <ProjectKnowledgeList
-              items={knowledge}
-              onOpen={open}
-              shareActions={shareActions}
-              onDiscuss={onDiscuss}
-            />
+            <>
+              {/* Im System-Projekt nur, wenn es etwas zu zeigen oder anzulegen gibt (wie im Web). */}
+              {id && (!isSystem || canAdd || recipes.length > 0) ? (
+                <ProjectRecipesCard
+                  groupId={id}
+                  items={recipes}
+                  canAdd={canAdd}
+                  landesverband={group.landesverband ?? null}
+                  onOpen={open}
+                  shareActions={shareActions}
+                  onDiscuss={onDiscuss}
+                />
+              ) : null}
+              <ProjectKnowledgeList
+                items={knowledge}
+                onOpen={open}
+                shareActions={shareActions}
+                onDiscuss={onDiscuss}
+              />
+            </>
           )}
           {!isSystem && id ? (
             <ProjectCloudSourcesCard

@@ -6,7 +6,6 @@ import {
   sharedContentKeys,
   type AddableItem,
 } from '@gruenerator/shared/groups';
-import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -22,15 +21,14 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Button, ListGroup, ListRow, SkeletonRows } from '../../../../components/common';
+import { Button } from '../../../../components/common';
 import { NeutralBackdrop } from '../../../../components/common/NeutralBackdrop';
 import { ScreenScaffold } from '../../../../components/navigation/ScreenScaffold';
-import { FEED_KIND_ICONS } from '../../../../components/projekte/feedIcons';
-import { useAddableContent } from '../../../../hooks/useAddableContent';
+import { AddableContentList } from '../../../../components/projekte/AddableContentList';
 import { useGroupFeed } from '../../../../hooks/useGroupContent';
 import { useGroupDetails } from '../../../../hooks/useGroups';
 import { useTheme } from '../../../../hooks/useTheme';
-import { spacing, typography, BODY_FONT } from '../../../../theme';
+import { spacing, BODY_FONT } from '../../../../theme';
 import { CONTENT_MAX_WIDTH } from '../../../../theme/layout';
 import { goBackOr } from '../../../../utils/navigation';
 
@@ -51,21 +49,11 @@ export default function ProjektHinzufuegenScreen() {
   // Wie im Web: im Team dürfen Mitglieder geteilte Docs bearbeiten, sonst nur lesen.
   const isTeam = !!group && group.is_system !== true;
   const feed = useGroupFeed(id);
-  const { sections, isPending } = useAddableContent();
   const alreadyShared = useMemo(() => sharedContentKeys(feed.data ?? []), [feed.data]);
 
-  const [query, setQuery] = useState('');
   const [note, setNote] = useState('');
   const [selected, setSelected] = useState<Map<string, AddableItem>>(new Map());
   const [saving, setSaving] = useState(false);
-
-  const q = query.trim().toLowerCase();
-  const visible = sections
-    .map((s) => ({
-      ...s,
-      items: q ? s.items.filter((i) => i.title.toLowerCase().includes(q)) : s.items,
-    }))
-    .filter((s) => s.items.length > 0);
 
   const toggle = (item: AddableItem) =>
     setSelected((prev) => {
@@ -116,55 +104,11 @@ export default function ProjektHinzufuegenScreen() {
               Mitglieder von „{group.name}“ können geteilte Inhalte ansehen und verwenden.
             </Text>
           ) : null}
-          <View style={[styles.search, { backgroundColor: theme.buttonBackground }]}>
-            <Ionicons name="search" size={18} color={theme.textSecondary} />
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Eigene Inhalte suchen"
-              placeholderTextColor={theme.textSecondary}
-              accessibilityLabel="Eigene Inhalte suchen"
-              style={[styles.searchInput, { color: theme.text }]}
-              returnKeyType="search"
-            />
-          </View>
-
-          {isPending ? (
-            <SkeletonRows count={5} leading={44} />
-          ) : visible.length === 0 ? (
-            <Text style={[styles.empty, { color: theme.textSecondary }]}>
-              {q ? `Nichts passt zu „${query.trim()}“.` : 'Du hast noch keine eigenen Inhalte.'}
-            </Text>
-          ) : (
-            visible.map((section) => (
-              <View key={section.title} style={styles.section}>
-                <Text
-                  style={[styles.sectionTitle, { color: theme.textSecondary }]}
-                  accessibilityRole="header"
-                >
-                  {section.title}
-                </Text>
-                <ListGroup>
-                  {section.items.map((item, i) => {
-                    const key = addableKey(item);
-                    const shared = alreadyShared.has(key);
-                    return (
-                      <ListRow
-                        key={key}
-                        icon={FEED_KIND_ICONS[section.kind]}
-                        title={item.title || 'Ohne Titel'}
-                        value={shared ? 'Schon im Projekt' : null}
-                        selected={shared || selected.has(key)}
-                        disabled={shared}
-                        onPress={() => toggle(item)}
-                        last={i === section.items.length - 1}
-                      />
-                    );
-                  })}
-                </ListGroup>
-              </View>
-            ))
-          )}
+          <AddableContentList
+            selected={new Set(selected.keys())}
+            onToggle={toggle}
+            alreadyShared={alreadyShared}
+          />
         </ScrollView>
 
         <View
@@ -201,23 +145,6 @@ const styles = StyleSheet.create({
   column: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   scroll: { paddingHorizontal: spacing.medium, paddingBottom: spacing.large, gap: 14 },
   lead: { fontFamily: BODY_FONT, fontSize: 14, lineHeight: 20 },
-  search: {
-    height: 44,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-  },
-  searchInput: { flex: 1, fontFamily: BODY_FONT, fontSize: 15, height: 44 },
-  section: { gap: spacing.xsmall },
-  sectionTitle: { ...typography.caption, fontWeight: '600', paddingHorizontal: spacing.xsmall },
-  empty: {
-    fontFamily: BODY_FONT,
-    fontSize: 15,
-    textAlign: 'center',
-    paddingTop: spacing.large,
-  },
   footer: {
     paddingHorizontal: spacing.medium,
     paddingTop: spacing.small,
