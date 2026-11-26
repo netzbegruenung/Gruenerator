@@ -3,8 +3,14 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/components/utils/apiClient', () => ({ default: { defaults: { baseURL: '/api' } } }));
 vi.mock('@gruenerator/shared/api', () => ({ getContractsClient: vi.fn() }));
+// The test manifest only carries file lists; schema validation is readManifest's own concern.
+vi.mock('@gruenerator/contracts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@gruenerator/contracts')>()),
+  conventionManifestSchema: { safeParse: (data: unknown) => ({ success: true, data }) },
+}));
 
-const { findManifest, planUploads } = await import('./parteitagImport');
+const { getContractsClient } = await import('@gruenerator/shared/api');
+const { findManifest, planUploads, runParteitagImport } = await import('./parteitagImport');
 
 const f = (name: string, sha256: string, sizeBytes: number) => ({ name, sha256, sizeBytes });
 
@@ -70,5 +76,31 @@ describe('planUploads', () => {
     const stored = { a: '', pa: '', b: '', pb: '', r: '' };
     const plan = planUploads(manifest, 'manifest.json', [all[0]!], stored);
     expect(plan.todo).toEqual([]);
+  });
+});
+
+describe('runParteitagImport', () => {
+  it('stops waiting for a hanging import as soon as the run is cancelled', async () => {
+    const stored = { a: 'k/a', pa: 'k/pa', b: 'k/b', pb: 'k/pb', r: 'k/r' };
+    vi.mocked(getContractsClient).mockReturnValue({
+      parteitageAdmin: {
+        fileHashes: () => Promise.resolve({ status: 200, body: stored }),
+        import: () => new Promise(() => {}),
+      },
+    } as unknown as ReturnType<typeof getContractsClient>);
+    const manifestFile = {
+      path: `${root}/manifest.json`,
+      file: new File([JSON.stringify({ ...manifest, key: 'k' })], 'manifest.json'),
+    };
+    const controller = new AbortController();
+    const run = runParteitagImport({
+      selected: [manifestFile, ...all.slice(1)],
+      password: null,
+      onProgress: (p) => {
+        if (p.phase === 'importing') controller.abort();
+      },
+      signal: controller.signal,
+    });
+    await expect(run).rejects.toMatchObject({ name: 'AbortError' });
   });
 });

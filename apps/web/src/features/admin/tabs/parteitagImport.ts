@@ -163,6 +163,19 @@ async function postImport(body: {
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+/**
+ * Rejects as soon as `signal` aborts. Only the page stops waiting: an import the server
+ * already started keeps running there, and the next start finds its files stored.
+ */
+function abortable<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  signal.throwIfAborted();
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(new DOMException('Abgebrochen', 'AbortError'));
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(resolve, reject).finally(() => signal.removeEventListener('abort', onAbort));
+  });
+}
+
 export async function readManifest(file: File): Promise<ConventionManifest> {
   let json: unknown;
   try {
@@ -217,13 +230,13 @@ export async function runParteitagImport(opts: {
 
   const body = () => ({ manifest, uploads, password: opts.password });
   opts.onProgress({ phase: 'importing' });
-  let result = await postImport(body());
+  let result = await abortable(postImport(body()), opts.signal);
   if (result.status === 400 && result.code === 'MISSING_UPLOADS') {
     // Uploads the server reaped meanwhile (after 4 h): send exactly those again, retry once.
     const names = new Set(result.files ?? []);
     await uploadAll(plan.todo.filter((t) => names.has(t.entry.name)));
     opts.onProgress({ phase: 'importing' });
-    result = await postImport(body());
+    result = await abortable(postImport(body()), opts.signal);
   }
   if (isStillRunning(result.status)) {
     // The proxy gave up (300 s) while the server keeps working: wait until every new file is
@@ -232,13 +245,13 @@ export async function runParteitagImport(opts: {
     const committed = await waitForHashes({
       wanted: plan.todo.map((t) => t.entry.sha256),
       fetchHashes: () => fetchStored(manifest.key),
-      sleep,
+      sleep: (ms) => abortable(sleep(ms), opts.signal),
       intervalMs: 15_000,
       maxAttempts: 240,
     });
     if (!committed)
       throw new Error('Der Server hat den Import nicht innerhalb von 60 Minuten abgeschlossen.');
-    result = await postImport(body());
+    result = await abortable(postImport(body()), opts.signal);
   }
   if (result.status !== 200 || !result.slug) {
     throw new Error(result.message ?? `Der Import ist fehlgeschlagen (HTTP ${result.status}).`);
