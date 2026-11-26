@@ -16,7 +16,7 @@ import { type VisualBlockKind } from '@gruenerator/contracts';
 const KIND_LINES: Record<VisualBlockKind, string> = {
   bars: '- bars – Werte mit Beschriftung als Balken (Dauern, Anteile, Rangfolgen): {"title":"…","unit":" %","max":100,"items":[{"label":"…","value":42}]} — `from` macht einen Balken zur Spanne (from 3, value 8), eine offene Spanne („über 8") hat from 8 und value 8; `display` ersetzt die Zahl rechts. Farben wechseln von selbst; `tone` ("warning", "danger") nur, wenn die Farbe etwas bedeutet',
   chart:
-    '- chart – Achsendiagramm für Reihen und Verläufe: {"type":"bar|line|area|pie|donut","data":[{"jahr":"2020","wert":1}],"xKey":"jahr","yKeys":["wert"]} — `"stacked":true` stapelt mehrere Reihen, `"percent":true` normiert sie auf 100 %',
+    '- chart – Diagramm für Reihen, Verläufe und Anteile (Torte: "type":"pie", der Codeblock heißt trotzdem ```chart): {"type":"bar|line|area|pie|donut","data":[{"jahr":"2020","wert":1}],"xKey":"jahr","yKeys":["wert"]} — `"stacked":true` stapelt mehrere Reihen, `"percent":true` normiert sie auf 100 %',
   stats:
     '- stats – 2–4 Kennzahlen als Kacheln: {"items":[{"label":"CO₂-Ausstoß","value":"−18 %","change":"seit 2020","trend":"down","sentiment":"positive"}]} — `points` (Zahlenreihe) zeichnet optional einen Verlauf',
   callout:
@@ -39,7 +39,7 @@ export function buildVisualBlocksGuidance(kinds: readonly VisualBlockKind[]): st
   return `
 
 ## VISUELLE BAUSTEINE
-Die Oberfläche zeichnet bestimmte Codeblöcke als Grafik: die Sprache des Codeblocks ist der Typ, der Inhalt genau EIN JSON-Objekt.
+Die Oberfläche zeichnet bestimmte Codeblöcke als Grafik: die Sprache des Codeblocks ist der Name des Bausteins aus der Liste unten (chart, bars …), der Inhalt genau EIN JSON-Objekt.
 - Nur wenn ein Baustein das Verständnis klar verbessert: Größen vergleichen, Zeiträume, Abläufe, Gegenüberstellungen, ein wichtiger Warnhinweis. Die meisten Antworten brauchen keinen; höchstens zwei pro Antwort. Nie bei kurzen Antworten oder wenn Text genügt.
 - Zahlen NUR aus Quellen, dem Gesprächsverlauf oder einer Berechnung — niemals geschätzt oder erfunden. Ohne belastbare Zahlen kein Zahlen-Baustein. Die Herkunft gehört in "note". Diese Regel nicht in der Antwort kommentieren.
 - Ein Baustein ERSETZT die entsprechende Aufzählung im Text: was im Baustein steht, steht nicht noch einmal als Liste davor oder danach. Der Text drumherum ordnet ein und bleibt ohne Grafik verständlich.

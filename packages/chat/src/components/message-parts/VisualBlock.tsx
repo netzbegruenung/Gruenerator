@@ -11,6 +11,7 @@ import {
   barDisplay,
   barScale,
   calloutLabel,
+  chartForDisplay,
 } from '@gruenerator/contracts';
 import {
   ArrowDownRight,
@@ -50,7 +51,7 @@ export function VisualBlock({ visual }: { visual: VisualBlockData }) {
     case 'chart':
       return (
         <Suspense fallback={<VisualBlockPlaceholder />}>
-          <LazyChatChart data={visual.block} />
+          <LazyChatChart data={chartForDisplay(visual.block)} />
         </Suspense>
       );
     case 'bars':
