@@ -8,6 +8,7 @@ import {
   TableRow,
 } from '@gruenerator/ui';
 
+import { AdminEmptyState, AdminPanel } from '../components/adminUi';
 import { useInstanceAdminRoleAssignments } from '../hooks/useInstanceOverview';
 
 /**
@@ -19,47 +20,55 @@ export default function RolesTab() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-sm">
-        {Array.from({ length: 5 }, (_, i) => (
-          <Skeleton key={i} className="h-10 w-full" />
-        ))}
-      </div>
+      <AdminPanel flush>
+        <div className="flex flex-col gap-sm p-md">
+          {Array.from({ length: 5 }, (_, i) => (
+            <Skeleton key={i} className="h-10 w-full" />
+          ))}
+        </div>
+      </AdminPanel>
     );
   }
 
   if (!roles || roles.length === 0) {
-    return (
-      <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
-        Noch keine Rollen hinterlegt.
-      </p>
-    );
+    return <AdminEmptyState>Noch keine Rollen hinterlegt.</AdminEmptyState>;
   }
 
   return (
-    <div className="rounded-lg border border-grey-200 dark:border-grey-700 overflow-hidden">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>E-Mail</TableHead>
-            <TableHead>Rollen</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {roles.map((entry) => (
-            <TableRow key={entry.userId}>
-              <TableCell className="font-medium">{entry.displayName ?? '—'}</TableCell>
-              <TableCell className="text-sm text-grey-500">{entry.email ?? '—'}</TableCell>
-              <TableCell className="text-sm text-grey-500">
-                {(entry.roles ?? [])
-                  .map((r) => (typeof r.rolle === 'string' ? r.rolle : null))
-                  .filter(Boolean)
-                  .join(', ') || '—'}
-              </TableCell>
+    <AdminPanel flush>
+      <div className="overflow-x-auto border-t border-grey-200 dark:border-grey-800">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="text-xs font-semibold text-grey-600 dark:text-grey-400">
+                Name
+              </TableHead>
+              <TableHead className="text-xs font-semibold text-grey-600 dark:text-grey-400">
+                E-Mail
+              </TableHead>
+              <TableHead className="text-xs font-semibold text-grey-600 dark:text-grey-400">
+                Rollen
+              </TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+          </TableHeader>
+          <TableBody>
+            {roles.map((entry) => (
+              <TableRow key={entry.userId}>
+                <TableCell className="font-medium">{entry.displayName ?? '—'}</TableCell>
+                <TableCell className="text-sm text-grey-600 dark:text-grey-400">
+                  {entry.email ?? '—'}
+                </TableCell>
+                <TableCell className="text-sm text-grey-600 dark:text-grey-400">
+                  {(entry.roles ?? [])
+                    .map((r) => (typeof r.rolle === 'string' ? r.rolle : null))
+                    .filter(Boolean)
+                    .join(', ') || '—'}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </AdminPanel>
   );
 }

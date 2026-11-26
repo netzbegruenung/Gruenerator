@@ -1,23 +1,14 @@
 import { SKILL_CATEGORY_LABELS } from '@gruenerator/shared/agents';
-import {
-  Badge,
-  Button,
-  SectionHeader,
-  Skeleton,
-  Switch,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-  Textarea,
-  toast,
-} from '@gruenerator/ui';
+import { Badge, Button, Skeleton, Switch, Textarea, toast } from '@gruenerator/ui';
 import { useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { type IconType } from 'react-icons';
+import { FiEdit3, FiBookOpen, FiUsers } from 'react-icons/fi';
+import { useParams } from 'react-router-dom';
 
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
-import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
+import AdminShell, { type AdminNavGroup } from '../admin/components/AdminShell';
+import { AdminEmptyState, AdminPageHeader, AdminPanel } from '../admin/components/adminUi';
 import AdminUserTable from '../admin/components/AdminUserTable';
 import RequireAdmin from '../admin/components/RequireAdmin';
 
@@ -57,37 +48,40 @@ function GreetingTab({ landesverbandId }: { landesverbandId: string }) {
   const dirty = draft !== savedText;
 
   return (
-    <div className="flex flex-col gap-md max-w-2xl">
-      <p className="text-sm text-grey-500 dark:text-grey-400 m-0">
-        Wird Mitgliedern dieses Landesverbands als persönliche Begrüßung angezeigt. Reiner Text,
-        kein Markdown.
-      </p>
-      <Textarea
-        value={draft}
-        onChange={(e) => setOverride(e.target.value)}
-        rows={6}
-        placeholder="Begrüßungstext für dieses Landesverband…"
-      />
-      <div>
-        <Button
-          onClick={() =>
-            updateMutation.mutate(
-              { landesverbandId, greetingText: draft.trim().length > 0 ? draft : null },
-              {
-                onSuccess: () => {
-                  setOverride(null);
-                  toast.success('Begrüßungstext gespeichert.');
-                },
-                onError: () => toast.error('Begrüßungstext konnte nicht gespeichert werden.'),
-              }
-            )
-          }
-          disabled={!dirty || updateMutation.isPending}
-        >
-          {updateMutation.isPending ? 'Speichert…' : 'Speichern'}
-        </Button>
+    <AdminPanel
+      className="max-w-2xl"
+      title="Begrüßungstext"
+      description="Wird Mitgliedern dieses Landesverbands als persönliche Begrüßung angezeigt. Reiner Text, kein Markdown."
+    >
+      <div className="flex flex-col gap-md">
+        <Textarea
+          aria-label="Begrüßungstext"
+          value={draft}
+          onChange={(e) => setOverride(e.target.value)}
+          rows={6}
+          placeholder="Begrüßungstext für dieses Landesverband…"
+        />
+        <div>
+          <Button
+            onClick={() =>
+              updateMutation.mutate(
+                { landesverbandId, greetingText: draft.trim().length > 0 ? draft : null },
+                {
+                  onSuccess: () => {
+                    setOverride(null);
+                    toast.success('Begrüßungstext gespeichert.');
+                  },
+                  onError: () => toast.error('Begrüßungstext konnte nicht gespeichert werden.'),
+                }
+              )
+            }
+            disabled={!dirty || updateMutation.isPending}
+          >
+            {updateMutation.isPending ? 'Speichert…' : 'Speichern'}
+          </Button>
+        </div>
       </div>
-    </div>
+    </AdminPanel>
   );
 }
 
@@ -117,24 +111,28 @@ function SkillsTab({ landesverbandId }: { landesverbandId: string }) {
   }
 
   return (
-    <div>
+    <div className="flex flex-col gap-md">
+      {grouped.length === 0 && <AdminEmptyState>Keine Rezepte vorhanden.</AdminEmptyState>}
       {grouped.map(([category, categorySkills]) => (
-        <section key={category} className="mb-xl">
-          <SectionHeader
-            title={(SKILL_CATEGORY_LABELS as Record<string, string>)[category] ?? category}
-          />
-          <div className="flex flex-col gap-1">
+        <AdminPanel
+          key={category}
+          flush
+          title={(SKILL_CATEGORY_LABELS as Record<string, string>)[category] ?? category}
+        >
+          <div className="flex flex-col divide-y divide-grey-200 dark:divide-grey-800">
             {categorySkills.map((skill) => (
               <div
                 key={skill.mention}
-                className="flex items-center justify-between gap-md rounded-md border border-grey-200 dark:border-grey-700 px-md py-sm"
+                className="flex items-center justify-between gap-md px-md py-sm"
               >
                 <div className="min-w-0 flex items-center gap-sm">
                   <div>
                     <p className="text-sm font-medium text-foreground-heading m-0 truncate">
                       {skill.title}
                     </p>
-                    <p className="text-xs text-grey-500 m-0 truncate">@{skill.mention}</p>
+                    <p className="m-0 truncate text-xs text-grey-600 dark:text-grey-400">
+                      @{skill.mention}
+                    </p>
                   </div>
                   {skill.hiddenGlobally && (
                     <Badge variant="outline" className="text-xs">
@@ -157,7 +155,7 @@ function SkillsTab({ landesverbandId }: { landesverbandId: string }) {
               </div>
             ))}
           </div>
-        </section>
+        </AdminPanel>
       ))}
     </div>
   );
@@ -166,65 +164,87 @@ function SkillsTab({ landesverbandId }: { landesverbandId: string }) {
 function UsersTab({ landesverbandId }: { landesverbandId: string }) {
   const { data: users, isLoading } = useLandesverbandUsers(landesverbandId);
   return (
-    <AdminUserTable
-      isLoading={isLoading}
-      emptyLabel="Noch keine Mitglieder in diesem Landesverband."
-      users={(users ?? []).map((u) => ({
-        id: u.id,
-        name: u.displayName ?? u.email ?? u.id,
-        email: u.email,
-        joinedAt: u.joinedAt,
-        emailVerified: u.emailVerified,
-      }))}
-    />
+    <div className="flex flex-col gap-md">
+      {!isLoading && (
+        <p className="m-0 text-sm text-grey-600 tabular-nums dark:text-grey-400">
+          {users?.length ?? 0} {users?.length === 1 ? 'Person' : 'Personen'}
+        </p>
+      )}
+      <AdminPanel flush>
+        <AdminUserTable
+          isLoading={isLoading}
+          emptyLabel="Noch keine Mitglieder in diesem Landesverband."
+          users={(users ?? []).map((u) => ({
+            id: u.id,
+            name: u.displayName ?? u.email ?? u.id,
+            email: u.email,
+            joinedAt: u.joinedAt,
+            emailVerified: u.emailVerified,
+          }))}
+        />
+      </AdminPanel>
+    </div>
   );
 }
 
+const SECTIONS: Record<Tab, { label: string; description: string; icon: IconType }> = {
+  begruessung: {
+    label: 'Begrüßung',
+    description: 'Der Text, mit dem Mitglieder dieses Landesverbands begrüßt werden.',
+    icon: FiEdit3,
+  },
+  rezepte: {
+    label: 'Rezepte',
+    description: 'Welche Rezepte Mitglieder dieses Landesverbands sehen.',
+    icon: FiBookOpen,
+  },
+  nutzer: {
+    label: 'Nutzer:innen',
+    description: 'Mitglieder dieses Landesverbands.',
+    icon: FiUsers,
+  },
+};
+
 function LandesverbandAdminPage() {
   const { lvId, tab } = useParams<{ lvId: string; tab?: string }>();
-  const navigate = useNavigate();
   const { data: detail } = useLandesverbandDetail(lvId ?? null);
 
   if (!lvId) return null;
   const activeTab: Tab = isTab(tab) ? tab : 'begruessung';
+  const section = SECTIONS[activeTab];
+
+  const nav: AdminNavGroup[] = [
+    {
+      key: 'lv',
+      items: TABS.map((id) => ({
+        to: `/admin/landesverband/${lvId}/${id}`,
+        label: SECTIONS[id].label,
+        icon: SECTIONS[id].icon,
+        active: id === activeTab,
+      })),
+    },
+  ];
 
   return (
     <RequireAdmin type="lvAdmin" landesverbandId={lvId}>
       <ErrorBoundary>
-        <PageContainer maxWidth="md">
-          <div className="mb-lg pt-md flex flex-wrap items-center justify-between gap-md">
-            <div>
-              <h1 className="text-3xl font-semibold text-foreground-heading mb-xs">
+        <AdminShell
+          navLabel="Landesverband verwalten"
+          heading={
+            <div className="flex flex-col gap-sm">
+              <span className="font-[Raleway] text-lg font-bold text-foreground-heading">
                 {detail?.name ?? 'Landesverband'}
-              </h1>
-              <p className="text-lg text-grey-500 dark:text-grey-400 m-0">
-                Begrüßung, Rezepte-Sichtbarkeit und Mitglieder dieses Landesverbands verwalten.
-              </p>
+              </span>
+              <LandesverbandSwitcher currentLvId={lvId} />
             </div>
-            <LandesverbandSwitcher currentLvId={lvId} />
-          </div>
-
-          <Tabs
-            value={activeTab}
-            onValueChange={(value) => navigate(`/admin/landesverband/${lvId}/${value}`)}
-          >
-            <TabsList>
-              <TabsTrigger value="begruessung">Begrüßung</TabsTrigger>
-              <TabsTrigger value="rezepte">Rezepte</TabsTrigger>
-              <TabsTrigger value="nutzer">Nutzer:innen</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="begruessung">
-              <GreetingTab landesverbandId={lvId} />
-            </TabsContent>
-            <TabsContent value="rezepte">
-              <SkillsTab landesverbandId={lvId} />
-            </TabsContent>
-            <TabsContent value="nutzer">
-              <UsersTab landesverbandId={lvId} />
-            </TabsContent>
-          </Tabs>
-        </PageContainer>
+          }
+          nav={nav}
+        >
+          <AdminPageHeader title={section.label} description={section.description} />
+          {activeTab === 'begruessung' && <GreetingTab landesverbandId={lvId} />}
+          {activeTab === 'rezepte' && <SkillsTab landesverbandId={lvId} />}
+          {activeTab === 'nutzer' && <UsersTab landesverbandId={lvId} />}
+        </AdminShell>
       </ErrorBoundary>
     </RequireAdmin>
   );
