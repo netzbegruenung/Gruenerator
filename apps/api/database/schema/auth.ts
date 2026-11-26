@@ -62,8 +62,12 @@ export const ba_accounts = pgTable(
   },
   (table) => ({
     userIdx: index('idx_ba_accounts_user').on(table.user_id),
-    userProviderUnique: unique('ba_accounts_user_provider_unique').on(
-      table.user_id,
+    // Eindeutig ist die Identität beim Provider, nicht (Profil, Provider): ein in
+    // Keycloak neu angelegtes Konto kommt mit neuer `sub` und muss sich an das
+    // bestehende Profil hängen können. Die alte Zeile bleibt als tote Daten liegen.
+    // Laufzeit-DDL: migrations/fix_ba_accounts_unique_constraint.sql.
+    accountProviderUnique: unique('ba_accounts_account_provider_unique').on(
+      table.account_id,
       table.provider_id
     ),
   })
