@@ -2471,7 +2471,9 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
     const prefix =
       preloadedByRegistry || pinnedByRegistry
         ? '[Rezept] in Registry (Loop)'
-        : '[Rezept] Prompt-Fragment';
+        : recipeIsPersona
+          ? '[Rezept] als Persona'
+          : '[Rezept] Prompt-Fragment';
     log.info(
       `${prefix} mention=${effectiveSkillMention ?? '-'} id=${effectiveRecipe.recipeId ?? '-'} quelle=${quelle} gewaehlt=${state.activeSkillMention || state.activeRecipeId ? 'ja' : 'agent-standard'}`
     );
