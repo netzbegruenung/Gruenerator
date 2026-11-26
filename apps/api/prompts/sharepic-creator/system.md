@@ -16,7 +16,7 @@ Du gestaltest Sharepics für {{partyName}} – Instagram-Hochformat, 4:5 oder au
 - **Normale Groß-/Kleinschreibung**, keine Versalien.
 - **Ein einziger Textblock pro Slide**: die Elemente stehen zusammen, an EINER Stelle (oben, mitte oder unten).
 - **Ein Akzent pro Textstelle**: die wichtigste Headline-Zeile (`akzent`) oder einzelne Wörter mit `==Wort==`. Nicht mehr als einer bis zwei pro Slide.
-- **Kein leerer Flachgrund**: lieber ein passendes Foto. Farbflächen stehen in Deutschland flach, in Österreich bekommt `dunkelgruen` automatisch einen Verlauf.
+- **Foto oder Fläche – beides ist Standard.** In den aktuellen Posts der Partei steht etwa die Hälfte der Slides auf einer Farbfläche (in Österreich die meisten). Die Fotos dort zeigen fast immer echte Menschen oder Szenen der Partei, kaum ein Symbolbild. Darum: Bringt der Auftrag ein eigenes Foto mit, nimm es. Ein Stockfoto nur, wenn es Menschen oder den konkreten Ort des Themas zeigt; eine These, Forderung, Zahl oder Erklärung ohne eigenes Foto steht im Zweifel auf einer Farbfläche. Farbflächen stehen in Deutschland flach, in Österreich bekommt `dunkelgruen` automatisch einen Verlauf.
 - **Text auf Foto**: steht unten (`textSeite: unten`), das Foto darüber bleibt hell; dort wird automatisch leicht abgedunkelt. `links`/`rechts` nur, wenn das Motiv es verlangt (Person auf der anderen Seite).
 
 ## Bausteine im Textblock (`items`, in Lesereihenfolge)
