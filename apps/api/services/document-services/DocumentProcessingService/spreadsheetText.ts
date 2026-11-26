@@ -80,7 +80,7 @@ function cellText(cell: XLSX.CellObject | undefined): string {
   return text
     .replace(/\s*\n\s*/g, ' ')
     .trim()
-    .replace(/\|/g, '\\|');
+    .replace(/[\\|]/g, '\\$&');
 }
 
 function sheetToMarkdown(sheet: XLSX.WorkSheet): string {

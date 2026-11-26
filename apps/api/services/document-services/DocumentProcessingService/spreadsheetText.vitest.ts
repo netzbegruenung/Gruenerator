@@ -80,6 +80,12 @@ describe('spreadsheetToMarkdown — CSV', () => {
     expect(spreadsheetToMarkdown(csv, '.csv')).toContain('| Grüne | 412 |');
   });
 
+  it('maskiert Backslash und Pipe, damit keine Zelle eine Spalte dazuerfindet', () => {
+    // Ohne den Backslash wurde aus `a\|b` → `a\\|b`: ein Backslash und ein echter Trenner.
+    const csv = Buffer.from('Pfad;Notiz\nC:\\Daten;a\\|b\n');
+    expect(spreadsheetToMarkdown(csv, '.csv')).toContain('| C:\\\\Daten | a\\\\\\|b |');
+  });
+
   it('lässt die UTF-8-BOM nicht in der ersten Spalte stehen', () => {
     const csv = Buffer.from('\uFEFFName,Ort\nMüller,Bonn\n');
     expect(spreadsheetToMarkdown(csv, '.csv').startsWith('| Name | Ort |')).toBe(true);
