@@ -5,6 +5,8 @@
 
 import fs from 'fs';
 
+import { resolveDocumentUploadFormat } from '@gruenerator/contracts';
+
 import { hasAiConsent } from '../../../middleware/requireAiConsent.js';
 import { keepOriginal, removeOriginal } from '../documentOriginals.js';
 
@@ -46,6 +48,11 @@ import type {
  *
  * `knownPageCount` gehört zu `knownText`: die Seitenzahl aus derselben Extraktion.
  *
+ * Ausnahme Tabellendateien: für sie ist `knownText` die rohe CSV bzw. der
+ * Docling-Text des Chat-Anhangs, und die Umwandlung aus der Datei kostet keinen
+ * Anbieteraufruf. Indiziert wird deshalb immer die Markdown-Tabelle aus
+ * `spreadsheetText.ts` — dieselben Werte, aber mit Spaltenköpfen in jedem Chunk.
+ *
  * `origin.sourceUrl`: der Text stammt von einer Webseite (eine im Chat benannte
  * Seite, `namedPageDocuments`). Sie landet als `source_url` in jedem Chunk — die
  * Dokumentsuche reicht das als `url` an Zitat und Quellenkarte weiter, die
@@ -64,9 +71,12 @@ export async function processFileUpload(
 ): Promise<FileUploadResult> {
   console.log(`[DocumentProcessingService] Processing file upload: ${title}`);
 
-  const extraction: FileExtraction = knownText?.trim()
-    ? { text: knownText, pageCount: knownPageCount, extractionMethod: null }
-    : await extractDocumentFromFile(file, { pageMarkers: true });
+  const isTableFile =
+    !origin && resolveDocumentUploadFormat(file.originalname, file.mimetype)?.kind === 'table';
+  const extraction: FileExtraction =
+    knownText?.trim() && !isTableFile
+      ? { text: knownText, pageCount: knownPageCount, extractionMethod: null }
+      : await extractDocumentFromFile(file, { pageMarkers: true });
   const extractedText = extraction.text;
 
   if (!extractedText || extractedText.trim().length === 0) {

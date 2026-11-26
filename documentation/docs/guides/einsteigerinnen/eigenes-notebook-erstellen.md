@@ -17,7 +17,7 @@ In etwa zehn Minuten legst du ein eigenes Notebook an, das eure Dokumente bünde
 
    ![Der erste Schritt des Notebook-Editors mit den vier Quell-Kacheln: Dateien hochladen, Aus der Wolke verbinden, Aus Docs importieren, Von einer Website](/img/guides/notebook-quellen-schritt.webp)
 
-   Angenommen werden **PDF, DOCX, PPTX, TXT, MD, CSV** und Bilder (**PNG, JPG, AVIF**), bis 50 MB pro Datei. Ältere Formate wie `.doc` oder `.odt` speicherst du vorher einmal als PDF. Neben dem Upload gibt es drei weitere Quellarten — Wolke, Docs und WordPress-Websites —, die auf der Seite [Notebooks](../../features/notebooks.md) beschrieben sind.
+   Angenommen werden **PDF, DOCX, PPTX, TXT, MD**, Tabellen (**CSV, XLSX, XLS, ODS**) und Bilder (**PNG, JPG, AVIF**), bis 50 MB pro Datei. Ältere Formate wie `.doc` oder `.odt` speicherst du vorher einmal als PDF. Neben dem Upload gibt es drei weitere Quellarten — Wolke, Docs und WordPress-Websites —, die auf der Seite [Notebooks](../../features/notebooks.md) beschrieben sind.
 
 3. **Name, Beschreibung, Labels.** Den Namen schlägt der Editor aus deiner ersten Datei vor; du kannst ihn überschreiben. Die Beschreibung ist optional, hilft aber später beim Wiederfinden — genau wie die bis zu zehn frei wählbaren Labels.
 

@@ -11,7 +11,7 @@ Ein Notebook bündelt Dokumente zu einem Thema und macht ihren Inhalt im Grüner
 
 ## Welche Dateien hineinpassen
 
-Unterstützt werden **PDF, DOCX, PPTX, TXT, MD, CSV** sowie Bilder (**PNG, JPG, AVIF**, die per Texterkennung gelesen werden) — bis zu **1.000 Dokumente** pro Notebook und **maximal 50 MB** pro Datei.
+Unterstützt werden **PDF, DOCX, PPTX, TXT, MD** und Tabellen (**CSV, XLSX, XLS, ODS**, bis 20.000 Zeilen, ausgeblendete Blätter bleiben außen vor) sowie Bilder (**PNG, JPG, AVIF**, die per Texterkennung gelesen werden) — bis zu **1.000 Dokumente** pro Notebook und **maximal 50 MB** pro Datei.
 
 Ältere Office-Formate — `.doc`, `.odt` und `.rtf` — kann der Grünerator nicht lesen und nimmt sie deshalb gar nicht erst an. Öffne solche Dateien einmal in Word oder LibreOffice und speichere sie als **PDF** oder **DOCX**.
 
@@ -97,7 +97,7 @@ Ja. Beim Bearbeiten eines Notebooks kannst du beliebige Dokumente aus deiner Bib
 Bei Text-PDFs und reinen Textdateien meist nur Sekunden. Eingescannte PDFs (mit OCR) und sehr große Dateien können einige Minuten brauchen. Das Notebook ist trotzdem sofort nutzbar — neue Dokumente erscheinen in den Antworten, sobald die Indexierung abgeschlossen ist.
 
 **Mein Dokument wird nicht akzeptiert.**
-Prüfe die Dateiendung (PDF, DOCX, PPTX, TXT, MD, CSV, PNG, JPG, AVIF) und die Dateigröße (max. 50 MB). Andere Formate — darunter `.doc`, `.odt` und `.rtf` — musst du vorher als PDF oder DOCX speichern.
+Prüfe die Dateiendung (PDF, DOCX, PPTX, TXT, MD, CSV, XLSX, XLS, ODS, PNG, JPG, AVIF) und die Dateigröße (max. 50 MB). Andere Formate — darunter `.doc`, `.odt` und `.rtf` — musst du vorher als PDF oder DOCX speichern.
 
 **Ein Dokument ist rot als „Nicht durchsuchbar" markiert.**
 Dann ließ sich beim Verarbeiten kein Text daraus gewinnen; der Grund steht in der Zeile. Häufigster Fall ist eine leere oder beschädigte Datei. Das Dokument bleibt im Notebook, taucht aber in keiner Antwort auf — entferne es und lade es in einem anderen Format erneut hoch.

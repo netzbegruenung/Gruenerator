@@ -169,7 +169,7 @@ describe('reindexDocument — welche Quelle ein Original hat', () => {
   });
 
   it('nimmt nur Wolke-Dateien in lesbaren Formaten — keine URL-, keine WordPress-Quelle', () => {
-    expect(reindexOrigin({ ...WOLKE, filename: 'tabelle.xlsx' })).toBeNull();
+    expect(reindexOrigin({ ...WOLKE, filename: 'brief.odt' })).toBeNull();
     // Eine URL- oder WordPress-Quelle hat keine Wolke-Felder — sie ist nicht dabei.
     expect(reindexOrigin(row({ id: 'wp', filename: 'beitrag.md' }))).toBeNull();
   });

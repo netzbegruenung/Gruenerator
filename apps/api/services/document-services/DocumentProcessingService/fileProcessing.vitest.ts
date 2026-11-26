@@ -102,6 +102,19 @@ describe('processFileUpload — knownText', () => {
     expect(extractDocumentFromFile).toHaveBeenCalledOnce();
     expect(chunkAndEmbedText.mock.calls[0]?.[0]).toBe('aus der Datei gelesen');
   });
+
+  it('liest eine Tabellendatei selbst, auch wenn der Chat ihren Text mitreicht', async () => {
+    // Der Chat-Text einer CSV ist die rohe CSV; indiziert wird die Markdown-Tabelle,
+    // damit jeder Chunk seine Spaltenköpfe trägt.
+    const { pg, qdrant } = services();
+    const csv = { ...file, mimetype: 'text/csv', originalname: 'wahl.csv' };
+    extractDocumentFromFile.mockResolvedValue(extracted('| Ort | Stimmen |'));
+
+    await processFileUpload(pg, qdrant, 'u1', csv, 'wahl.csv', 'documentchat', 'Ort;Stimmen');
+
+    expect(extractDocumentFromFile).toHaveBeenCalledOnce();
+    expect(chunkAndEmbedText.mock.calls[0]?.[0]).toBe('| Ort | Stimmen |');
+  });
 });
 
 describe('processFileUpload — knownPageCount', () => {
