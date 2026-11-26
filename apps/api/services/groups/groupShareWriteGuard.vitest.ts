@@ -32,6 +32,10 @@ const EXEMPT: Record<string, string> = {
   // Eigene Beiträge eines Projekts: Zeile und Beitrag entstehen und gehen in
   // einer Transaktion, die `canShare` des Feeds davor prüft.
   'services/groups/groupPosts.ts': 'group posts, transactional with the post',
+  // Das automatische Projekt eines Landesverbands: Rezepte und Notebook des LV
+  // (nur Systeminhalte, keine teilende Person) entstehen in der Transaktion, die
+  // das Projekt anlegt; danach schreibt das Modul nie wieder Freigaben.
+  'services/groups/landesverbandProjects.ts': 'seed of the automatic LV project at creation',
   // Ein Projekt wird endgültig gelöscht: alle seine Freigaben mit.
   'services/groups/groupTrash.ts': 'purge of a trashed project',
   // Eine Website wird endgültig gelöscht (Papierkorb, Projekt-Purge, Kontolöschung): ihre
