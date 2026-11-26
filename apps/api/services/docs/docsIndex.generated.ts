@@ -641,7 +641,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Unsere europäischen Partner",
     "anchor": "#unsere-europäischen-partner",
     "category": "Basics",
-    "text": "Von August bis Oktober 2026 der Hauptweg für Gemma 4, seit dem 28.10.2026 der Ausweichweg, wenn Melious nicht antwortet; außerdem Ausweichweg für Mistral Small. Cortecs bekommt bei jeder Anfrage die Weisung, nur in der EU ansässige Anbieter mit Zero Data Retention einzusetzen; welcher Anbieter tatsächlich gerechnet hat, steht in jeder Antwort und wird protokolliert GreenPT (Utrecht, Niederlande; Verarbeitung in Paris, Frankreich) — erzeugte Dateien (PDFs, Präsentationen, Tabellen, Dokumente) mit Gemma 4, das Sortieren von Suchergebnissen (Reranking) sowie die Transkription im Öko-Modus (Standard, solange keine Sprecherinnen erkannt werden sollen), 100 % erneuerbare Energie Melious (Saarbrücken, Deutschland; Gemma 4 läuft teils auf Melious-Knoten in Finnland, teils bei Infercom in Deutschland, für die Modellstufe Klein bei Berget in Schweden, DeepSeek auf Melious-Knoten in Finnland) — seit dem 28.10.2026 der Hauptweg für Gemma 4 (gemma-4-31b:balanced), das Modell, das die meisten Chat-Antworten und fertigen Texte schreibt, lange Dokumente zusammenfasst, Notebook-Antworten gibt, Dokumente im Chat bearbeitet und Bilder liest, seit dem 07.11.2026 auch in der Modellstufe Klein;"
+    "text": "Von August bis Oktober 2026 der Hauptweg für Gemma 4, seit dem 28.10.2026 der Ausweichweg, wenn Melious nicht antwortet; außerdem Ausweichweg für Mistral Small. Cortecs bekommt bei jeder Anfrage die Weisung, nur in der EU ansässige Anbieter mit Zero Data Retention einzusetzen; welcher Anbieter tatsächlich gerechnet hat, steht in jeder Antwort und wird protokolliert GreenPT (Utrecht, Niederlande; Verarbeitung in Paris, Frankreich) — erzeugte Dateien (PDFs, Präsentationen, Tabellen, Dokumente) mit Gemma 4, das Sortieren von Suchergebnissen (Reranking) sowie die Transkription im Öko-Modus (Standard, solange keine Sprecherinnen erkannt werden sollen), 100 % erneuerbare Energie Melious (Saarbrücken, Deutschland; Gemma 4 läuft teils auf Melious-Knoten in Finnland, teils bei Infercom in Deutschland, für die Modellstufe Klein bei Berget in Schweden) — seit dem 28.10.2026 der Hauptweg für Gemma 4 (gemma-4-31b:balanced), das Modell, das die meisten Chat-Antworten und fertigen Texte schreibt, lange Dokumente zusammenfasst, Notebook-Antworten gibt, Dokumente im Chat bearbeitet und Bilder liest, seit dem 07.11.2026 auch in der Modellstufe Klein; außerdem Bilderzeugung mit FLUX 2 Klein, unter"
   },
   {
     "url": "/docs/basics/gruenerator-pro-eu",
@@ -649,15 +649,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Unsere europäischen Partner",
     "anchor": "#unsere-europäischen-partner",
     "category": "Basics",
-    "text": "außerdem die freischaltpflichtige Modellstufe Panda (DeepSeek v4.1 Flash), Bilderzeugung mit FLUX 2 Klein, unter anderem für „KI-Bild erstellen“ im Sharepic-Editor, sowie Gemma 4 für die experimentellen Boxen im Bild-Editor (Bildelemente erkennen, Layout planen); seit dem 19.11.2026 außerdem Anfragen einordnen und Werkzeug-Planung mit Gemma 4 (Ausweichwege: Mistral Small über Cortecs, dann direkt bei Mistral) DeepL (Köln) — maschinelle Übersetzung von Texten und Dokumenten im Übersetzer und im Chat-Werkzeug textuebersetzen; Dokumente werden nach dem Abruf bei DeepL gelöscht verdigado eG (Deutschland / Finnland) — Infrastruktur und Datenbank. Die selbst gehostete Modell-Instanz bediente bis zum 29.08.2026 auch Sprachmodell-Anfragen; sie tut es nicht mehr (siehe Nachhaltigkeit) Linkup (Paris) — Websuche mit Quellenangaben im Chat und in der Recherche SearXNG (selbstgehostet, Deutschland) — Suche Hetzner (Deutschland) — Hosting, an deutschen Standorten mit 100 % Strom aus erneuerbaren Energien (EMAS-registriert) Wer europäische Werte vertritt, sollte europäische Werkzeuge nutzen. Der Grünerator zeigt, dass das ohne Qualitätsverlust möglich ist."
-  },
-  {
-    "url": "/docs/basics/gruenerator-pro-eu",
-    "pageTitle": "Grünerator Pro-EU",
-    "heading": "Unsere europäischen Partner",
-    "anchor": "#unsere-europäischen-partner",
-    "category": "Basics",
-    "text": "Wie nachhaltig diese Partner arbeiten, zeigt Wie nachhaltig ist der Grünerator?. Details zu allen Anbietern findest du in unserer Datenschutzerklärung."
+    "text": "anderem für „KI-Bild erstellen“ im Sharepic-Editor, sowie Gemma 4 für die experimentellen Boxen im Bild-Editor (Bildelemente erkennen, Layout planen); seit dem 19.11.2026 außerdem Anfragen einordnen und Werkzeug-Planung mit Gemma 4 (Ausweichwege: Mistral Small über Cortecs, dann direkt bei Mistral) DeepL (Köln) — maschinelle Übersetzung von Texten und Dokumenten im Übersetzer und im Chat-Werkzeug textuebersetzen; Dokumente werden nach dem Abruf bei DeepL gelöscht verdigado eG (Deutschland / Finnland) — Infrastruktur und Datenbank. Die selbst gehostete Modell-Instanz bediente bis zum 29.08.2026 auch Sprachmodell-Anfragen; sie tut es nicht mehr (siehe Nachhaltigkeit) Linkup (Paris) — Websuche mit Quellenangaben im Chat und in der Recherche SearXNG (selbstgehostet, Deutschland) — Suche Hetzner (Deutschland) — Hosting, an deutschen Standorten mit 100 % Strom aus erneuerbaren Energien (EMAS-registriert) Wer europäische Werte vertritt, sollte europäische Werkzeuge nutzen. Der Grünerator zeigt, dass das ohne Qualitätsverlust möglich ist. Wie nachhaltig diese Partner arbeiten, zeigt Wie nachhaltig ist der Grünerator?. Details zu allen Anbietern findest du in unserer Datenschutzerklärung."
   },
   {
     "url": "/docs/basics/intro",
@@ -1385,7 +1377,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wo du Dateien anhängst",
     "anchor": "#wo-du-dateien-anhängst",
     "category": "Chat",
-    "text": "Öffne das Plus-Menü links im Eingabefeld und wähle Datei hinzufügen. Bereits gespeicherte Dateien und Texte kannst du über @datei auswählen. Dazu gehören auch Inhalte, die in eines deiner Projekte geteilt wurden. So nutzt du Dateien und Notebooks im Projektchat."
+    "text": "Öffne das Plus-Menü links im Eingabefeld und wähle Vom Gerät hochladen für eine neue Datei oder Vorhandene Datei für eine, die schon in der Cloud, in deinen Dokumenten oder in einem Notebook liegt. Bereits gespeicherte Dateien und Texte kannst du auch über @datei auswählen. Dazu gehören auch Inhalte, die in eines deiner Projekte geteilt wurden. So nutzt du Dateien und Notebooks im Projektchat."
   },
   {
     "url": "/docs/chat/im-projekt-chatten",
@@ -1449,7 +1441,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Dateien im Chat",
     "anchor": "#dateien-im-chat",
     "category": "Chat",
-    "text": "Du kannst PDFs und Bilder direkt im Chat hochladen, um sie als Kontext für deine Frage zu verwenden. Öffne dazu das „+\"-Menü im Eingabefeld und wähle Datei hinzufügen. Das Panel, das sich öffnet, führt oben Fotos & Dateien hochladen und darunter deine Dokumente, Notebooks und gespeicherten Texte. Eine Webseite gibst du am schnellsten mit, indem du ihre URL direkt ins Eingabefeld einfügst. Mehr Details zu unterstützten Dateitypen und Einschränkungen findest du unter Dateien hinzufügen."
+    "text": "Du kannst PDFs und Bilder direkt im Chat hochladen, um sie als Kontext für deine Frage zu verwenden. Öffne dazu das „+\"-Menü im Eingabefeld und wähle Vom Gerät hochladen. Was du schon gespeichert hast – Dokumente, Notebooks, Texte oder Dateien aus der Cloud –, findest du unter Vorhandene Datei. Eine Webseite gibst du am schnellsten mit, indem du ihre URL direkt ins Eingabefeld einfügst. Mehr Details zu unterstützten Dateitypen und Einschränkungen findest du unter Dateien hinzufügen."
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -1561,7 +1553,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Datenschutz",
     "anchor": "#datenschutz",
     "category": "Chat",
-    "text": "Alle verfügbaren Modelle erfüllen höchste Datenschutzstandards: Europäische Server: Deine Eingaben werden ausschließlich von europäischen Anbietern verarbeitet. Die KI-Modelle laufen derzeit bei Black Forest Labs 🇩🇪, Cortecs 🇱🇺, GreenPT 🇪🇺, Melious 🇪🇺, Mistral AI 🇫🇷; welcher Anbieter welche Aufgabe übernimmt, steht unter Grünerator Pro-EU. Dazu kommen Dienste, die selbst kein Modell rechnen, deine Eingaben aber trotzdem sehen – etwa die Websuche. Vollständig und verbindlich sind alle Anbieter in der Datenschutzerklärung aufgeführt. Eigene, selbst gehostete Modelle setzt der Grünerator seit dem 29.08.2026 nicht mehr ein (siehe Nachhaltigkeit). Kein KI-Training: Deine Eingaben werden nicht zum Training der KI verwendet. Offene Modelle: Hinter Klein, Mittel und Panda stehen Modelle mit offenen Gewichten (Open Weights), die jeder prüfen und selbst betreiben kann."
+    "text": "Alle verfügbaren Modelle erfüllen höchste Datenschutzstandards: Europäische Server: Deine Eingaben werden ausschließlich von europäischen Anbietern verarbeitet. Die KI-Modelle laufen derzeit bei Black Forest Labs 🇩🇪, Cortecs 🇱🇺, GreenPT 🇪🇺, Melious 🇪🇺, Mistral AI 🇫🇷; welcher Anbieter welche Aufgabe übernimmt, steht unter Grünerator Pro-EU. Dazu kommen Dienste, die selbst kein Modell rechnen, deine Eingaben aber trotzdem sehen – etwa die Websuche. Vollständig und verbindlich sind alle Anbieter in der Datenschutzerklärung aufgeführt. Eigene, selbst gehostete Modelle setzt der Grünerator seit dem 29.08.2026 nicht mehr ein (siehe Nachhaltigkeit). Kein KI-Training: Deine Eingaben werden nicht zum Training der KI verwendet. Offene Modelle: Hinter Klein und Mittel stehen Modelle mit offenen Gewichten (Open Weights), die jeder prüfen und selbst betreiben kann."
   },
   {
     "url": "/docs/chat/ki-modelle",
@@ -1569,15 +1561,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Verfügbare Modelle",
     "anchor": "#verfügbare-modelle",
     "category": "Chat",
-    "text": "Du wählst eine Größe, kein Herstellermodell – dieselben drei Stufen findest du auch in der Chrome-Erweiterung. Das Excel-Add-in bietet zwei Modelle unter ihrem eigenen Namen an: Gemma 4 31B (Standard, dasselbe Modell wie Mittel) und Mistral Small 3.2. Klein – Am schnellsten, für kurze Aufgaben. Offenes Modell (Open Weights) bei einem europäischen Anbieter. Mittel – Eine gute Mischung aus Tempo und Qualität, besonders für Kreativtexte. Offenes Modell (Open Weights) bei einem europäischen Anbieter. Ultra – Die beste Qualität, für Recherche und lange Aufgaben. Läuft auf EU-Servern (Mistral AI, Frankreich). Panda – Für sehr anspruchsvolle Aufgaben, mit sichtbarem Nachdenken vor der Antwort. Dahinter steht DeepSeek, ein offenes Modell (Open Weights) aus China, das bei einem europäischen Anbieter läuft (Melious, Finnland) – deine Eingaben gehen nicht nach China. Panda ist nicht für alle sichtbar: Eine Administratorin oder ein Administrator deiner Instanz schaltet die Stufe nach einer Schulung für dein Konto frei. Fällt das Modell aus, antwortet Ultra. Im Notebook findest du Panda als vierte Suchtiefe nach Ultra: Gesucht wird wie bei Ultra, die Antwort schreibt Panda."
-  },
-  {
-    "url": "/docs/chat/ki-modelle",
-    "pageTitle": "KI-Modelle",
-    "heading": "Verfügbare Modelle",
-    "anchor": "#verfügbare-modelle",
-    "category": "Chat",
-    "text": "Welches Modell hinter einer Stufe steckt, kann sich ändern, wenn ein besseres verfügbar wird – die Stufe bleibt. Welche Anbieter aktuell dahinterstehen, steht jederzeit in der Datenschutzerklärung. Für die Bildgenerierung kommen eigene Modelle zum Einsatz (u. a. Flux von Black Forest Labs, Deutschland). Auch hier gilt: Verarbeitung auf europäischen Servern."
+    "text": "Du wählst eine Größe, kein Herstellermodell – dieselben drei Stufen findest du auch in der Chrome-Erweiterung. Das Excel-Add-in bietet zwei Modelle unter ihrem eigenen Namen an: Gemma 4 31B (Standard, dasselbe Modell wie Mittel) und Mistral Small 3.2. Klein – Am schnellsten, für kurze Aufgaben. Offenes Modell (Open Weights) bei einem europäischen Anbieter. Mittel – Eine gute Mischung aus Tempo und Qualität, besonders für Kreativtexte. Offenes Modell (Open Weights) bei einem europäischen Anbieter. Ultra – Die beste Qualität, für Recherche und lange Aufgaben. Läuft auf EU-Servern (Mistral AI, Frankreich). Welches Modell hinter einer Stufe steckt, kann sich ändern, wenn ein besseres verfügbar wird – die Stufe bleibt. Welche Anbieter aktuell dahinterstehen, steht jederzeit in der Datenschutzerklärung. Für die Bildgenerierung kommen eigene Modelle zum Einsatz (u. a. Flux von Black Forest Labs, Deutschland). Auch hier gilt: Verarbeitung auf europäischen Servern."
   },
   {
     "url": "/docs/chat/was-kann-ich-fragen",
