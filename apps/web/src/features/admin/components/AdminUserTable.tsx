@@ -129,14 +129,18 @@ export default function AdminUserTable({
         accessorKey: 'email',
         header: 'E-Mail',
         cell: ({ row }) => (
-          <span className="text-sm text-grey-500">{row.original.email ?? '—'}</span>
+          <span className="text-sm text-grey-600 dark:text-grey-400">
+            {row.original.email ?? '—'}
+          </span>
         ),
       },
       {
         accessorKey: 'joinedAt',
         header: 'Beitritt',
         cell: ({ row }) => (
-          <span className="text-sm text-grey-500">{formatDate(row.original.joinedAt)}</span>
+          <span className="text-sm whitespace-nowrap text-grey-600 tabular-nums dark:text-grey-400">
+            {formatDate(row.original.joinedAt)}
+          </span>
         ),
       },
       ...(onPandaChange
@@ -155,7 +159,7 @@ export default function AdminUserTable({
                     }`}
                   />
                   {row.original.pandaEnabled == null && (
-                    <span className="text-xs text-grey-500">Standard</span>
+                    <span className="text-xs text-grey-600 dark:text-grey-400">Standard</span>
                   )}
                 </div>
               ),
@@ -215,7 +219,7 @@ export default function AdminUserTable({
 
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-sm">
+      <div className="flex flex-col gap-sm p-md">
         {Array.from({ length: 5 }, (_, i) => (
           <Skeleton key={i} className="h-10 w-full" />
         ))}
@@ -238,8 +242,8 @@ export default function AdminUserTable({
   }
 
   return (
-    <div className="flex flex-col gap-md">
-      <div className="rounded-lg border border-grey-200 dark:border-grey-700 overflow-hidden">
+    <div className="flex flex-col">
+      <div className="overflow-x-auto border-t border-grey-200 dark:border-grey-800">
         <TableProvider columns={columns} data={pageUsers}>
           <TableHeader>
             {({ headerGroup }) => (
@@ -248,7 +252,7 @@ export default function AdminUserTable({
                   <TableHead
                     key={header.id}
                     header={header}
-                    className="text-xs font-medium text-grey-400 bg-grey-50 dark:bg-[#1e1e1e]"
+                    className="bg-transparent text-xs font-semibold text-grey-600 dark:text-grey-400"
                   />
                 )}
               </TableHeaderGroup>
@@ -265,7 +269,7 @@ export default function AdminUserTable({
       </div>
 
       {pageCount > 1 && (
-        <Pagination>
+        <Pagination className="border-t border-grey-200 py-sm dark:border-grey-800">
           <PaginationContent>
             <PaginationItem>
               <PaginationLink
@@ -277,7 +281,7 @@ export default function AdminUserTable({
               </PaginationLink>
             </PaginationItem>
             <PaginationItem>
-              <span className="px-sm text-sm text-grey-500">
+              <span className="px-sm text-sm text-grey-600 dark:text-grey-400">
                 Seite {page + 1} / {pageCount}
               </span>
             </PaginationItem>

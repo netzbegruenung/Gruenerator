@@ -17,7 +17,7 @@ export default function LandesverbandSwitcher({ currentLvId }: { currentLvId: st
 
   return (
     <Select value={currentLvId} onValueChange={(lvId) => navigate(`/admin/landesverband/${lvId}`)}>
-      <SelectTrigger className="w-auto min-w-48">
+      <SelectTrigger className="w-full" aria-label="Landesverband wechseln">
         <SelectValue placeholder="Landesverband wählen" />
       </SelectTrigger>
       <SelectContent>

@@ -9,6 +9,8 @@ export interface AdminNavItem {
   icon: IconType;
   /** Nur bei exakter Übereinstimmung aktiv (der Überblick unter `/admin`). */
   end?: boolean;
+  /** Überschreibt den Aktiv-Zustand des Links, wenn eine URL zwei Einträge bedienen kann. */
+  active?: boolean;
   badge?: ComponentType;
 }
 
@@ -53,18 +55,19 @@ export default function AdminShell({ heading, nav, navLabel, children }: AdminSh
               aria-labelledby={group.label ? `admin-nav-${group.key}` : undefined}
               className="m-0 flex list-none flex-wrap gap-px p-0 md:flex-col md:flex-nowrap"
             >
-              {group.items.map(({ to, label, icon: Icon, end, badge: Badge }) => (
+              {group.items.map(({ to, label, icon: Icon, end, active, badge: Badge }) => (
                 <li key={to}>
                   <NavLink
                     to={to}
                     end={end}
-                    className={({ isActive }) =>
-                      cn(
+                    className={({ isActive }) => {
+                      const on = active ?? isActive;
+                      return cn(
                         'flex min-h-11 items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm text-foreground no-underline transition-colors hover:bg-hover-alt md:min-h-9',
-                        isActive &&
-                          'bg-grey-100 font-semibold text-foreground-heading dark:bg-grey-800'
-                      )
-                    }
+                        on && 'bg-grey-100 font-semibold text-foreground-heading dark:bg-grey-800'
+                      );
+                    }}
+                    aria-current={active ? 'page' : undefined}
                   >
                     <Icon size={16} className="shrink-0" aria-hidden />
                     <span className="min-w-0 flex-1">{label}</span>
