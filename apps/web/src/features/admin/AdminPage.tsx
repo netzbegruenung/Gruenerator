@@ -107,7 +107,8 @@ function buildTabs(instanceId: typeof CURRENT_INSTANCE): AdminTab[] {
     value: 'parteitage',
     label: 'Parteitage',
     title: 'Parteitage',
-    description: 'Status und Passwort setzen, Reden ausblenden oder endgültig löschen.',
+    description:
+      'Parteitage importieren, Status und Passwort setzen, Reden ausblenden oder endgültig löschen.',
     render: () => <ParteitageTab />,
   });
 

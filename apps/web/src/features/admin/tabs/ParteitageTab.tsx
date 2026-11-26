@@ -23,8 +23,10 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useId, useState } from 'react';
 
+import { ParteitagImportPanel } from './ParteitagImportPanel';
+
 /**
- * Admin-Reiter „Parteitage“: Status, Passwort, Reden ausblenden oder löschen.
+ * Admin-Reiter „Parteitage“: importieren, Status, Passwort, Reden ausblenden oder löschen.
  *
  * Die Liste meldet `hasPassword`, und `get` liefert Admins `moderation` und
  * `hiddenReason` je Rede; angeboten wird nur die passende Aktion.
@@ -356,10 +358,11 @@ export default function ParteitageTab() {
       </Alert>
     );
   }
-  if (list.data.length === 0) return <p className="text-sm">Noch keine Parteitage importiert.</p>;
 
   return (
     <div className="flex flex-col gap-md">
+      <ParteitagImportPanel />
+      {list.data.length === 0 && <p className="text-sm">Noch keine Parteitage importiert.</p>}
       {list.data.map((c) => (
         <ConventionRow key={c.id} convention={c} />
       ))}
