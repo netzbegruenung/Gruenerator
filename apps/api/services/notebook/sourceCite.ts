@@ -9,6 +9,7 @@
  * immer in den Originaltext, damit die Fundstelle zitierbar ist.
  */
 import { createLogger } from '../../utils/logger.js';
+import { contentWords, splitSentences } from '../text/sentences.js';
 
 import {
   findPassages,
@@ -19,7 +20,6 @@ import {
   type Passage,
 } from './notebookSources.js';
 import { chunkAt, loadScanTexts, pageAt, type ScanLoad, type ScannedSource } from './sourceGrep.js';
-import { splitSentences } from './sourceStats.js';
 
 export const FUZZY_THRESHOLD = 0.9;
 const CONTEXT_RADIUS = 200;
@@ -28,7 +28,6 @@ const CLAIM_CANDIDATES = 5;
 /** Ein kurzes Zitat kann in vielen Quellen stehen — mehr Kandidaten nennt niemand beim Namen. */
 const QUOTE_CANDIDATES = 10;
 const CLAIM_MIN_OVERLAP = 2;
-const CONTENT_TOKEN_MIN = 4;
 
 const NOT_FOUND = 'Notebook nicht gefunden oder kein Zugriff.';
 const log = createLogger('notebook:sourceCite');
@@ -320,14 +319,6 @@ export function locateQuoteInSources(
     candidates: hits.slice(0, QUOTE_CANDIDATES).map(toCandidate),
     candidatesTotal: hits.length,
   };
-}
-
-function contentWords(text: string): Set<string> {
-  return new Set(
-    tokenize(text)
-      .map((t) => t.word)
-      .filter((w) => w.length >= CONTENT_TOKEN_MIN)
-  );
 }
 
 /**
