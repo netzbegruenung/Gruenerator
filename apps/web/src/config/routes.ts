@@ -619,10 +619,11 @@ const standardRoutes: RouteConfig[] = [
   // wie /admin/bgst ranken vor `:section`. Auth ist die Vorgabe; das
   // Admin-Gatter sitzt in der Seite (RequireAdmin) und, verbindlich, in jedem
   // Backend-Handler.
-  { path: '/admin', component: AdminPage },
-  { path: '/admin/:section', component: AdminPage },
-  // Chunk-Inspektor (#3123); der Chat verlinkt direkt hierher.
-  { path: '/admin/chunks/:documentId', component: AdminPage },
+  // EINE Route für alles: getrennte Einträge (`/admin`, `/admin/:section`)
+  // wären für React Router verschiedene Elemente, und jeder Wechsel zwischen
+  // ihnen baute Hülle und Navigation neu auf. `:documentId` trägt nur der
+  // Chunk-Inspektor (#3123, der Chat verlinkt `/admin/chunks/:documentId`).
+  { path: '/admin/:section?/:documentId?', component: AdminPage },
   // Ältere Einstiege leiten für immer weiter (URL-Sonderrecht, CLAUDE.md).
   {
     path: '/admin/skills',
