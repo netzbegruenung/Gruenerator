@@ -23,6 +23,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
 import { Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AddableContentList } from '../../../../components/projekte/AddableContentList';
 import { FEED_KIND_ICONS } from '../../../../components/projekte/feedIcons';
@@ -67,6 +68,7 @@ export default function ProjektBeitragScreen() {
   const router = useRouter();
   const theme = useTheme();
   const tone = useProjekteTone();
+  const insets = useSafeAreaInsets();
   const details = useGroupDetails(id);
   const members = useGroupMembers(id ?? null);
   const isSystem = details.data?.group.is_system === true;
@@ -364,7 +366,16 @@ export default function ProjektBeitragScreen() {
         </ScrollView>
 
         {editing ? null : (
-          <View style={[styles.toolbar, { borderTopColor: theme.border }]}>
+          <View
+            style={[
+              styles.toolbar,
+              // Über dem Gesten-Balken bleiben (Android), sonst liegt „Inhalte“ darunter.
+              {
+                borderTopColor: theme.border,
+                paddingBottom: Math.max(insets.bottom, spacing.xsmall),
+              },
+            ]}
+          >
             <Pressable
               onPress={() => void pickPhoto()}
               disabled={busy || files.length >= GROUP_POST_FILE_LIMIT}
