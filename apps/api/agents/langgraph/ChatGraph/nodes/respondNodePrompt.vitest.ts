@@ -990,7 +990,10 @@ describe('Prosa im Loop verliert nichts', () => {
 
   it('leaves visual block guidance to the recipe on the loop path', async () => {
     const state = makeState({ visualBlocks: [...VISUAL_BLOCK_KINDS] });
-    expect(await buildSystemMessage(state, LOOP)).not.toContain('## VISUELLE BAUSTEINE');
+    const loop = await buildSystemMessage(state, LOOP);
+    expect(loop).not.toContain('## VISUELLE BAUSTEINE');
+    // Nur der Hinweis bleibt, sonst streitet das Modell die Fähigkeit ab.
+    expect(loop).toContain('lade dafür vorher das Rezept visuelle-bausteine');
     // Der Einzelpfad behält die Anleitung, ebenso ein Loop ohne Katalog-Rezept.
     expect(await buildSystemMessage(state, {})).toContain('## VISUELLE BAUSTEINE');
     const noTool = makeState({

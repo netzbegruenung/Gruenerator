@@ -2707,17 +2707,23 @@ const PROMPT_BLOCKS = [
     // `rezept_laden` aus dem Katalog) dieselbe Anleitung — immer an, kostete sie
     // jeden Web-Turn ~3 300 Zeichen. Der Block bleibt die ID für den
     // Einzelpfad; im Loop entfällt er, sobald der Katalog das Rezept anbietet
-    // (dieselben Bedingungen wie in `catalogAssembly`).
-    render: (ctx) =>
-      resolveAnswerFormatOwner(ctx.state, ctx.activeTextFormTitle) == null &&
-      !visualBlocksRecipeOffered(ctx.state, ctx.opts)
-        ? buildVisualBlocksGuidance(ctx.state.visualBlocks ?? [])
-        : '',
+    // (dieselben Bedingungen wie in `catalogAssembly`). Eine Zeile bleibt: ohne
+    // sie stand die Fähigkeit nur im Rezept, und wer es nicht lud, antwortete
+    // live „kann keine Tortengrafiken erstellen" (26.11.2026).
+    render: (ctx) => {
+      if (resolveAnswerFormatOwner(ctx.state, ctx.activeTextFormTitle) != null) return '';
+      return visualBlocksRecipeOffered(ctx.state, ctx.opts)
+        ? VISUAL_BLOCKS_LOOP_HINT
+        : buildVisualBlocksGuidance(ctx.state.visualBlocks ?? []);
+    },
   },
   { id: 'citation-instruction', branches: DEFAULT_ONLY, render: (ctx) => ctx.citationInstruction },
   { id: 'instruction-hierarchy', branches: BOTH, render: (ctx) => ctx.hierarchyRule },
   { id: 'injection-warning', branches: BOTH, render: (ctx) => ctx.injectionWarning },
 ] as const satisfies readonly PromptBlock[];
+
+const VISUAL_BLOCKS_LOOP_HINT =
+  'Du kannst Diagramme und Grafiken (Balken, Linien, Torten, Kennzahlen, Zeitleisten) direkt in die Antwort zeichnen — lade dafür vorher das Rezept visuelle-bausteine.';
 
 /**
  * Bietet der Katalog dieses Loop-Turns das Rezept `visuelle-bausteine` an?

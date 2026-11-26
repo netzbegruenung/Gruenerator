@@ -127,7 +127,7 @@ export const SKILL_SLIMS: readonly SkillSlim[] = [
   {
     identifier: 'gruenerator-universal',
     mention: 'visuelle-bausteine',
-    title: 'Visuelle Bausteine',
+    title: 'Diagramme & Grafiken',
     iconKey: 'PiChartBar',
     skillCategory: 'sonstiges',
     audience: 'all',
