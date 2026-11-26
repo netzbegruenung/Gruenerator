@@ -433,6 +433,10 @@ export interface DocumentSource {
   notebookId?: string | null;
   // For `system_document` kind: the system collection and the STORED source_url.
   systemDocument?: { collection: SystemCollection; sourceUrl: string };
+  /** Eine im Chat benannte Webseite, die als Dokument gelesen wird
+   *  (`namedPageDocuments`) — nicht eine hochgeladene Datei. Nur für die
+   *  Benennung gegenüber dem Modell („kommunal.de" (Webseite)). */
+  webpage?: true;
 }
 
 /**
@@ -1125,6 +1129,10 @@ export interface ChatGraphState {
   // normalized from documentIds | documentChatIds | docMentionIds | notebookIds |
   // threadAttachments | currentDocument. Source-of-truth for per-doc retrieval.
   documentSources: DocumentSource[];
+  /** Die kurzen benannten Seiten dieses Turns, schon gelesen von
+   *  `ingestNamedPages` (die langen sind Dokumente geworden). Gesetzt heißt:
+   *  `seedAttachedPages` holt nichts mehr selbst. Nur für diesen Turn. */
+  prefetchedPages?: SearchResult[] | undefined;
 
   // Per-source retrieval results, keyed by DocumentSource.id. Populated by
   // searchNode when documentSources.length >= 1; consumed by rerankNode (group

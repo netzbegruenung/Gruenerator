@@ -25,6 +25,7 @@ import {
   EDITOR_SURFACE_NOUNS,
   resolveEditorSurfaceKind,
 } from '../../../../routes/chat/services/agenticLoop/routing.js';
+import { partialSourceMark } from '../../../../routes/chat/services/agenticLoop/sourceRegistry.js';
 import { offerNote } from '../../../../routes/chat/services/artifactOffer.js';
 import {
   isPastedTextAttachment,
@@ -416,12 +417,23 @@ export async function formatSearchContext(
         Math.floor(((weightedRelevance[i] ?? 0) / totalWeightedRelevance) * budget)
       );
       const body = formatSourceChunks(s, charBudget, excerptQuery);
+      // Eine Quelle, die mehr Text hat, als hier hineinpasst, sagt das — sonst
+      // zählt das Modell den gezeigten Teil als das Ganze (#6103). Gilt für eine
+      // gelesene Seite (`totalChars` vom Leser) wie für den eigenen Schnitt.
+      const representative = s.representative;
+      const whole =
+        typeof representative.totalChars === 'number'
+          ? representative.totalChars
+          : s.chunks.length === 1
+            ? (representative.content ?? '').length
+            : undefined;
+      const mark = partialSourceMark(body.length, whole);
       // When the agent writes inline links (e.g. ready-to-send emails), expose
       // the source URL to the model so it can cite the concrete article instead
       // of falling back to a hardcoded homepage. Normal chat omits it and uses
       // the clickable [N] cards instead.
       const urlPart = includeSourceUrls && s.url ? `\nQuelle-URL: ${s.url}` : '';
-      return `[${i + 1}] **${s.title}**${urlPart}\n${body}`.trim();
+      return `[${i + 1}] **${s.title}**${mark ? ` ${mark}` : ''}${urlPart}\n${body}`.trim();
     })
     .join('\n\n');
 

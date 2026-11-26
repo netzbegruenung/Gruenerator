@@ -230,5 +230,39 @@ export async function retrieveAttachedDocuments(
   );
   const flat = Object.values(fanout.perSourceResults).flat();
   flat.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
-  return flat;
+  return withDocumentLengths(flat, state.agentConfig.userId ?? null);
 }
+
+/**
+ * Stempelt an jede Passage die Länge ihres ganzen Dokuments (`totalChars`), damit
+ * die Quellenzeile sagen kann, wie viel davon gezeigt ist (#6103). Ein Abruf
+ * zeigt die besten Passagen, nie das ganze Dokument — ohne die Länge hielte das
+ * Modell sie für alles, was drinsteht. Eine Abfrage für alle Treffer; ein
+ * Fehler hier kostet nur den Vermerk, nie die Passagen.
+ */
+async function withDocumentLengths(
+  results: SearchResult[],
+  userId: string | null
+): Promise<SearchResult[]> {
+  const ids = [...new Set(results.map((r) => r.documentId).filter((id): id is string => !!id))];
+  if (!userId || ids.length === 0) return results;
+  try {
+    const { getPostgresInstance } =
+      await import('../../../../database/services/PostgresService.js');
+    const rows = await getPostgresInstance().query<{ id: string; n: number | null }>(
+      'SELECT id, length(markdown_content) AS n FROM documents WHERE id = ANY($1::uuid[]) AND user_id = $2 AND deleted_at IS NULL',
+      [ids.filter((id) => UUID_PATTERN.test(id)), userId]
+    );
+    const lengths = new Map(
+      rows.filter((r) => (r.n ?? 0) > 0).map((r) => [String(r.id), Number(r.n)])
+    );
+    return results.map((r) => {
+      const total = r.documentId ? lengths.get(r.documentId) : undefined;
+      return total ? { ...r, totalChars: total } : r;
+    });
+  } catch {
+    return results;
+  }
+}
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

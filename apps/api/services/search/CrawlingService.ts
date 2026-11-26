@@ -32,11 +32,18 @@ export interface CrawledResult extends CrawlableResult {
   fullContent?: string;
   crawled: boolean;
   crawlError?: string;
+  /** `<title>` der gelesenen Seite, wenn der Crawler sie gelesen hat (nicht bei
+   *  der Linkup-Rettung). */
+  pageTitle?: string;
 }
 
 export interface CrawlOptions {
   maxUrls: number;
   timeout: number;
+  /** `fullContent` als Markdown mit Überschriften und Absätzen statt als
+   *  plattgedrückter Text — für eine Seite, die als Dokument gelesen wird
+   *  (`namedPages`). Fehlt dem Crawler das Markdown, bleibt es beim Text. */
+  structured?: boolean;
 }
 
 /**
@@ -115,7 +122,7 @@ export async function selectAndCrawlTopUrls<T extends CrawlableResult>(
   query: string,
   options: CrawlOptions = { maxUrls: 2, timeout: 3000 }
 ): Promise<(T & CrawledResult)[]> {
-  const { maxUrls, timeout } = options;
+  const { maxUrls, timeout, structured = false } = options;
 
   // Select top URLs by relevance that have valid URLs
   const crawlCandidates = results
@@ -143,11 +150,14 @@ export async function selectAndCrawlTopUrls<T extends CrawlableResult>(
       });
 
       if (crawlResult.success && crawlResult.data?.content) {
-        log.info(`[Crawl] Success: ${candidate.url} (${crawlResult.data.content.length} chars)`);
+        const markdown = structured ? crawlResult.data.markdownContent?.trim() : undefined;
+        const fullContent = markdown || crawlResult.data.content;
+        log.info(`[Crawl] Success: ${candidate.url} (${fullContent.length} chars)`);
         return {
           url: candidate.url!,
-          fullContent: crawlResult.data.content,
+          fullContent,
           crawled: true,
+          ...(crawlResult.data.title ? { pageTitle: crawlResult.data.title } : {}),
         };
       } else {
         log.warn(`[Crawl] Failed: ${candidate.url}: ${crawlResult.error || 'no content'}`);
@@ -173,6 +183,7 @@ export async function selectAndCrawlTopUrls<T extends CrawlableResult>(
     fullContent?: string;
     crawled: boolean;
     crawlError?: string;
+    pageTitle?: string;
   }> = await Promise.all(crawlPromises);
 
   // Paid recovery pass — sequential and budgeted, so the cost is bounded by
@@ -206,6 +217,7 @@ export async function selectAndCrawlTopUrls<T extends CrawlableResult>(
           ...result,
           fullContent: crawled.fullContent,
           crawled: true,
+          ...(crawled.pageTitle ? { pageTitle: crawled.pageTitle } : {}),
         } as T & CrawledResult;
         return successResult;
       }

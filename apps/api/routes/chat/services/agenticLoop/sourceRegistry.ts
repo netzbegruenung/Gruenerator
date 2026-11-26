@@ -327,6 +327,17 @@ function coverageOf(
 
 const formatChars = (n: number): string => n.toLocaleString('de-DE');
 
+/**
+ * Der Vermerk für einen Weg, der Quellen ohne Registry in den Prompt schreibt
+ * (`respondNode`, Einzeldurchlauf): `shownChars` von `totalChars` gezeigt.
+ * Dieselbe Formulierung wie in der Quellenzeile, damit beide Wege dem Modell
+ * dasselbe sagen. Leer, wenn nichts fehlt.
+ */
+export function partialSourceMark(shownChars: number, totalChars: number | undefined): string {
+  if (!totalChars || totalChars <= 0) return '';
+  return coverageMark({ readChars: Math.min(shownChars, totalChars), totalChars }).trim();
+}
+
 /** `[gelesen: 8.000 von 61.000 Zeichen]` — nur, wenn etwas fehlt. Steht vor dem
  *  Inhalt, damit das Modell es liest, bevor es den Inhalt für das Ganze hält. */
 function coverageMark(coverage: SourceCoverage | undefined): string {

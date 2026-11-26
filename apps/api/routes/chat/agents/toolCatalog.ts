@@ -114,7 +114,12 @@ import { makeGroupsTool } from './groupTools.js';
 import { makeBildAnsehenTool } from './imageTools.js';
 import { makeLandtagTool, makeNationalratTool } from './landtagTool.js';
 import { makeMemoryTool } from './memoryTools.js';
-import { CRAWL_SNIPPET_CHARS, normalisiereUrl, readNamedPages } from './namedPages.js';
+import {
+  CRAWL_SNIPPET_CHARS,
+  canReadNamedPages,
+  normalisiereUrl,
+  readNamedPages,
+} from './namedPages.js';
 import { boundSystemNotebook, makeNotebookSourcesTool } from './notebookSourceTools.js';
 import { makeNotebooksTool } from './notebookTools.js';
 import {
@@ -617,15 +622,18 @@ export function buildChatToolCatalog(params: {
   // exactly how a blocked search reappears as a crawl.
   // Same gate as `web_search` above: for an agent without web capability a
   // crawl is the other door to the same open web.
-  if (!researchBanned && webAllowed) {
+  // Im Loop dieselbe Freigabe wie das Einlesen benannter Seiten als Dokument
+  // (`canReadNamedPages`) — sonst könnte einer der beiden Wege ins Netz gehen,
+  // den der andere verschlossen hat.
+  if (loop ? canReadNamedPages(agentConfig, loop.state) : webAllowed) {
     tools.scrape_url = tool({
-      description: `Ruft den vollständigen Textinhalt einer oder mehrerer Webseiten ab.
+      description: `Liest den Text einer oder mehrerer Webseiten.
 
 NUTZE WENN:
 - Der*die Nutzer*in eine URL genannt/eingefügt hat und deren Inhalt gebraucht wird
-- Du nach einer Websuche eine konkrete Trefferseite im Volltext lesen willst
+- Du nach einer Websuche eine konkrete Trefferseite lesen willst
 
-Übergib die vollständigen URLs (inkl. https://). Der Inhalt wird als zitierbare Quelle [N] verfügbar.`,
+Übergib die vollständigen URLs (inkl. https://). Der Inhalt wird als zitierbare Quelle [N] verfügbar. Lange Seiten kommen nur zum Teil an — die Quellenzeile sagt dann, wie viele Zeichen fehlen. Eine Seite, die schon als Webseite unter den angehängten Dokumenten steht, liest du vollständig mit \`${ATTACHED_DOCS_TOOL}\`.`,
       inputSchema: z.object({
         urls: z.array(z.string()).min(1).max(3).describe('Vollständige URLs inkl. Protokoll'),
       }),
@@ -866,8 +874,14 @@ NUTZE WENN:
     // danebengriff.
     if (attachedSources.length > 0) {
       const mehrere = attachedSources.length > 1;
+      // Eine benannte Webseite liegt hier als Dokument (`namedPageDocuments`).
+      // Ohne den Zusatz suchte das Modell sie nicht unter „angehängten Dateien"
+      // — und „kommunal.de" liest sich wie ein Dateiname.
+      const nenne = (s: (typeof attachedSources)[number]) =>
+        s.webpage ? `„${s.label}" (Webseite)` : `„${s.label}"`;
+      const mitSeiten = attachedSources.some((s) => s.webpage);
       tools[ATTACHED_DOCS_TOOL] = tool({
-        description: `Durchsucht die Dokumente, die in diesem Gespräch angehängt sind${mehrere ? ` (${attachedSources.map((s) => s.label).join(', ')})` : ` („${attachedSources[0]!.label}")`}, oder liest sie abschnittsweise im Volltext.
+        description: `Durchsucht die Dokumente, die in diesem Gespräch angehängt${mitSeiten ? ' oder als Webseite gelesen' : ''} sind (${attachedSources.map(nenne).join(', ')}), oder liest sie abschnittsweise im Volltext.
 
 NUTZE WENN eine Frage sich auf eine angehängte Datei bezieht und die bereits gezeigten Passagen nicht ausreichen.
 
@@ -915,8 +929,14 @@ NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summar
                 'Genau ein Modus je Aufruf: query, abschnitt, seite, wortsuche oder zitat — für mehrere Fragen mehrere Aufrufe.',
             };
           }
-          const scoped = dateiname
-            ? attachedSources.filter((s) => s.label.toLowerCase() === dateiname.toLowerCase())
+          // Das Modell übernimmt die Nennung gern samt Zusatz: „kommunal.de (Webseite)".
+          const gesucht = dateiname
+            ?.replace(/\s*\(webseite\)\s*$/i, '')
+            .replace(/^[„"]|[“"]$/g, '')
+            .trim()
+            .toLowerCase();
+          const scoped = gesucht
+            ? attachedSources.filter((s) => s.label.toLowerCase() === gesucht)
             : attachedSources;
           if (scoped.length === 0) {
             return {

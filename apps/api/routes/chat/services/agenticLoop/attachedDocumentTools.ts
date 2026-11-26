@@ -38,8 +38,8 @@ import { resolveWolkeDisplayUrl } from '../../../../services/scrapers/utils/wolk
 import { pickRange } from '../../agents/notebookSourceRange.js';
 import { notExhaustiveGrep } from '../../agents/notebookSourceReadActions.js';
 
-import type { SourceRegistry } from './sourceRegistry.js';
 import type { DocumentSource, SearchResult } from '../../../../agents/langgraph/ChatGraph/types.js';
+import type { SourceRegistry } from './sourceRegistry.js';
 
 export type AttachedDocDeps = Pick<NotebookSourcesDeps, 'db'> & {
   documentService: NotebookSourcesDeps['documentService'] &
@@ -244,6 +244,11 @@ export async function readAttachedSlice(
     results.push({
       ...located(doc.id, doc.label, `${marker}\n\n${s.slice}`, doc),
       ...(s.pageRange ? { pageNumber: s.pageRange.from, pageTo: s.pageRange.to } : {}),
+      // Wo die Scheibe im Dokument liegt und wie lang es ist — daraus die
+      // Abdeckung (`sourceRegistry`): zwei gelesene Scheiben zählen zusammen.
+      charStart: s.from,
+      charEnd: s.to,
+      totalChars: s.total,
     });
   }
   return results;
@@ -299,6 +304,7 @@ async function readPage(
         pageTo: s.pageRange?.to ?? seite,
         charStart: s.from,
         charEnd: s.to,
+        totalChars: s.total,
         citedText: s.slice,
       },
     ],
