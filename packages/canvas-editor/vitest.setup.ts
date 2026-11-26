@@ -75,4 +75,15 @@ window.matchMedia ??= (query: string) =>
     dispatchEvent: () => false,
   }) as MediaQueryList;
 
+// Der Editor wärmt im Leerlauf die Chunks von Elemente, Werkzeuge und
+// Bereichen vor (`whenIdle` in @ggraphic/editor, `usePreloadElements`). jsdom
+// kennt kein `requestIdleCallback`, `whenIdle` fällt auf `setTimeout(2000)`
+// zurück — ein Test, der länger läuft, stößt dann einen kalten `import()` an,
+// den niemand abwartet. Endet der Test vorher, lädt Vitest das Modul nach dem
+// Abbau der Umgebung und meldet `EnvironmentTeardownError` neben grünen Tests
+// (#6110). Vorwärmen ändert nichts, was ein Test prüft; hier kommt der
+// Leerlauf deshalb nie.
+globalThis.requestIdleCallback ??= () => 0;
+globalThis.cancelIdleCallback ??= () => {};
+
 afterEach(cleanup);
