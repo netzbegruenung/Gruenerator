@@ -1,10 +1,15 @@
-import { groupFeedByKind } from '@gruenerator/shared/groups';
+import { type GroupEmailNotifications } from '@gruenerator/contracts';
+import {
+  DEFAULT_GROUP_EMAIL_NOTIFICATIONS,
+  GROUP_EMAIL_NOTIFICATION_OPTIONS,
+  groupFeedByKind,
+} from '@gruenerator/shared/groups';
 import { useAuthStore } from '@gruenerator/shared/stores';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState, type ReactNode } from 'react';
-import { Alert, Switch, View, Text, StyleSheet, ScrollView } from 'react-native';
+import { Alert, View, Text, StyleSheet, ScrollView } from 'react-native';
 
 import { MenuActionSheet } from '../../../../components/chat/MenuActionSheet';
 import { ListGroup, ListRow, SkeletonRows } from '../../../../components/common';
@@ -28,7 +33,7 @@ import {
   useGroupMembers,
   useLeaveGroup,
   useRegenerateJoinToken,
-  useSetGroupMute,
+  useSetGroupEmailNotifications,
   useRemoveGroupMember,
   useSetGroupArchived,
   useUpdateMemberRole,
@@ -69,22 +74,24 @@ export default function ProjektInfoScreen() {
   const members = membersQuery.data ?? [];
 
   const isAdmin = !!membership?.isAdmin;
-  const muteMutation = useSetGroupMute(id ?? '');
+  const emailMutation = useSetGroupEmailNotifications(id ?? '');
   const roleMutation = useUpdateMemberRole(id ?? '');
   const removeMutation = useRemoveGroupMember(id ?? '');
   const archiveMutation = useSetGroupArchived(id ?? '');
   const leaveMutation = useLeaveGroup();
   const renewLinkMutation = useRegenerateJoinToken(id ?? '');
-  const muted = muteMutation.isPending
-    ? (muteMutation.variables ?? false)
-    : !!membership?.notifications_muted;
+  const emailLevel =
+    (emailMutation.isPending ? emailMutation.variables : membership?.email_notifications) ??
+    DEFAULT_GROUP_EMAIL_NOTIFICATIONS;
   const canShareLink = !!group && canShareInviteLink(group, isAdmin);
   const canLeave = !!group && canLeaveProject(group, currentUserId);
   const fail = (error: Error) => useNoticeStore.getState().show('error', error.message);
   const done = () => void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-  const toggleMute = (value: boolean) =>
-    muteMutation.mutate(value, { onSuccess: done, onError: fail });
+  const chooseEmailLevel = (level: GroupEmailNotifications) => {
+    if (level === emailLevel || emailMutation.isPending) return;
+    emailMutation.mutate(level, { onSuccess: done, onError: fail });
+  };
 
   const shareInvite = () => {
     if (group) shareProjectInvite(group, fail);
@@ -202,27 +209,26 @@ export default function ProjektInfoScreen() {
           <SkeletonRows count={2} leading={44} />
         )}
 
-        {group
+        {group && !group.is_system
           ? section(
-              'Benachrichtigungen',
+              'E-Mails aus diesem Projekt',
               <>
                 <ListGroup>
-                  <ListRow
-                    icon={muted ? 'notifications-off-outline' : 'notifications-outline'}
-                    title="Stummschalten"
-                    last
-                    accessory={
-                      <Switch
-                        value={muted}
-                        onValueChange={toggleMute}
-                        accessibilityLabel="Projekt stummschalten"
-                      />
-                    }
-                  />
+                  {GROUP_EMAIL_NOTIFICATION_OPTIONS.map((option, index) => (
+                    <ListRow
+                      key={option.value}
+                      title={option.label}
+                      value={option.description}
+                      valueLines={2}
+                      selected={emailLevel === option.value}
+                      onPress={() => chooseEmailLevel(option.value)}
+                      disabled={emailMutation.isPending}
+                      last={index === GROUP_EMAIL_NOTIFICATION_OPTIONS.length - 1}
+                    />
+                  ))}
                 </ListGroup>
                 <Text style={[styles.footer, { color: theme.textSecondary }]}>
-                  Schaltet E-Mails und Push-Mitteilungen dieses Projekts aus. Im Grünerator selbst
-                  erscheinen sie weiterhin.
+                  Im Grünerator selbst erscheint weiterhin alles in der Glocke.
                 </Text>
               </>
             )

@@ -11,7 +11,7 @@ import {
   useLeaveGroup,
   useRemoveGroupContent,
   useSetGroupContentWrite,
-  useSetGroupMute,
+  useSetGroupEmailNotifications,
   useUpdateGroupLink,
   useRemoveGroupMember as useRemoveGroupMemberShared,
   useUpdateMemberRole as useUpdateMemberRoleShared,
@@ -215,8 +215,8 @@ export const useGroups = ({ isActive }: UseGroupsOptions = {}) => {
 };
 
 // Re-exported hooks kept for compatibility with existing callers
-// that expect `useLeaveGroup` / `useGroupDetails` / `useSetGroupMute` here.
-export { useLeaveGroup, useSetGroupMute };
+// that expect `useLeaveGroup` / `useGroupDetails` / `useSetGroupEmailNotifications` here.
+export { useLeaveGroup, useSetGroupEmailNotifications };
 
 export const useGroupMembers = (groupId: string | null, _options: UseGroupsOptions = {}) => {
   const query = useGroupMembersShared(groupId);
