@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { createPortal } from 'react-dom';
 
 import { useThreadListSlot } from '../stores/threadListSlotStore';
@@ -28,7 +29,7 @@ interface ChatThreadListPortalProps {
  * callback — synchronous with commit, so the portal follows the slot atomically
  * across per-route remounts (no async MutationObserver lag → no flicker).
  */
-export function ChatThreadListPortal(_props: ChatThreadListPortalProps) {
+function ChatThreadListPortalImpl(_props: ChatThreadListPortalProps) {
   const target = useThreadListSlot();
 
   if (!target) return null;
@@ -39,3 +40,10 @@ export function ChatThreadListPortal(_props: ChatThreadListPortalProps) {
   // click from another page hop through the previously open thread first.
   return createPortal(<ChatThreadList noScroll />, target);
 }
+
+/**
+ * Memoisiert, weil der Runtime-Provider darüber bei jeder Navigation neu rendert
+ * (`activePath`) und die Liste sonst mit allen Zeilen mitrendert — ohne dass
+ * sich an ihr etwas geändert hätte.
+ */
+export const ChatThreadListPortal = memo(ChatThreadListPortalImpl);
