@@ -560,3 +560,21 @@ describe('vorübergehender Fehler — der Worker versucht es von selbst wieder',
     );
   });
 });
+
+describe('reindexOrigin — aufbewahrte Originale', () => {
+  it('nimmt einen fertigen Upload, dessen Original liegt', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'originals-'));
+    vi.stubEnv('DOCUMENT_ORIGINALS_DIR', dir);
+    fs.mkdirSync(path.join(dir, OWNER));
+    fs.writeFileSync(path.join(dir, OWNER, 'doc-1.pdf'), '%PDF-1.4');
+
+    expect(reindexOrigin({ ...UPLOAD, file_path: `${OWNER}/doc-1.pdf` })).toEqual({
+      kind: 'original',
+    });
+    // Weg, außerhalb des Verzeichnisses oder ohne Spalte: nichts.
+    expect(reindexOrigin({ ...UPLOAD, file_path: `${OWNER}/weg.pdf` })).toBeNull();
+    expect(reindexOrigin({ ...UPLOAD, file_path: '../etc/passwd' })).toBeNull();
+    expect(reindexOrigin(UPLOAD)).toBeNull();
+    vi.unstubAllEnvs();
+  });
+});

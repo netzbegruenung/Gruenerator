@@ -13,7 +13,7 @@ import { keepOriginal, removeOriginal } from '../documentOriginals.js';
 import { chunkAndEmbedText } from './chunkingPipeline.js';
 import { ingestRetryDelayMs } from './ingestRetry.js';
 import { DocumentReadError, NO_TEXT_MESSAGE, processingErrorMessage } from './processingError.js';
-import { fetchOriginal, wolkeOrigin, type WolkeOrigin } from './reindexOrigin.js';
+import { fetchOriginal, keptOriginalPath, wolkeOrigin, type WolkeOrigin } from './reindexOrigin.js';
 import {
   capStoredText,
   extractDocumentFromFile,
@@ -179,7 +179,7 @@ export async function processUploadedDocument(
   let filePath: string | null = null;
   // Gesetzt, wenn die Zeile über „Neu indexieren" kam und das Original erst
   // geholt werden muss. Bis `vectorsReplaced` bleiben die alten Punkte stehen.
-  let reindex: WolkeOrigin | null = null;
+  let reindex: WolkeOrigin | { kind: 'original' } | null = null;
   let vectorsReplaced = false;
   // Nur wer vorher durchsuchbar war, fällt bei einem Fehlschlag auf die alte
   // Fassung zurück; eine schon kaputte Quelle bleibt `failed`, mit Grund.
@@ -245,6 +245,27 @@ export async function processUploadedDocument(
       file = {
         buffer,
         mimetype: metadata?.mimetype || 'application/octet-stream',
+        originalname: document.filename || 'document',
+        size: buffer.length,
+      };
+    } else if (metadata?.reindex_origin === 'original') {
+      // Das aufbewahrte Original: gelesen, nie verschoben oder gelöscht —
+      // `filePath` bleibt null, also greifen `keepOriginal` und das Aufräumen unten nicht.
+      reindex = { kind: 'original' };
+      prevSearchable = metadata.reindex_prev_searchable === true;
+      const originalPath = keptOriginalPath({
+        file_path: typeof document.file_path === 'string' ? document.file_path : null,
+        filename: document.filename ?? null,
+      });
+      if (!originalPath) {
+        throw new DocumentReadError(
+          'Die Originaldatei liegt nicht mehr vor. Lade sie erneut hoch.'
+        );
+      }
+      const buffer = fs.readFileSync(originalPath);
+      file = {
+        buffer,
+        mimetype: 'application/octet-stream',
         originalname: document.filename || 'document',
         size: buffer.length,
       };
