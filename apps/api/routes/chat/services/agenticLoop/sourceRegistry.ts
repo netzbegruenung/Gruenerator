@@ -340,10 +340,27 @@ export function partialSourceMark(shownChars: number, totalChars: number | undef
 
 /** `[gelesen: 8.000 von 61.000 Zeichen]` — nur, wenn etwas fehlt. Steht vor dem
  *  Inhalt, damit das Modell es liest, bevor es den Inhalt für das Ganze hält. */
-function coverageMark(coverage: SourceCoverage | undefined): string {
+function coverageMark(coverage: SourceCoverage | undefined, readable = false): string {
   if (!coverage || !isPartialCoverage(coverage)) return '';
-  return ` [gelesen: ${formatChars(coverage.readChars)} von ${formatChars(coverage.totalChars)} Zeichen, nicht das Ganze]`;
+  // Wo der Rest erreichbar ist, sagt der Vermerk auch wie — live 26.11.2026
+  // las Gemma „nicht das Ganze", rechnete aber über die eine gezeigte Passage
+  // weiter, statt das Dokument zu lesen, das daneben bereitlag.
+  const way = readable ? ' – Rest mit dokumente_lesen (abschnitt, wortsuche, zaehlen)' : '';
+  return ` [gelesen: ${formatChars(coverage.readChars)} von ${formatChars(coverage.totalChars)} Zeichen, nicht das Ganze${way}]`;
 }
+
+/** Eine Quelle aus den angehängten Dokumenten (Vorab-Abruf oder `dokumente_lesen`):
+ *  ihr Rest ist mit `dokumente_lesen` lesbar. */
+const readableAttachment = (r: SearchResult): boolean =>
+  typeof r.documentSourceId === 'string' && r.documentSourceId.length > 0;
+
+/**
+ * Die Regel zu gekürzten Quellen. Steht unter JEDEM Block, der eine enthält —
+ * Werkzeug-Rückgabe, Vorab-Abruf, Quellenblock des Schreibers. Nur im
+ * Quellenblock (`renderAll`) sah sie der einheitliche Modus nie.
+ */
+const PARTIAL_RULE =
+  'Mit „[gelesen: … von … Zeichen, nicht das Ganze]" markierte Quellen hast du nur zum Teil gesehen. Zähle, summiere oder verallgemeinere über sie nicht so, als wäre es das Ganze: lies weiter oder zähle mit dem Werkzeug, das der Vermerk nennt, und sag sonst ausdrücklich, dass deine Angaben nur den gelesenen Teil betreffen.';
 
 function snippetLine(
   index: number,
@@ -364,10 +381,16 @@ function snippetLine(
   const meta = [day, page].filter(Boolean).join(', ');
   const date = meta ? ` (${meta})` : '';
   const mark = prior ? ` ${PRIOR_MARK}` : '';
-  return `[${index}]${mark} ${title}${url}${date}${coverageMark(shown)}${body ? ` — ${body}` : ''}`;
+  return `[${index}]${mark} ${title}${url}${date}${coverageMark(shown, readableAttachment(r))}${body ? ` — ${body}` : ''}`;
 }
 
 const PRIOR_MARK = '(frühere Recherche)';
+
+/** Ein Block neu gezeigter Zeilen, mit der Regel darunter, sobald eine gekürzt ist. */
+function withPartialRule(lines: string[]): string {
+  const block = lines.join('\n');
+  return lines.some((l) => l.includes('nicht das Ganze')) ? `${block}\n\n${PARTIAL_RULE}` : block;
+}
 /** A register line as {@link snippetLine} renders it — an answer never contains one. */
 const REGISTER_ECHO_RE = /\[\d+\]\s*\(frühere Recherche\)/;
 /** A sentence or line that OPENS with a marker: „[1] bezieht sich auf …". */
@@ -535,7 +558,7 @@ export function createSourceRegistry(): SourceRegistry {
         emitted.add(index);
         lines.push(lineFor(index, r, cap));
       }
-      return lines.join('\n');
+      return withPartialRule(lines);
     },
     seedCarried(results) {
       for (const r of results) add(r, SNIPPET_CHARS, true);
@@ -550,7 +573,7 @@ export function createSourceRegistry(): SourceRegistry {
         emitted.add(index);
         lines.push(lineFor(index, r, cap));
       }
-      return lines.join('\n');
+      return withPartialRule(lines);
     },
     note(title, content) {
       const line = `${(title || 'Vorgang').trim()} — ${(content ?? '').replace(/\s+/g, ' ').trim()}`;
@@ -665,7 +688,7 @@ export function createSourceRegistry(): SourceRegistry {
       // mark. Live 26.11.2026 (#6103) an 8k prefix of a homepage was counted
       // and presented as „alle auf der Startseite angezeigten Beiträge".
       const partialNote = entries.some((e) => isPartialCoverage(coverageOf(e.result, e.ranges)))
-        ? 'Mit „[gelesen: … von … Zeichen, nicht das Ganze]" markierte Quellen hast du nur zum Teil gesehen. Zähle, summiere oder verallgemeinere über sie nicht so, als wäre es das Ganze: lies weiter, wo ein Werkzeug dafür bereitsteht, und sag sonst ausdrücklich, dass deine Angaben nur den gelesenen Teil betreffen.'
+        ? PARTIAL_RULE
         : '';
       return [current, priorNote, partialNote, notesBlock].filter((p) => p).join('\n\n');
     },

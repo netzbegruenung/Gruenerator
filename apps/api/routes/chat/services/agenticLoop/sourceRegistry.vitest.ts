@@ -891,3 +891,22 @@ describe('source coverage for document reads', () => {
     expect(r.getCitations()[0]?.coverage).toEqual({ readChars: 20_000, totalChars: 20_000 });
   });
 });
+
+describe('partial sources tell the model how to get the rest', () => {
+  it('names dokumente_lesen for an attached document and puts the rule under the returned block', () => {
+    const r = reg();
+    const block = r.seedAttached(
+      [result({ documentSourceId: 'page-5', content: 'p'.repeat(3_000), totalChars: 20_076 })],
+      6_000
+    );
+    expect(block).toContain(
+      '[gelesen: 3.000 von 20.076 Zeichen, nicht das Ganze – Rest mit dokumente_lesen (abschnitt, wortsuche, zaehlen)]'
+    );
+    expect(block).toContain('Zähle, summiere oder verallgemeinere über sie nicht so');
+  });
+
+  it('adds no rule to a block whose sources were shown whole', () => {
+    const r = reg();
+    expect(r.register([result({ content: 'ganz' })])).not.toContain('Zähle, summiere');
+  });
+});

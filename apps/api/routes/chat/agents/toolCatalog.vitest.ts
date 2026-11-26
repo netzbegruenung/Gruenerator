@@ -2090,6 +2090,21 @@ describe('toolCatalog dokumente_lesen', () => {
     expect(out.error).toContain('Beschlusspapier.pdf');
     expect(out.error).toContain('Antrag.docx');
   });
+
+  // #6103: a named page sits here as a document; the model may name it by
+  // its address or with the "(Webseite)" it reads in the description.
+  it('findet eine gelesene Webseite unter ihrer Adresse und mit Zusatz', async () => {
+    const seite = { kind: 'document_chat', id: 'doc-3', label: 'kommunal.de', webpage: true };
+    fanout.mockResolvedValue({ perSourceResults: {}, searchedCollections: [], errors: [] });
+    const { tools } = catalogWithDocs([pdf, seite]);
+    expect(tools.dokumente_lesen?.description).toContain('„kommunal.de" (Webseite)');
+
+    for (const [i, dateiname] of ['https://kommunal.de/', 'kommunal.de (Webseite)'].entries()) {
+      await execOf(tools.dokumente_lesen)({ query: 'Autor', dateiname }, { toolCallId: `w${i}` });
+      const [, sources] = fanout.mock.calls[i] as [string, { id: string }[]];
+      expect(sources.map((s) => s.id)).toEqual(['doc-3']);
+    }
+  });
 });
 
 describe('cloud_files mounting gate', () => {

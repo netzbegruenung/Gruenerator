@@ -491,12 +491,14 @@ async function tallyAttached(
   if ('error' in loaded) return loaded;
   const incomplete = loaded.exhaustive ? null : notExhaustiveGrep(loaded.incompleteReason);
 
+  // Standard: nur am Zeilenanfang. Live 26.11.2026 liess Gemma den Schalter
+  // weg, und „von " zählte fünf Fliesstextstellen („von 2008 an") als Autoren
+  // mit — die Anteile in der Antwort stimmten danach nicht mehr. Autorenzeilen
+  // und Felder stehen am Zeilenanfang; mitten im Satz zählt nur, wer es sagt.
+  const lineStart = zaehlen.zeilenanfang ?? true;
   const perSource = loaded.sources.map((s) => ({
     source: s,
-    tally: tallyAfter(s.text, anchor, {
-      caseSensitive: zaehlen.grossKlein,
-      lineStart: zaehlen.zeilenanfang,
-    }),
+    tally: tallyAfter(s.text, anchor, { caseSensitive: zaehlen.grossKlein, lineStart }),
   }));
   const reg = ctx.sourceRegistry;
   reg.note(
@@ -527,7 +529,7 @@ async function tallyAttached(
               ...located(
                 source.sourceId,
                 source.title,
-                `Gezählt über den ganzen Text, nach „${anchor}"${zaehlen.zeilenanfang ? ' am Zeilenanfang' : ''}: ${tally.total} Vorkommen\n${lines.join('\n')}`,
+                `Gezählt über den ganzen Text, nach „${anchor}"${lineStart ? ' am Zeilenanfang' : ''}: ${tally.total} Vorkommen\n${lines.join('\n')}`,
                 sourceById(ctx.sources, source.sourceId)
               ),
               totalChars: source.text.length,
@@ -546,7 +548,7 @@ async function tallyAttached(
     })),
     ...(counted.length === 0
       ? {
-          hinweis: `Kein Vorkommen von „${anchor}"${zaehlen.zeilenanfang ? ' am Zeilenanfang' : ''}. Prüfe die Schreibweise mit abschnitt.von=0.`,
+          hinweis: `Kein Vorkommen von „${anchor}"${lineStart ? ' am Zeilenanfang' : ''}. Prüfe die Schreibweise mit abschnitt.von=0.`,
         }
       : {}),
     ...(incomplete ? { note: incomplete } : {}),

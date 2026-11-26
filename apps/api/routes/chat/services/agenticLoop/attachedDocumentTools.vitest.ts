@@ -561,3 +561,15 @@ describe('dokumente_lesen zaehlen', () => {
     expect(out.hinweis).toMatch(/Kein Vorkommen von „Autor: "/);
   });
 });
+
+describe('dokumente_lesen zaehlen default', () => {
+  it('counts at line start unless told otherwise, so running text does not pass for a byline', async () => {
+    const text = 'von Anna Beispiel\nÜber 80 Prozent, von 2008 an.\nvon Anna Beispiel';
+    const deps = depsFor({ [DOC]: { owner: USER, text } });
+    const { run } = ctx([src(DOC, 'seite.de')], deps);
+    const out = (await runAttachedDocumentMode({ zaehlen: { nach: 'von ' } }, run)) as {
+      perSource: Array<{ vorkommen: number }>;
+    };
+    expect(out.perSource[0]?.vorkommen).toBe(2);
+  });
+});

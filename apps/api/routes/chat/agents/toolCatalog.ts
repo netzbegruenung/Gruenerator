@@ -118,6 +118,7 @@ import {
   CRAWL_SNIPPET_CHARS,
   canReadNamedPages,
   normalisiereUrl,
+  pageLabel,
   readNamedPages,
 } from './namedPages.js';
 import { boundSystemNotebook, makeNotebookSourcesTool } from './notebookSourceTools.js';
@@ -890,7 +891,7 @@ NUTZE WENN eine Frage sich auf eine angehängte Datei bezieht und die bereits ge
 - Auch wenn die Frage Vollständigkeit verlangt („alle …", „wie viele …", jede Zeile einer Tabelle, eine ganze Liste): \`abschnitt\`, nicht \`query\` — die Passagensuche ordnet nach Relevanz und liefert nur die besten Treffer, nie alle.
 - „Seite N": \`seite\`.
 - „wie oft / alle Stellen mit Wort X": \`wortsuche\` statt \`abschnitt\` — zählt vollständig, mit Seite je Fundstelle.
-- „wer/was wie oft" (Autor*innen, Kategorien, Anteile): \`zaehlen\` — zählt über den GANZEN Text, welcher Wert wie oft nach einem festen Text steht, z. B. \`nach: "von "\` mit \`zeilenanfang: true\` für Autorenzeilen. Zähle nie selbst über gezeigte Passagen: die sind nie das Ganze.
+- „wer/was wie oft" (Autor*innen, Kategorien, Anteile): \`zaehlen\` — zählt über den GANZEN Text, welcher Wert wie oft nach einem festen Text steht, z. B. \`nach: "von "\` für Autorenzeilen (gezählt wird am Zeilenanfang; \`zeilenanfang: false\` zählt auch mitten im Satz). Zähle nie selbst über gezeigte Passagen: die sind nie das Ganze.
 - „steht das so drin / stimmt das Zitat": \`zitat\` mit dem Wortlaut.${mehrere ? '\n- `dateiname` grenzt auf eine der Dateien ein.' : ''}
 
 Genau ein Modus je Aufruf.
@@ -932,7 +933,7 @@ NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summar
                 .boolean()
                 .optional()
                 .describe(
-                  'Nur am Zeilenanfang — für Autorenzeilen und Felder, nicht für Fließtext'
+                  'Standard: true — nur am Zeilenanfang (Autorenzeilen, Felder). false zählt auch mitten im Satz.'
                 ),
               grossKlein: z.boolean().optional().describe('Groß/klein beachten'),
             })
@@ -949,12 +950,18 @@ NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summar
                 'Genau ein Modus je Aufruf: query, abschnitt, seite, wortsuche, zitat oder zaehlen — für mehrere Fragen mehrere Aufrufe.',
             };
           }
-          // Das Modell übernimmt die Nennung gern samt Zusatz: „kommunal.de (Webseite)".
-          const gesucht = dateiname
+          // Das Modell übernimmt die Nennung gern samt Zusatz („kommunal.de
+          // (Webseite)") oder nennt eine Seite bei ihrer Adresse — live
+          // 26.11.2026 „https://kommunal.de/", und der Fehlschlag sperrte über
+          // den Duplikat-Wächter jeden weiteren Versuch. Eine Adresse wird
+          // deshalb zu dem Namen, den die Seite als Anhang trägt (`pageLabel`).
+          const ohneZusatz = dateiname
             ?.replace(/\s*\(webseite\)\s*$/i, '')
             .replace(/^[„"]|[“"]$/g, '')
-            .trim()
-            .toLowerCase();
+            .trim();
+          const gesucht = (
+            ohneZusatz && /^https?:\/\//i.test(ohneZusatz) ? pageLabel(ohneZusatz) : ohneZusatz
+          )?.toLowerCase();
           const scoped = gesucht
             ? attachedSources.filter((s) => s.label.toLowerCase() === gesucht)
             : attachedSources;
