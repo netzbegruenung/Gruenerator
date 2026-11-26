@@ -155,3 +155,7 @@ export {
   serializeBoardAssignees,
 } from './boardCards.js';
 export type { BoardAssignee, BoardAssigneeChange, BoardStatusOption } from './boardCards.js';
+
+// Parteitag-Import: Manifest-Dateien und Warten auf einen langsamen Import (Skript und Admin-Reiter)
+export { isStillRunning, manifestFiles, waitForHashes } from './parteitagImport.js';
+export type { ManifestFile } from './parteitagImport.js';
