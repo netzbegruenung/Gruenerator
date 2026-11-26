@@ -18,6 +18,8 @@ export interface CitationPanelSource {
   sourceUrl?: string;
   /** The passage the answer actually quoted — highlighted inside the chunk. */
   citedText?: string;
+  /** The one sentence of the chunk that backs the claim; marked before `citedText`. */
+  quote?: string;
   collectionName?: string;
   contentType?: string;
 }

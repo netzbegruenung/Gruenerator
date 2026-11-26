@@ -372,6 +372,31 @@ describe('CitationSidePanel — PDF-Ansicht', () => {
     expect(localStorage.getItem('gruenerator.citationPanel.view')).toBe('pdf');
   });
 
+  it('sucht den Belegsatz vor dem Ausschnitt und markiert ihn auch im Text', async () => {
+    const user = userEvent.setup();
+    const sources = [
+      source({
+        sourceUrl: undefined,
+        collectionId: 'nb-1',
+        quote: 'Das lässt sich in Form von informellen Spielregeln machen',
+        citedText: CHUNKS[1]!.text,
+      }),
+    ];
+    render(<Harness sources={sources} originalViewer={viewer} />);
+
+    const mark = await screen.findByText(
+      'Das lässt sich in Form von informellen Spielregeln machen'
+    );
+    expect(mark.tagName).toBe('MARK');
+
+    await user.click(await screen.findByRole('button', { name: 'PDF', pressed: false }));
+    await screen.findByTestId('pdf-viewer');
+    expect(seen.at(-1)!.marks[0]!.texts).toEqual([
+      'Das lässt sich in Form von informellen Spielregeln machen',
+      CHUNKS[1]!.text,
+    ]);
+  });
+
   it('springt aus der PDF zurück in den Text', async () => {
     const user = userEvent.setup();
     localStorage.setItem('gruenerator.citationPanel.view', 'pdf');

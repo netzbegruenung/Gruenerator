@@ -707,6 +707,8 @@ const chatCitationBase = z.object({
   snippet: z.string().catch(''),
   source: z.string().catch(''),
   citedText: z.string().optional(),
+  /** Notebook answers: the chunk sentence that backs the claim (`quote` on the wire). */
+  quote: z.string().optional(),
   collectionName: z.string().optional(),
   domain: z.string().optional(),
   relevance: z.number().optional(),

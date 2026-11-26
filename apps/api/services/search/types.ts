@@ -200,6 +200,8 @@ export interface ReferencesMap {
 export interface Citation {
   index: string;
   cited_text: string;
+  /** Der Satz des Chunks, der die Aussage belegt (`citationQuote.ts`) — markiert in Text- und PDF-Ansicht. */
+  quote?: string | undefined;
   document_title: string;
   document_id: string;
   source_url: string | null;

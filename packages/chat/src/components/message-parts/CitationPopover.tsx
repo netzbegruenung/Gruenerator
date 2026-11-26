@@ -30,6 +30,7 @@ export function toPanelSource(c: Citation): CitationPanelSource | null {
     collectionId: c.collectionId,
     sourceUrl: c.url || undefined,
     citedText: c.citedText,
+    quote: c.quote,
     collectionName: c.collectionName,
     contentType: c.contentType,
   };

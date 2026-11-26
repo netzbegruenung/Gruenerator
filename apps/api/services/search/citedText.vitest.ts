@@ -80,3 +80,19 @@ describe('cited_text', () => {
     expect(citations[0].cited_text).not.toBe(longMap['1'].chunk_text);
   });
 });
+
+describe('quote', () => {
+  it('names the one chunk sentence that backs the claim', () => {
+    const { citations } = validateAndInjectCitations('Es gibt Trinkbrunnen.[1]', longMap, {
+      question: 'Was sieht der Hitzeaktionsplan vor?',
+    });
+    expect(citations[0].quote).toBe('Der Hitzeaktionsplan sieht Trinkbrunnen in jedem Bezirk vor.');
+  });
+
+  it('is left out when no sentence shares a word with the claim', () => {
+    const { citations } = validateAndInjectCitations('Radwege werden saniert.[1]', map, {
+      question: 'Was sieht der Hitzeaktionsplan vor?',
+    });
+    expect(citations[0]).not.toHaveProperty('quote');
+  });
+});
