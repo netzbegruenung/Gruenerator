@@ -24,7 +24,23 @@ const savedItems = [
   },
   // Already listed as an own notebook: stays out of the saved tiles.
   { kind: 'notebook', key: 'notebook:nb-own', ref: 'nb-own', title: 'Haushalt', saved: true },
+  // Already listed through the role: stays out of the saved tiles too.
+  {
+    kind: 'notebook',
+    key: 'notebook:berlin-notebook',
+    ref: 'berlin-notebook',
+    origin: 'landesverband',
+    title: 'Berlin',
+    saved: true,
+    notebook: { slug: 'berlin-notebook' },
+  },
 ];
+
+const lv = vi.hoisted(() => ({ ids: null as readonly string[] | null }));
+vi.mock('@gruenerator/chat', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  useUserLandesverbaende: () => ({ lvIds: lv.ids }),
+}));
 
 vi.mock('../../auth/hooks/useProfileData', () => ({
   useNotebookCollections: () => ({ query: { data: own, isLoading: false, isError: false } }),
@@ -46,6 +62,22 @@ describe('ProjekteNotebooksSection', () => {
     );
     expect(screen.getByText('Gemerkt · von Kim')).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: /Haushalt/ })).toHaveLength(1);
+  });
+
+  it('adds the Landesverband notebook of a matching role, once', () => {
+    lv.ids = ['berlin'];
+    renderWithProviders(<ProjekteNotebooksSection />);
+    expect(screen.getAllByText('Dein Landesverband')).toHaveLength(1);
+    // The saved copy of the same notebook would carry a bare „Gemerkt".
+    expect(screen.queryByText('Gemerkt')).not.toBeInTheDocument();
+    lv.ids = null;
+  });
+
+  it('adds no Landesverband notebook without a matching role', () => {
+    lv.ids = [];
+    renderWithProviders(<ProjekteNotebooksSection />);
+    expect(screen.queryByText('Dein Landesverband')).not.toBeInTheDocument();
+    lv.ids = null;
   });
 
   it('offers unsaving, and no sidebar favourite for a public saved notebook', async () => {
