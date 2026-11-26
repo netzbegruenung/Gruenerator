@@ -1,5 +1,5 @@
 import { Skeleton } from '@gruenerator/ui';
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import { FiGrid } from 'react-icons/fi';
 import { Navigate, useParams } from 'react-router-dom';
 
@@ -31,6 +31,23 @@ const NAV: AdminNavGroup[] = [
   })).filter((group) => group.items.length > 0),
 ];
 
+/**
+ * Lädt die Chunks aller Unterseiten im Leerlauf nach dem ersten Bild. Sonst
+ * zeigt jeder erste Klick auf eine Unterseite erst ein Skelett, während ihr
+ * Code nachkommt — auch auf dem Handy, wo es kein Überfahren gibt.
+ */
+function usePreloadSections() {
+  useEffect(() => {
+    const run = () => SECTIONS.forEach((s) => s.preload());
+    if (typeof window.requestIdleCallback === 'function') {
+      const id = window.requestIdleCallback(run, { timeout: 3000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const id = window.setTimeout(run, 1500);
+    return () => window.clearTimeout(id);
+  }, []);
+}
+
 function SectionFallback() {
   return (
     <div className="flex flex-col gap-sm">
@@ -41,15 +58,17 @@ function SectionFallback() {
 }
 
 /**
- * `/admin` (Überblick), `/admin/:section` und `/admin/chunks/:documentId`.
+ * `/admin` (Überblick), `/admin/:section` und `/admin/chunks/:documentId` —
+ * alles eine Route, damit die Hülle beim Wechsel stehen bleibt.
  * Welche Unterseiten es gibt, steht in `adminSections.tsx`.
  */
 const AdminPage = () => {
+  usePreloadSections();
   const { section, documentId } = useParams<{ section?: string; documentId?: string }>();
-  const sectionId = section ?? (documentId ? 'chunks' : null);
-  const active = sectionId ? SECTIONS.find((s) => s.id === sectionId) : null;
+  const active = section ? SECTIONS.find((s) => s.id === section) : null;
 
-  if (sectionId && !active) return <Navigate to="/admin" replace />;
+  if (section && !active) return <Navigate to="/admin" replace />;
+  if (documentId && active?.id !== 'chunks') return <Navigate to={`/admin/${section}`} replace />;
 
   return (
     <RequireAdmin type="instanceAdmin">
