@@ -4,7 +4,7 @@ import {
   EMPTY_RECIPE_FORM,
   useDraftRecipe,
 } from '@gruenerator/shared/grueneratoren';
-import { router, Stack } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
@@ -44,6 +44,9 @@ const EDITOR = '/(focused)/grueneratoren/rezept-editor';
  */
 export function RecipeStartScreen() {
   const theme = useTheme();
+  // `projekt`: aus der Rezepte-Karte eines Projekts — der Editor teilt das neue Rezept dorthin.
+  const { projekt } = useLocalSearchParams<{ projekt?: string }>();
+  const editorHref = projekt ? { pathname: EDITOR, params: { projekt } } : EDITOR;
   const insets = useSafeAreaInsets();
   const draftMut = useDraftRecipe();
   const begin = useRecipeEditorStore((s) => s.begin);
@@ -68,7 +71,7 @@ export function RecipeStartScreen() {
     try {
       const spec = await draftMut.mutateAsync({ description: trimmed });
       begin(NEW_RECIPE_TARGET, { ...EMPTY_RECIPE_FORM, ...draftToRecipeForm(spec) }, true);
-      router.replace(EDITOR);
+      router.replace(editorHref);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Entwurf fehlgeschlagen.');
     }
@@ -76,7 +79,7 @@ export function RecipeStartScreen() {
 
   const handleManual = () => {
     begin(NEW_RECIPE_TARGET, EMPTY_RECIPE_FORM);
-    router.replace(EDITOR);
+    router.replace(editorHref);
   };
 
   return (
@@ -99,7 +102,7 @@ export function RecipeStartScreen() {
               leading={<Glyph iconKey={openDraft.iconKey} />}
               title={openDraft.title.trim() || 'Rezept ohne Namen'}
               value="Weiter bearbeiten"
-              onPress={() => router.replace(EDITOR)}
+              onPress={() => router.replace(editorHref)}
               last
             />
           </FormSection>

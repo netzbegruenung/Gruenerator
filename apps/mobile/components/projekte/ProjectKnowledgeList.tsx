@@ -6,7 +6,7 @@ import {
   type GroupFeedItem,
 } from '@gruenerator/shared/groups';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { canOpenInApp } from '../../hooks/useGroupContent';
@@ -28,6 +28,17 @@ interface ProjectKnowledgeListProps {
   shareActions: ShareItemActions | null;
   /** `null`: hier gibt es keinen Austausch (persönliches oder System-Projekt). */
   onDiscuss: ((item: GroupFeedItem) => void) | null;
+  /** Andere Karten mit derselben Zeilenliste (Rezepte) setzen Titel und Leertext selbst. */
+  title?: string;
+  /** „Im Wissen suchen“ — die Präposition hängt am Titel, deshalb eigens. */
+  searchLabel?: string;
+  emptyText?: ReactNode;
+  /** Rechts neben dem Titel, z. B. „+ Rezept“. */
+  headerAction?: ReactNode;
+  /** Unter der Liste, z. B. die Rezepte des Landesverbands. */
+  footer?: ReactNode;
+  /** Eine Karte nur einer Art: ohne Art in der Zeile, ohne „durchsuchbar“-Zeile. */
+  singleKind?: boolean;
 }
 
 /**
@@ -40,6 +51,12 @@ export function ProjectKnowledgeList({
   onOpen,
   shareActions,
   onDiscuss,
+  title = 'Wissen',
+  searchLabel = 'Im Wissen suchen',
+  emptyText = 'Noch nichts hinterlegt. Mit „+“ legst du Dateien, Texte oder Notebooks ab, die Chats in diesem Projekt nutzen.',
+  headerAction = null,
+  footer = null,
+  singleKind = false,
 }: ProjectKnowledgeListProps) {
   const theme = useTheme();
   const tone = useProjekteTone();
@@ -80,14 +97,14 @@ export function ProjectKnowledgeList({
     <View style={[styles.card, { backgroundColor: theme.card }]}>
       <View style={styles.head}>
         <Text style={[styles.title, { color: theme.text }]} accessibilityRole="header">
-          Wissen
+          {title}
         </Text>
         {items.length > 0 ? (
           <Pressable
             onPress={toggleSearch}
             hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel={searchOpen ? 'Suche im Wissen schließen' : 'Im Wissen suchen'}
+            accessibilityLabel={searchOpen ? `Suche in „${title}“ schließen` : searchLabel}
             style={styles.searchToggle}
           >
             <Ionicons
@@ -97,19 +114,19 @@ export function ProjectKnowledgeList({
             />
           </Pressable>
         ) : null}
+        {headerAction}
       </View>
 
-      {summary.total > 0 ? (
+      {!singleKind && summary.total > 0 ? (
         <Text style={[styles.rowMeta, { color: theme.textSecondary }]}>
           {summary.searchable} von {summary.total} durchsuchbar
         </Text>
       ) : null}
 
       {items.length === 0 ? (
-        <Text style={[styles.note, { color: theme.textSecondary }]}>
-          Noch nichts hinterlegt. Mit „+“ legst du Dateien, Texte oder Notebooks ab, die Chats in
-          diesem Projekt nutzen.
-        </Text>
+        emptyText ? (
+          <Text style={[styles.note, { color: theme.textSecondary }]}>{emptyText}</Text>
+        ) : null
       ) : (
         <>
           {searchOpen ? (
@@ -118,9 +135,9 @@ export function ProjectKnowledgeList({
               <TextInput
                 value={query}
                 onChangeText={setQuery}
-                placeholder="Im Wissen suchen"
+                placeholder={searchLabel}
                 placeholderTextColor={theme.textSecondary}
-                accessibilityLabel="Im Wissen suchen"
+                accessibilityLabel={searchLabel}
                 style={[styles.searchInput, { color: theme.text }]}
                 returnKeyType="search"
                 autoFocus
@@ -136,7 +153,7 @@ export function ProjectKnowledgeList({
               const openable = canOpenInApp(item);
               const menu = hasMenu(item);
               const label = [
-                groupFeedKindMeta(item.kind).label,
+                singleKind ? null : groupFeedKindMeta(item.kind).label,
                 projectRoleLabel(item),
                 item.searchState && item.searchState !== 'ready'
                   ? PROJECT_SEARCH_STATE_LABELS[item.searchState]
@@ -196,6 +213,7 @@ export function ProjectKnowledgeList({
           ) : null}
         </>
       )}
+      {footer}
 
       <MenuActionSheet
         visible={menuItem !== null}
@@ -220,8 +238,8 @@ export function ProjectKnowledgeList({
 
 const styles = StyleSheet.create({
   card: { borderRadius: 16, padding: 16, gap: 4 },
-  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { fontFamily: BODY_FONT, fontSize: 17, fontWeight: '700' },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  title: { flex: 1, fontFamily: BODY_FONT, fontSize: 17, fontWeight: '700' },
   searchToggle: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   showAll: { alignSelf: 'flex-start', paddingVertical: 8 },
   showAllText: { fontFamily: BODY_FONT, fontSize: 14 },
