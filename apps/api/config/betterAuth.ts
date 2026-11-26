@@ -570,6 +570,11 @@ export const auth = betterAuth({
           const { deliverLoginAnnouncements } =
             await import('../services/notifications/loginAnnouncements.js');
           await deliverLoginAnnouncements(session.userId);
+          // Bestätigte LV-Adresse → LGS-Rolle ergänzen und ins LV-Projekt
+          // (services/groups/landesverbandProjects.ts). Nicht abgewartet, wirft nie.
+          const { syncLandesverbandAccess } =
+            await import('../services/groups/landesverbandProjects.js');
+          void syncLandesverbandAccess(session.userId);
           // Tagesbriefing: start building today's briefing while the OAuth
           // redirect is still on its way back — not awaited, it never blocks or
           // fails the login (`ensureDailyBriefing` does not throw).
