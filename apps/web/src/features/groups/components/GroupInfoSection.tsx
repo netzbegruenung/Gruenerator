@@ -1,4 +1,4 @@
-import { type LandesverbandId } from '@gruenerator/contracts';
+import { type GroupEmailNotifications, type LandesverbandId } from '@gruenerator/contracts';
 import {
   type GroupFeedItem,
   addableKey,
@@ -36,7 +36,6 @@ import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import {
   HiDotsVertical,
   HiOutlineArchive,
-  HiOutlineBell,
   HiOutlineLink,
   HiOutlineLogout,
   HiOutlineMail,
@@ -48,7 +47,6 @@ import {
   HiCheck,
   HiX,
 } from 'react-icons/hi';
-import { HiOutlineBellSlash } from 'react-icons/hi2';
 import { PiMagnifyingGlass, PiPlus } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -61,7 +59,6 @@ import {
   useGroupMembers,
   useInviteToGroup,
   useLeaveGroup,
-  useSetGroupMute,
   getGroupInitials,
   type GroupLink,
 } from '../hooks/useGroups';
@@ -77,6 +74,7 @@ import GroupVisibilityDialog from './GroupVisibilityDialog';
 import { ProjectAddMenu } from './ProjectAddMenu';
 import { ProjectChatComposer } from './ProjectChatComposer';
 import { ProjectCloudSourcesCard } from './ProjectCloudSourcesCard';
+import { ProjectEmailMenu } from './ProjectEmailMenu';
 import { ProjectInstructionsCard } from './ProjectInstructionsCard';
 import { ProjectKnowledgeList } from './ProjectKnowledgeList';
 import { ProjectLandesverbandSelect } from './ProjectLandesverbandSelect';
@@ -108,7 +106,7 @@ export interface GroupData {
   isAdmin?: boolean;
   membership?: {
     role?: string;
-    notifications_muted?: boolean | null;
+    email_notifications?: GroupEmailNotifications | null;
   };
   groupInfo?: GroupInfo;
   joinToken?: string;
@@ -270,21 +268,6 @@ const GroupInfoSection = memo(
         }
       );
     }, [inviteDraft, inviteEmails, inviteToGroup, groupId, onSuccessMessage, onErrorMessage]);
-
-    const isMuted = data?.membership?.notifications_muted ?? false;
-    const setGroupMute = useSetGroupMute(groupId);
-    const handleToggleMute = useCallback(() => {
-      if (setGroupMute.isPending) return;
-      const next = !isMuted;
-      setGroupMute.mutate(next, {
-        onSuccess: () =>
-          onSuccessMessage?.(
-            next ? 'Benachrichtigungen stummgeschaltet.' : 'Benachrichtigungen wieder aktiviert.'
-          ),
-        onError: (err: Error) =>
-          onErrorMessage?.('Fehler beim Aktualisieren der Benachrichtigungen: ' + err.message),
-      });
-    }, [setGroupMute, isMuted, onSuccessMessage, onErrorMessage]);
 
     const handleCloneTemplate = useCallback(
       (templateId: string) => {
@@ -449,6 +432,8 @@ const GroupInfoSection = memo(
     const createdBy = data?.groupInfo?.created_by;
     const canLeave =
       isTeam && !!currentUserId && !!createdBy && String(createdBy) !== String(currentUserId);
+    // System group, plain member, no Austausch yet: nothing to offer.
+    const hasOptionsMenu = hasAustauschTab || isTeam || !!data?.isAdmin;
     const leaveGroup = useLeaveGroup();
     const handleLeaveGroup = useCallback(() => {
       setShowLeaveConfirm(false);
@@ -709,126 +694,125 @@ const GroupInfoSection = memo(
                 </PopoverContent>
               </Popover>
             )}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="rounded-full"
-                  aria-label="Projektoptionen"
-                >
-                  <HiDotsVertical />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {hasAustauschTab && (
-                  <>
-                    <DropdownMenuItem onClick={() => setAustauschSearchSignal((n) => n + 1)}>
-                      <PiMagnifyingGlass className="size-4 mr-xs" />
-                      Im Austausch suchen
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                  </>
-                )}
-                {isTeam && (
-                  <>
-                    <DropdownMenuItem onClick={() => setMembersDialogOpen(true)}>
-                      <HiOutlineUserGroup className="size-4 mr-xs" />
-                      Mitglieder verwalten ({memberCount})
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                  </>
-                )}
-                <DropdownMenuItem onClick={handleToggleMute} disabled={setGroupMute.isPending}>
-                  {isMuted ? (
+            {isTeam && hasOthers && (
+              <ProjectEmailMenu
+                groupId={groupId}
+                level={data?.membership?.email_notifications}
+                onSuccessMessage={onSuccessMessage}
+                onErrorMessage={onErrorMessage}
+              />
+            )}
+            {hasOptionsMenu && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="rounded-full"
+                    aria-label="Projektoptionen"
+                  >
+                    <HiDotsVertical />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {hasAustauschTab && (
                     <>
-                      <HiOutlineBell className="size-4 mr-xs" />
-                      Stummschaltung aufheben
-                    </>
-                  ) : (
-                    <>
-                      <HiOutlineBellSlash className="size-4 mr-xs" />
-                      Benachrichtigungen stummschalten
+                      <DropdownMenuItem onClick={() => setAustauschSearchSignal((n) => n + 1)}>
+                        <PiMagnifyingGlass className="size-4 mr-xs" />
+                        Im Austausch suchen
+                      </DropdownMenuItem>
+                      {isTeam && <DropdownMenuSeparator />}
                     </>
                   )}
-                </DropdownMenuItem>
-                {data?.isAdmin && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={handleStartEditingBoth}
-                      disabled={isUpdatingGroupName}
-                    >
-                      <HiPencil className="size-4 mr-xs" />
-                      Bearbeiten
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => avatarInputRef.current?.click()}
-                      disabled={isUploadingAvatar}
-                    >
-                      <HiOutlinePhotograph className="size-4 mr-xs" />
-                      Bild ändern
-                    </DropdownMenuItem>
-                    {data?.groupInfo?.avatar_url && onDeleteAvatar && (
-                      <DropdownMenuItem onClick={onDeleteAvatar} disabled={isUploadingAvatar}>
-                        <HiOutlineTrash className="size-4 mr-xs" />
-                        Bild entfernen
+                  {isTeam && (
+                    <>
+                      <DropdownMenuItem onClick={() => setMembersDialogOpen(true)}>
+                        <HiOutlineUserGroup className="size-4 mr-xs" />
+                        Mitglieder verwalten ({memberCount})
                       </DropdownMenuItem>
-                    )}
-                    {isTeam && !isArchived && (
-                      <DropdownMenuItem onClick={openInviteDialog}>
-                        <HiOutlineMail className="size-4 mr-xs" />
-                        Per E-Mail einladen
+                    </>
+                  )}
+                  {data?.isAdmin && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={handleStartEditingBoth}
+                        disabled={isUpdatingGroupName}
+                      >
+                        <HiPencil className="size-4 mr-xs" />
+                        Bearbeiten
                       </DropdownMenuItem>
-                    )}
-                    {isTeam && !isArchived && data?.joinToken && (
-                      <DropdownMenuItem onClick={copyJoinLink}>
-                        <HiOutlineLink className="size-4 mr-xs" />
-                        {joinLinkCopied ? 'Kopiert!' : 'Einladungslink kopieren'}
+                      <DropdownMenuItem
+                        onClick={() => avatarInputRef.current?.click()}
+                        disabled={isUploadingAvatar}
+                      >
+                        <HiOutlinePhotograph className="size-4 mr-xs" />
+                        Bild ändern
                       </DropdownMenuItem>
-                    )}
-                    {isTeam && (
-                      <DropdownMenuItem onClick={() => setShowVisibilityDialog(true)}>
-                        <HiOutlineGlobeAlt className="size-4 mr-xs" />
-                        {data?.groupInfo?.is_public
-                          ? 'Öffentlich (verwalten)'
-                          : 'Öffentlich machen'}
-                      </DropdownMenuItem>
-                    )}
-                    {!isSystem && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={toggleArchived} disabled={setArchived.isPending}>
-                          <HiOutlineArchive className="size-4 mr-xs" />
-                          {isArchived ? 'Wiederherstellen' : 'Archivieren'}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => setShowDeleteConfirm(true)}
-                          disabled={isDeletingGroup || isUpdatingGroupName}
-                          className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
-                        >
+                      {data?.groupInfo?.avatar_url && onDeleteAvatar && (
+                        <DropdownMenuItem onClick={onDeleteAvatar} disabled={isUploadingAvatar}>
                           <HiOutlineTrash className="size-4 mr-xs" />
-                          Projekt löschen
+                          Bild entfernen
                         </DropdownMenuItem>
-                      </>
-                    )}
-                  </>
-                )}
-                {canLeave && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => setShowLeaveConfirm(true)}
-                      disabled={leaveGroup.isPending}
-                      className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
-                    >
-                      <HiOutlineLogout className="size-4 mr-xs" />
-                      Projekt verlassen
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                      )}
+                      {isTeam && !isArchived && (
+                        <DropdownMenuItem onClick={openInviteDialog}>
+                          <HiOutlineMail className="size-4 mr-xs" />
+                          Per E-Mail einladen
+                        </DropdownMenuItem>
+                      )}
+                      {isTeam && !isArchived && data?.joinToken && (
+                        <DropdownMenuItem onClick={copyJoinLink}>
+                          <HiOutlineLink className="size-4 mr-xs" />
+                          {joinLinkCopied ? 'Kopiert!' : 'Einladungslink kopieren'}
+                        </DropdownMenuItem>
+                      )}
+                      {isTeam && (
+                        <DropdownMenuItem onClick={() => setShowVisibilityDialog(true)}>
+                          <HiOutlineGlobeAlt className="size-4 mr-xs" />
+                          {data?.groupInfo?.is_public
+                            ? 'Öffentlich (verwalten)'
+                            : 'Öffentlich machen'}
+                        </DropdownMenuItem>
+                      )}
+                      {!isSystem && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={toggleArchived}
+                            disabled={setArchived.isPending}
+                          >
+                            <HiOutlineArchive className="size-4 mr-xs" />
+                            {isArchived ? 'Wiederherstellen' : 'Archivieren'}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => setShowDeleteConfirm(true)}
+                            disabled={isDeletingGroup || isUpdatingGroupName}
+                            className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
+                          >
+                            <HiOutlineTrash className="size-4 mr-xs" />
+                            Projekt löschen
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                    </>
+                  )}
+                  {canLeave && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => setShowLeaveConfirm(true)}
+                        disabled={leaveGroup.isPending}
+                        className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
+                      >
+                        <HiOutlineLogout className="size-4 mr-xs" />
+                        Projekt verlassen
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
 

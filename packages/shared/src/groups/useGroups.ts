@@ -1,6 +1,7 @@
 import {
   type GroupColor,
   type GroupContentType,
+  type GroupEmailNotifications,
   type GroupPostCreatedResponse,
   type GroupShareComment,
   type LandesverbandId,
@@ -312,20 +313,20 @@ export const useRemoveGroupMember = (groupId: string) => {
 };
 
 /**
- * Mute/unmute the caller's own email + push notifications for a group. In-app
+ * Set which of this project's notifications reach the caller by email. In-app
  * notifications are unaffected. Operates on the caller's membership, so any
- * member (not just admins) can toggle it.
+ * member (not just admins) can change it.
  */
-export const useSetGroupMute = (groupId: string) => {
+export const useSetGroupEmailNotifications = (groupId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (muted: boolean) => {
-      const res = await getContractsClient().groups.setGroupMute({
+    mutationFn: async (level: GroupEmailNotifications) => {
+      const res = await getContractsClient().groups.setGroupEmailNotifications({
         params: { groupId },
-        body: { muted },
+        body: { level },
       });
       if (res.status !== 200) throw apiErrorFromResponse(res);
-      return res.body.muted;
+      return res.body.level;
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: groupDetailsKey(groupId) });

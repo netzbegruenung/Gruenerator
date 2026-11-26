@@ -18,7 +18,7 @@ export {
   useUpdateGroupInfo,
   useUpdateGroupLink,
   useUpdateGroupName,
-  useSetGroupMute,
+  useSetGroupEmailNotifications,
   useRemoveGroupMember,
   useSetGroupArchived,
   useUpdateMemberRole,

@@ -45,7 +45,51 @@ import {
 } from './shared.js';
 
 import type { UserProfile } from '../../../../services/user/types.js';
-import type { GroupColor, GroupLinkBody, LandesverbandId } from '@gruenerator/contracts';
+import type {
+  GroupColor,
+  GroupEmailNotifications,
+  GroupLinkBody,
+  LandesverbandId,
+} from '@gruenerator/contracts';
+import type { Request } from 'express';
+
+/**
+ * Write the caller's own project email setting. `notifications_muted` is the F0
+ * mirror of 'none', kept in sync for shipped mobile binaries that still read it.
+ */
+async function writeGroupEmailSetting(
+  args: { req: Request; params: { groupId: string } },
+  level: GroupEmailNotifications
+) {
+  try {
+    const userId = getUserId(args.req);
+    const postgres = getPostgresInstance();
+    await postgres.ensureInitialized();
+
+    const result = await postgres.exec(
+      `UPDATE group_memberships SET email_notifications = $1, notifications_muted = ($1 = 'none')
+        WHERE group_id = $2 AND user_id = $3`,
+      [level, args.params.groupId, userId]
+    );
+
+    if (result.changes === 0) {
+      return {
+        status: 404 as const,
+        body: { success: false as const, message: 'Du bist nicht Mitglied dieses Projekts.' },
+      };
+    }
+    return { status: 200 as const };
+  } catch (error) {
+    log.error('[groupsContract.writeGroupEmailSetting] Error:', error);
+    return {
+      status: 500 as const,
+      body: {
+        success: false as const,
+        message: 'Fehler beim Aktualisieren der Benachrichtigungen.',
+      },
+    };
+  }
+}
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -273,7 +317,7 @@ export const coreRoutes = {
       await postgres.ensureInitialized();
 
       const row = (await postgres.queryOne(
-        `SELECT gm.role, gm.joined_at, gm.notifications_muted,
+        `SELECT gm.role, gm.joined_at, gm.email_notifications,
                 g.id, g.name, g.description, g.created_at, g.created_by, g.join_token,
                 g.settings, g.avatar_url, g.links, g.is_public, g.audience, g.slug_suffix,
                 g.group_type, g.is_system, g.landesverband, g.recipes_exclusive, g.archived_at, g.color
@@ -285,7 +329,7 @@ export const coreRoutes = {
       )) as {
         role: string;
         joined_at: string | Date | null;
-        notifications_muted: boolean | null;
+        email_notifications: GroupEmailNotifications;
         id: string;
         name: string;
         description: string | null;
@@ -346,7 +390,8 @@ export const coreRoutes = {
             role: row.role,
             joined_at: toIsoOrNull(row.joined_at),
             isAdmin,
-            notifications_muted: row.notifications_muted ?? false,
+            notifications_muted: row.email_notifications === 'none',
+            email_notifications: row.email_notifications,
           },
         },
       };
@@ -722,37 +767,20 @@ export const coreRoutes = {
     }
   }),
 
+  // F0: shipped mobile binaries still toggle this. Muting maps to 'none',
+  // unmuting to the default 'mentions'.
   setGroupMute: s.route(groupsContract.setGroupMute, async (args) => {
-    const { groupId } = args.params;
     const { muted } = args.body;
-    try {
-      const userId = getUserId(args.req);
-      const postgres = getPostgresInstance();
-      await postgres.ensureInitialized();
+    const result = await writeGroupEmailSetting(args, muted ? 'none' : 'mentions');
+    if (result.status !== 200) return result;
+    return { status: 200 as const, body: { success: true as const, muted } };
+  }),
 
-      const result = await postgres.exec(
-        'UPDATE group_memberships SET notifications_muted = $1 WHERE group_id = $2 AND user_id = $3',
-        [muted, groupId, userId]
-      );
-
-      if (result.changes === 0) {
-        return {
-          status: 404 as const,
-          body: { success: false as const, message: 'Du bist nicht Mitglied dieses Projekts.' },
-        };
-      }
-
-      return { status: 200 as const, body: { success: true as const, muted } };
-    } catch (error) {
-      log.error('[groupsContract.setGroupMute] Error:', error);
-      return {
-        status: 500 as const,
-        body: {
-          success: false as const,
-          message: 'Fehler beim Aktualisieren der Benachrichtigungen.',
-        },
-      };
-    }
+  setGroupEmailNotifications: s.route(groupsContract.setGroupEmailNotifications, async (args) => {
+    const { level } = args.body;
+    const result = await writeGroupEmailSetting(args, level);
+    if (result.status !== 200) return result;
+    return { status: 200 as const, body: { success: true as const, level } };
   }),
 
   listMembers: s.route(groupsContract.listMembers, async (args) => {
