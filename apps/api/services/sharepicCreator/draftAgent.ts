@@ -39,7 +39,7 @@ import { aiObject, type AiObjectCall } from '../ai/generate.js';
 import { getUnsplashService } from '../unsplash/UnsplashApiService.js';
 
 import { weekdayId } from './briefFacts.js';
-import { carouselLookProblems } from './carouselLook.js';
+import { carouselLookProblems, holdCarouselSurface } from './carouselLook.js';
 import { carouselSeitenText } from './carouselSeiten.js';
 import { findStockPhotos, stockPhotoCredit, type FoundPhoto } from './catalog.js';
 import { type DatumRepair, repairDatum } from './datumRepair.js';
@@ -583,7 +583,8 @@ export async function draftSharepic(
   const accepted = draft.ok ? draft.data : photoKept!;
 
   // A revision keeps the draft's format unless the model names one.
-  const drafted = accepted.spec;
+  // A new carousel whose last attempt still changed colours gets the one surface the rule asks for.
+  const drafted = current ? accepted.spec : holdCarouselSurface(accepted.spec);
   let spec = current?.format && !drafted.format ? { ...drafted, format: current.format } : drafted;
   let hinweis: string | null = null;
   const bericht: SharepicBerichtEintrag[] = [];

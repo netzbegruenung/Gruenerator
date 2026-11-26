@@ -1,7 +1,7 @@
 import { type SharepicSlide, type SharepicSpec } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { carouselLookProblems } from './carouselLook.js';
+import { carouselLookProblems, holdCarouselSurface } from './carouselLook.js';
 import { loadExamples } from './styleguide.js';
 
 type Bg = SharepicSlide['background'];
@@ -223,5 +223,27 @@ describe('carouselLookProblems: one build through the middle', () => {
       { type: 'absatz', text: 'b' },
     ] as Items;
     expect(carouselLookProblems(built([absaetze, absaetze, absaetze]))).toBeNull();
+  });
+});
+
+describe('holdCarouselSurface', () => {
+  const surfaces = (spec: SharepicSpec) =>
+    spec.slides.map((s) =>
+      s.background.kind === 'farbe' ? s.background.color : s.background.kind
+    );
+
+  it('puts the colours after the cover on the first content slide’s surface', () => {
+    const held = holdCarouselSurface(
+      deck([unten('tanne'), farbe('mint'), farbe('tanne'), farbe('mint'), farbe('grasgruen')])
+    );
+    expect(surfaces(held)).toEqual(['foto-unten', 'mint', 'mint', 'mint', 'mint']);
+    expect(carouselLookProblems(held)).toBeNull();
+  });
+
+  it('leaves a carousel alone that holds its look, and a photo story with its late change', () => {
+    const one = deck([unten('tanne'), farbe('tanne'), farbe('tanne'), farbe('tanne')]);
+    expect(holdCarouselSurface(one)).toBe(one);
+    const story = deck([foto, foto, foto, farbe('mint'), farbe('mint')]);
+    expect(holdCarouselSurface(story)).toBe(story);
   });
 });

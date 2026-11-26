@@ -29,7 +29,8 @@ export function carouselSeitenText(
       const build = s.slide.items.map(itemName).join(' + ');
       if (seen.has(build)) return [];
       seen.add(build);
-      return [`- ${s.titel}: ${build}`];
+      // The build only: catalogue titles name colours („auf Creme“), and the model took them.
+      return [`- ${build}`];
     });
   if (lines.length === 0) return '';
   return `## Slide-Arten aus den Vorlagen

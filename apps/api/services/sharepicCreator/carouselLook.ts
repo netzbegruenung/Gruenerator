@@ -7,7 +7,7 @@
  * → grasgrün) and dropped a photo on single slides in the middle. The GRÜNE
  * JUGEND carousels alternate two colours instead (gj social-korpus 10/2026).
  */
-import { type SharepicSlide, type SharepicSpec } from '@gruenerator/contracts';
+import { type SharepicColor, type SharepicSlide, type SharepicSpec } from '@gruenerator/contracts';
 
 /** The surface a slide reads as: its colour, the panel beside a photo, or a full photo. */
 function surface(slide: SharepicSlide): string {
@@ -60,12 +60,10 @@ function repeatedBuild(slides: readonly SharepicSlide[]): string | null {
   return null;
 }
 
-/** Why a new carousel does not hold together, or null when it does. */
-export function carouselLookProblems(spec: SharepicSpec): string | null {
+/** The surface rule alone: how the colours change across the slides, or null when they hold. */
+function surfaceProblem(spec: SharepicSpec): string | null {
   const slides = spec.slides;
   const n = slides.length;
-  if (n < 3) return null;
-  const problems: string[] = [];
   const parts = runs(slides);
   const sequence = slides.map((s) => SURFACE_NAME[surface(s)] ?? surface(s)).join(' → ');
   const change = parts[1]?.start;
@@ -74,24 +72,56 @@ export function carouselLookProblems(spec: SharepicSpec): string | null {
   const twoColours =
     spec.brand === 'gruene-jugend' &&
     new Set(parts.map((p) => p.surface).filter((s) => s !== 'foto')).size <= 2;
-  if (twoColours) {
-    // No rule on where the surfaces change.
-  } else if (parts.length > 2) {
-    problems.push(
-      `Die Flächen springen (${sequence}). Erlaubt ist höchstens EIN Wechsel und nie zurück: alle Slides auf derselben Farbe, oder eine Fotostrecke, nach der Forderung und Schluss gemeinsam auf eine Farbe wechseln.`
-    );
-  } else if (change !== undefined && change !== 1) {
-    // Late changes in the corpus all leave a photo story; a fixed colour holds to the end.
-    if (change < n - 2) {
-      problems.push(
-        `Die Fläche wechselt mitten im Karussell auf Slide ${change + 1} (${sequence}). Ein Wechsel gehört direkt hinter das Cover oder, nach einer Fotostrecke, auf die letzten zwei Slides.`
-      );
-    } else if (parts[0]!.surface !== 'foto') {
-      problems.push(
-        `Die letzten Slides wechseln die Farbe (${sequence}). Auf einer festen Farbe bleiben auch Forderung und Schluss – nimm überall ${parts[0]!.surface}.`
-      );
-    }
+  if (twoColours) return null;
+  if (parts.length > 2) {
+    return `Die Flächen springen (${sequence}). Erlaubt ist höchstens EIN Wechsel und nie zurück: alle Slides auf derselben Farbe, oder eine Fotostrecke, nach der Forderung und Schluss gemeinsam auf eine Farbe wechseln.`;
   }
+  if (change === undefined || change === 1) return null;
+  // Late changes in the corpus all leave a photo story; a fixed colour holds to the end.
+  if (change < n - 2) {
+    return `Die Fläche wechselt mitten im Karussell auf Slide ${change + 1} (${sequence}). Ein Wechsel gehört direkt hinter das Cover oder, nach einer Fotostrecke, auf die letzten zwei Slides.`;
+  }
+  if (parts[0]!.surface !== 'foto') {
+    return `Die letzten Slides wechseln die Farbe (${sequence}). Auf einer festen Farbe bleiben auch Forderung und Schluss – nimm überall ${parts[0]!.surface}.`;
+  }
+  return null;
+}
+
+/**
+ * The last attempt is accepted as it comes, and with the slide kinds in the
+ * prompt it often still changed colours (5 and 8 of 18 carousels, 26.11.2026,
+ * against 0 before). What the rule wants is unambiguous, so it is applied:
+ * every colour slide after the cover takes the surface of the first one. A
+ * photo story keeps its own change, and an infographic keeps its light ground.
+ */
+export function holdCarouselSurface(spec: SharepicSpec): SharepicSpec {
+  if (spec.slides.length < 3 || !surfaceProblem(spec)) return spec;
+  const first = spec.slides[1]!;
+  if (first.background.kind === 'foto') return spec;
+  const target = surface(first) as SharepicColor;
+  return {
+    ...spec,
+    slides: spec.slides.map((slide, i) => {
+      const bg = slide.background;
+      if (i === 0 || slide.items.some((item) => item.type === 'infografik')) return slide;
+      if (bg.kind === 'farbe') return { ...slide, background: { ...bg, color: target } };
+      if (bg.kind === 'foto-oben' || bg.kind === 'foto-unten') {
+        return { ...slide, background: { ...bg, panelColor: target } };
+      }
+      return slide;
+    }),
+  };
+}
+
+/** Why a new carousel does not hold together, or null when it does. */
+export function carouselLookProblems(spec: SharepicSpec): string | null {
+  const slides = spec.slides;
+  const n = slides.length;
+  if (n < 3) return null;
+  const problems: string[] = [];
+  const parts = runs(slides);
+  const jump = surfaceProblem(spec);
+  if (jump) problems.push(jump);
   if (spec.locale === 'de-DE') {
     for (const part of parts) {
       const kinds = new Set(
