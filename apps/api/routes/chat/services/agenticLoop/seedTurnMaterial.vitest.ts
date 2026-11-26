@@ -30,7 +30,7 @@ vi.mock(
 const crawl = vi.hoisted(() => vi.fn<(...a: unknown[]) => Promise<unknown>>());
 vi.mock('../../../../services/search/index.js', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
-  crawlAndDistill: (...a: unknown[]) => crawl(...a),
+  selectAndCrawlTopUrls: (...a: unknown[]) => crawl(...a),
 }));
 vi.mock('../../../../utils/validation/urlSecurity.js', () => ({
   validateUrlForFetch: async (raw: string) => ({ isValid: true, url: new URL(raw) }),
@@ -100,8 +100,8 @@ describe('seedTurnMaterial', () => {
     crawl.mockImplementation(async (seeds) =>
       (seeds as { url: string }[]).map((s) => ({
         url: s.url,
-        title: 'Radweg-Planung',
-        content: 'Baubeginn ist im Frühjahr 2027.',
+        pageTitle: 'Radweg-Planung',
+        fullContent: 'Baubeginn ist im Frühjahr 2027.',
         crawled: true,
       }))
     );

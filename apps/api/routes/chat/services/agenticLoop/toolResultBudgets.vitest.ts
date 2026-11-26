@@ -235,8 +235,6 @@ describe('Wächter: jede Kappe über 6000 steht in der Tabelle oder begründet d
   const NOT_A_RESULT_CAP: Readonly<Record<string, string>> = {
     IMAGE_SNIPPET_CHARS: 'Registry-Snippet → `sources` (ausgenommenes Feld)',
     CRAWL_SNIPPET_CHARS: 'Registry-Snippet → `sources` (ausgenommenes Feld)',
-    CRAWL_DISTILL_TARGET_CHARS:
-      'Zielgröße der Destillation einer Seite, geht als `sources`-Snippet',
     EXPAND_ATTACHMENT_SNIPPET_CHARS: 'Registry-Snippet → `sources` (ausgenommenes Feld)',
     RAW_RESULT_MAX_CHARS: 'Rohpuffer vor dem Formen; geformt wird auf MODEL_RESULT_MAX_CHARS',
     MAX_IMAGE_CHARS: 'Bilddaten-URL im sharepic_check, kein Text fürs Modell',

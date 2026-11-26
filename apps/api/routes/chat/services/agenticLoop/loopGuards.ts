@@ -130,7 +130,14 @@ export interface ToolLoopGuards {
     input: unknown,
     opts?: { skipNearDuplicate?: boolean }
   ): GuardVerdict;
-  noteFailure(toolName: string): void;
+  /** Counts a failed call. With `input`, the call also stops counting as a
+   *  prior query for the near-duplicate check: a call the tool rejected
+   *  (wrong mode mix, bad argument) has no result to be a duplicate of, and
+   *  live 26.11.2026 it blocked its own corrected retry — `dokumente_lesen`
+   *  with `wortsuche`+`zaehlen` failed, the same call with only `zaehlen` was
+   *  then refused as "zu ähnlich", and the model counted by hand. The exact
+   *  repeat stays blocked. */
+  noteFailure(toolName: string, input?: unknown): void;
   /** Non-null once a single tool has failed `maxFailuresPerTool` times. */
   checkFailureCap(toolName: string): GuardVerdict;
   /** Non-null once total failures across all tools hit `maxTotalFailures`. */
@@ -262,8 +269,9 @@ export function createToolLoopGuards(options: ToolLoopGuardOptions = {}): ToolLo
   const seenKeys = new Set<string>();
   /** toolName → original (un-normalized) input descriptions, for error messages. */
   const priorInputs = new Map<string, string[]>();
-  /** toolName → prior queries (tokens + scope), for near-duplicate detection. */
-  const priorTokens = new Map<string, { tokens: Set<string>; scope: string }[]>();
+  /** toolName → prior queries (tokens + scope), for near-duplicate detection;
+   *  `key` lets a failed call be taken back out (`noteFailure`). */
+  const priorTokens = new Map<string, { tokens: Set<string>; scope: string; key: string }[]>();
   const callCounts = new Map<string, number>();
   const completedCounts = new Map<string, number>();
   let searchCalls = 0;
@@ -328,13 +336,21 @@ export function createToolLoopGuards(options: ToolLoopGuardOptions = {}): ToolLo
       prior.push(describeInput(input));
       priorInputs.set(toolName, prior);
       const sets = priorTokens.get(toolName) ?? [];
-      sets.push(basis);
+      sets.push({ ...basis, key });
       priorTokens.set(toolName, sets);
       return null;
     },
-    noteFailure(toolName) {
+    noteFailure(toolName, input) {
       failures.set(toolName, (failures.get(toolName) ?? 0) + 1);
       totalFailures += 1;
+      if (input === undefined || duplicateScope !== 'turn') return;
+      const key = `${toolName}:${JSON.stringify(normalizeValue(input))}`;
+      const sets = priorTokens.get(toolName) ?? [];
+      const at = sets.findIndex((p) => p.key === key);
+      if (at !== -1) {
+        sets.splice(at, 1);
+        priorInputs.get(toolName)?.splice(at, 1);
+      }
     },
     checkFailureCap(toolName) {
       if ((failures.get(toolName) ?? 0) >= maxPerTool) {

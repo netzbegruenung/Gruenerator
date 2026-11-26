@@ -67,10 +67,10 @@ vi.mock('../../../../services/ai/modelHealth.js', async (importOriginal) => {
 const { crawledSeeds } = vi.hoisted(() => ({ crawledSeeds: [] as string[][] }));
 vi.mock('../../../../services/search/index.js', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
-  crawlAndDistill: (seeds: Array<{ url: string }>) => {
+  selectAndCrawlTopUrls: (seeds: Array<{ url: string }>) => {
     crawledSeeds.push(seeds.map((s) => s.url));
     return Promise.resolve(
-      seeds.map((s) => ({ ...s, crawled: true, content: 'Baubeginn ist 2027.' }))
+      seeds.map((s) => ({ ...s, crawled: true, fullContent: 'Baubeginn ist 2027.' }))
     );
   },
 }));
@@ -159,6 +159,7 @@ function fakeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
       model: 'mistral-medium-2604',
       params: { temperature: 0.3 },
     },
+    documentSources: [],
     ...overrides,
   } as unknown as ChatGraphState;
 }

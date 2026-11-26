@@ -25,6 +25,7 @@ import {
   EDITOR_SURFACE_NOUNS,
   resolveEditorSurfaceKind,
 } from '../../../../routes/chat/services/agenticLoop/routing.js';
+import { partialSourceMark } from '../../../../routes/chat/services/agenticLoop/sourceRegistry.js';
 import { offerNote } from '../../../../routes/chat/services/artifactOffer.js';
 import {
   isPastedTextAttachment,
@@ -416,12 +417,23 @@ export async function formatSearchContext(
         Math.floor(((weightedRelevance[i] ?? 0) / totalWeightedRelevance) * budget)
       );
       const body = formatSourceChunks(s, charBudget, excerptQuery);
+      // Eine Quelle, die mehr Text hat, als hier hineinpasst, sagt das — sonst
+      // zählt das Modell den gezeigten Teil als das Ganze (#6103). Gilt für eine
+      // gelesene Seite (`totalChars` vom Leser) wie für den eigenen Schnitt.
+      const representative = s.representative;
+      const whole =
+        typeof representative.totalChars === 'number'
+          ? representative.totalChars
+          : s.chunks.length === 1
+            ? (representative.content ?? '').length
+            : undefined;
+      const mark = partialSourceMark(body.length, whole);
       // When the agent writes inline links (e.g. ready-to-send emails), expose
       // the source URL to the model so it can cite the concrete article instead
       // of falling back to a hardcoded homepage. Normal chat omits it and uses
       // the clickable [N] cards instead.
       const urlPart = includeSourceUrls && s.url ? `\nQuelle-URL: ${s.url}` : '';
-      return `[${i + 1}] **${s.title}**${urlPart}\n${body}`.trim();
+      return `[${i + 1}] **${s.title}**${mark ? ` ${mark}` : ''}${urlPart}\n${body}`.trim();
     })
     .join('\n\n');
 
@@ -2695,17 +2707,23 @@ const PROMPT_BLOCKS = [
     // `rezept_laden` aus dem Katalog) dieselbe Anleitung — immer an, kostete sie
     // jeden Web-Turn ~3 300 Zeichen. Der Block bleibt die ID für den
     // Einzelpfad; im Loop entfällt er, sobald der Katalog das Rezept anbietet
-    // (dieselben Bedingungen wie in `catalogAssembly`).
-    render: (ctx) =>
-      resolveAnswerFormatOwner(ctx.state, ctx.activeTextFormTitle) == null &&
-      !visualBlocksRecipeOffered(ctx.state, ctx.opts)
-        ? buildVisualBlocksGuidance(ctx.state.visualBlocks ?? [])
-        : '',
+    // (dieselben Bedingungen wie in `catalogAssembly`). Eine Zeile bleibt: ohne
+    // sie stand die Fähigkeit nur im Rezept, und wer es nicht lud, antwortete
+    // live „kann keine Tortengrafiken erstellen" (26.11.2026).
+    render: (ctx) => {
+      if (resolveAnswerFormatOwner(ctx.state, ctx.activeTextFormTitle) != null) return '';
+      return visualBlocksRecipeOffered(ctx.state, ctx.opts)
+        ? VISUAL_BLOCKS_LOOP_HINT
+        : buildVisualBlocksGuidance(ctx.state.visualBlocks ?? []);
+    },
   },
   { id: 'citation-instruction', branches: DEFAULT_ONLY, render: (ctx) => ctx.citationInstruction },
   { id: 'instruction-hierarchy', branches: BOTH, render: (ctx) => ctx.hierarchyRule },
   { id: 'injection-warning', branches: BOTH, render: (ctx) => ctx.injectionWarning },
 ] as const satisfies readonly PromptBlock[];
+
+const VISUAL_BLOCKS_LOOP_HINT =
+  'Du kannst Diagramme und Grafiken (Balken, Linien, Torten, Kennzahlen, Zeitleisten) direkt in die Antwort zeichnen — lade dafür vorher das Rezept visuelle-bausteine.';
 
 /**
  * Bietet der Katalog dieses Loop-Turns das Rezept `visuelle-bausteine` an?

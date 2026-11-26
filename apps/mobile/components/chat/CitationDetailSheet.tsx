@@ -1,3 +1,4 @@
+import { coverageDetail, coverageLabel } from '@gruenerator/contracts';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useEffect, useState } from 'react';
 import {
@@ -123,6 +124,12 @@ export function CitationDetailSheet({ citation, theme, onClose, fetchFullText }:
               </Text>
             )}
           </View>
+
+          {citation.coverage && coverageLabel(citation.coverage) && (
+            <Text style={[styles.metaText, { color: theme.textSecondary }]}>
+              Nur zum Teil gelesen. {coverageDetail(citation.coverage)}
+            </Text>
+          )}
 
           <View style={[styles.divider, { backgroundColor: theme.border }]} />
 

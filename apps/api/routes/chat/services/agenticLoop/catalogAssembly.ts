@@ -28,7 +28,7 @@ import { createLogger } from '../../../../utils/logger.js';
 import { makeAskHumanTool } from '../../agents/askHumanTool.js';
 import { preferredLvRecipeMention } from '../../agents/lvRecipePreference.js';
 import { loadMcpCatalog as loadMcpCatalogReal, type McpCatalog } from '../../agents/mcpCatalog.js';
-import { CRAWL_SNIPPET_CHARS, readNamedPages } from '../../agents/namedPages.js';
+import { CRAWL_SNIPPET_CHARS, pageLabel, readNamedPages } from '../../agents/namedPages.js';
 import { boundSystemNotebook, boundUserNotebook } from '../../agents/notebookSourceTools.js';
 import { ARTIFACT_READ_CHARS } from '../../agents/personalDataTools.js';
 import {
@@ -1137,10 +1137,18 @@ export async function seedAttachedPages(params: {
   onError: (message: string) => void;
 }): Promise<SeededAttachedDocuments> {
   if (!params.isMounted) return NOTHING_SEEDED;
-  const urls = resolveTurnMaterial(params.state).pageUrls;
+  // Eine Seite, die als Dokument des Threads vorliegt (`namedPageDocuments`,
+  // dieser oder ein früherer Turn), liest der Dokument-Seed — hier nicht noch
+  // einmal als gekürzte Quelle.
+  const documentLabels = new Set(params.state.documentSources.map((s) => s.label));
+  const urls = resolveTurnMaterial(params.state).pageUrls.filter(
+    (url) => !documentLabels.has(pageLabel(url))
+  );
   if (urls.length === 0) return NOTHING_SEEDED;
   try {
-    const { results } = await readNamedPages(urls);
+    // Schon gelesen, wenn `ingestNamedPages` vor der Montage lief — die langen
+    // Seiten sind dort Dokumente geworden, die kurzen liegen hier.
+    const results = params.state.prefetchedPages ?? (await readNamedPages(urls)).results;
     if (results.length === 0) {
       params.onInfo(
         `[Agentic] Vorab-Abruf über ${urls.length} @link-Seite(n) ohne lesbaren Inhalt`

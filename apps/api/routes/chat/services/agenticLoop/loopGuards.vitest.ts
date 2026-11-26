@@ -556,3 +556,30 @@ describe('checkSearchConcurrency', () => {
     expect(guards.checkSearchConcurrency('web_search')).toBeNull();
   });
 });
+
+describe('createToolLoopGuards — a failed call does not block its correction', () => {
+  // Live 26.11.2026: `dokumente_lesen` with two modes failed, and the same call
+  // with one mode was refused as "zu ähnlich" — the model then counted by hand.
+  const both = { wortsuche: { phrase: 'von ' }, zaehlen: { nach: 'von ', zeilenanfang: false } };
+  const one = { zaehlen: { nach: 'von ', zeilenanfang: false } };
+
+  it('lets the corrected retry through once the first call failed', () => {
+    const guards = createToolLoopGuards();
+    expect(guards.checkDuplicate('dokumente_lesen', both)).toBeNull();
+    guards.noteFailure('dokumente_lesen', both);
+    expect(guards.checkDuplicate('dokumente_lesen', one)).toBeNull();
+  });
+
+  it('still blocks the near-duplicate of a call that succeeded', () => {
+    const guards = createToolLoopGuards();
+    expect(guards.checkDuplicate('dokumente_lesen', both)).toBeNull();
+    expect(guards.checkDuplicate('dokumente_lesen', one)?.guard).toBe('near_duplicate');
+  });
+
+  it('still blocks the exact repeat of a failed call', () => {
+    const guards = createToolLoopGuards();
+    guards.checkDuplicate('dokumente_lesen', both);
+    guards.noteFailure('dokumente_lesen', both);
+    expect(guards.checkDuplicate('dokumente_lesen', both)?.guard).toBe('duplicate');
+  });
+});

@@ -23,6 +23,7 @@ import type { SystemCollection } from '../../../services/notebook/systemNotebook
 import type { UserAgentInput } from '../../../services/userAgents/userAgentsRepository.js';
 import type { ForbiddableArtifact } from './nodes/fastPathGuards.js';
 import type {
+  SourceCoverage,
   WolkeFileRef,
   ConnectFileRef,
   CurrentBoard,
@@ -317,6 +318,13 @@ export interface SearchResult {
    *  diese Quelle zitiert. Gesetzt nur von `SourceRegistry.getResults`; die
    *  Übernahme in spätere Turns (`toSources`) holt zitierte Quellen zuerst. */
   cited?: true;
+  /** Länge des ganzen Originaltexts, wenn `content` nur ein Teil davon ist und
+   *  der Erzeuger das Ganze kennt (gelesene Seite, Dokument). Daraus rechnet
+   *  `sourceRegistry` die Abdeckung; fehlt das Feld, gilt `content` als Ganzes. */
+  totalChars?: number;
+  /** Der Inhalt ist eine Auswertung über den GANZEN Text (eine Zählung), kein
+   *  Ausschnitt — die Abdeckung ist dann vollständig, so kurz die Zeile ist. */
+  readsWhole?: true;
   [key: string]: unknown;
 }
 
@@ -367,6 +375,8 @@ export interface Citation {
   // Set when this citation came from a fan-out per-document retrieval
   // (multi-document chat). Lets the UI group source cards by referenced doc.
   documentSourceId?: string | undefined;
+  /** Gelesener Anteil der Quelle, gesetzt von `SourceRegistry.getCitations`. */
+  coverage?: SourceCoverage | undefined;
 }
 
 /**
@@ -426,6 +436,10 @@ export interface DocumentSource {
   notebookId?: string | null;
   // For `system_document` kind: the system collection and the STORED source_url.
   systemDocument?: { collection: SystemCollection; sourceUrl: string };
+  /** Eine im Chat benannte Webseite, die als Dokument gelesen wird
+   *  (`namedPageDocuments`) — nicht eine hochgeladene Datei. Nur für die
+   *  Benennung gegenüber dem Modell („kommunal.de" (Webseite)). */
+  webpage?: true;
 }
 
 /**
@@ -1118,6 +1132,10 @@ export interface ChatGraphState {
   // normalized from documentIds | documentChatIds | docMentionIds | notebookIds |
   // threadAttachments | currentDocument. Source-of-truth for per-doc retrieval.
   documentSources: DocumentSource[];
+  /** Die kurzen benannten Seiten dieses Turns, schon gelesen von
+   *  `ingestNamedPages` (die langen sind Dokumente geworden). Gesetzt heißt:
+   *  `seedAttachedPages` holt nichts mehr selbst. Nur für diesen Turn. */
+  prefetchedPages?: SearchResult[] | undefined;
 
   // Per-source retrieval results, keyed by DocumentSource.id. Populated by
   // searchNode when documentSources.length >= 1; consumed by rerankNode (group
