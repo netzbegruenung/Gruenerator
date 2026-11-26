@@ -1,3 +1,5 @@
+import { useUserLandesverbaende } from '@gruenerator/chat';
+import { LANDESVERBAENDE } from '@gruenerator/shared/agents';
 import { pickRecentEntries, sortGroups, splitArchivedGroups } from '@gruenerator/shared/groups';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
@@ -60,6 +62,15 @@ export default function ProjekteScreen() {
   const { data: projectUsage } = useItemUsage('project');
   const { data: notebookUsage } = useItemUsage('notebook');
   const { collections: notebooks, isLoading: notebooksLoading } = useNotebookCollections();
+  // Die Notebooks der eigenen Landesverbände kommen über die Rolle, ohne Merken
+  // (wie im Web); nur was diese Instanz anbietet.
+  const { lvIds } = useUserLandesverbaende();
+  const lvNotebooks = useMemo(() => {
+    const ids = new Set<string>(
+      LANDESVERBAENDE.filter((lv) => lvIds?.includes(lv.id)).map((lv) => lv.notebookId)
+    );
+    return MOBILE_SYSTEM_NOTEBOOKS.filter((nb) => ids.has(nb.id));
+  }, [lvIds]);
   const own = useOwnRecipes();
   const added = useAddedRecipes();
   // Web's order: own first, then what came from the Marktplatz, each A–Z.
@@ -251,7 +262,7 @@ export default function ProjekteScreen() {
         <View style={styles.section}>{body}</View>
         <View style={styles.section}>
           <SectionTitle title="Deine Notebooks" />
-          {notebooks.length > 0 ? (
+          {notebooks.length + lvNotebooks.length > 0 ? (
             <View style={styles.grid}>
               {notebooks.map((c) => (
                 <InfoTile
@@ -261,6 +272,16 @@ export default function ProjekteScreen() {
                   title={c.name}
                   meta={c.description ?? ''}
                   onPress={() => openNotebook(c.id, c.name)}
+                />
+              ))}
+              {lvNotebooks.map((nb) => (
+                <InfoTile
+                  key={nb.id}
+                  size={tile}
+                  icon="library-outline"
+                  title={nb.title}
+                  meta="Dein Landesverband"
+                  onPress={() => openNotebook(nb.id, nb.title)}
                 />
               ))}
             </View>
