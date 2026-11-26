@@ -25,6 +25,9 @@ export interface CitationPreviewProps {
   action?: ReactNode;
   /** Overrides the default body clamp, e.g. a tighter `line-clamp-2`. */
   bodyClassName?: string;
+  /** „In die Antwort sind 8.000 von 61.000 Zeichen …" — only for a partly read
+   *  source (`coverageLabel`/`coverageDetail` in contracts). */
+  coverageNote?: string | null | undefined;
 }
 
 /**
@@ -41,6 +44,7 @@ export function CitationPreview({
   chip,
   action,
   bodyClassName,
+  coverageNote,
 }: CitationPreviewProps) {
   return (
     <div className="flex flex-col gap-2 p-3">
@@ -81,6 +85,11 @@ export function CitationPreview({
           )}
         >
           {body}
+        </p>
+      )}
+      {coverageNote && (
+        <p className="text-muted-foreground border-border border-t pt-2 text-xs leading-relaxed">
+          {coverageNote}
         </p>
       )}
       {action}

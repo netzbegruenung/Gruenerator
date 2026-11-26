@@ -1,5 +1,6 @@
 'use client';
 
+import { coverageDetail, coverageLabel } from '@gruenerator/contracts';
 import { Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
 import { Microscope, FileText } from 'lucide-react';
 import { memo, useMemo } from 'react';
@@ -121,6 +122,11 @@ export const CitationBadge = memo(function CitationBadge({
           title={citation.title}
           url={citation.url || undefined}
           body={citation.citedText || citation.snippet}
+          coverageNote={
+            citation.coverage && coverageLabel(citation.coverage)
+              ? `Nur zum Teil gelesen. ${coverageDetail(citation.coverage)}`
+              : null
+          }
           chip={
             citation.collectionName
               ? {

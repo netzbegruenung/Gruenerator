@@ -15,12 +15,15 @@
  * to a real citation (buildCitations drops empty-content sources — skipping them
  * up front keeps `[N]` in lockstep).
  */
+import { isPartialCoverage } from '@gruenerator/contracts';
+
 import { buildCitations } from '../../../../agents/langgraph/ChatGraph/nodes/citationUtils.js';
 import { citedReferenceIds } from '../../../../services/search/SearchResultProcessor.js';
 import { applyContextCap } from '../../../../utils/contextCap.js';
 import { INSTRUCTION_HIERARCHY_RULE, embedUntrusted } from '../untrustedContent.js';
 
 import type { Citation, SearchResult } from '../../../../agents/langgraph/ChatGraph/types.js';
+import type { SourceCoverage } from '@gruenerator/contracts';
 
 /**
  * How much of each result's content the model sees per snippet line. It's the
@@ -268,14 +271,79 @@ function pageLabel(r: SearchResult): string | null {
   return typeof to === 'number' && to > from ? `S. ${from}–${to}` : `S. ${from}`;
 }
 
-function snippetLine(index: number, r: SearchResult, cap = SNIPPET_CHARS, prior = false): string {
+/**
+ * Was eine Quellenzeile vom Inhalt zeigt: der gekürzte Text und wie viele
+ * Zeichen von `content` das sind. Die Zeile zeigt Leerraum zusammengezogen —
+ * gezählt wird trotzdem in `content`-Zeichen, sonst stimmte das Verhältnis zur
+ * Originallänge nicht.
+ */
+function snippetBody(r: SearchResult, cap: number): { body: string; readChars: number } {
+  const content = r.content ?? '';
+  const flat = content.replace(/\s+/g, ' ').trim();
+  const body = applyContextCap(flat, cap, 'sourceRegistry:snippet', false);
+  const readChars =
+    flat.length === 0 || body.length >= flat.length
+      ? content.length
+      : Math.round((content.length * body.length) / flat.length);
+  return { body, readChars };
+}
+
+/** Wo der gezeigte Inhalt im Originaltext liegt — eine Fundstelle beginnt bei
+ *  ihrem `charStart`, alles andere am Anfang. */
+function shownRange(r: SearchResult, readChars: number): [number, number] {
+  const start = typeof r.charStart === 'number' && r.charStart > 0 ? r.charStart : 0;
+  return [start, start + readChars];
+}
+
+/**
+ * Die Abdeckung einer Quelle aus den gezeigten Bereichen — oder `undefined`, wo
+ * nichts bekannt ist. Bekannt ist sie, wenn der Erzeuger die Originallänge
+ * mitgibt (`totalChars`) oder wenn der Inhalt eine ganze Quelle ist und wir ihn
+ * selbst gekürzt haben. Eine Fundstelle ohne `totalChars` bleibt offen: ihre
+ * Länge sagt nichts über das Dokument.
+ */
+function coverageOf(
+  r: SearchResult,
+  ranges: ReadonlyArray<[number, number]>
+): SourceCoverage | undefined {
+  const declared = typeof r.totalChars === 'number' && r.totalChars > 0 ? r.totalChars : null;
+  const total = declared ?? (isPassage(r) ? null : (r.content ?? '').length);
+  if (!total) return undefined;
+  const sorted = [...ranges].sort((a, b) => a[0] - b[0]);
+  let read = 0;
+  let end = 0;
+  for (const [from, to] of sorted) {
+    const a = Math.max(from, end);
+    const b = Math.min(to, total);
+    if (b > a) read += b - a;
+    end = Math.max(end, to);
+  }
+  read = Math.min(read, total);
+  // Nur melden, was eine Aussage trägt: eine erklärte Länge immer, eine
+  // abgeleitete nur, wenn wirklich gekürzt wurde.
+  if (!declared && read >= total) return undefined;
+  return { readChars: read, totalChars: total };
+}
+
+const formatChars = (n: number): string => n.toLocaleString('de-DE');
+
+/** `[gelesen: 8.000 von 61.000 Zeichen]` — nur, wenn etwas fehlt. Steht vor dem
+ *  Inhalt, damit das Modell es liest, bevor es den Inhalt für das Ganze hält. */
+function coverageMark(coverage: SourceCoverage | undefined): string {
+  if (!coverage || !isPartialCoverage(coverage)) return '';
+  return ` [gelesen: ${formatChars(coverage.readChars)} von ${formatChars(coverage.totalChars)} Zeichen, nicht das Ganze]`;
+}
+
+function snippetLine(
+  index: number,
+  r: SearchResult,
+  cap = SNIPPET_CHARS,
+  prior = false,
+  coverage?: SourceCoverage
+): string {
   const title = (r.title || r.source || 'Quelle').trim();
-  const body = applyContextCap(
-    (r.content ?? '').replace(/\s+/g, ' ').trim(),
-    cap,
-    'sourceRegistry:snippet',
-    false
-  );
+  const { body, readChars } = snippetBody(r, cap);
+  const shown = coverage ?? coverageOf(r, [shownRange(r, readChars)]);
   const url = typeof r.url === 'string' && r.url.trim() ? ` <${r.url.trim()}>` : '';
   const day = publishedDay(r);
   // Die Seite gehört in die Zeile: der Schreiber im split-Modus sieht nur sie.
@@ -285,7 +353,7 @@ function snippetLine(index: number, r: SearchResult, cap = SNIPPET_CHARS, prior 
   const meta = [day, page].filter(Boolean).join(', ');
   const date = meta ? ` (${meta})` : '';
   const mark = prior ? ` ${PRIOR_MARK}` : '';
-  return `[${index}]${mark} ${title}${url}${date}${body ? ` — ${body}` : ''}`;
+  return `[${index}]${mark} ${title}${url}${date}${coverageMark(shown)}${body ? ` — ${body}` : ''}`;
 }
 
 const PRIOR_MARK = '(frühere Recherche)';
@@ -337,6 +405,13 @@ interface Entry {
   /** Aus dem Vorab-Abruf der Anhänge oder einer Bestandsliste, nicht aus einer
    *  Recherche des Planers. Zitierbar wie jede Quelle, aber aus `freshSize` heraus. */
   seeded: boolean;
+  /** Was von dieser Quelle in DIESEM Turn gezeigt wurde, als Bereiche im
+   *  Originaltext. Daraus wird die Abdeckung — die Vereinigung, nicht der
+   *  letzte Wert: zwei gelesene Abschnitte sind mehr als einer. Geteilt unter
+   *  allen Einträgen desselben Dokuments (`sourceKey`): zwei Fundstellen sind
+   *  zwei Belege mit eigener Nummer, aber gelesen wurde EIN Dokument — jede
+   *  meldete sonst nur ihren eigenen Bereich, „20 %" zweimal statt „40 %". */
+  ranges: Array<[number, number]>;
 }
 
 export function createSourceRegistry(): SourceRegistry {
@@ -346,6 +421,15 @@ export function createSourceRegistry(): SourceRegistry {
   const indexBySource = new Map<string, number>();
   // Per-turn outcome lines (see `note`). Never sources.
   const notes: string[] = [];
+  // Gezeigte Bereiche je Dokument — siehe `Entry.ranges`.
+  const rangesBySource = new Map<string, Array<[number, number]>>();
+  const rangesFor = (r: SearchResult): Array<[number, number]> => {
+    const key = sourceKey(r);
+    if (!key) return [];
+    const shared = rangesBySource.get(key) ?? [];
+    rangesBySource.set(key, shared);
+    return shared;
+  };
 
   /**
    * Eine ganze Quelle (`list`-Zeile, Gliederung) und eine Fundstelle derselben
@@ -400,11 +484,22 @@ export function createSourceRegistry(): SourceRegistry {
       if (entry && !seeded) entry.seeded = false;
       return existing;
     }
-    entries.push({ result: r, cap, prior, seeded });
+    entries.push({ result: r, cap, prior, seeded, ranges: rangesFor(r) });
     indexByKey.set(key, entries.length);
     const source = sourceKey(r);
     if (source && !indexBySource.has(source)) indexBySource.set(source, entries.length);
     return entries.length;
+  };
+
+  /** Rendert die Zeile einer Quelle und vermerkt, was sie zeigt. Jede Stelle,
+   *  die dem Modell eine Quelle zeigt, geht hier durch — sonst meldete die
+   *  Abdeckung weniger, als das Modell gesehen hat, oder mehr. */
+  const lineFor = (index: number, r: SearchResult, cap: number, prior = false): string => {
+    const entry = entries[index - 1];
+    if (!entry) return snippetLine(index, r, cap, prior);
+    const { readChars } = snippetBody(r, cap);
+    entry.ranges.push(shownRange(r, readChars));
+    return snippetLine(index, r, cap, prior, coverageOf(entry.result, entry.ranges));
   };
 
   return {
@@ -416,7 +511,7 @@ export function createSourceRegistry(): SourceRegistry {
         const index = add(r, cap, false, opts?.inventory === true);
         if (index === null || emitted.has(index)) continue;
         emitted.add(index);
-        lines.push(snippetLine(index, r, cap));
+        lines.push(lineFor(index, r, cap));
       }
       return lines.join('\n');
     },
@@ -431,7 +526,7 @@ export function createSourceRegistry(): SourceRegistry {
         const index = add(r, cap, false, true);
         if (index === null || emitted.has(index)) continue;
         emitted.add(index);
-        lines.push(snippetLine(index, r, cap));
+        lines.push(lineFor(index, r, cap));
       }
       return lines.join('\n');
     },
@@ -521,7 +616,7 @@ export function createSourceRegistry(): SourceRegistry {
       // from an actual system rule. The notes and the provenance line below are
       // OUR statements about the turn, so they stay outside the wrapper.
       const snippets = entries
-        .map((e, i) => snippetLine(i + 1, e.result, Math.min(e.cap, capFor?.(e) ?? e.cap), e.prior))
+        .map((e, i) => lineFor(i + 1, e.result, Math.min(e.cap, capFor?.(e) ?? e.cap), e.prior))
         .join('\n');
       const current = snippets ? embedUntrusted('suchergebnis', snippets) : '';
       // Unnumbered and explicitly labelled: the synth must be able to REPORT
@@ -544,13 +639,19 @@ export function createSourceRegistry(): SourceRegistry {
       const priorNote = entries.some((e) => e.prior)
         ? 'Mit „(frühere Recherche)" markierte Quellen stammen aus einem früheren Turn dieses Gesprächs — zitierbar wie die übrigen, aber behaupte NICHT, sie gerade gefunden zu haben. Die Nummern sind für diesen Turn neu vergeben: ein [N] in einer früheren Antwort zählt nach der damaligen Liste und ist kein Fehler — nimm deshalb nichts zurück und entschuldige dich nicht dafür.'
         : '';
-      return [current, priorNote, notesBlock].filter((p) => p).join('\n\n');
+      // Same reason as the provenance note: a mark the model reads past is no
+      // mark. Live 26.11.2026 (#6103) an 8k prefix of a homepage was counted
+      // and presented as „alle auf der Startseite angezeigten Beiträge".
+      const partialNote = entries.some((e) => isPartialCoverage(coverageOf(e.result, e.ranges)))
+        ? 'Mit „[gelesen: … von … Zeichen, nicht das Ganze]" markierte Quellen hast du nur zum Teil gesehen. Zähle, summiere oder verallgemeinere über sie nicht so, als wäre es das Ganze: lies weiter, wo ein Werkzeug dafür bereitsteht, und sag sonst ausdrücklich, dass deine Angaben nur den gelesenen Teil betreffen.'
+        : '';
+      return [current, priorNote, partialNote, notesBlock].filter((p) => p).join('\n\n');
     },
     renderReference() {
       // Same numbering as renderAll, without the per-line provenance marker:
       // this block briefs artifact/edit generators, and "(frühere Recherche)"
       // pasted into a source list is text inside the finished document.
-      const lines = entries.map((e, i) => snippetLine(i + 1, e.result, e.cap)).join('\n');
+      const lines = entries.map((e, i) => lineFor(i + 1, e.result, e.cap)).join('\n');
       if (!lines) return '';
       // The provenance still has to travel — just as a separate instruction
       // rather than as part of a citable line. Without it the generator cannot
@@ -572,7 +673,9 @@ export function createSourceRegistry(): SourceRegistry {
       // break alignment with the snippet numbers the model cited.
       return entries.flatMap((e, i) => {
         const [projected] = buildCitations([e.result]);
-        return projected ? [{ ...projected, id: i + 1 }] : [];
+        if (!projected) return [];
+        const coverage = coverageOf(e.result, e.ranges);
+        return [{ ...projected, id: i + 1, ...(coverage ? { coverage } : {}) }];
       });
     },
     get size() {

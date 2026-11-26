@@ -774,3 +774,89 @@ describe('findSourceEchoCut', () => {
     expect(findSourceEchoCut(text, ANSWER.length)).not.toBeNull();
   });
 });
+
+// Live 26.11.2026 (#6103): a named page reached the model as an 8,000-char
+// prefix with no mark, and the answer counted authors on it as if it were the
+// whole homepage. Whatever is cut has to say so — in the line and on the chip.
+describe('source coverage', () => {
+  const page = (over: Partial<SearchResult> = {}) =>
+    result({
+      title: 'kommunal.de',
+      url: 'https://kommunal.de/',
+      content: 'x'.repeat(8_000),
+      ...over,
+    });
+
+  it('marks a source that is only part of a longer original, and reports the same numbers on the citation', () => {
+    const r = reg();
+    const line = r.register([page({ totalChars: 61_000 })], { snippetChars: 8_000 });
+    expect(line).toContain('[gelesen: 8.000 von 61.000 Zeichen, nicht das Ganze]');
+    expect(r.getCitations()[0]?.coverage).toEqual({ readChars: 8_000, totalChars: 61_000 });
+  });
+
+  it('counts its own cut when no original length is known', () => {
+    const r = reg();
+    const line = r.register([page({ content: 'y'.repeat(4_000) })]);
+    expect(line).toContain('[gelesen: 1.500 von 4.000 Zeichen');
+    expect(r.getCitations()[0]?.coverage).toEqual({ readChars: 1_500, totalChars: 4_000 });
+  });
+
+  it('says nothing for a source shown whole, and nothing for a passage of unknown length', () => {
+    const r = reg();
+    const line = r.register([
+      result({ title: 'A', content: 'kurz' }),
+      result({
+        title: 'B',
+        content: 'z'.repeat(3_000),
+        documentId: 'd1',
+        charStart: 500,
+        charEnd: 3_500,
+      }),
+    ]);
+    expect(line).not.toContain('[gelesen');
+    expect(r.getCitations().map((c) => c.coverage)).toEqual([undefined, undefined]);
+  });
+
+  it('adds up what further reads of the same document showed', () => {
+    const r = reg();
+    const doc = { documentId: 'page-1', totalChars: 30_000 };
+    r.register([result({ ...doc, content: 'a'.repeat(10_000) })], { snippetChars: 10_000 });
+    r.register(
+      [result({ ...doc, content: 'b'.repeat(10_000), charStart: 10_000, charEnd: 20_000 })],
+      { snippetChars: 10_000 }
+    );
+    expect(r.getCitations()[0]?.coverage).toEqual({ readChars: 20_000, totalChars: 30_000 });
+  });
+
+  it('reports a declared original as complete once it was shown whole', () => {
+    const r = reg();
+    const line = r.register([page({ content: 'k'.repeat(900), totalChars: 900 })]);
+    expect(line).not.toContain('[gelesen');
+    expect(r.getCitations()[0]?.coverage).toEqual({ readChars: 900, totalChars: 900 });
+  });
+});
+
+describe('source coverage across passages of one document', () => {
+  it('counts two read passages of the same document together on both citations', () => {
+    const r = reg();
+    const doc = { documentId: 'page-2', totalChars: 50_000 };
+    r.register(
+      [
+        result({ ...doc, content: 'a'.repeat(10_000), charStart: 0, charEnd: 10_000 }),
+        result({
+          ...doc,
+          content: 'b'.repeat(10_000),
+          charStart: 20_000,
+          charEnd: 30_000,
+          chunkIndex: 9,
+        }),
+      ],
+      { snippetChars: 10_000 }
+    );
+    const coverages = r.getCitations().map((c) => c.coverage);
+    expect(coverages).toEqual([
+      { readChars: 20_000, totalChars: 50_000 },
+      { readChars: 20_000, totalChars: 50_000 },
+    ]);
+  });
+});

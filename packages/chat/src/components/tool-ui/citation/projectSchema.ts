@@ -1,3 +1,4 @@
+import { sourceCoverageSchema } from '@gruenerator/contracts';
 import { z } from 'zod';
 
 /**
@@ -20,6 +21,7 @@ export const citationSchema = z.object({
   chunkIndex: z.number().optional(),
   similarityScore: z.number().optional(),
   collectionId: z.string().optional(),
+  coverage: sourceCoverageSchema.optional(),
 });
 
 export type CitationProps = z.infer<typeof citationSchema>;

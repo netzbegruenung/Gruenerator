@@ -23,6 +23,7 @@ import type { SystemCollection } from '../../../services/notebook/systemNotebook
 import type { UserAgentInput } from '../../../services/userAgents/userAgentsRepository.js';
 import type { ForbiddableArtifact } from './nodes/fastPathGuards.js';
 import type {
+  SourceCoverage,
   WolkeFileRef,
   ConnectFileRef,
   CurrentBoard,
@@ -317,6 +318,10 @@ export interface SearchResult {
    *  diese Quelle zitiert. Gesetzt nur von `SourceRegistry.getResults`; die
    *  Übernahme in spätere Turns (`toSources`) holt zitierte Quellen zuerst. */
   cited?: true;
+  /** Länge des ganzen Originaltexts, wenn `content` nur ein Teil davon ist und
+   *  der Erzeuger das Ganze kennt (gelesene Seite, Dokument). Daraus rechnet
+   *  `sourceRegistry` die Abdeckung; fehlt das Feld, gilt `content` als Ganzes. */
+  totalChars?: number;
   [key: string]: unknown;
 }
 
@@ -367,6 +372,8 @@ export interface Citation {
   // Set when this citation came from a fan-out per-document retrieval
   // (multi-document chat). Lets the UI group source cards by referenced doc.
   documentSourceId?: string | undefined;
+  /** Gelesener Anteil der Quelle, gesetzt von `SourceRegistry.getCitations`. */
+  coverage?: SourceCoverage | undefined;
 }
 
 /**
