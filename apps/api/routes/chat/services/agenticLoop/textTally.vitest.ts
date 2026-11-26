@@ -23,8 +23,8 @@ describe('tallyAfter', () => {
     expect(tallyAfter(PAGE, 'von ', { lineStart: true })).toEqual({
       total: 3,
       counts: [
-        { value: 'Christian Erhardt-Maciejewski', count: 2 },
-        { value: 'Benjamin Lassiwe', count: 1 },
+        { value: 'Christian Erhardt-Maciejewski', count: 2, share: 66.7 },
+        { value: 'Benjamin Lassiwe', count: 1, share: 33.3 },
       ],
     });
   });

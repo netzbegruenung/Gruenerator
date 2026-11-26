@@ -542,14 +542,15 @@ describe('dokumente_lesen zaehlen', () => {
     expect(out.exhaustive).toBe(true);
     expect(out.perSource[0]?.vorkommen).toBe(3);
     expect(out.perSource[0]?.werte).toEqual([
-      { value: 'Christian Erhardt-Maciejewski', count: 2 },
-      { value: 'Benjamin Lassiwe', count: 1 },
+      { value: 'Christian Erhardt-Maciejewski', count: 2, share: 66.7 },
+      { value: 'Benjamin Lassiwe', count: 1, share: 33.3 },
     ]);
     expect(sourceRegistry.getCitations()[0]?.coverage).toEqual({
       readChars: PAGE.length,
       totalChars: PAGE.length,
     });
     expect(sourceRegistry.renderAll()).toContain('Christian Erhardt-Maciejewski 2');
+    expect(sourceRegistry.renderAll()).toContain('Christian Erhardt-Maciejewski: 2 (66,7 %)');
   });
 
   it('says so when the anchor never occurs', async () => {

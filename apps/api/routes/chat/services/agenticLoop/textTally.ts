@@ -27,8 +27,11 @@ export interface TallyOptions {
 export interface Tally {
   /** Alle gezählten Vorkommen. */
   total: number;
-  /** Wert → Anzahl, absteigend; gleich häufige in der Reihenfolge des ersten Auftretens. */
-  counts: Array<{ value: string; count: number }>;
+  /** Wert → Anzahl, absteigend; gleich häufige in der Reihenfolge des ersten Auftretens.
+   *  `share`: Anteil an `total` in Prozent, eine Nachkommastelle — hier gerechnet,
+   *  damit das Modell keinen zweiten Rechenschritt mit eigener Summe macht (#6103:
+   *  es rechnete die Anteile live gegen einen falschen Nenner). */
+  counts: Array<{ value: string; count: number; share: number }>;
 }
 
 export function tallyAfter(text: string, anchor: string, opts: TallyOptions = {}): Tally {
@@ -56,7 +59,7 @@ export function tallyAfter(text: string, anchor: string, opts: TallyOptions = {}
   return {
     total,
     counts: [...counts.entries()]
-      .map(([value, count]) => ({ value, count }))
+      .map(([value, count]) => ({ value, count, share: Math.round((count / total) * 1000) / 10 }))
       .sort((a, b) => b.count - a.count),
   };
 }

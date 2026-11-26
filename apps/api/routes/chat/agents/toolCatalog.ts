@@ -891,7 +891,7 @@ NUTZE WENN eine Frage sich auf eine angehängte Datei bezieht und die bereits ge
 - Auch wenn die Frage Vollständigkeit verlangt („alle …", „wie viele …", jede Zeile einer Tabelle, eine ganze Liste): \`abschnitt\`, nicht \`query\` — die Passagensuche ordnet nach Relevanz und liefert nur die besten Treffer, nie alle.
 - „Seite N": \`seite\`.
 - „wie oft / alle Stellen mit Wort X": \`wortsuche\` statt \`abschnitt\` — zählt vollständig, mit Seite je Fundstelle.
-- „wer/was wie oft" (Autor*innen, Kategorien, Anteile): \`zaehlen\` — zählt über den GANZEN Text, welcher Wert wie oft nach einem festen Text steht, z. B. \`nach: "von "\` für Autorenzeilen (gezählt wird am Zeilenanfang; \`zeilenanfang: false\` zählt auch mitten im Satz). Zähle nie selbst über gezeigte Passagen: die sind nie das Ganze.
+- „wer/was wie oft" (Autor*innen, Kategorien, Anteile): \`zaehlen\` — zählt über den GANZEN Text, welcher Wert wie oft nach einem festen Text steht, z. B. \`nach: "von "\` für Autorenzeilen (gezählt wird am Zeilenanfang; \`zeilenanfang: false\` zählt auch mitten im Satz). Die Anteile in Prozent stehen im Ergebnis — übernimm sie, statt sie nachzurechnen. Zähle nie selbst über gezeigte Passagen: die sind nie das Ganze.
 - „steht das so drin / stimmt das Zitat": \`zitat\` mit dem Wortlaut.${mehrere ? '\n- `dateiname` grenzt auf eine der Dateien ein.' : ''}
 
 Genau ein Modus je Aufruf.

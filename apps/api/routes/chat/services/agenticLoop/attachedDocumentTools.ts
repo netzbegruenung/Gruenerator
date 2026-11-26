@@ -523,7 +523,9 @@ async function tallyAttached(
           counted.map(({ source, tally }): SearchResult => {
             const shown = tally.counts.slice(0, TALLY_TOP);
             const rest = tally.counts.slice(TALLY_TOP).reduce((sum, c) => sum + c.count, 0);
-            const lines = shown.map((c) => `${c.value}: ${c.count}`);
+            const lines = shown.map(
+              (c) => `${c.value}: ${c.count} (${c.share.toLocaleString('de-DE')} %)`
+            );
             if (rest > 0) lines.push(`(weitere ${tally.counts.length - TALLY_TOP} Werte: ${rest})`);
             return {
               ...located(
