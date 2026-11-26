@@ -3,6 +3,8 @@ import { Skeleton, Switch, toast } from '@gruenerator/ui';
 import { useId, useState } from 'react';
 
 import { cn } from '../../../utils/cn';
+import SegmentedControl from '../../settings/components/SegmentedControl';
+import { AdminEmptyState, AdminPanel } from '../components/adminUi';
 import {
   useContentSyncRuns,
   useContentSyncSettings,
@@ -32,7 +34,7 @@ function StatusLabel({ run }: { run: ContentSyncRun }) {
     <span
       className={cn(
         'text-xs font-medium',
-        hasProblem(run) ? 'text-red-600 dark:text-red-400' : 'text-grey-500 dark:text-grey-400'
+        hasProblem(run) ? 'text-red-700 dark:text-red-300' : 'text-grey-600 dark:text-grey-400'
       )}
     >
       {label}
@@ -46,27 +48,29 @@ function EmailSwitch() {
   const setEmail = useSetContentSyncEmail();
 
   return (
-    <div className="flex items-start gap-md mb-lg">
-      <Switch
-        id={id}
-        checked={enabled ?? false}
-        disabled={isLoading || setEmail.isPending}
-        onCheckedChange={(next) =>
-          setEmail.mutate(next, {
-            onError: () => toast.error('Die Einstellung konnte nicht gespeichert werden.'),
-          })
-        }
-      />
-      <div>
-        <label htmlFor={id} className="text-sm font-medium text-foreground">
-          Berichte zusätzlich per Mail senden
-        </label>
-        <p className="text-sm text-grey-500 dark:text-grey-400 m-0">
-          Eine Mail je Landesverband-Lauf mit Neuem oder Fehlern und der nächtliche Sammelbericht.
-          Ist der Schalter aus, steht alles nur hier.
-        </p>
+    <AdminPanel>
+      <div className="flex items-start gap-md">
+        <Switch
+          id={id}
+          checked={enabled ?? false}
+          disabled={isLoading || setEmail.isPending}
+          onCheckedChange={(next) =>
+            setEmail.mutate(next, {
+              onError: () => toast.error('Die Einstellung konnte nicht gespeichert werden.'),
+            })
+          }
+        />
+        <div>
+          <label htmlFor={id} className="text-sm font-medium text-foreground">
+            Berichte zusätzlich per Mail senden
+          </label>
+          <p className="m-0 text-sm text-grey-600 dark:text-grey-400">
+            Eine Mail je Landesverband-Lauf mit Neuem oder Fehlern und der nächtliche Sammelbericht.
+            Ist der Schalter aus, steht alles nur hier.
+          </p>
+        </div>
       </div>
-    </div>
+    </AdminPanel>
   );
 }
 
@@ -89,13 +93,13 @@ function RunDetails({ run }: { run: ContentSyncRun }) {
   if (samples.length === 0 && deadLinks.length === 0 && !run.runUrl) return null;
   return (
     <details className="mt-xs">
-      <summary className="text-xs text-grey-500 dark:text-grey-400 cursor-pointer">Details</summary>
+      <summary className="cursor-pointer text-xs text-grey-600 dark:text-grey-400">Details</summary>
       <ul className="mt-xs pl-md text-xs text-foreground break-all">
         {samples.map((s) => (
           <li key={`e:${s}`}>{s}</li>
         ))}
         {deadLinks.map((s) => (
-          <li key={`d:${s}`} className="text-grey-500 dark:text-grey-400">
+          <li key={`d:${s}`} className="text-grey-600 dark:text-grey-400">
             Toter Link: {s}
           </li>
         ))}
@@ -105,7 +109,7 @@ function RunDetails({ run }: { run: ContentSyncRun }) {
           href={run.runUrl}
           target="_blank"
           rel="noreferrer"
-          className="text-xs text-primary underline"
+          className="text-xs text-primary-700 underline dark:text-primary-400"
         >
           GitHub-Lauf öffnen
         </a>
@@ -116,15 +120,17 @@ function RunDetails({ run }: { run: ContentSyncRun }) {
 
 function RunRow({ run }: { run: ContentSyncRun }) {
   return (
-    <li className="py-sm border-b border-grey-200 dark:border-grey-700 list-none">
+    <li className="list-none border-t border-grey-200 px-md py-sm first:border-t-0 dark:border-grey-800">
       <div className="flex flex-wrap items-baseline justify-between gap-x-md">
         <span className="text-sm font-medium text-foreground">
           {run.name}
-          {run.dryRun && <span className="text-grey-500 font-normal"> · Probelauf</span>}
+          {run.dryRun && (
+            <span className="font-normal text-grey-600 dark:text-grey-400"> · Probelauf</span>
+          )}
         </span>
         <StatusLabel run={run} />
       </div>
-      <div className="text-xs text-grey-500 dark:text-grey-400">
+      <div className="text-xs text-grey-600 dark:text-grey-400">
         {dateTime.format(new Date(run.startedAt))} · {run.recent ? 'stündlich' : 'voll'} ·{' '}
         {formatDuration(run.durationMs)} · +{run.stored} neu, {run.updated} aktualisiert,{' '}
         {run.skipped} unverändert
@@ -144,23 +150,13 @@ export default function ContentSyncTab() {
     <>
       <EmailSwitch />
 
-      <div className="flex gap-1 mb-lg">
-        {FILTERS.map(({ key, label }) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setFilter(key)}
-            aria-pressed={filter === key}
-            className={cn(
-              'px-3 py-1.5 text-sm font-medium rounded-md border-none cursor-pointer transition-colors',
-              filter === key
-                ? 'bg-grey-200 dark:bg-grey-700 text-foreground'
-                : 'bg-transparent text-grey-500 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800'
-            )}
-          >
-            {label}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center gap-md">
+        <SegmentedControl
+          aria-label="Läufe filtern"
+          value={filter}
+          onChange={setFilter}
+          options={FILTERS.map(({ key, label }) => ({ value: key, label }))}
+        />
       </div>
 
       {isLoading ? (
@@ -170,35 +166,31 @@ export default function ContentSyncTab() {
           ))}
         </div>
       ) : isError ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400 py-lg text-center">
+        <p role="alert" className="m-0 text-sm text-red-700 dark:text-red-300">
           Die Sync-Läufe konnten nicht geladen werden.
         </p>
       ) : !runs || runs.length === 0 ? (
-        <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
+        <AdminEmptyState>
           {filter === 'problems' ? 'Keine Probleme in den letzten Läufen.' : 'Noch keine Läufe.'}
-        </p>
+        </AdminEmptyState>
       ) : (
         <>
           {filter === 'all' && (
-            <section className="mb-lg">
-              <h3 className="text-sm font-semibold text-foreground mb-xs">
-                Letzter Stand je Quelle
-              </h3>
-              <ul className="p-0 m-0">
+            <AdminPanel flush title="Letzter Stand je Quelle">
+              <ul className="m-0 p-0">
                 {latestPerTarget(runs).map((run) => (
                   <RunRow key={run.id} run={run} />
                 ))}
               </ul>
-            </section>
+            </AdminPanel>
           )}
-          <section>
-            <h3 className="text-sm font-semibold text-foreground mb-xs">Verlauf</h3>
-            <ul className="p-0 m-0">
+          <AdminPanel flush title="Verlauf">
+            <ul className="m-0 p-0">
               {runs.map((run) => (
                 <RunRow key={run.id} run={run} />
               ))}
             </ul>
-          </section>
+          </AdminPanel>
         </>
       )}
     </>
