@@ -40,6 +40,7 @@ import { getUnsplashService } from '../unsplash/UnsplashApiService.js';
 
 import { weekdayId } from './briefFacts.js';
 import { carouselLookProblems } from './carouselLook.js';
+import { carouselSeitenText } from './carouselSeiten.js';
 import { findStockPhotos, stockPhotoCredit, type FoundPhoto } from './catalog.js';
 import { type DatumRepair, repairDatum } from './datumRepair.js';
 import { type DraftFailure, DraftFailedError, sameFailure } from './draftFailure.js';
@@ -340,6 +341,7 @@ export async function draftSharepic(
     basicsText(locale, design),
     ownPhotos.length ? ownPhotosText(ownPhotos) : '',
     ...chapters.map(chapterText),
+    chapters.includes('karussell') ? carouselSeitenText(locale, design) : '',
     examplesText(
       locale,
       [...new Set([...(recipe?.anlass ?? []), ...wanted.anlass])].slice(0, 3),

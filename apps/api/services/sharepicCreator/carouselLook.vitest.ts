@@ -181,3 +181,47 @@ describe('carouselLookProblems', () => {
     expect(carouselLookProblems(spec)).toBeNull();
   });
 });
+
+describe('carouselLookProblems: one build through the middle', () => {
+  type Items = SharepicSlide['items'];
+  const headlineAbsatz = [
+    { type: 'headline', lines: ['Zeile'] },
+    { type: 'absatz', text: 'Text' },
+  ] as Items;
+  const liste = [
+    { type: 'headline', lines: ['Zeile'] },
+    { type: 'liste', stil: 'punkte', punkte: ['a', 'b'] },
+  ] as Items;
+  const built = (middle: Items[], background: Bg = farbe('mint')): SharepicSpec =>
+    ({
+      locale: 'de-DE',
+      slides: [headlineAbsatz, ...middle, headlineAbsatz].map((items) => ({
+        background,
+        position: 'oben',
+        align: 'links',
+        items,
+        logo: false,
+      })),
+    }) as SharepicSpec;
+
+  it('flags three middle slides built alike', () => {
+    expect(carouselLookProblems(built([headlineAbsatz, headlineAbsatz, headlineAbsatz]))).toMatch(
+      /Slides 2–4 sind gleich gebaut \(headline \+ absatz\)/
+    );
+  });
+
+  it('accepts two alike in a row when the build then changes', () => {
+    expect(carouselLookProblems(built([headlineAbsatz, headlineAbsatz, liste]))).toBeNull();
+  });
+
+  it('lets a photo story and a text slider repeat their build', () => {
+    expect(
+      carouselLookProblems(built([headlineAbsatz, headlineAbsatz, headlineAbsatz], foto))
+    ).toBeNull();
+    const absaetze = [
+      { type: 'absatz', text: 'a' },
+      { type: 'absatz', text: 'b' },
+    ] as Items;
+    expect(carouselLookProblems(built([absaetze, absaetze, absaetze]))).toBeNull();
+  });
+});

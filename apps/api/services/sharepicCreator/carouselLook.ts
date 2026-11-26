@@ -29,6 +29,37 @@ function runs(slides: readonly SharepicSlide[]): { start: number; end: number; s
   return out;
 }
 
+/** The blocks a slide is built from, in reading order. */
+const buildOf = (slide: SharepicSlide) => slide.items.map((i) => i.type).join(' + ');
+
+/**
+ * A photo story and a text slider repeat one build on purpose (the Vorlagen
+ * do); everything else changes its build between cover and close. Drafts held
+ * one build through the whole middle (26.11.2026: 19 of 42 neighbours alike,
+ * with the catalogue's slide kinds in the prompt).
+ */
+function repeatsOnPurpose(slide: SharepicSlide): boolean {
+  return (
+    slide.background.kind === 'foto' ||
+    !!slide.zeilenboxen ||
+    slide.items.every((i) => i.type === 'absatz' || i.type === 'text')
+  );
+}
+
+const RUN = 3;
+
+function repeatedBuild(slides: readonly SharepicSlide[]): string | null {
+  const middle = slides.slice(1, -1);
+  for (let i = 0; i + RUN <= middle.length; i++) {
+    const run = middle.slice(i, i + RUN);
+    const build = buildOf(run[0]!);
+    if (run.every((s) => buildOf(s) === build && !repeatsOnPurpose(s))) {
+      return `Die Slides ${i + 2}–${i + RUN + 1} sind gleich gebaut (${build}). Baue mindestens eine davon anders – eine andere Art aus den Slide-Arten der Vorlagen, z. B. eine liste, frage + absatz, eine große Zahl oder ein bild.`;
+    }
+  }
+  return null;
+}
+
 /** Why a new carousel does not hold together, or null when it does. */
 export function carouselLookProblems(spec: SharepicSpec): string | null {
   const slides = spec.slides;
@@ -81,7 +112,9 @@ export function carouselLookProblems(spec: SharepicSpec): string | null {
       );
     }
   }
-  return problems.length
+  const look = problems.length
     ? `Karussell: ein Look für alle Slides. ${problems.join(' ')} Behalte Texte und Reihenfolge, ändere nur Hintergründe und Ausrichtung.`
     : null;
+  const sameBuild = repeatedBuild(slides);
+  return [look, sameBuild].filter(Boolean).join(' ') || null;
 }
