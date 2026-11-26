@@ -23,6 +23,7 @@ import type {
   NotificationListOptions,
   NotificationType,
 } from './types.js';
+import type { GroupEmailNotifications } from '@gruenerator/contracts';
 
 // Types that have a dedicated, richer email template fired at the call site
 // (e.g. permissionsController → sendDocumentShareEmail). The central
@@ -37,6 +38,20 @@ const IN_APP_ONLY: ReadonlySet<NotificationType> = new Set<NotificationType>([
   'new_avatars',
   // Daily — a daily email would be spam; the sidebar marks it too.
   'daily_briefing',
+]);
+
+// Project notifications that address the member directly. Under the project
+// email setting 'mentions' (the default) only these still mail; feed news
+// (posts, shares, comments, chat, joins) stays in the bell.
+const GROUP_PERSONAL_TYPES: ReadonlySet<NotificationType> = new Set<NotificationType>([
+  'group_user_mentioned',
+  'group_mention_all',
+  'group_join_requested',
+  'group_join_approved',
+  'group_join_denied',
+  'group_role_changed',
+  'group_content_reported',
+  'group_deleted',
 ]);
 
 type NotificationRow = InferSelectModel<typeof notifications>;
@@ -169,27 +184,40 @@ function resolveGroupId(
 }
 
 /**
- * Whether the user has muted notifications for this group (via the group's
- * 3-dot menu). Fail-open: any error resolves to `false` so notifications are
- * never silently suppressed by an infra hiccup.
+ * The member's email setting for this project, or null when they hold no
+ * membership (e.g. a denied join request). Fail-open: any error resolves to
+ * null so notifications are never silently suppressed by an infra hiccup.
  */
-async function isGroupMutedForUser(userId: string, groupId: string): Promise<boolean> {
+async function groupEmailSettingFor(
+  userId: string,
+  groupId: string
+): Promise<GroupEmailNotifications | null> {
   try {
     const db = getDrizzleInstance();
     const rows = await db
-      .select({ muted: group_memberships.notifications_muted })
+      .select({ level: group_memberships.email_notifications })
       .from(group_memberships)
       .where(and(eq(group_memberships.group_id, groupId), eq(group_memberships.user_id, userId)))
       .limit(1);
-    return rows[0]?.muted === true;
+    return rows[0]?.level ?? null;
   } catch (err) {
-    log.warn('Failed to check group mute preference', {
+    log.warn('Failed to check group email setting', {
       userId,
       groupId,
       error: err instanceof Error ? err.message : String(err),
     });
-    return false;
+    return null;
   }
+}
+
+/** Whether the member's project email setting lets this type mail at all. */
+function groupAllowsEmail(
+  type: NotificationType,
+  groupEmail: GroupEmailNotifications | null
+): boolean {
+  if (groupEmail === 'none') return false;
+  if (groupEmail === 'mentions') return GROUP_PERSONAL_TYPES.has(type);
+  return true;
 }
 
 /**
@@ -199,15 +227,15 @@ async function isGroupMutedForUser(userId: string, groupId: string): Promise<boo
 function pickChannels(
   type: NotificationType,
   prefs: Pick<ChannelPreferences, 'in_app' | 'email'>,
-  groupMuted: boolean,
+  groupEmail: GroupEmailNotifications | null,
   channelOverride: CreateNotificationParams['channelOverride']
 ): { inApp: boolean; email: boolean } {
   // A per-call override wins over the user's stored channel preference.
   const inApp = channelOverride?.in_app ?? prefs.in_app;
-  // A muted group suppresses the noisy channel (email) for this user;
-  // the in-app notification is still recorded so nothing is lost.
+  // The project email setting only narrows the noisy channel (email); the
+  // in-app notification is still recorded so nothing is lost.
   const email =
-    !groupMuted &&
+    groupAllowsEmail(type, groupEmail) &&
     !EMAIL_HANDLED_ELSEWHERE.has(type) &&
     !IN_APP_ONLY.has(type) &&
     (channelOverride?.email ?? prefs.email);
@@ -224,7 +252,7 @@ export async function createNotification(
   const profile = await getProfileForDelivery(userId);
 
   const groupId = resolveGroupId(metadata, groupKey);
-  const groupMuted = groupId ? await isGroupMutedForUser(userId, groupId) : false;
+  const groupEmail = groupId ? await groupEmailSettingFor(userId, groupId) : null;
 
   const channels = pickChannels(
     type,
@@ -232,7 +260,7 @@ export async function createNotification(
       in_app: await shouldDeliver(userId, type, 'in_app', profile),
       email: await shouldDeliver(userId, type, 'email', profile),
     },
-    groupMuted,
+    groupEmail,
     channelOverride
   );
 
@@ -271,7 +299,7 @@ export async function createNotification(
 
 /**
  * The same notification for many users in two round trips: one read for every
- * recipient's stored preference and group mute, one multi-row insert. Channel
+ * recipient's stored preference and project email setting, one multi-row insert. Channel
  * rules are those of `createNotification`. Users without a profile are skipped
  * (the insert's foreign key would reject them anyway). Returns the rows written.
  */
@@ -291,9 +319,9 @@ export async function createNotificationsForUsers(
       email: profiles.email,
       display_name: profiles.display_name,
       stored: sql<unknown>`${profiles.user_defaults} -> 'notifications' -> ${type}`,
-      muted: groupId
-        ? sql<boolean>`COALESCE(${group_memberships.notifications_muted}, FALSE)`
-        : sql<boolean>`FALSE`,
+      groupEmail: groupId
+        ? sql<GroupEmailNotifications | null>`${group_memberships.email_notifications}`
+        : sql<GroupEmailNotifications | null>`NULL`,
     })
     .from(profiles)
     .leftJoin(
@@ -317,7 +345,7 @@ export async function createNotificationsForUsers(
     const channels = pickChannels(
       type,
       resolveChannelPreferences(r.stored, type),
-      r.muted,
+      r.groupEmail,
       channelOverride
     );
     return channels.inApp || channels.email ? [{ recipient: r, email: channels.email }] : [];

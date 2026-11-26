@@ -52,7 +52,7 @@ export {
   useJoinGroup,
   useRegenerateJoinToken,
   useLeaveGroup,
-  useSetGroupMute,
+  useSetGroupEmailNotifications,
   useSetGroupInstructions,
   useUpdateGroupInfo,
   useUpdateGroupLink,
@@ -132,3 +132,8 @@ export {
 } from './createInProject.js';
 
 export { pickRecentEntries, type RecentEntry } from './recentEntries.js';
+
+export {
+  DEFAULT_GROUP_EMAIL_NOTIFICATIONS,
+  GROUP_EMAIL_NOTIFICATION_OPTIONS,
+} from './emailNotifications.js';

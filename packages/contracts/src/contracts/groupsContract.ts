@@ -30,6 +30,7 @@ import {
   groupLinkResponseSchema,
   groupMembersResponseSchema,
   groupMuteResponseSchema,
+  groupEmailNotificationsResponseSchema,
   groupOkResponseSchema,
   groupResolveResponseSchema,
   groupShareCommentResponseSchema,
@@ -50,6 +51,7 @@ import {
   requestToJoinResponseSchema,
   setGroupArchivedBodySchema,
   setGroupMuteBodySchema,
+  setGroupEmailNotificationsBodySchema,
   setGroupVisibilityBodySchema,
   shareContentBodySchema,
   unshareContentBodySchema,
@@ -364,6 +366,26 @@ export const groupsContract = c.router({
       500: groupErrorResponseSchema,
     },
     summary: 'Mute or unmute the caller notifications for a group',
+  },
+
+  /**
+   * PUT /api/auth/groups/:groupId/email-notifications
+   * The caller picks which of this project's notifications reach them by email
+   * ('all' | 'mentions' | 'none'). Supersedes `setGroupMute`, which stays for
+   * shipped mobile binaries. Own membership only — no admin rights required.
+   */
+  setGroupEmailNotifications: {
+    method: 'PUT',
+    path: '/api/auth/groups/:groupId/email-notifications',
+    pathParams: z.object({ groupId: z.string() }),
+    body: setGroupEmailNotificationsBodySchema,
+    responses: {
+      200: groupEmailNotificationsResponseSchema,
+      401: groupErrorResponseSchema,
+      404: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Set which project notifications the caller receives by email',
   },
 
   listMembers: {

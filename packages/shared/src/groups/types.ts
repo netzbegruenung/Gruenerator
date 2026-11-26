@@ -1,4 +1,4 @@
-import { type GroupDetailDto } from '@gruenerator/contracts';
+import { type GroupDetailDto, type GroupEmailNotifications } from '@gruenerator/contracts';
 
 import { PRODUCTION_WEB_ORIGIN } from '../instances/index.js';
 import { buildGroupSlug } from '../utils/slug.js';
@@ -100,8 +100,8 @@ export interface GroupMembership {
   role: string;
   joined_at?: string;
   isAdmin: boolean;
-  /** Whether the caller muted email + push notifications for this group. */
-  notifications_muted?: boolean | null;
+  /** Which of this project's notifications reach the caller by email. */
+  email_notifications?: GroupEmailNotifications | null;
 }
 
 export interface VerifyTokenResult {
