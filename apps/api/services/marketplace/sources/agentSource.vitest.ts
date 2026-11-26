@@ -13,6 +13,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { SourceQuery } from './types.js';
 
+const TRANSFER_AGENTS = ['gruenerator-einfache-sprache', 'gruenerator-leichte-sprache'];
+
 const m = vi.hoisted(() => ({
   listPublicUserAgentListings: vi.fn(),
   listUserAgents: vi.fn(),
@@ -131,7 +133,7 @@ describe('agentSource.list', () => {
   it('lists official agents first, then the public user agents of the viewer’s country', async () => {
     const page = await agentSource.list(ctx(), query());
     const official = getVisibleSystemAgentsForLocale('de-DE', 'production').filter(
-      (a) => !isLandesverbandIdentifier(a.identifier)
+      (a) => !isLandesverbandIdentifier(a.identifier) && !TRANSFER_AGENTS.includes(a.identifier)
     );
     expect(page.items.slice(0, official.length).map((i) => i.ref)).toEqual(
       official.map((a) => a.identifier)
@@ -171,6 +173,15 @@ describe('agentSource.list', () => {
     expect(await refs(ctx({ lvId: 'berlin' }), query({ origin: 'landesverband' }))).toEqual([]);
     const all = await refs(ctx({ lvId: 'berlin' }), query());
     expect(all.some((ref) => lvIdForAgentIdentifier(ref) !== null)).toBe(false);
+  });
+
+  it('lists no transfer agents — their recipes stand in front, the agents still resolve', async () => {
+    // Einfache/Leichte Sprache since 11/2026: the recipe runs the same chain.
+    const listed = await refs();
+    for (const id of TRANSFER_AGENTS) {
+      expect(listed).not.toContain(id);
+      expect(await agentSource.get(ctx(), id)).toMatchObject({ ref: id, origin: 'offiziell' });
+    }
   });
 
   it('does not load the roles when a Landesverband is asked for by `lv`', async () => {
