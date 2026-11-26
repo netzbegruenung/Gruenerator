@@ -1,28 +1,44 @@
-import { GROUP_POST_FILE_LIMIT, GROUP_POST_MAX } from '@gruenerator/contracts';
 import {
+  GROUP_POST_FILE_LIMIT,
+  GROUP_POST_MAX,
+  GROUP_SHARE_NOTE_MAX,
+} from '@gruenerator/contracts';
+import {
+  addItemsToGroup,
+  addableKey,
   fileExtensionLabel,
   formatFileSize,
+  groupContentKey,
+  sharedContentKeys,
   useCreateGroupPost,
   useUpdateGroupPost,
+  type AddableItem,
+  type GroupFeedKind,
 } from '@gruenerator/shared/groups';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
+import { useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useMemo, useRef, useState } from 'react';
+import { Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AddableContentList } from '../../../../components/projekte/AddableContentList';
+import { FEED_KIND_ICONS } from '../../../../components/projekte/feedIcons';
 import { MentionSuggestions } from '../../../../components/projekte/MentionSuggestions';
 import {
   addDraftFiles,
   canSubmitPost,
+  noteTooLong,
   toUploadFile,
   visibilityHint,
   type DraftFile,
 } from '../../../../components/projekte/postRules';
 import { useProjekteTone } from '../../../../components/projekte/projekteTone';
 import { SheetHeader } from '../../../../components/projekte/SheetHeader';
+import { useGroupFeed } from '../../../../hooks/useGroupContent';
 import { useGroupDetails, useGroupMembers } from '../../../../hooks/useGroups';
 import { useMentionDraft } from '../../../../hooks/useMentionDraft';
 import { useMentionOptions } from '../../../../hooks/useMentionOptions';
@@ -33,9 +49,14 @@ import { BODY_FONT, colors, spacing } from '../../../../theme';
 import { serverMessage } from '../../../../utils/serverMessage';
 
 /**
- * „Beitrag schreiben" als formSheet mit eigener Kopfleiste (`SheetHeader`): Text mit @-Erwähnungen, dazu Fotos und
- * Dateien. Mit `postId` ist es „Beitrag bearbeiten" — dann nur der Text. Bei
- * einem Fehler bleibt der Entwurf stehen; geschlossen wird erst nach Erfolg.
+ * „Beitrag schreiben" als formSheet mit eigener Kopfleiste (`SheetHeader`): Text mit @-Erwähnungen, dazu Fotos,
+ * Dateien und eigene Inhalte („Aus meinen Inhalten“). Mit `postId` ist es
+ * „Beitrag bearbeiten" — dann nur der Text. Bei einem Fehler bleibt der Entwurf
+ * stehen; geschlossen wird erst nach Erfolg.
+ *
+ * Wie im Web (`GroupComposer`): eigene Inhalte werden beim Posten geteilt, der
+ * Text wird ihre Notiz — kein zweiter Beitrag mit demselben Text. Dateien daneben
+ * werden ein Beitrag ohne Text.
  */
 export default function ProjektBeitragScreen() {
   const { id, postId, body } = useLocalSearchParams<{
@@ -47,9 +68,15 @@ export default function ProjektBeitragScreen() {
   const router = useRouter();
   const theme = useTheme();
   const tone = useProjekteTone();
+  const insets = useSafeAreaInsets();
   const details = useGroupDetails(id);
   const members = useGroupMembers(id ?? null);
   const isSystem = details.data?.group.is_system === true;
+  // Wie in „Inhalte hinzufügen": im Team dürfen Mitglieder geteilte Docs bearbeiten.
+  const isTeam = !!details.data?.group && !isSystem;
+  const feed = useGroupFeed(id);
+  const alreadyShared = useMemo(() => sharedContentKeys(feed.data ?? []), [feed.data]);
+  const queryClient = useQueryClient();
   const mentionOptions = useMentionOptions(
     id ?? null,
     isSystem,
@@ -57,16 +84,39 @@ export default function ProjektBeitragScreen() {
   );
   const mention = useMentionDraft(mentionOptions, GROUP_POST_MAX, body ?? '');
   const [files, setFiles] = useState<DraftFile[]>([]);
+  // Mit der Art, damit die gewählte Zeile ihr Symbol behält.
+  const [picked, setPicked] = useState<
+    ReadonlyMap<string, { item: AddableItem; kind: GroupFeedKind }>
+  >(new Map());
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const create = useCreateGroupPost(id ?? '');
   const update = useUpdateGroupPost(id ?? '');
   const nextId = useRef(0);
-  const busy = create.isPending || update.isPending;
+  const busy = sharing || create.isPending || update.isPending;
+  const noteCapped = noteTooLong(mention.text, picked.size);
 
   const canPost =
-    canSubmitPost(mention.text, files.length, mention.tooLong, busy || !id) &&
+    canSubmitPost(mention.text, files.length + picked.size, mention.tooLong, busy || !id) &&
+    !noteCapped &&
     (!editing || mention.text.trim().length > 0);
+
+  const togglePicked = (item: AddableItem, kind: GroupFeedKind) =>
+    setPicked((prev) => {
+      const next = new Map(prev);
+      const key = addableKey(item);
+      if (next.has(key)) next.delete(key);
+      else next.set(key, { item, kind });
+      return next;
+    });
+  const unpick = (key: string) =>
+    setPicked((prev) => {
+      const next = new Map(prev);
+      next.delete(key);
+      return next;
+    });
 
   const addPicked = (incoming: Omit<DraftFile, 'id'>[]) => {
     if (incoming.length === 0) return;
@@ -106,17 +156,45 @@ export default function ProjektBeitragScreen() {
     router.back();
   };
 
-  const submit = () => {
-    if (!canPost) return;
+  const postFiles = (postBody: string) =>
+    create.mutate(
+      { body: postBody, files: files.map(toUploadFile), onProgress: setProgress },
+      { onSuccess: done, onError: fail, onSettled: () => setProgress(null) }
+    );
+
+  const submit = async () => {
+    if (!canPost || !id) return;
     setLocalError(null);
     if (editing && postId) {
       update.mutate({ postId, body: mention.serialize() }, { onSuccess: done, onError: fail });
       return;
     }
-    create.mutate(
-      { body: mention.serialize(), files: files.map(toUploadFile), onProgress: setProgress },
-      { onSuccess: done, onError: fail, onSettled: () => setProgress(null) }
+    if (picked.size === 0) {
+      postFiles(mention.serialize());
+      return;
+    }
+    setSharing(true);
+    // addItemsToGroup wirft nie (Promise.allSettled), deshalb kein try.
+    const result = await addItemsToGroup(
+      id,
+      [...picked.values()].map((p) => p.item),
+      mention.text.trim() || null,
+      {
+        writeDocuments: isTeam,
+      }
     );
+    setSharing(false);
+    void queryClient.invalidateQueries({ queryKey: groupContentKey(id) });
+    if (result.failed > 0) {
+      // Was geteilt ist, fällt aus dem Entwurf; der Rest bleibt mit dem Grund stehen.
+      const failed = new Set(result.failures.map((f) => f.key));
+      setPicked((prev) => new Map([...prev].filter(([key]) => failed.has(key))));
+      setLocalError(result.firstError);
+      return;
+    }
+    // Der Text steht schon als Notiz an den Inhalten; die Dateien kommen ohne ihn.
+    if (files.length > 0) postFiles('');
+    else done();
   };
 
   const hint = visibilityHint(isSystem ? null : (members.data?.length ?? null));
@@ -132,7 +210,7 @@ export default function ProjektBeitragScreen() {
         onCancel={() => router.back()}
         actionLabel={editing ? 'Speichern' : 'Posten'}
         actionAccessibilityLabel={editing ? 'Änderung speichern' : 'Beitrag posten'}
-        onAction={submit}
+        onAction={() => void submit()}
         canAct={canPost}
         busy={busy}
       />
@@ -208,6 +286,67 @@ export default function ProjektBeitragScreen() {
             </View>
           ))}
 
+          {pickerOpen ? (
+            <View style={styles.picker}>
+              <View style={styles.pickerHead}>
+                <Text
+                  style={[styles.pickerTitle, { color: theme.text }]}
+                  accessibilityRole="header"
+                >
+                  Aus meinen Inhalten
+                </Text>
+                <Pressable
+                  onPress={() => setPickerOpen(false)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  style={styles.toolButton}
+                >
+                  <Text style={[styles.toolText, { color: tone.accent }]}>Fertig</Text>
+                </Pressable>
+              </View>
+              <AddableContentList
+                selected={new Set(picked.keys())}
+                onToggle={togglePicked}
+                alreadyShared={alreadyShared}
+              />
+            </View>
+          ) : (
+            [...picked.entries()].map(([key, { item, kind }]) => (
+              <View key={key} style={[styles.fileRow, { borderColor: theme.border }]}>
+                <View style={[styles.badge, { backgroundColor: tone.soft }]}>
+                  <Ionicons name={FEED_KIND_ICONS[kind]} size={20} color={tone.accent} />
+                </View>
+                <Text
+                  style={[styles.fileName, styles.flex, { color: theme.text }]}
+                  numberOfLines={1}
+                >
+                  {item.title || 'Ohne Titel'}
+                </Text>
+                <Pressable
+                  onPress={() => unpick(key)}
+                  disabled={busy}
+                  hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${item.title || 'Inhalt'} entfernen`}
+                >
+                  <Ionicons name="close-circle" size={22} color={theme.textSecondary} />
+                </Pressable>
+              </View>
+            ))
+          )}
+          {picked.size > 0 ? (
+            <Text
+              style={[
+                styles.hint,
+                { color: noteCapped ? colors.semantic.error : theme.textSecondary },
+              ]}
+            >
+              {noteCapped
+                ? `Mit angehängten Inhalten wird der Text ihre Notiz — höchstens ${GROUP_SHARE_NOTE_MAX} Zeichen.`
+                : 'Der Text wird die Notiz an den angehängten Inhalten.'}
+            </Text>
+          ) : null}
+
           {localError ? <Text style={styles.error}>{localError}</Text> : null}
           {progress !== null ? (
             <View accessibilityRole="progressbar" accessibilityLabel="Hochladen">
@@ -227,7 +366,16 @@ export default function ProjektBeitragScreen() {
         </ScrollView>
 
         {editing ? null : (
-          <View style={[styles.toolbar, { borderTopColor: theme.border }]}>
+          <View
+            style={[
+              styles.toolbar,
+              // Über dem Gesten-Balken bleiben (Android), sonst liegt „Inhalte“ darunter.
+              {
+                borderTopColor: theme.border,
+                paddingBottom: Math.max(insets.bottom, spacing.xsmall),
+              },
+            ]}
+          >
             <Pressable
               onPress={() => void pickPhoto()}
               disabled={busy || files.length >= GROUP_POST_FILE_LIMIT}
@@ -247,6 +395,20 @@ export default function ProjektBeitragScreen() {
             >
               <Ionicons name="attach" size={22} color={tone.accent} />
               <Text style={[styles.toolText, { color: tone.accent }]}>Datei</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                Keyboard.dismiss();
+                setPickerOpen((v) => !v);
+              }}
+              disabled={busy}
+              accessibilityRole="button"
+              accessibilityLabel="Aus meinen Inhalten anhängen"
+              accessibilityState={{ expanded: pickerOpen }}
+              style={styles.toolButton}
+            >
+              <Ionicons name="albums-outline" size={22} color={tone.accent} />
+              <Text style={[styles.toolText, { color: tone.accent }]}>Inhalte</Text>
             </Pressable>
           </View>
         )}
@@ -320,4 +482,7 @@ const styles = StyleSheet.create({
   },
   toolButton: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44 },
   toolText: { fontFamily: BODY_FONT, fontSize: 15, fontWeight: '600' },
+  picker: { gap: spacing.small, paddingTop: spacing.xsmall },
+  pickerHead: { flexDirection: 'row', alignItems: 'center' },
+  pickerTitle: { flex: 1, fontFamily: BODY_FONT, fontSize: 17, fontWeight: '700' },
 });
