@@ -38,7 +38,7 @@ export default function AdminShell({ heading, nav, navLabel, children }: AdminSh
     <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-lg px-md pt-sm pb-xl md:flex-row md:gap-xl md:px-lg">
       <nav
         aria-label={navLabel}
-        className="flex shrink-0 flex-col gap-md md:sticky md:top-16 md:w-60 md:self-start"
+        className="flex shrink-0 flex-col gap-md md:sticky md:top-16 md:max-h-[calc(100dvh-5rem)] md:w-60 md:self-start md:overflow-y-auto"
       >
         <div className="px-2.5">{heading}</div>
         {nav.map((group) => (

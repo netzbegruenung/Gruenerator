@@ -74,9 +74,7 @@ export function AdminPanel({
           {description}
         </p>
       )}
-      <div className={cn(flush ? 'pt-sm' : 'p-md', !hasHead && !description && !flush && 'pt-md')}>
-        {children}
-      </div>
+      <div className={cn(flush ? (hasHead || description ? 'pt-sm' : '') : 'p-md')}>{children}</div>
     </section>
   );
 }
