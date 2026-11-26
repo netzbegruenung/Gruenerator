@@ -14,12 +14,15 @@ import { type VisualBlockKind } from '@gruenerator/contracts';
 
 import { buildVisualBlocksGuidance } from '../../agents/langgraph/ChatGraph/nodes/visualBlocksGuidance.js';
 
+import { buildSharepicDesignGuide } from './sharepicDesignGuide.js';
+
 export interface CodeRecipeContext {
   kinds: readonly VisualBlockKind[];
 }
 
 export const CODE_RECIPE_BODIES: Readonly<Record<string, (ctx: CodeRecipeContext) => string>> = {
   'visuelle-bausteine': ({ kinds }) => buildVisualBlocksGuidance(kinds).trim(),
+  'sharepic-gestalten': () => buildSharepicDesignGuide(),
 };
 
 /** Ein Code-Rezept ist verfügbar, wenn sein Rumpf in diesem Turn nicht leer ist. */
