@@ -51,10 +51,10 @@ export default function AdminShell({ heading, nav, navLabel, children }: AdminSh
   const CurrentIcon = current?.icon;
 
   return (
-    <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-lg px-md pt-sm pb-xl md:flex-row md:gap-xl md:px-lg">
+    <div className="flex w-full flex-col gap-lg px-md pb-xl md:flex-row md:gap-xl md:pr-lg md:pl-sm">
       <nav
         aria-label={navLabel}
-        className="flex shrink-0 flex-col gap-sm md:sticky md:top-16 md:max-h-[calc(100dvh-5rem)] md:w-60 md:gap-md md:self-start md:overflow-y-auto"
+        className="flex shrink-0 flex-col gap-sm md:sticky md:top-lg md:max-h-[calc(100dvh-3rem)] md:w-60 md:gap-md md:self-start md:overflow-y-auto"
       >
         <div className="px-2.5 max-md:pl-12">{heading}</div>
 
@@ -124,7 +124,7 @@ export default function AdminShell({ heading, nav, navLabel, children }: AdminSh
           ))}
         </div>
       </nav>
-      <div className="flex min-w-0 flex-1 flex-col gap-lg">{children}</div>
+      <div className="flex min-w-0 max-w-[1120px] flex-1 flex-col gap-lg">{children}</div>
     </div>
   );
 }
