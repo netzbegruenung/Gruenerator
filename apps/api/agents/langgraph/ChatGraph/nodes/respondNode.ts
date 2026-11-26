@@ -11,6 +11,7 @@ import { SKILLS, canonicalSkillMention } from '@gruenerator/shared/agents';
 import { type ChatIntentId, isGroundableProse } from '@gruenerator/shared/chat-intents';
 
 import { roleAwareDefaultRecipeMention } from '../../../../routes/chat/agents/lvRecipePreference.js';
+import { getPipelineAgent } from '../../../../routes/chat/agents/pipelines/index.js';
 import { isTabelleAuswertenMountable } from '../../../../routes/chat/agents/tabelleAuswertenTool.js';
 import {
   isProseLoopState,
@@ -2399,8 +2400,14 @@ async function buildPromptBlockContext(state: ChatGraphState, opts: SystemMessag
   // Prompt, nur ohne Kappe und Budget. Der Einzelpfad bleibt unverändert.
   const pinnedByRegistry =
     opts.loop === true && !!(state.activeSkillMention || state.activeRecipeId);
+  // Ein Übertragungs-Rezept auf seinem eigenen Pipeline-Agenten: sein Rumpf IST
+  // die Persona (`codeRecipes.ts`), die oben schon steht — ein zweites Mal wäre
+  // dasselbe Regelwerk doppelt im Prompt.
+  const recipeIsPersona =
+    resolved?.source === 'system' &&
+    getPipelineAgent(agentConfig.identifier)?.recipeMention === resolved.mention;
   const textFormFragment =
-    resolved && !preloadedByRegistry && !pinnedByRegistry
+    resolved && !preloadedByRegistry && !pinnedByRegistry && !recipeIsPersona
       ? `\n\n## AKTIVE ${resolved.replacesSystem || resolved.source === 'system' ? 'PLATTFORM' : 'TEXTFORM'}: ${resolved.title}\n${resolved.body}${offerNote(state, [resolved.mention])}`
       : '';
 

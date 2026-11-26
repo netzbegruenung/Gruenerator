@@ -717,4 +717,20 @@ export const SKILL_SLIMS: readonly SkillSlim[] = [
     skillCategory: 'sonstiges',
     audience: 'all',
   },
+  {
+    identifier: 'gruenerator-einfache-sprache',
+    mention: 'einfache-sprache',
+    title: 'Einfache Sprache',
+    iconKey: 'PiTranslate',
+    skillCategory: 'dokumente',
+    audience: 'all',
+  },
+  {
+    identifier: 'gruenerator-leichte-sprache',
+    mention: 'leichte-sprache',
+    title: 'Leichte Sprache',
+    iconKey: 'PiChatCircle',
+    skillCategory: 'dokumente',
+    audience: 'all',
+  },
 ];

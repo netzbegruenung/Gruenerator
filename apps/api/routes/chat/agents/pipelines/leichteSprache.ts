@@ -150,6 +150,7 @@ Keine Einleitung, kein Kommentar. Beginne mit dem Titel.`;
 
 export const LEICHTE_SPRACHE_PIPELINE = buildTransferPipeline({
   identifier: 'gruenerator-leichte-sprache',
+  recipeMention: 'leichte-sprache',
   registerName: 'Leichte Sprache',
   levelLabel: 'Sprachniveau A1',
   versionTag: 'LS-Fassung',
