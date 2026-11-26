@@ -69,7 +69,7 @@ export interface CitationPdfMark {
   citationId: number;
   /** Page the ingest recorded for the chunk; missing for many scraped PDFs. */
   page: number | null;
-  /** Texts to look for, most precise first: the quoted words, then the chunk. */
+  /** Texts to look for, most precise first: the backing sentence, the cited excerpt, then the chunk. */
   texts: string[];
 }
 
@@ -130,7 +130,9 @@ function marksForDocument(
   sources.forEach((s, i) => {
     if (s.documentId !== source.documentId || s.collectionId !== source.collectionId) return;
     const chunk = chunks.find((c) => c.index === s.chunkIndex);
-    const texts = [s.citedText, chunk?.text].filter((t): t is string => Boolean(t?.trim()));
+    const texts = [s.quote, s.citedText, chunk?.text].filter(
+      (t, i, all): t is string => Boolean(t?.trim()) && all.indexOf(t) === i
+    );
     marks.push({ citationId: s.citationId, page: chunk?.pageNumber ?? null, texts });
     sourceIndices.push(i);
   });
@@ -188,8 +190,19 @@ function originalHref(documentId: string, notebookId: string, page: number | nul
   return `${API_BASE_URL}/documents/${encodeURIComponent(documentId)}/original${query}${fragment}`;
 }
 
-function CitedChunk({ text, citedText }: { text: string; citedText?: string }) {
-  const range = useMemo(() => findCitedRange(text, citedText), [text, citedText]);
+function CitedChunk({
+  text,
+  quote,
+  citedText,
+}: {
+  text: string;
+  quote?: string;
+  citedText?: string;
+}) {
+  const range = useMemo(
+    () => findCitedRange(text, quote) ?? findCitedRange(text, citedText),
+    [text, quote, citedText]
+  );
   if (!range) return <>{text}</>;
   const [start, end] = range;
   return (
@@ -495,7 +508,7 @@ function CitationPanelBody({
                 Zitierte Passage
               </p>
               <p className={cn(BODY_CLS, 'text-foreground')}>
-                <CitedChunk text={cited.text} citedText={source.citedText} />
+                <CitedChunk text={cited.text} quote={source.quote} citedText={source.citedText} />
               </p>
             </div>
 

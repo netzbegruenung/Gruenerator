@@ -6,13 +6,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { fakeChunk, fakeNotebookDeps } from './__fixtures__/fakeNotebookSources.js';
-import {
-  aggregateLemmas,
-  computeSourceStats,
-  splitSentences,
-  textStats,
-  type StatsNlp,
-} from './sourceStats.js';
+import { aggregateLemmas, computeSourceStats, textStats, type StatsNlp } from './sourceStats.js';
+import { splitSentences } from '../text/sentences.js';
 
 import type { TextStatsResult } from '../nlp/types.js';
 

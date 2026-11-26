@@ -145,6 +145,7 @@ function mapToChatCitations(citations: Citation[]): ChatCitation[] {
     url: c.source_url ?? '',
     snippet: c.cited_text ?? '',
     citedText: c.cited_text,
+    quote: c.quote,
     source: c.collection_name ?? '',
     collectionName: c.collection_name,
     documentId: c.document_id,

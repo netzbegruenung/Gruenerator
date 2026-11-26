@@ -87,6 +87,9 @@ export const notebookCitationSchema = z.object({
   // genuinely nullable. `date` is the real source date (or null).
   date: z.string().nullable().optional(),
   cited_text: z.string().optional(),
+  /** The one chunk sentence that backs the claim — what the text and PDF views mark.
+   *  `cited_text` stays the wider excerpt for cards and the next turn. */
+  quote: z.string().optional(),
   document_title: z.string().optional(),
   document_id: z.string().optional(),
   source_url: z.string().nullable().optional(),

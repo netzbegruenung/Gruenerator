@@ -12,6 +12,7 @@
  */
 import { applyContextCap } from '../../utils/contextCap.js';
 import { removePageMarkerLines } from '../OcrService/pageMarkers.js';
+import { splitSentences } from '../text/sentences.js';
 
 import { fetchDocumentMetadata, type NotebookSourcesDeps } from './notebookSources.js';
 import { loadScanTexts, type ScanLoad, type ScannedSource } from './sourceGrep.js';
@@ -49,24 +50,6 @@ export interface TextCounts {
 }
 
 const WORD = /[\p{L}\p{N}]+(?:['’-][\p{L}\p{N}]+)*/gu;
-/** Satzende: `.!?…` vor Leerraum und Großbuchstaben. „Dr. med." bleibt heil, „Dr. Müller" nicht. */
-const SENTENCE_BOUNDARY = /[.!?…]+(?=\s+\p{Lu})/gu;
-const HAS_WORD = /[\p{L}\p{N}]/u;
-
-/** Die Sätze eines Texts mit Offsets; Leerraum am Rand gehört nicht dazu. */
-export function splitSentences(text: string): Array<{ text: string; start: number; end: number }> {
-  const cuts = [...text.matchAll(SENTENCE_BOUNDARY)].map((m) => m.index + m[0].length);
-  const bounds = [0, ...cuts, text.length];
-  const out: Array<{ text: string; start: number; end: number }> = [];
-  for (let i = 0; i < bounds.length - 1; i++) {
-    const raw = text.slice(bounds[i], bounds[i + 1]);
-    if (!HAS_WORD.test(raw)) continue;
-    const start = bounds[i]! + (raw.length - raw.trimStart().length);
-    const trimmed = raw.trim();
-    out.push({ text: trimmed, start, end: start + trimmed.length });
-  }
-  return out;
-}
 
 export function textStats(raw: string): TextCounts {
   // Seitenmarken zählen weder als Wörter noch als Absätze.
