@@ -6,9 +6,10 @@ import {
 import { ConfirmDialogProvider, Skeleton, toast, useConfirm } from '@gruenerator/ui';
 import { useState } from 'react';
 
-import { cn } from '../../../utils/cn';
+import SegmentedControl from '../../settings/components/SegmentedControl';
+import { AdminEmptyState } from '../components/adminUi';
 import ReportCard from '../components/ReportCard';
-import { useAdminReports, useResolveReport } from '../hooks/useAdminReports';
+import { useAdminReports, useAdminReportStats, useResolveReport } from '../hooks/useAdminReports';
 
 const STATUS_TABS: { key: ContentReportStatus; label: string }[] = [
   { key: 'open', label: 'Offen' },
@@ -31,6 +32,7 @@ const SUCCESS_MESSAGE: Record<AdminReportAction, string> = {
 function ReportsList() {
   const [status, setStatus] = useState<ContentReportStatus>('open');
   const { data: reports, isLoading, isError } = useAdminReports(status);
+  const { data: stats } = useAdminReportStats();
   const resolve = useResolveReport();
   const confirm = useConfirm();
 
@@ -53,43 +55,45 @@ function ReportsList() {
     );
   };
 
+  const openCount = stats ?? null;
+  const options = STATUS_TABS.map(({ key, label }) => ({
+    value: key,
+    label: key === 'open' && openCount !== null ? `${label} · ${openCount}` : label,
+  }));
+
   return (
-    <>
-      <div className="flex gap-1 mb-lg">
-        {STATUS_TABS.map(({ key, label }) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setStatus(key)}
-            aria-pressed={status === key}
-            className={cn(
-              'px-3 py-1.5 text-sm font-medium rounded-md border-none cursor-pointer transition-colors',
-              status === key
-                ? 'bg-grey-200 dark:bg-grey-700 text-foreground'
-                : 'bg-transparent text-grey-500 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800'
-            )}
-          >
-            {label}
-          </button>
-        ))}
+    <div className="flex flex-col gap-md">
+      <div className="flex flex-wrap items-center justify-between gap-sm">
+        <SegmentedControl
+          value={status}
+          onChange={setStatus}
+          options={options}
+          aria-label="Status der Meldungen"
+        />
+        {reports && !isLoading && !isError ? (
+          <span className="text-sm text-grey-600 dark:text-grey-400" aria-live="polite">
+            {reports.length} {reports.length === 1 ? 'Meldung' : 'Meldungen'}
+          </span>
+        ) : null}
       </div>
 
       {isLoading ? (
         <div className="flex flex-col gap-md">
           {Array.from({ length: 3 }, (_, i) => (
-            <Skeleton key={i} className="h-32 w-full" />
+            <Skeleton key={i} className="h-32 w-full rounded-xl" />
           ))}
         </div>
       ) : isError ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400 py-lg text-center">
+        <p
+          role="alert"
+          className="m-0 rounded-xl border border-red-200 px-md py-lg text-center text-sm text-red-700 dark:border-red-900 dark:text-red-400"
+        >
           Die Meldungen konnten nicht geladen werden.
         </p>
       ) : !reports || reports.length === 0 ? (
-        <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
-          {EMPTY_MESSAGE[status]}
-        </p>
+        <AdminEmptyState>{EMPTY_MESSAGE[status]}</AdminEmptyState>
       ) : (
-        <ul className="flex flex-col gap-md p-0 m-0">
+        <ul className="m-0 flex flex-col gap-md p-0">
           {reports.map((report) => (
             <ReportCard
               key={`${report.kind}:${report.targetId}`}
@@ -104,7 +108,7 @@ function ReportsList() {
           ))}
         </ul>
       )}
-    </>
+    </div>
   );
 }
 

@@ -1,5 +1,5 @@
 import { resolveStoredImageUrl } from '@gruenerator/shared/media-library/shareUrl';
-import { Badge } from '@gruenerator/ui';
+import { Badge, Button } from '@gruenerator/ui';
 import { useState } from 'react';
 import { HiCheck, HiX, HiExternalLink, HiChevronLeft, HiChevronRight } from 'react-icons/hi';
 
@@ -57,7 +57,7 @@ const VorlagenReviewCard = ({
   const rejectionReason = vorlage.metadata?.rejection_reason as string | undefined;
 
   return (
-    <div className="flex flex-col bg-background border border-grey-200 dark:border-grey-700 rounded-md overflow-hidden">
+    <div className="flex flex-col bg-background border border-grey-200 dark:border-grey-800 rounded-xl overflow-hidden">
       <div className="relative flex items-center justify-center bg-white dark:bg-grey-800 aspect-[4/3]">
         {thumbnailUrl && !imageError ? (
           // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- onError ist ein technischer Ladefehler-Fallback, keine Bedienung
@@ -100,9 +100,9 @@ const VorlagenReviewCard = ({
         )}
       </div>
 
-      <div className="border-t border-grey-100 dark:border-grey-700 p-md flex flex-col gap-sm">
+      <div className="border-t border-grey-200 dark:border-grey-800 p-md flex flex-col gap-sm flex-1">
         <div className="flex items-start justify-between gap-xs">
-          <h3 className="text-sm font-semibold text-foreground-heading m-0 truncate flex-1">
+          <h3 className="text-sm font-[Raleway] font-bold text-foreground-heading m-0 truncate flex-1">
             {vorlage.title}
           </h3>
           <Badge variant="secondary" className="text-xs shrink-0">
@@ -111,12 +111,12 @@ const VorlagenReviewCard = ({
         </div>
 
         {vorlage.description && (
-          <p className="text-xs text-grey-500 dark:text-grey-400 m-0 line-clamp-2">
+          <p className="text-xs text-grey-600 dark:text-grey-400 m-0 line-clamp-2">
             {vorlage.description}
           </p>
         )}
 
-        <div className="flex items-center gap-xs text-xs text-grey-400">
+        <div className="flex items-center gap-xs text-xs text-grey-600 dark:text-grey-400">
           <span>{vorlage.creator_name || 'Unbekannt'}</span>
           <span>·</span>
           <span>{new Date(vorlage.created_at).toLocaleDateString('de-DE', dateFormat)}</span>
@@ -127,7 +127,7 @@ const VorlagenReviewCard = ({
             href={vorlage.external_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-xs text-xs text-primary-600 hover:text-primary-500 no-underline"
+            className="flex items-center gap-xs text-xs text-primary-700 hover:underline dark:text-primary-400"
             onClick={(e) => e.stopPropagation()}
           >
             <HiExternalLink size={12} />
@@ -144,25 +144,29 @@ const VorlagenReviewCard = ({
         )}
 
         {vorlage.status === 'pending_review' && (
-          <div className="flex gap-sm mt-xs">
-            <button
+          <div className="mt-auto flex gap-sm border-t border-grey-200 pt-sm dark:border-grey-800">
+            <Button
               type="button"
+              variant="brand"
+              size="brand-sm"
+              className="flex-1"
               onClick={() => onApprove(vorlage.id)}
               disabled={isApproving || isRejecting}
-              className="flex-1 flex items-center justify-center gap-xs px-md py-xs rounded-md text-sm font-medium bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 cursor-pointer border-none transition-colors"
             >
               <HiCheck size={14} />
               {isApproving ? 'Wird freigegeben...' : 'Freigeben'}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="brand-danger"
+              size="brand-sm"
+              className="flex-1"
               onClick={() => onReject(vorlage.id)}
               disabled={isApproving || isRejecting}
-              className="flex-1 flex items-center justify-center gap-xs px-md py-xs rounded-md text-sm font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 cursor-pointer border-none transition-colors"
             >
               <HiX size={14} />
               {isRejecting ? 'Wird abgelehnt...' : 'Ablehnen'}
-            </button>
+            </Button>
           </div>
         )}
       </div>
