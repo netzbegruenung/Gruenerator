@@ -36,6 +36,7 @@ import { ProjectKnowledgeList } from '../../../../components/projekte/ProjectKno
 import { ProjectLinks } from '../../../../components/projekte/ProjectLinks';
 import { ProjectMembersPreview } from '../../../../components/projekte/ProjectMembersPreview';
 import { ProjectRecipesCard } from '../../../../components/projekte/ProjectRecipesCard';
+import { ProjectTasksCard } from '../../../../components/projekte/ProjectTasksCard';
 import { useProjekteTone } from '../../../../components/projekte/projekteTone';
 import { openGroupFeedItem, useBearerToken, useGroupFeed } from '../../../../hooks/useGroupContent';
 import { useGroupDetails, useGroupMembers } from '../../../../hooks/useGroups';
@@ -53,7 +54,7 @@ import { goBackOr } from '../../../../utils/navigation';
 /**
  * Ein Projekt, eine Seite ohne Reiter (wie im Web): oben der neue Chat und die
  * bisherigen Chats, darunter der Austausch (Beiträge und Freigaben, über die
- * gesprochen wird — Angeheftetes oben), dann Anweisungen, Rezepte, Wissen, Links und
+ * gesprochen wird — Angeheftetes oben), dann Anweisungen, Geplant, Rezepte, Wissen, Links und
  * Mitglieder. Über „+“ im Kopf legt man Inhalte hinein, über „+“ im Austausch
  * schreibt man einen Beitrag. Wer geteilt hat (oder Admin ist), ändert über
  * „…“ bzw. langes Drücken die Rolle, die Notiz oder die Freigabe; Admins heften
@@ -355,6 +356,9 @@ export default function ProjektDetailScreen() {
 
         <View style={styles.padded}>
           {!isSystem && id ? <ProjectInstructionsCard groupId={id} /> : null}
+          {!isSystem && id ? (
+            <ProjectTasksCard groupId={id} archived={!!group.archived_at} />
+          ) : null}
           {feedQuery.isPending ? (
             <SkeletonRows count={3} leading={44} />
           ) : feedQuery.isError ? (
