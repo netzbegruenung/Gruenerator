@@ -177,12 +177,15 @@ export function ProjectKnowledgeList({
                       <Text style={[styles.rowTitle, { color: theme.text }]} numberOfLines={1}>
                         {item.title}
                       </Text>
-                      <Text
-                        style={[styles.rowMeta, { color: theme.textSecondary }]}
-                        numberOfLines={1}
-                      >
-                        {label}
-                      </Text>
+                      {/* In einer Karte nur einer Art bleibt oft nichts übrig — dann keine leere Zeile. */}
+                      {label ? (
+                        <Text
+                          style={[styles.rowMeta, { color: theme.textSecondary }]}
+                          numberOfLines={1}
+                        >
+                          {label}
+                        </Text>
+                      ) : null}
                     </View>
                   </Pressable>
                   {menu ? (

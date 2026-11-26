@@ -1,9 +1,9 @@
 import { describeRecurrence, useRecurringTasks } from '@gruenerator/shared/grueneratoren';
-import { useAuth } from '@gruenerator/shared/hooks';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useScheduledTasksEnabled } from '../../hooks/useScheduledTasksEnabled';
 import { useTheme } from '../../hooks/useTheme';
 import { BODY_FONT } from '../../theme';
 
@@ -25,7 +25,7 @@ export function ProjectTasksCard({ groupId, archived }: { groupId: string; archi
   const router = useRouter();
   const theme = useTheme();
   const tone = useProjekteTone();
-  const enabled = useAuth().user?.scheduled_tasks_enabled === true;
+  const enabled = useScheduledTasksEnabled();
   const { data: tasks = [] } = useRecurringTasks(enabled);
   if (!enabled) return null;
   const own = tasks.filter((t) => t.groupId === groupId);

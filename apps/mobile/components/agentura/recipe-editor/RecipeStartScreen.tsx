@@ -46,7 +46,7 @@ export function RecipeStartScreen() {
   const theme = useTheme();
   // `projekt`: aus der Rezepte-Karte eines Projekts — der Editor teilt das neue Rezept dorthin.
   const { projekt } = useLocalSearchParams<{ projekt?: string }>();
-  const editorHref = projekt ? { pathname: EDITOR, params: { projekt } } : EDITOR;
+  const editorHref = projekt ? ({ pathname: EDITOR, params: { projekt } } as const) : EDITOR;
   const insets = useSafeAreaInsets();
   const draftMut = useDraftRecipe();
   const begin = useRecipeEditorStore((s) => s.begin);
