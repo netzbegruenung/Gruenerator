@@ -1,4 +1,12 @@
-import { findFences, parseVisualBlock, replaceVisualBlocksWithText } from '@gruenerator/contracts';
+import {
+  CHART_OTHER_LABEL,
+  CHART_PALETTE,
+  type ChartBlock,
+  chartForDisplay,
+  findFences,
+  parseVisualBlock,
+  replaceVisualBlocksWithText,
+} from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 describe('parseVisualBlock', () => {
@@ -163,5 +171,38 @@ describe('replaceVisualBlocksWithText', () => {
     const started = performance.now();
     expect(findFences(md)).toEqual([]);
     expect(performance.now() - started).toBeLessThan(500);
+  });
+});
+
+describe('chartForDisplay', () => {
+  const pie = (n: number): ChartBlock => ({
+    type: 'pie',
+    title: 'Anteile',
+    xKey: 'name',
+    yKeys: ['anteil'],
+    data: Array.from({ length: n }, (_, i) => ({ name: `P${i + 1}`, anteil: n - i })),
+  });
+
+  it('gives every slice its own colour when there are no more slices than colours', () => {
+    const shown = chartForDisplay(pie(CHART_PALETTE.length));
+    expect(shown.colors).toEqual([...CHART_PALETTE]);
+    expect(shown.data).toHaveLength(CHART_PALETTE.length);
+  });
+
+  it('folds the smallest slices into one „Sonstige" slice instead of repeating a colour', () => {
+    // Live 26.11.2026: 7 slices on a 6-colour palette — the 7th repeated the 1st (#6101).
+    const block = pie(CHART_PALETTE.length + 3);
+    const shown = chartForDisplay(block);
+    expect(shown.data).toHaveLength(CHART_PALETTE.length);
+    expect(shown.data.at(-1)).toEqual({ name: CHART_OTHER_LABEL, anteil: 1 + 2 + 3 + 4 });
+    const total = (rows: ChartBlock['data']) => rows.reduce((s, r) => s + Number(r['anteil']), 0);
+    expect(total(shown.data)).toBe(total(block.data));
+  });
+
+  it('leaves axis charts and model-chosen colours alone', () => {
+    const bar = { ...pie(12), type: 'bar' as const };
+    expect(chartForDisplay(bar).data).toHaveLength(12);
+    const custom = chartForDisplay({ ...pie(3), colors: ['#111111'] });
+    expect(custom.colors).toEqual(['#111111']);
   });
 });

@@ -11,6 +11,7 @@ import {
   barDisplay,
   barScale,
   calloutLabel,
+  chartForDisplay,
   formatTableCell,
 } from '@gruenerator/contracts';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
@@ -34,7 +35,7 @@ export function VisualBlockView({ visual, theme }: { visual: VisualBlock; theme:
       return (
         <View style={styles.outer}>
           <ChatChartCard
-            data={{ ...visual.block, title: visual.block.title ?? '' }}
+            data={{ ...chartForDisplay(visual.block), title: visual.block.title ?? '' }}
             theme={theme}
           />
           {visual.block.note ? <Note text={visual.block.note} theme={theme} /> : null}

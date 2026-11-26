@@ -92,6 +92,58 @@ export const chartBlockSchema = chartPayloadSchema.extend({
 export type ChartBlock = z.infer<typeof chartBlockSchema>;
 
 /**
+ * Chart colours in fixed order — every renderer (web, mobile) draws from here.
+ *
+ * Checked with the dataviz palette validator on both chart cards (light
+ * #ffffff, dark #2a2a2a): every colour keeps 3:1 against both (WCAG 1.4.11),
+ * and neighbours stay apart for normal and colour-blind vision — including the
+ * last→first pair, which touch in a pie. The old six-colour set failed that:
+ * its 1st and 6th green were indistinguishable (ΔE 3.4), and the 7th slice
+ * reused the 1st colour (#6101).
+ */
+export const CHART_PALETTE = [
+  '#2d8336',
+  '#377baa',
+  '#ac6549',
+  '#018d87',
+  '#997d0c',
+  '#8e5ec7',
+  '#cf3e53',
+  '#1288a1',
+] as const;
+
+export const CHART_OTHER_LABEL = 'Sonstige';
+
+/**
+ * The chart as it is drawn: colours filled in, and a pie or donut with more
+ * slices than colours folded so no colour repeats — the largest slices stay,
+ * the rest becomes one „Sonstige" slice. Only the drawing folds; text, export
+ * and voice read the full block.
+ */
+export function chartForDisplay(block: ChartBlock): ChartBlock & { colors: string[] } {
+  const colors = block.colors?.length ? block.colors : [...CHART_PALETTE];
+  const valueKey = block.yKeys[0];
+  const isPie = block.type === 'pie' || block.type === 'donut';
+  if (!isPie || !valueKey || block.data.length <= colors.length) return { ...block, colors };
+
+  const valueOf = (row: ChartBlock['data'][number]) => Number(row[valueKey]) || 0;
+  const largest = block.data
+    .map((row, index) => ({ index, value: valueOf(row) }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, colors.length - 1);
+  const kept = new Set(largest.map((slice) => slice.index));
+  const other = block.data.reduce((sum, row, i) => (kept.has(i) ? sum : sum + valueOf(row)), 0);
+  return {
+    ...block,
+    colors,
+    data: [
+      ...block.data.filter((_, i) => kept.has(i)),
+      { [block.xKey]: CHART_OTHER_LABEL, [valueKey]: other },
+    ],
+  };
+}
+
+/**
  * Labelled horizontal bars: label left, `display` (or the value) right, filled
  * track below. `from` turns a bar into a range (3–8 Wochen on a 0–8 scale);
  * `from` without a larger `value` is an open range ("über 8 Wochen").
