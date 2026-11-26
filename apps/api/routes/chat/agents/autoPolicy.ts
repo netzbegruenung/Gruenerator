@@ -29,7 +29,7 @@
  * split mode was removed in #5441.
  */
 
-import { getSystemAgent } from '@gruenerator/shared/agents';
+import { autoRoutingHintForSkillMention, getSystemAgent } from '@gruenerator/shared/agents';
 import { type ChatIntentId, intentsWithDisposition } from '@gruenerator/shared/chat-intents';
 
 import {
@@ -328,6 +328,12 @@ export interface AutoSelectionInput {
   complexity?: Complexity | null | undefined;
   agentId?: string | null | undefined;
   /**
+   * The recipe fixed before the turn (pinned or @-mentioned,
+   * `activeSkillMention`). Its `autoRoutingHint` applies where the agent
+   * declares none — a recipe the loop loads mid-turn comes too late for this.
+   */
+  recipeMention?: string | null | undefined;
+  /**
    * Surfaces that run no classifier and therefore have no intent. `notebook`
    * is RAG-grounded and pinned to Gemma 4 for clients that send `auto`
    * (Grün-O-Mat, `/chat?mode=notebook`) — bis 12.10.2026 Mistral Medium. The notebook pages resolve
@@ -443,8 +449,10 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
   // lane fold, so those branches would be no-ops. Re-add a branch the day a
   // HINT_OVERRIDABLE intent's default stops being GEMMA.
   let modelId = entry.modelId;
-  if (isHintOverridable(intent) && input.agentId) {
-    const hint = getSystemAgent(input.agentId)?.autoRoutingHint;
+  if (isHintOverridable(intent)) {
+    const hint =
+      (input.agentId ? getSystemAgent(input.agentId)?.autoRoutingHint : undefined) ??
+      (input.recipeMention ? autoRoutingHintForSkillMention(input.recipeMention) : null);
     if (hint === 'precise') modelId = MEDIUM;
   }
   // AFTER the agent hint on purpose: an output contract is the user's own
