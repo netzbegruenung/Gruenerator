@@ -489,7 +489,13 @@ export async function draftSharepic(
         return { ok: false, error: `Der Auftrag ist ein Sharepic der Form ${mismatch}` };
       }
       // A new carousel holds one look; the last attempt passes rather than fail the draft.
-      const look = !current && attempt < attempts ? carouselLookProblems(checked.value) : null;
+      // Colour changes are repaired after acceptance (`holdCarouselSurface`), so only what
+      // that cannot fix asks the model again: live 26.11.2026, 10 paid retries in 8 carousels
+      // were colour changes alone.
+      const look =
+        !current && attempt < attempts
+          ? carouselLookProblems(holdCarouselSurface(checked.value))
+          : null;
       if (look) return { ok: false, error: look };
       // Live 05.11.2026: „Auf dem Bild soll ich (Anhang) …“ got a generic surfer. The last attempt passes; the net reports.
       // Only a photo of ONE person is that person: a crowd in a landscape is no one to paint in
