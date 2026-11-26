@@ -54,6 +54,10 @@ vi.mock('../../../utils/validation/urlSecurity.js', () => ({
 }));
 vi.mock('../../../services/search/index.js', () => ({
   crawlAndDistill: (seeds: unknown, q: unknown, opts: unknown) => crawlAndDistill(seeds, q, opts),
+  // `scrape_url` reads the whole page (`readNamedPages`); same spy, the tests
+  // of each path set its return value themselves.
+  selectAndCrawlTopUrls: (seeds: unknown, q: unknown, opts: unknown) =>
+    crawlAndDistill(seeds, q, opts),
 }));
 
 const fanout = vi.hoisted(() => vi.fn<(...a: unknown[]) => Promise<unknown>>());
@@ -879,12 +883,14 @@ describe('toolCatalog scrape_url', () => {
       url: new URL(u),
     }));
     crawlAndDistill.mockResolvedValue([
-      { url: 'https://example.com/', crawled: true, content: 'Hallo Welt Inhalt' },
+      { url: 'https://example.com/', crawled: true, fullContent: 'Hallo Welt Inhalt' },
     ]);
     const { execute } = scrapeTool();
     await execute({ urls: ['https://example.com/'] }, { toolCallId: 'c1' });
-    const opts = crawlAndDistill.mock.calls[0]?.[2] as { mode?: string };
-    expect(opts.mode).toBe('faithful');
+    // The whole page, structure kept, and no query to filter it by (#6103).
+    expect(crawlAndDistill.mock.calls[0]?.[1]).toBe('');
+    const opts = crawlAndDistill.mock.calls[0]?.[2] as { structured?: boolean };
+    expect(opts.structured).toBe(true);
   });
 
   it('crawls validated URLs and registers content as sources', async () => {
@@ -893,7 +899,7 @@ describe('toolCatalog scrape_url', () => {
       url: new URL(u),
     }));
     crawlAndDistill.mockResolvedValue([
-      { url: 'https://example.com/', crawled: true, content: 'Hallo Welt Inhalt' },
+      { url: 'https://example.com/', crawled: true, fullContent: 'Hallo Welt Inhalt' },
     ]);
     const { execute, sourceRegistry } = scrapeTool();
     const out = (await execute({ urls: ['https://example.com/'] }, { toolCallId: 'c1' })) as {
@@ -928,7 +934,7 @@ describe('toolCatalog scrape_url', () => {
         : { isValid: true, url: new URL(u) }
     );
     crawlAndDistill.mockResolvedValue([
-      { url: 'https://example.com/', crawled: true, content: 'Hallo Welt Inhalt' },
+      { url: 'https://example.com/', crawled: true, fullContent: 'Hallo Welt Inhalt' },
     ]);
     const { execute } = scrapeTool();
     const out = (await execute(
@@ -947,7 +953,7 @@ describe('toolCatalog scrape_url', () => {
       url: new URL(u),
     }));
     crawlAndDistill.mockResolvedValue([
-      { url: 'https://example.com/', crawled: true, content: 'Hallo Welt Inhalt' },
+      { url: 'https://example.com/', crawled: true, fullContent: 'Hallo Welt Inhalt' },
       { url: 'https://kaputt.example/', crawled: false, crawlError: 'timeout' },
     ]);
     const { execute } = scrapeTool();
@@ -2083,6 +2089,21 @@ describe('toolCatalog dokumente_lesen', () => {
     // Die Fehlermeldung nennt, was es GIBT — sonst rät das Modell weiter.
     expect(out.error).toContain('Beschlusspapier.pdf');
     expect(out.error).toContain('Antrag.docx');
+  });
+
+  // #6103: a named page sits here as a document; the model may name it by
+  // its address or with the "(Webseite)" it reads in the description.
+  it('findet eine gelesene Webseite unter ihrer Adresse und mit Zusatz', async () => {
+    const seite = { kind: 'document_chat', id: 'doc-3', label: 'kommunal.de', webpage: true };
+    fanout.mockResolvedValue({ perSourceResults: {}, searchedCollections: [], errors: [] });
+    const { tools } = catalogWithDocs([pdf, seite]);
+    expect(tools.dokumente_lesen?.description).toContain('„kommunal.de" (Webseite)');
+
+    for (const [i, dateiname] of ['https://kommunal.de/', 'kommunal.de (Webseite)'].entries()) {
+      await execOf(tools.dokumente_lesen)({ query: 'Autor', dateiname }, { toolCallId: `w${i}` });
+      const [, sources] = fanout.mock.calls[i] as [string, { id: string }[]];
+      expect(sources.map((s) => s.id)).toEqual(['doc-3']);
+    }
   });
 });
 

@@ -45,6 +45,11 @@ import type {
  * Ein Text pro Datei — derselbe, den das Modell im Anhang liest.
  *
  * `knownPageCount` gehört zu `knownText`: die Seitenzahl aus derselben Extraktion.
+ *
+ * `origin.sourceUrl`: der Text stammt von einer Webseite (eine im Chat benannte
+ * Seite, `namedPageDocuments`). Sie landet als `source_url` in jedem Chunk — die
+ * Dokumentsuche reicht das als `url` an Zitat und Quellenkarte weiter, die
+ * Seite bleibt also verlinkt, obwohl sie als Dokument gelesen wird.
  */
 export async function processFileUpload(
   postgresDocumentService: PostgresDocumentServiceLike,
@@ -54,7 +59,8 @@ export async function processFileUpload(
   title: string,
   sourceType: string = 'manual',
   knownText?: string | null,
-  knownPageCount: number | null = null
+  knownPageCount: number | null = null,
+  origin?: { sourceUrl: string }
 ): Promise<FileUploadResult> {
   console.log(`[DocumentProcessingService] Processing file upload: ${title}`);
 
@@ -81,6 +87,7 @@ export async function processFileUpload(
     additionalMetadata: {
       content_preview: generateContentPreview(extractedText),
       ...(extraction.extractionMethod ? { extractionMethod: extraction.extractionMethod } : {}),
+      ...(origin ? { originalUrl: origin.sourceUrl } : {}),
     },
   });
 
@@ -93,6 +100,7 @@ export async function processFileUpload(
       sourceType: sourceType,
       title: title.trim(),
       filename: file.originalname,
+      ...(origin ? { additionalPayload: { source_url: origin.sourceUrl } } : {}),
     }
   );
 

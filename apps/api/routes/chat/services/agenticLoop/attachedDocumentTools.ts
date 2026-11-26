@@ -38,8 +38,10 @@ import { resolveWolkeDisplayUrl } from '../../../../services/scrapers/utils/wolk
 import { pickRange } from '../../agents/notebookSourceRange.js';
 import { notExhaustiveGrep } from '../../agents/notebookSourceReadActions.js';
 
-import type { SourceRegistry } from './sourceRegistry.js';
+import { tallyAfter } from './textTally.js';
+
 import type { DocumentSource, SearchResult } from '../../../../agents/langgraph/ChatGraph/types.js';
+import type { SourceRegistry } from './sourceRegistry.js';
 
 export type AttachedDocDeps = Pick<NotebookSourcesDeps, 'db'> & {
   documentService: NotebookSourcesDeps['documentService'] &
@@ -50,6 +52,9 @@ export interface AttachedDocModeArgs {
   seite?: number | undefined;
   wortsuche?: { phrase: string; grossKlein?: boolean | undefined } | undefined;
   zitat?: string | undefined;
+  zaehlen?:
+    | { nach: string; zeilenanfang?: boolean | undefined; grossKlein?: boolean | undefined }
+    | undefined;
 }
 
 export interface AttachedDocCtx {
@@ -244,6 +249,11 @@ export async function readAttachedSlice(
     results.push({
       ...located(doc.id, doc.label, `${marker}\n\n${s.slice}`, doc),
       ...(s.pageRange ? { pageNumber: s.pageRange.from, pageTo: s.pageRange.to } : {}),
+      // Wo die Scheibe im Dokument liegt und wie lang es ist — daraus die
+      // Abdeckung (`sourceRegistry`): zwei gelesene Scheiben zählen zusammen.
+      charStart: s.from,
+      charEnd: s.to,
+      totalChars: s.total,
     });
   }
   return results;
@@ -257,6 +267,7 @@ export async function runAttachedDocumentMode(
   if (args.seite !== undefined) return readPage(args.seite, ctx, deps);
   if (args.wortsuche !== undefined) return grepAttached(args.wortsuche, ctx, deps);
   if (args.zitat !== undefined) return citeAttached(args.zitat, ctx, deps);
+  if (args.zaehlen !== undefined) return tallyAttached(args.zaehlen, ctx, deps);
   return { error: 'Kein Modus angegeben.' };
 }
 
@@ -299,6 +310,7 @@ async function readPage(
         pageTo: s.pageRange?.to ?? seite,
         charStart: s.from,
         charEnd: s.to,
+        totalChars: s.total,
         citedText: s.slice,
       },
     ],
@@ -457,4 +469,91 @@ async function citeAttached(
     : `Das Zitat „${quote}" steht in keinem der gelesenen Dokumente — nicht alle wurden gelesen (${out.incompleteReason ?? 'unvollständig'}).`;
   reg.note('dokumente_lesen zitat', missing);
   return { befund: 'nicht gefunden', exhaustive: out.exhaustive, note: missing };
+}
+
+/** So viele Werte gehen zurück; der Rest steht als Summe da. */
+const TALLY_TOP = 40;
+
+/**
+ * `zaehlen`: Häufigkeiten über den GANZEN Text jeder Datei (`textTally`) —
+ * „wer schreibt wie viel", „welche Kategorien wie oft". Das Ergebnis ist eine
+ * Quelle wie jede andere, aber mit `readsWhole`: gezählt wurde über alles,
+ * also meldet die Abdeckung „vollständig", so kurz die Zeile ist.
+ */
+async function tallyAttached(
+  zaehlen: NonNullable<AttachedDocModeArgs['zaehlen']>,
+  ctx: AttachedDocCtx,
+  deps: AttachedDocDeps
+): Promise<Record<string, unknown>> {
+  const anchor = zaehlen.nach;
+  if (anchor.trim().length < 2) return { error: 'zaehlen braucht nach (mindestens 2 Zeichen).' };
+  const loaded = await loadAttachedTexts({ userId: ctx.userId, sources: ctx.sources }, deps);
+  if ('error' in loaded) return loaded;
+  const incomplete = loaded.exhaustive ? null : notExhaustiveGrep(loaded.incompleteReason);
+
+  // Standard: nur am Zeilenanfang. Live 26.11.2026 liess Gemma den Schalter
+  // weg, und „von " zählte fünf Fliesstextstellen („von 2008 an") als Autoren
+  // mit — die Anteile in der Antwort stimmten danach nicht mehr. Autorenzeilen
+  // und Felder stehen am Zeilenanfang; mitten im Satz zählt nur, wer es sagt.
+  const lineStart = zaehlen.zeilenanfang ?? true;
+  const perSource = loaded.sources.map((s) => ({
+    source: s,
+    tally: tallyAfter(s.text, anchor, { caseSensitive: zaehlen.grossKlein, lineStart }),
+  }));
+  const reg = ctx.sourceRegistry;
+  reg.note(
+    `dokumente_lesen zaehlen — nach „${anchor}"`,
+    [
+      `exhaustive: ${loaded.exhaustive ? 'ja' : 'nein'}`,
+      ...perSource.map(
+        ({ source, tally }) =>
+          `${source.title}: ${tally.total} Vorkommen, ${tally.counts
+            .slice(0, TALLY_TOP)
+            .map((c) => `${c.value} ${c.count}`)
+            .join(', ')}`
+      ),
+      ...(incomplete ? [incomplete] : []),
+    ].join('; ')
+  );
+
+  const counted = perSource.filter((p) => p.tally.total > 0);
+  const sources =
+    counted.length > 0
+      ? reg.register(
+          counted.map(({ source, tally }): SearchResult => {
+            const shown = tally.counts.slice(0, TALLY_TOP);
+            const rest = tally.counts.slice(TALLY_TOP).reduce((sum, c) => sum + c.count, 0);
+            const lines = shown.map(
+              (c) => `${c.value}: ${c.count} (${c.share.toLocaleString('de-DE')} %)`
+            );
+            if (rest > 0) lines.push(`(weitere ${tally.counts.length - TALLY_TOP} Werte: ${rest})`);
+            return {
+              ...located(
+                source.sourceId,
+                source.title,
+                `Gezählt über den ganzen Text, nach „${anchor}"${lineStart ? ' am Zeilenanfang' : ''}: ${tally.total} Vorkommen\n${lines.join('\n')}`,
+                sourceById(ctx.sources, source.sourceId)
+              ),
+              totalChars: source.text.length,
+              readsWhole: true,
+            };
+          })
+        )
+      : null;
+  return {
+    nach: anchor,
+    exhaustive: loaded.exhaustive,
+    perSource: perSource.map(({ source, tally }) => ({
+      datei: source.title,
+      vorkommen: tally.total,
+      werte: tally.counts.slice(0, TALLY_TOP),
+    })),
+    ...(counted.length === 0
+      ? {
+          hinweis: `Kein Vorkommen von „${anchor}"${lineStart ? ' am Zeilenanfang' : ''}. Prüfe die Schreibweise mit abschnitt.von=0.`,
+        }
+      : {}),
+    ...(incomplete ? { note: incomplete } : {}),
+    ...(sources ? { sources } : {}),
+  };
 }

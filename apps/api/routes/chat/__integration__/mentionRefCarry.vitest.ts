@@ -49,6 +49,13 @@ vi.mock('../../../services/search/CrawlingService.js', async (orig) => ({
       seeds.map((s) => ({ ...s, crawled: true, content: 'Der Radweg wird 2027 gebaut.' }))
     );
   },
+  // A named page is read whole (`readNamedPages`) — the path this test counts.
+  selectAndCrawlTopUrls: (seeds: Array<{ url: string }>) => {
+    crawled.push(seeds.map((s) => s.url));
+    return Promise.resolve(
+      seeds.map((s) => ({ ...s, crawled: true, fullContent: 'Der Radweg wird 2027 gebaut.' }))
+    );
+  },
 }));
 // No Yjs state: the doc-mention path falls back to the stored content.
 vi.mock('../../../services/docs/docContentService.js', async (orig) => ({

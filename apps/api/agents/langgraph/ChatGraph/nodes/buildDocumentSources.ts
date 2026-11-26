@@ -30,6 +30,9 @@ const COMPARE_VERB_PATTERN =
  * Detect explicit comparison intent in the user message.
  * Same keyword family as detectComplexity but lifted to the intent layer.
  */
+/** MIME-Typ der Anhang-Zeile einer als Dokument gelesenen Webseite (`namedPageDocuments`). */
+export const WEBPAGE_ATTACHMENT_MIME = 'text/html';
+
 export function hasCompareVerbs(text: string): boolean {
   return COMPARE_VERB_PATTERN.test(text);
 }
@@ -108,11 +111,20 @@ export function buildDocumentSources(opts: BuildOpts): DocumentSource[] {
     });
   }
 
+  // Eine als Dokument gelesene Webseite trägt am Anhang den MIME-Typ
+  // `WEBPAGE_ATTACHMENT_MIME` — nur so weiss ein Folge-Turn noch, dass
+  // „kommunal.de" eine Seite ist und kein Dateiname.
+  const webpageIds = new Set(
+    (opts.threadAttachments ?? [])
+      .filter((a) => a.documentId && a.mimeType === WEBPAGE_ATTACHMENT_MIME)
+      .map((a) => a.documentId as string)
+  );
   for (const id of opts.documentChatIds) {
     sources.push({
       kind: 'document_chat',
       id,
       label: nameByDocumentId.get(id) ?? fallbackLabel('Dokument'),
+      ...(webpageIds.has(id) ? { webpage: true as const } : {}),
     });
   }
 

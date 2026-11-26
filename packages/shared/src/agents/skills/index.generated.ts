@@ -216,9 +216,9 @@ export const SKILLS = [
   },
   {
     identifier: 'gruenerator-universal',
-    title: 'Visuelle Bausteine',
+    title: 'Diagramme & Grafiken',
     description:
-      'Zeichnet Balken, Kennzahlen, Zeitleisten, Vergleiche oder Tabellen als Grafik in der Antwort. Nutzen, wenn Zahlen, Abläufe oder Gegenüberstellungen als Bild klarer sind als als Text.',
+      'Zeichnet Diagramme in die Antwort: Balken-, Linien-, Kreis- bzw. Tortendiagramme, Kennzahlen, Zeitleisten, Vergleiche, Tabellen. Nutzen, wenn jemand eine Grafik oder ein Diagramm möchte oder Zahlen als Bild klarer sind.',
     iconKey: 'PiChartBar',
     avatar: '📊',
     backgroundColor: '#316049',

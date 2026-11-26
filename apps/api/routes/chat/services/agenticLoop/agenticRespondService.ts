@@ -20,6 +20,7 @@ import { promptCacheKeyForThread } from '../../../../services/ai/promptCacheKey.
 import { buildGlossaryVocabularyNote } from '../../../../services/chat/productGlossary.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { type McpCatalog } from '../../agents/mcpCatalog.js';
+import { canReadNamedPages } from '../../agents/namedPages.js';
 import {
   boundSystemNotebook,
   boundUserNotebook,
@@ -66,6 +67,7 @@ import { MAX_SOURCES } from './loopGuards.js';
 import { resolveLoopLanes } from './loopLanes.js';
 import { createAnswerEmitter } from './loopSse.js';
 import { buildToolObservationReplay, spliceToolReplay } from './mcpReplay.js';
+import { ingestNamedPages } from './namedPageDocuments.js';
 import { buildUncoveredTermNote } from './questionTermCoverage.js';
 import { type RecipeRegistry } from './recipeRegistry.js';
 import { createRerankDegradedHook } from './rerankWarning.js';
@@ -314,6 +316,20 @@ export async function streamAgenticResponse(
         materialChars: carriedMaterialChars,
       }
     );
+
+    // Benannte Webseiten VOR der Montage: eine lange wird hier ein Dokument des
+    // Threads, und `dokumente_lesen` legt seine Quellenliste beim Montieren
+    // fest (#6103). Dieselbe Freigabe wie `scrape_url`. Eine Fortsetzung nach
+    // einer Freigabe hat die Seite schon — ein zweiter Durchlauf legte sie doppelt an.
+    if (!resumeApproval) {
+      await ingestNamedPages({
+        state: finalState,
+        threadId: threadId ?? null,
+        allowed:
+          canReadNamedPages(agentConfig, finalState) &&
+          (!toolAllowlist || toolAllowlist.includes('scrape_url')),
+      });
+    }
 
     const assembled = await deps.assembleToolCatalog({
       state: finalState,
