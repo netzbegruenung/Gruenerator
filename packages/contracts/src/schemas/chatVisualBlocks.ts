@@ -230,13 +230,21 @@ const SCHEMAS = {
 } as const satisfies Record<VisualBlockKind, z.ZodTypeAny>;
 
 /** Parse a fence body of the given language, or null if it is not a valid block. */
-export function parseVisualBlock(language: string, code: string): VisualBlock | null {
+export function parseVisualBlock(fenceLanguage: string, code: string): VisualBlock | null {
+  // Live 26.11.2026: asked for a „Tortengrafik", the model fenced the chart as
+  // ```pie — its chart type — and the answer showed raw JSON. A chart type is
+  // never a kind of its own, so read it as a chart of that type.
+  const chartType = chartPayloadSchema.shape.type.safeParse(fenceLanguage);
+  const language = chartType.success ? 'chart' : fenceLanguage;
   if (!isVisualBlockKind(language)) return null;
   let json: unknown;
   try {
     json = JSON.parse(code);
   } catch {
     return null;
+  }
+  if (chartType.success && typeof json === 'object' && json !== null && !Array.isArray(json)) {
+    json = { type: chartType.data, ...json };
   }
   // Live 16.10.2026: the chart lane wrote `"yKey":["wert"]`, and the whole
   // block fell back to raw JSON. The singular is unambiguous, so read it.

@@ -83,6 +83,20 @@ describe('parseVisualBlock', () => {
     );
     expect(single?.kind === 'chart' && single.block.yKeys).toEqual(['wert']);
   });
+
+  it('reads a chart fence the model labelled with its chart type (```pie)', () => {
+    const parsed = parseVisualBlock(
+      'pie',
+      '{"type":"pie","title":"Anteil","data":[{"name":"A","anteil":60},{"name":"B","anteil":40}],"xKey":"name","yKeys":["anteil"]}'
+    );
+    expect(parsed?.kind === 'chart' && parsed.block.type).toBe('pie');
+    const untyped = parseVisualBlock(
+      'donut',
+      '{"title":"Anteil","data":[{"name":"A","anteil":1}],"xKey":"name","yKeys":["anteil"]}'
+    );
+    expect(untyped?.kind === 'chart' && untyped.block.type).toBe('donut');
+    expect(parseVisualBlock('pie', '{"items":[]}')).toBeNull();
+  });
 });
 
 describe('replaceVisualBlocksWithText', () => {
