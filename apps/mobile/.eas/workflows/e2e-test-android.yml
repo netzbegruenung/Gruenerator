@@ -3,21 +3,51 @@ name: e2e-test-android
 # Manual for now (`eas workflow:run .eas/workflows/e2e-test-android.yml`).
 # Add a pull_request trigger once the flow set covers more than the boot path —
 # a build per PR is not worth it for one flow.
+#
+# Fast path: if an `e2e-test` build with the same native fingerprint exists, only
+# the JS bundle is repacked into it (minutes instead of a full Gradle build). Any
+# native change (app.json plugins, new native module, SDK bump) changes the
+# fingerprint and falls back to a full build. The inline env below must match the
+# `e2e-test` profile's env in eas.json, or the fingerprints never match.
 on:
   workflow_dispatch: {}
 
 jobs:
+  fingerprint:
+    type: fingerprint
+    environment: production
+    env:
+      EXPO_PUBLIC_DEV_AUTH_BYPASS: 'false'
+      pnpm_config_allow_unused_patches: 'true'
+
+  get_build:
+    needs: [fingerprint]
+    type: get-build
+    params:
+      platform: android
+      profile: e2e-test
+      fingerprint_hash: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
+
+  repack_android_for_e2e:
+    needs: [get_build]
+    if: ${{ needs.get_build.outputs.build_id }}
+    type: repack
+    params:
+      build_id: ${{ needs.get_build.outputs.build_id }}
+
   build_android_for_e2e:
+    needs: [get_build]
+    if: ${{ !needs.get_build.outputs.build_id }}
     type: build
     params:
       platform: android
       profile: e2e-test
 
   maestro_test:
-    needs: [build_android_for_e2e]
+    after: [repack_android_for_e2e, build_android_for_e2e]
     type: maestro
     params:
-      build_id: ${{ needs.build_android_for_e2e.outputs.build_id }}
+      build_id: ${{ needs.repack_android_for_e2e.outputs.build_id || needs.build_android_for_e2e.outputs.build_id }}
       # Only the flows that pass without a session. The `e2e-test` profile builds
       # a release APK, where __DEV__ is false and the dev auth bypass is therefore
       # off — that guard is deliberate (e478007b9) and is not being relaxed for
