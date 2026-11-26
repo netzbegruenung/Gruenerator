@@ -18,7 +18,15 @@ import {
 import { isApiErrorWithStatus } from '@gruenerator/shared/api';
 import { VoxtralDictationAdapter } from '@gruenerator/voice';
 import { QueryClientContext } from '@tanstack/react-query';
-import { type ReactNode, useMemo, useCallback, useContext, useEffect, useRef } from 'react';
+import {
+  type ReactNode,
+  useMemo,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+} from 'react';
 import { useShallow } from 'zustand/shallow';
 
 import { ChatThreadListPortal } from '../components/ChatThreadListPortal';
@@ -571,9 +579,29 @@ export function GrueneratorChatRuntimeProvider({
     [onExternalThreadClick, activePath]
   );
 
+  // Path and navigate are read through refs so the context value survives
+  // navigations: a new value would re-render every thread-list row on every
+  // route change, and the rows only need both inside click handlers. The
+  // navigate ref matters as much as the path: react-router's `useNavigate()`
+  // outside a data router returns a new function on every location change
+  // (#6118).
+  const activePathRef = useRef<string | null>(activePath ?? null);
+  const onNavigateRef = useRef(onNavigate);
+  useLayoutEffect(() => {
+    activePathRef.current = activePath ?? null;
+    onNavigateRef.current = onNavigate;
+  }, [activePath, onNavigate]);
+  const hasNavigation = onNavigate != null;
   const navigationCtx = useMemo(
-    () => (onNavigate ? { navigate: onNavigate, activePath } : null),
-    [onNavigate, activePath]
+    () =>
+      hasNavigation
+        ? {
+            navigate: (path: string, opts?: ChatNavigateOptions) =>
+              onNavigateRef.current?.(path, opts),
+            getActivePath: () => activePathRef.current,
+          }
+        : null,
+    [hasNavigation]
   );
 
   return (

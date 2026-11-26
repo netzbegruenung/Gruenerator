@@ -124,7 +124,7 @@ function useSafeThreadAction(action: 'delete' | 'archive' | 'unarchive') {
       // in-flight switch dies at its generation check instead.
       if (action === 'delete') {
         const remoteId = aui.threadListItem.getState().remoteId ?? null;
-        if (remoteId && pathNamesThread(nav?.activePath, remoteId)) {
+        if (remoteId && pathNamesThread(nav?.getActivePath(), remoteId)) {
           await auiPromise(aui.threads.switchToNewThread()).catch((err) => {
             console.warn('[ThreadList] Could not start a new thread before delete:', err);
           });

@@ -11,8 +11,12 @@ export interface ChatNavigateOptions {
 export interface ChatNavigationContextValue {
   /** Navigate the host app to an in-app path. */
   navigate: (path: string, opts?: ChatNavigateOptions) => void;
-  /** Current in-app pathname (host's `location.pathname`), if the host provides one. */
-  activePath?: string;
+  /**
+   * Current in-app pathname (host's `location.pathname`), read at call time.
+   * A getter, not a value: the context object must stay the same across
+   * navigations, or every thread-list row re-renders on every route change.
+   */
+  getActivePath: () => string | null;
 }
 
 const ChatNavigationContext = createContext<ChatNavigationContextValue | null>(null);

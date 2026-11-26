@@ -58,6 +58,12 @@ export interface AdminSection {
   badge?: ComponentType;
   available?: (instanceId: InstanceId) => boolean;
   Component: ComponentType;
+  /** Lädt das Code-Chunk vorab, ohne die Seite zu zeigen. */
+  preload: () => void;
+}
+
+function lazySection(load: () => Promise<{ default: ComponentType }>) {
+  return { Component: lazy(load), preload: () => void load() };
 }
 
 const hasLandesverbaende = (instanceId: InstanceId) => hasLandesverbandContentIn(instanceId);
@@ -72,7 +78,7 @@ export const ADMIN_SECTIONS = [
     description:
       'Gemeldete Inhalte prüfen, entfernen oder die Meldung verwerfen. Ab drei Meldenden ist ein Inhalt automatisch ausgeblendet.',
     badge: ReportsNavBadge,
-    Component: lazy(() => import('./tabs/ReportsTab')),
+    ...lazySection(() => import('./tabs/ReportsTab')),
   },
   {
     id: 'vorlagen',
@@ -83,7 +89,7 @@ export const ADMIN_SECTIONS = [
     description: 'Eingereichte Vorlagen prüfen und für den Marktplatz freigeben.',
     badge: VorlagenNavBadge,
     available: (instanceId) => isToolOfferedIn('vorlagen', instanceId),
-    Component: lazy(() => import('./tabs/VorlagenTab')),
+    ...lazySection(() => import('./tabs/VorlagenTab')),
   },
   {
     id: 'nutzer',
@@ -93,7 +99,7 @@ export const ADMIN_SECTIONS = [
     title: 'Nutzer:innen',
     description:
       'Wer auf dieser Instanz ein Konto hat. Hier vergibst du Admin-Rechte und schaltest Panda und Sites frei.',
-    Component: lazy(() => import('./tabs/UsersTab')),
+    ...lazySection(() => import('./tabs/UsersTab')),
   },
   {
     id: 'rollen',
@@ -102,7 +108,7 @@ export const ADMIN_SECTIONS = [
     icon: FiUserCheck,
     title: 'Rollen',
     description: 'Welche Rolle sich die Nutzenden selbst gegeben haben.',
-    Component: lazy(() => import('./tabs/RolesTab')),
+    ...lazySection(() => import('./tabs/RolesTab')),
   },
   {
     id: 'landesverbaende',
@@ -112,7 +118,7 @@ export const ADMIN_SECTIONS = [
     title: 'Landesverband-Admins',
     description: 'Lege fest, wer welchen Landesverband administrieren darf.',
     available: hasLandesverbaende,
-    Component: lazy(() => import('./landesverband-assignment/LandesverbandAssignmentTab')),
+    ...lazySection(() => import('./landesverband-assignment/LandesverbandAssignmentTab')),
   },
   {
     id: 'rezepte',
@@ -122,7 +128,7 @@ export const ADMIN_SECTIONS = [
     title: 'Rezepte',
     description:
       'Welche Rezepte diese Instanz im Katalog anbietet. Ausgeblendete Rezepte bleiben über einen bestehenden Link oder eine explizite @-Erwähnung weiter erreichbar.',
-    Component: lazy(() => import('./tabs/SkillsTab')),
+    ...lazySection(() => import('./tabs/SkillsTab')),
   },
   {
     id: 'agents',
@@ -132,7 +138,7 @@ export const ADMIN_SECTIONS = [
     title: 'Agents',
     description:
       'Welche Agents diese Instanz im Katalog anbietet. Ausgeblendete Agents bleiben über einen bestehenden Link erreichbar. Die Landesverbands-Agents stehen nicht einzeln hier — sie fallen mit ihrem Landesverband.',
-    Component: lazy(() => import('./tabs/AgentsTab')),
+    ...lazySection(() => import('./tabs/AgentsTab')),
   },
   {
     id: 'glossar',
@@ -142,7 +148,7 @@ export const ADMIN_SECTIONS = [
     title: 'Übersetzungs-Glossar',
     description:
       'Feste Begriffe für den DeepL-Übersetzer, je Sprachpaar. Greift automatisch auf der Übersetzer-Seite und im Chat.',
-    Component: lazy(() => import('./tabs/GlossarTab')),
+    ...lazySection(() => import('./tabs/GlossarTab')),
   },
   {
     id: 'parteitage',
@@ -152,7 +158,7 @@ export const ADMIN_SECTIONS = [
     title: 'Parteitage',
     description:
       'Parteitage importieren, Status und Passwort setzen, Reden ausblenden oder endgültig löschen.',
-    Component: lazy(() => import('./tabs/ParteitageTab')),
+    ...lazySection(() => import('./tabs/ParteitageTab')),
   },
   {
     id: 'statistik',
@@ -162,7 +168,7 @@ export const ADMIN_SECTIONS = [
     title: 'Statistik',
     description:
       'Was auf dieser Instanz entstanden ist, über die Zeit. Nur Summen, keine Personen. Ein Klick auf eine Zeile zeigt Verlauf und Untertypen.',
-    Component: lazy(() => import('./tabs/StatisticsTab')),
+    ...lazySection(() => import('./tabs/StatisticsTab')),
   },
   {
     id: 'app-updates',
@@ -172,7 +178,7 @@ export const ADMIN_SECTIONS = [
     title: 'App-Updates',
     description:
       'Welche Stände der Handy-App in den letzten 30 Tagen liefen: der Store-Build oder ein Update aus der Luft, mit der Zahl der angemeldeten Personen (geschätzt).',
-    Component: lazy(() => import('./tabs/AppUpdatesTab')),
+    ...lazySection(() => import('./tabs/AppUpdatesTab')),
   },
   {
     id: 'content-sync',
@@ -185,7 +191,7 @@ export const ADMIN_SECTIONS = [
     // Der Sync läuft dort, wo Landesverbands-Inhalte geführt werden; die
     // stündlichen Läufe sind Landesverbands-Läufe.
     available: hasLandesverbaende,
-    Component: lazy(() => import('./tabs/ContentSyncTab')),
+    ...lazySection(() => import('./tabs/ContentSyncTab')),
   },
   {
     id: 'chunks',
@@ -195,7 +201,7 @@ export const ADMIN_SECTIONS = [
     title: 'Chunk-Inspektor',
     description:
       'Was der Abruf zu einem Dokument gespeichert hat — die Chunks in ihrer Reihenfolge, mit den Feldern, die im Punkt liegen. Leere Felder sind nicht berechnet worden, sondern nicht gespeichert.',
-    Component: lazy(() => import('./chunk-inspector/ChunkInspectorSection')),
+    ...lazySection(() => import('./chunk-inspector/ChunkInspectorSection')),
   },
   {
     id: 'konnektoren',
@@ -205,7 +211,7 @@ export const ADMIN_SECTIONS = [
     title: 'Konnektor-Test',
     description:
       'Google Workspace und Microsoft 365 verbinden, Token prüfen und eine Datei über denselben Abruf lesen, den @connect im Chat nutzt. Geprüft wird immer deine eigene Verbindung.',
-    Component: lazy(() =>
+    ...lazySection(() =>
       import('./connector-test/ConnectorTestView').then((m) => ({ default: m.ConnectorTestView }))
     ),
   },
@@ -216,7 +222,7 @@ export const ADMIN_SECTIONS = [
     icon: FiServer,
     title: 'Grüne-API-Test',
     description: 'Die Anbindung an die Grüne-API von Hand ausprobieren.',
-    Component: lazy(() => import('./gruene-api/GrueneApiTestView')),
+    ...lazySection(() => import('./gruene-api/GrueneApiTestView')),
   },
 ] as const satisfies readonly AdminSection[];
 

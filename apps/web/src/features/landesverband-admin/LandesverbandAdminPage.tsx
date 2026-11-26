@@ -11,6 +11,7 @@ import AdminShell, { type AdminNavGroup } from '../admin/components/AdminShell';
 import { AdminEmptyState, AdminPageHeader, AdminPanel } from '../admin/components/adminUi';
 import AdminUserTable from '../admin/components/AdminUserTable';
 import RequireAdmin from '../admin/components/RequireAdmin';
+import { useProgressiveCount } from '../admin/hooks/useProgressiveCount';
 
 import {
   useLandesverbandDetail,
@@ -99,6 +100,8 @@ function SkillsTab({ landesverbandId }: { landesverbandId: string }) {
     }
     return [...map.entries()];
   }, [skills]);
+  // Dieselbe lange Liste wie unter /admin/rezepte: der Rest kommt Frame für Frame.
+  const shown = useProgressiveCount(skills?.length ?? 0);
 
   if (isLoading) {
     return (
@@ -113,50 +116,55 @@ function SkillsTab({ landesverbandId }: { landesverbandId: string }) {
   return (
     <div className="flex flex-col gap-md">
       {grouped.length === 0 && <AdminEmptyState>Keine Rezepte vorhanden.</AdminEmptyState>}
-      {grouped.map(([category, categorySkills]) => (
-        <AdminPanel
-          key={category}
-          flush
-          title={(SKILL_CATEGORY_LABELS as Record<string, string>)[category] ?? category}
-        >
-          <div className="flex flex-col divide-y divide-grey-200 dark:divide-grey-800">
-            {categorySkills.map((skill) => (
-              <div
-                key={skill.mention}
-                className="flex items-center justify-between gap-md px-md py-sm"
-              >
-                <div className="min-w-0 flex items-center gap-sm">
-                  <div>
-                    <p className="text-sm font-medium text-foreground-heading m-0 truncate">
-                      {skill.title}
-                    </p>
-                    <p className="m-0 truncate text-xs text-grey-600 dark:text-grey-400">
-                      @{skill.mention}
-                    </p>
+      {grouped.map(([category, allInCategory], groupIndex) => {
+        const before = grouped.slice(0, groupIndex).reduce((n, [, list]) => n + list.length, 0);
+        const categorySkills = allInCategory.slice(0, Math.max(0, shown - before));
+        if (categorySkills.length === 0) return null;
+        return (
+          <AdminPanel
+            key={category}
+            flush
+            title={(SKILL_CATEGORY_LABELS as Record<string, string>)[category] ?? category}
+          >
+            <div className="flex flex-col divide-y divide-grey-200 dark:divide-grey-800">
+              {categorySkills.map((skill) => (
+                <div
+                  key={skill.mention}
+                  className="flex items-center justify-between gap-md px-md py-sm"
+                >
+                  <div className="min-w-0 flex items-center gap-sm">
+                    <div>
+                      <p className="text-sm font-medium text-foreground-heading m-0 truncate">
+                        {skill.title}
+                      </p>
+                      <p className="m-0 truncate text-xs text-grey-600 dark:text-grey-400">
+                        @{skill.mention}
+                      </p>
+                    </div>
+                    {skill.hiddenGlobally && (
+                      <Badge variant="outline" className="text-xs">
+                        Instanzweit ausgeblendet
+                      </Badge>
+                    )}
                   </div>
-                  {skill.hiddenGlobally && (
-                    <Badge variant="outline" className="text-xs">
-                      Instanzweit ausgeblendet
-                    </Badge>
-                  )}
+                  <Switch
+                    checked={!skill.hiddenGlobally && !skill.hiddenForLv}
+                    disabled={
+                      skill.hiddenGlobally ||
+                      (setHiddenMutation.isPending &&
+                        setHiddenMutation.variables?.mention === skill.mention)
+                    }
+                    onCheckedChange={(checked) =>
+                      setHiddenMutation.mutate({ mention: skill.mention, hidden: !checked })
+                    }
+                    aria-label={`${skill.title} für dieses Landesverband ${skill.hiddenForLv ? 'einblenden' : 'ausblenden'}`}
+                  />
                 </div>
-                <Switch
-                  checked={!skill.hiddenGlobally && !skill.hiddenForLv}
-                  disabled={
-                    skill.hiddenGlobally ||
-                    (setHiddenMutation.isPending &&
-                      setHiddenMutation.variables?.mention === skill.mention)
-                  }
-                  onCheckedChange={(checked) =>
-                    setHiddenMutation.mutate({ mention: skill.mention, hidden: !checked })
-                  }
-                  aria-label={`${skill.title} für dieses Landesverband ${skill.hiddenForLv ? 'einblenden' : 'ausblenden'}`}
-                />
-              </div>
-            ))}
-          </div>
-        </AdminPanel>
-      ))}
+              ))}
+            </div>
+          </AdminPanel>
+        );
+      })}
     </div>
   );
 }
