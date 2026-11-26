@@ -6,6 +6,7 @@ import {
   LV_MAIL_DOMAIN_BUNDESLAENDER,
   landesverbandBundeslandForEmail,
   landesverbandMailDomains,
+  LV_MAIL_DOMAIN_NAMES,
   suggestedRoleForEmail,
 } from './roleFromEmail.js';
 import { DE_BUNDESLAENDER } from './rolesConfig.js';
@@ -78,5 +79,14 @@ describe('landesverbandMailDomains', () => {
     expect(landesverbandMailDomains('Berlin')).toEqual(['gruene-berlin.de', 'gruene.berlin']);
     expect(landesverbandMailDomains('Hessen')).toEqual(['gruene-hessen.de']);
     expect(landesverbandMailDomains('Wien')).toEqual([]);
+  });
+});
+
+describe('LV_MAIL_DOMAIN_NAMES', () => {
+  it('is the lowercase domain list the access rule reads', () => {
+    for (const domain of LV_MAIL_DOMAIN_NAMES) {
+      expect(domain).toBe(domain.toLowerCase());
+      expect(landesverbandBundeslandForEmail(`x@${domain}`)).not.toBeNull();
+    }
   });
 });

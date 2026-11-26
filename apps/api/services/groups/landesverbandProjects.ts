@@ -41,6 +41,7 @@ import {
 import { isNotebookOfferedIn } from '@gruenerator/shared/notebooks';
 import {
   landesverbandBundeslandForEmail,
+  LV_MAIL_DOMAIN_NAMES,
   suggestedRoleForEmail,
   type UserRole,
 } from '@gruenerator/shared/roles';
@@ -258,13 +259,18 @@ export async function syncLandesverbandAccess(userId: string): Promise<void> {
 }
 
 /**
- * Boot-Durchlauf. Vorfilter nur auf bestätigte Adressen, die nach einer
- * Grünen-Domain aussehen; was zählt, entscheidet `planLandesverbandAccess`.
+ * Boot-Durchlauf. Vorfilter auf bestätigte Adressen, deren Domain in
+ * `LV_MAIL_DOMAIN_NAMES` steht (dieselbe Tabelle wie die Zugangsregel); was
+ * zählt, entscheidet weiterhin `planLandesverbandAccess`.
  */
 export async function ensureLandesverbandProjects(): Promise<void> {
   try {
     const rows = (await getPostgresInstance().query(
-      `SELECT id FROM profiles WHERE email_verified = TRUE AND email ILIKE '%gruene%'`
+      // Domain nach dem letzten `@`, wie `landesverbandBundeslandForEmail` sie liest.
+      `SELECT id FROM profiles
+        WHERE email_verified = TRUE
+          AND lower(substring(email from '@([^@]*)$')) = ANY($1::text[])`,
+      [LV_MAIL_DOMAIN_NAMES]
     )) as Array<{ id: string }>;
     for (const row of rows) {
       await syncLandesverbandAccess(row.id);

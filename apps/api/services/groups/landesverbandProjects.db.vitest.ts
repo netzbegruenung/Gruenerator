@@ -235,6 +235,8 @@ describe.skipIf(!url)('Landesverband-Projekte', () => {
 
   it('boot sweep admits eligible people only, into the same project', async () => {
     const eligible = await person({ email: 'boot@gruene-berlin.de', verified: true });
+    // The SQL prefilter reads the domain case-insensitively, like the access rule.
+    const upper = await person({ email: 'Boot3@GRUENE-BERLIN.DE', verified: true });
     const unverified = await person({
       email: 'boot2@gruene-berlin.de',
       verified: false,
@@ -248,6 +250,7 @@ describe.skipIf(!url)('Landesverband-Projekte', () => {
     expect(await memberships(eligible)).toEqual([
       { group_id: p!.id, role: 'admin', is_active: true },
     ]);
+    expect(await memberships(upper)).toEqual([{ group_id: p!.id, role: 'admin', is_active: true }]);
     expect(await memberships(unverified)).toEqual([]);
   });
 

@@ -46,6 +46,9 @@ const LV_MAIL_DOMAINS: Readonly<Record<string, string>> = {
 /** Für den Test: jedes Label muss ein Bundesland des Assistenten sein. */
 export const LV_MAIL_DOMAIN_BUNDESLAENDER: readonly string[] = Object.values(LV_MAIL_DOMAINS);
 
+/** Alle LV-Maildomains, kleingeschrieben — z. B. für einen SQL-Vorfilter. */
+export const LV_MAIL_DOMAIN_NAMES: readonly string[] = Object.keys(LV_MAIL_DOMAINS);
+
 /** Die Maildomains eines Landesverbands, z. B. `'Berlin'` → `['gruene-berlin.de', 'gruene.berlin']`. */
 export function landesverbandMailDomains(bundesland: string): string[] {
   return Object.entries(LV_MAIL_DOMAINS)

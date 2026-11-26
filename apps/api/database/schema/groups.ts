@@ -57,7 +57,7 @@ export const groups = pgTable('groups', {
   recipes_exclusive: boolean('recipes_exclusive').notNull().default(false),
   // Marks the project created automatically for a Landesverband (id of
   // `LANDESVERBAENDE`). Unique; see services/groups/landesverbandProjects.ts.
-  auto_landesverband: text('auto_landesverband'),
+  auto_landesverband: text('auto_landesverband').$type<LandesverbandId>(),
   // Set by a project admin: leaves the main lists, stays readable, takes no new content.
   archived_at: timestamp('archived_at', { withTimezone: true }),
   // Optional tile colour from the fixed palette; null = the default blue.
