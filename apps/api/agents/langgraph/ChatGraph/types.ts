@@ -322,6 +322,9 @@ export interface SearchResult {
    *  der Erzeuger das Ganze kennt (gelesene Seite, Dokument). Daraus rechnet
    *  `sourceRegistry` die Abdeckung; fehlt das Feld, gilt `content` als Ganzes. */
   totalChars?: number;
+  /** Der Inhalt ist eine Auswertung über den GANZEN Text (eine Zählung), kein
+   *  Ausschnitt — die Abdeckung ist dann vollständig, so kurz die Zeile ist. */
+  readsWhole?: true;
   [key: string]: unknown;
 }
 

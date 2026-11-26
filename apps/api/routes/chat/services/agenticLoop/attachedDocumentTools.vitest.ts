@@ -516,3 +516,48 @@ describe('dokumente_lesen — aus dem Notebook-Reader übergebene Dokumente', ()
     expect(r?.collectionId).toBe('hamburg');
   });
 });
+
+// #6103: „wer schreibt wie viel" is a count over the whole page, done by the
+// server — not by the model over the passages it happened to be shown.
+describe('dokumente_lesen zaehlen', () => {
+  const PAGE = [
+    '## Ein Bürgermeister mit Stehvermögen',
+    'von Benjamin Lassiwe',
+    '## Autonome Shuttles',
+    'von Christian Erhardt-Maciejewski',
+    'Über 80 Prozent, von 2008 an.',
+    '## Kamera gegen Falschparker',
+    'von Christian Erhardt-Maciejewski',
+  ].join('\n');
+
+  it('counts the values after the anchor over the whole text and reports the source as fully read', async () => {
+    const deps = depsFor({ [DOC]: { owner: USER, text: PAGE } });
+    const { sourceRegistry, run } = ctx([src(DOC, 'kommunal.de')], deps);
+
+    const out = (await runAttachedDocumentMode(
+      { zaehlen: { nach: 'von ', zeilenanfang: true } },
+      run
+    )) as { exhaustive: boolean; perSource: Array<{ vorkommen: number; werte: unknown[] }> };
+
+    expect(out.exhaustive).toBe(true);
+    expect(out.perSource[0]?.vorkommen).toBe(3);
+    expect(out.perSource[0]?.werte).toEqual([
+      { value: 'Christian Erhardt-Maciejewski', count: 2 },
+      { value: 'Benjamin Lassiwe', count: 1 },
+    ]);
+    expect(sourceRegistry.getCitations()[0]?.coverage).toEqual({
+      readChars: PAGE.length,
+      totalChars: PAGE.length,
+    });
+    expect(sourceRegistry.renderAll()).toContain('Christian Erhardt-Maciejewski 2');
+  });
+
+  it('says so when the anchor never occurs', async () => {
+    const deps = depsFor({ [DOC]: { owner: USER, text: PAGE } });
+    const { run } = ctx([src(DOC, 'kommunal.de')], deps);
+    const out = (await runAttachedDocumentMode({ zaehlen: { nach: 'Autor: ' } }, run)) as {
+      hinweis?: string;
+    };
+    expect(out.hinweis).toMatch(/Kein Vorkommen von „Autor: "/);
+  });
+});

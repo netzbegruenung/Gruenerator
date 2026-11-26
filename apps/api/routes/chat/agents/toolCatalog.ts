@@ -890,6 +890,7 @@ NUTZE WENN eine Frage sich auf eine angehängte Datei bezieht und die bereits ge
 - Auch wenn die Frage Vollständigkeit verlangt („alle …", „wie viele …", jede Zeile einer Tabelle, eine ganze Liste): \`abschnitt\`, nicht \`query\` — die Passagensuche ordnet nach Relevanz und liefert nur die besten Treffer, nie alle.
 - „Seite N": \`seite\`.
 - „wie oft / alle Stellen mit Wort X": \`wortsuche\` statt \`abschnitt\` — zählt vollständig, mit Seite je Fundstelle.
+- „wer/was wie oft" (Autor*innen, Kategorien, Anteile): \`zaehlen\` — zählt über den GANZEN Text, welcher Wert wie oft nach einem festen Text steht, z. B. \`nach: "von "\` mit \`zeilenanfang: true\` für Autorenzeilen. Zähle nie selbst über gezeigte Passagen: die sind nie das Ganze.
 - „steht das so drin / stimmt das Zitat": \`zitat\` mit dem Wortlaut.${mehrere ? '\n- `dateiname` grenzt auf eine der Dateien ein.' : ''}
 
 Genau ein Modus je Aufruf.
@@ -920,13 +921,32 @@ NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summar
             .optional()
             .describe('Alle Vorkommen zählen'),
           zitat: z.string().optional().describe('Wortlaut, der im Dokument stehen soll'),
+          zaehlen: z
+            .object({
+              nach: z
+                .string()
+                .describe(
+                  'Fester Text, nach dem der gezählte Wert steht, z. B. "von " oder "Kategorie: "'
+                ),
+              zeilenanfang: z
+                .boolean()
+                .optional()
+                .describe(
+                  'Nur am Zeilenanfang — für Autorenzeilen und Felder, nicht für Fließtext'
+                ),
+              grossKlein: z.boolean().optional().describe('Groß/klein beachten'),
+            })
+            .optional()
+            .describe('Häufigkeiten: welcher Wert steht wie oft nach diesem Text (Rest der Zeile)'),
         }),
-        execute: async ({ query, dateiname, abschnitt, seite, wortsuche, zitat }) => {
-          const modes = [query, abschnitt, seite, wortsuche, zitat].filter((m) => m != null);
+        execute: async ({ query, dateiname, abschnitt, seite, wortsuche, zitat, zaehlen }) => {
+          const modes = [query, abschnitt, seite, wortsuche, zitat, zaehlen].filter(
+            (m) => m != null
+          );
           if (modes.length > 1) {
             return {
               error:
-                'Genau ein Modus je Aufruf: query, abschnitt, seite, wortsuche oder zitat — für mehrere Fragen mehrere Aufrufe.',
+                'Genau ein Modus je Aufruf: query, abschnitt, seite, wortsuche, zitat oder zaehlen — für mehrere Fragen mehrere Aufrufe.',
             };
           }
           // Das Modell übernimmt die Nennung gern samt Zusatz: „kommunal.de (Webseite)".
@@ -946,9 +966,9 @@ NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summar
             };
           }
 
-          if (seite != null || wortsuche != null || zitat != null) {
+          if (seite != null || wortsuche != null || zitat != null || zaehlen != null) {
             return runAttachedDocumentMode(
-              { seite, wortsuche, zitat },
+              { seite, wortsuche, zitat, zaehlen },
               { userId: state.agentConfig.userId ?? null, sources: scoped, sourceRegistry }
             );
           }

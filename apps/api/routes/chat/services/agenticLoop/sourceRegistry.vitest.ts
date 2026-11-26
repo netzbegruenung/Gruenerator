@@ -860,3 +860,34 @@ describe('source coverage across passages of one document', () => {
     ]);
   });
 });
+
+describe('source coverage for document reads', () => {
+  it('adds up two slices that only carry documentSourceId', () => {
+    const r = reg();
+    const slice = (from: number) =>
+      result({
+        documentSourceId: 'page-3',
+        content: 's'.repeat(10_000),
+        charStart: from,
+        charEnd: from + 10_000,
+        totalChars: 40_000,
+      });
+    r.register([slice(0)], { snippetChars: 12_000 });
+    r.register([slice(10_000)], { snippetChars: 12_000 });
+    expect(r.getCitations().at(-1)?.coverage).toEqual({ readChars: 20_000, totalChars: 40_000 });
+  });
+
+  it('counts an evaluation over the whole text as fully read', () => {
+    const r = reg();
+    const line = r.register([
+      result({
+        documentSourceId: 'page-4',
+        content: 'Häufigkeiten: A 3, B 2',
+        totalChars: 20_000,
+        readsWhole: true,
+      }),
+    ]);
+    expect(line).not.toContain('[gelesen');
+    expect(r.getCitations()[0]?.coverage).toEqual({ readChars: 20_000, totalChars: 20_000 });
+  });
+});

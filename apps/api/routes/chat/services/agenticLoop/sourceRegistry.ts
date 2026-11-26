@@ -434,8 +434,13 @@ export function createSourceRegistry(): SourceRegistry {
   const notes: string[] = [];
   // Gezeigte Bereiche je Dokument — siehe `Entry.ranges`.
   const rangesBySource = new Map<string, Array<[number, number]>>();
+  // Eigener Schlüssel, nicht `sourceKey`: der bestimmt Nummer und Ersetzung
+  // (#3626), die Abdeckung fragt nur „welches Dokument". Treffer aus
+  // `dokumente_lesen` tragen nur `documentSourceId`, der Vorab-Abruf beides.
   const rangesFor = (r: SearchResult): Array<[number, number]> => {
-    const key = sourceKey(r);
+    const id =
+      r.documentId ?? (typeof r.documentSourceId === 'string' ? r.documentSourceId : undefined);
+    const key = id ? `doc::${id}` : null;
     if (!key) return [];
     const shared = rangesBySource.get(key) ?? [];
     rangesBySource.set(key, shared);
@@ -509,7 +514,13 @@ export function createSourceRegistry(): SourceRegistry {
     const entry = entries[index - 1];
     if (!entry) return snippetLine(index, r, cap, prior);
     const { readChars } = snippetBody(r, cap);
-    entry.ranges.push(shownRange(r, readChars));
+    // Eine Auswertung über den ganzen Text (`dokumente_lesen` zaehlen) hat alles
+    // gelesen, auch wenn ihre Zeile nur das Ergebnis zeigt.
+    entry.ranges.push(
+      r.readsWhole === true && typeof r.totalChars === 'number'
+        ? [0, r.totalChars]
+        : shownRange(r, readChars)
+    );
     return snippetLine(index, r, cap, prior, coverageOf(entry.result, entry.ranges));
   };
 
