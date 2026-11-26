@@ -9,7 +9,7 @@ interface Recipient {
   email: string | null;
   display_name: string | null;
   stored: unknown;
-  muted: boolean;
+  groupEmail: 'all' | 'mentions' | 'none' | null;
 }
 
 let recipients: Recipient[] = [];
@@ -59,7 +59,7 @@ function user(id: string, extra: Partial<Recipient> = {}): Recipient {
     email: `${id}@example.org`,
     display_name: id,
     stored: null,
-    muted: false,
+    groupEmail: 'all',
     ...extra,
   };
 }
@@ -107,11 +107,34 @@ describe('createNotificationsForUsers', () => {
     expect(db.insert).not.toHaveBeenCalled();
   });
 
-  it('emails by preference, but never a muted member', async () => {
-    recipients = [user('a'), user('m', { muted: true })];
-    await createNotificationsForUsers(['a', 'm'], base);
-    expect(insertedUsers()).toEqual(['a', 'm']);
-    expect(emailed()).toEqual(['a@example.org']);
+  it('mails feed news only to members who chose "all" in the project', async () => {
+    recipients = [
+      user('all'),
+      user('mentions', { groupEmail: 'mentions' }),
+      user('none', { groupEmail: 'none' }),
+    ];
+    await createNotificationsForUsers(['all', 'mentions', 'none'], base);
+    expect(insertedUsers()).toEqual(['all', 'mentions', 'none']);
+    expect(emailed()).toEqual(['all@example.org']);
+  });
+
+  it('still mails a mention under "mentions", never under "none"', async () => {
+    recipients = [
+      user('mentions', { groupEmail: 'mentions' }),
+      user('none', { groupEmail: 'none' }),
+    ];
+    await createNotificationsForUsers(['mentions', 'none'], {
+      ...base,
+      type: 'group_user_mentioned',
+    });
+    expect(insertedUsers()).toEqual(['mentions', 'none']);
+    expect(emailed()).toEqual(['mentions@example.org']);
+  });
+
+  it('leaves non-members (no project setting) to their own preferences', async () => {
+    recipients = [user('outsider', { groupEmail: null })];
+    await createNotificationsForUsers(['outsider'], { ...base, type: 'group_join_denied' });
+    expect(emailed()).toEqual(['outsider@example.org']);
   });
 
   it('keeps the system group in-app only via the channel override', async () => {

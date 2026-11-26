@@ -2,6 +2,7 @@ import {
   type GroupAudience,
   type GroupCloudProvider,
   type GroupColor,
+  type GroupEmailNotifications,
   type GroupLink,
   type GroupRole,
   type JoinRequestStatus,
@@ -71,10 +72,15 @@ export const group_memberships = pgTable('group_memberships', {
   role: text('role').$type<GroupRole>().default('member'),
   joined_at: timestamp('joined_at', { withTimezone: true }).defaultNow(),
   is_active: boolean('is_active').default(true),
-  // Per-member opt-out: when true, this user's email + push notifications for
-  // this group are suppressed (in-app notifications still appear). Toggled via
-  // the group's 3-dot menu.
+  // F0 mirror of `email_notifications = 'none'`, kept in sync for shipped mobile
+  // binaries that still read and write it. Delivery reads `email_notifications`.
   notifications_muted: boolean('notifications_muted').notNull().default(false),
+  // Which of this project's notifications reach the member by email; in-app is
+  // unaffected. Default 'mentions' (zz_20261126a_group_email_notifications.sql).
+  email_notifications: text('email_notifications')
+    .$type<GroupEmailNotifications>()
+    .notNull()
+    .default('mentions'),
 });
 
 export const group_join_requests = pgTable('group_join_requests', {

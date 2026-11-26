@@ -20,6 +20,14 @@ import { userAgentSchema } from './userAgents.js';
 export const groupRoleSchema = z.enum(['admin', 'member']);
 export type GroupRole = z.infer<typeof groupRoleSchema>;
 
+/**
+ * Which project notifications reach the member by email (per membership,
+ * `group_memberships.email_notifications`). In-app notifications are unaffected.
+ * 'mentions' is the default: only what concerns the member directly.
+ */
+export const groupEmailNotificationsSchema = z.enum(['all', 'mentions', 'none']);
+export type GroupEmailNotifications = z.infer<typeof groupEmailNotificationsSchema>;
+
 export const groupAudienceSchema = z.enum(['de-DE', 'de-AT', 'all']);
 export type GroupAudience = z.infer<typeof groupAudienceSchema>;
 
@@ -227,8 +235,9 @@ export const groupMembershipSchema = z.object({
   role: z.string(),
   joined_at: z.string().nullish(),
   isAdmin: z.boolean(),
-  // Whether the caller has muted email + push notifications for this group.
+  // F0 mirror of `email_notifications === 'none'` for shipped mobile binaries.
   notifications_muted: z.boolean().nullish(),
+  email_notifications: groupEmailNotificationsSchema.nullish(),
 });
 export type GroupMembershipDto = z.infer<typeof groupMembershipSchema>;
 
@@ -317,6 +326,11 @@ export const setGroupMuteBodySchema = z.object({
 });
 export type SetGroupMuteBody = z.infer<typeof setGroupMuteBodySchema>;
 
+export const setGroupEmailNotificationsBodySchema = z.object({
+  level: groupEmailNotificationsSchema,
+});
+export type SetGroupEmailNotificationsBody = z.infer<typeof setGroupEmailNotificationsBodySchema>;
+
 export const groupLinkBodySchema = z.object({
   title: z
     .string()
@@ -384,6 +398,11 @@ export const groupOkResponseSchema = z.object({
 export const groupMuteResponseSchema = z.object({
   success: z.literal(true),
   muted: z.boolean(),
+});
+
+export const groupEmailNotificationsResponseSchema = z.object({
+  success: z.literal(true),
+  level: groupEmailNotificationsSchema,
 });
 
 // ── Content sharing (migrated from the legacy groupContent.ts routes) ──────────

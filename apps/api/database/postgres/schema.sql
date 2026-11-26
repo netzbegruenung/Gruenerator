@@ -252,6 +252,7 @@ CREATE TABLE IF NOT EXISTS group_memberships (
     joined_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     is_active BOOLEAN DEFAULT TRUE,
     notifications_muted BOOLEAN NOT NULL DEFAULT FALSE,
+    email_notifications TEXT NOT NULL DEFAULT 'mentions' CHECK (email_notifications IN ('all', 'mentions', 'none')),
     UNIQUE(group_id, user_id)
 );
 
