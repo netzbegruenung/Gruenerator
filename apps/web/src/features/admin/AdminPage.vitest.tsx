@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -121,6 +121,24 @@ describe('AdminPage', () => {
     await renderAdminOn('bgst', '/admin/vorlagen');
     expect(await screen.findByText('Überblicksinhalt')).toBeInTheDocument();
     expect(screen.queryByText('Vorlagenliste')).toBeNull();
+  });
+
+  // Schmal klappt die Navigation hinter einen Knopf mit dem aktuellen Bereich;
+  // ein gewählter Eintrag klappt sie wieder zu.
+  it('klappt die schmale Navigation auf und nach der Wahl wieder zu', async () => {
+    await renderAdminOn('bgst');
+    const toggle = screen.getByRole('button', { name: /Überblick/ });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+    fireEvent.click(screen.getByRole('link', { name: 'Nutzer:innen' }));
+    expect(await screen.findByText('Nutzerliste')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Nutzer:innen/ })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
   });
 
   it('hat keine axe-Verstöße', async () => {
