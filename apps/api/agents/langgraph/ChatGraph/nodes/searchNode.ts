@@ -127,8 +127,6 @@ const FANIN_CANDIDATE_LIMIT = 24;
  *
  * Kleiner als bei einer benannten Seite (die `readNamedPages` ganz liest), weil diese Seiten niemand benannt hat
  * — sie stammen aus der Trefferliste, und mehrere davon teilen sich einen Turn.
- * Entspricht `CRAWL_DISTILL_TARGET_CHARS` im Werkzeugkatalog, der denselben
- * Fall bedient.
  *
  * **Dass hier überhaupt ein Budget steht, ist der Punkt.** Die beiden
  * Crawl-Stellen unten riefen `selectAndCrawlTopUrls` und schrieben das rohe
