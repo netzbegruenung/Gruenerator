@@ -45,15 +45,20 @@ Der `aufruf` steht allein auf der letzten Slide (höchstens eine `dachzeile` dar
 
 ## Deutschland
 
-- **Geschichte auf Fotos**: jede Slide ein Foto, Text mittig zentriert in `zeilenboxen` aus `absatz`-Bausteinen. Der eine Satz, der zählt, ist `betont` (grüne Box). Ohne Logo, ohne Headline.
-- **Textslider** (Interview, Statement): Textseiten mit 300–500 Zeichen je Slide. Interview-Auszüge auf `creme` mit einem Kernsatz in `++…++`, Cover ein `zitat` auf Foto.
-- **Forderungen**: `headline` „Unsere Forderungen:“ + `liste` – nach einer Fotogeschichte auf `mint`, sonst auf der Farbe des Karussells.
-- **Schluss**: auf derselben Fläche wie die Forderungen mit einem `aufruf` oder einer großen Headline mit `akzent`, `logo: true`.
-- **Kritik und Erklärung**: Cover mit Motiv (`foto-unten`), dann alle Slides bis zum Schluss auf derselben Farbe (z. B. `dunkeltanne`, oben, links) – auch Forderungen und Schluss. Ein Wechsel auf `mint` am Ende gehört nur zur Fotogeschichte.
+Die Karussells der Partei und der Spitzenkandidierenden (Korpus 10/2026, 32 Stück) haben keinen Standard-Look. Wähle den Look nach dem Stoff:
+
+- **Geschichte, Betroffene, Alltag** → **Fotostrecke**: jede Slide ein Foto, Text mittig zentriert in `zeilenboxen` aus `absatz`-Bausteinen, der eine Satz, der zählt, `betont`. Ohne Logo, ohne Headline. Danach „Unsere Forderungen:“ + `liste` und der Schluss gemeinsam auf `mint`.
+- **Statements von Personen** → Cover `zitat` auf Foto, dann Textseiten auf `creme` oder `mint` mit 300–500 Zeichen je Slide, ein Kernsatz in `++…++` (Textslider, Interview).
+- **Erklärung, Zahlen, Fakten** → hell: alle Slides auf `hellgrau`, `mint` oder `weiss`, Inhalte als `liste`, `diagramm`, `iconliste` oder große Zahl. Cover mit Motiv (`foto-unten` auf derselben Farbe) oder nur die Headline.
+- **Kritik, Angriff, Kampagne** → eine kräftige Fläche durchgehend: `grasgruen` (laut) oder `dunkeltanne` (ernst), Cover mit Motiv als `foto-unten` oder nur die Headline.
+- **Wahlergebnis, Glückwunsch, Rückblick** → Fotos von Menschen auf jeder Slide (`foto`).
+
+Nimm nicht für jedes Thema denselben Look: dunkle Flächen sind in den Posts die Ausnahme, helle und Fotos die Regel.
 
 ## Österreich
 
-- **Kritik und Erklärung: alle Slides auf `dunkelgruen`**. Cover und Hook: die Headline allein, oben links (`position: oben`, `align: links`). Argument-Slides zentriert. Statt Headline gern zwei `absatz`-Bausteine in großer Schrift.
+- **Die Fläche ist fast immer `dunkelgruen`** (Korpus 10/2026: 8 von 11 Partei-Karussells, die übrigen drei sind Fotostrecken) – die Abwechslung kommt aus dem Inhalt jeder Slide, nicht aus der Farbe. Cover und Hook: die Headline allein, oben links (`position: oben`, `align: links`), oder ein Foto. Argument-Slides zentriert. Statt Headline gern zwei `absatz`-Bausteine in großer Schrift.
+- **Jede Argument-Slide trägt ein eigenes Mittel**, nicht nur Text: ein Motiv als `foto-unten`, eine `liste` mit Haken, ein `diagramm` oder eine große Zahl, eine `iconliste`, eine Gegenüberstellung (`vergleich`). Zwei reine Textslides hintereinander sind die Ausnahme.
 - Ein Motiv zum Thema als `foto-unten` auf `dunkelgruen` (Text oben, Foto unten) – das Programm färbt das Foto grün ein, das häufigste Bildmittel der Posts. Auf dem Cover, gern auch auf Argument-Slides; der Schluss bleibt ohne Foto.
 - **Wort-Akzente** mit `==…==` in fast jeder Slide – das gelbe Vollkorn-Wort ist das Markenzeichen.
 - Brücke „Darum sagen wir:“ als `absatz` mit `betont: true`, darunter die Forderung.
