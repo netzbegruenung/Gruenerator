@@ -46,6 +46,36 @@ const LV_MAIL_DOMAINS: Readonly<Record<string, string>> = {
 /** Für den Test: jedes Label muss ein Bundesland des Assistenten sein. */
 export const LV_MAIL_DOMAIN_BUNDESLAENDER: readonly string[] = Object.values(LV_MAIL_DOMAINS);
 
+/** Die Maildomains eines Landesverbands, z. B. `'Berlin'` → `['gruene-berlin.de', 'gruene.berlin']`. */
+export function landesverbandMailDomains(bundesland: string): string[] {
+  return Object.entries(LV_MAIL_DOMAINS)
+    .filter(([, label]) => label === bundesland)
+    .map(([domain]) => domain);
+}
+
+/**
+ * Das Bundesland-Label des Landesverbands, dem die Domain dieser Mailadresse
+ * gehört, oder `null`. Exakt die Domain, keine Subdomain (`kv.gruene-hessen.de`
+ * ist ein Kreisverband), Groß-/Kleinschreibung egal.
+ *
+ * Anders als `suggestedRoleForEmail` ist das hier ein Zugangskriterium: das
+ * automatische LV-Projekt nimmt nur auf, wessen **bestätigte** Adresse zu seinem
+ * Landesverband passt (`apps/api/services/groups/landesverbandProjects.ts`).
+ * Die Prüfung, dass die Adresse bestätigt ist, liegt beim Aufrufer.
+ */
+export function landesverbandBundeslandForEmail(email: string | null | undefined): string | null {
+  if (!email) return null;
+  const at = email.lastIndexOf('@');
+  if (at < 1) return null;
+  const domain = email
+    .slice(at + 1)
+    .trim()
+    .toLowerCase();
+  return Object.prototype.hasOwnProperty.call(LV_MAIL_DOMAINS, domain)
+    ? (LV_MAIL_DOMAINS[domain] ?? null)
+    : null;
+}
+
 /**
  * Die Landesgeschäftsstellen-Rolle zur Mailadresse, oder `null`, wenn die
  * Domain keinem Landesverband gehört. Nur die Domain selbst zählt, keine

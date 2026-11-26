@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import { landesverbandIdsForRoles } from '../agents/landesverbandForRoles.js';
 
-import { LV_MAIL_DOMAIN_BUNDESLAENDER, suggestedRoleForEmail } from './roleFromEmail.js';
+import {
+  LV_MAIL_DOMAIN_BUNDESLAENDER,
+  landesverbandBundeslandForEmail,
+  landesverbandMailDomains,
+  suggestedRoleForEmail,
+} from './roleFromEmail.js';
 import { DE_BUNDESLAENDER } from './rolesConfig.js';
 
 describe('suggestedRoleForEmail', () => {
@@ -35,5 +40,43 @@ describe('suggestedRoleForEmail', () => {
     for (const bundesland of LV_MAIL_DOMAIN_BUNDESLAENDER) {
       expect(labels.has(bundesland), bundesland).toBe(true);
     }
+  });
+});
+
+// Access criterion for the automatic Landesverband project: must be exact.
+describe('landesverbandBundeslandForEmail', () => {
+  it('maps exactly the LV domain, case-insensitive', () => {
+    expect(landesverbandBundeslandForEmail('kim@gruene-hessen.de')).toBe('Hessen');
+    expect(landesverbandBundeslandForEmail('Kim@GRUENE-NRW.DE')).toBe('Nordrhein-Westfalen');
+    expect(landesverbandBundeslandForEmail('kim@gruene.berlin')).toBe('Berlin');
+  });
+
+  it.each([
+    ['subdomain of an LV domain', 'kim@kv.gruene-hessen.de'],
+    ['LV domain as a prefix', 'kim@gruene-hessen.de.evil.com'],
+    ['LV domain inside the local part', 'gruene-hessen.de@example.com'],
+    ['look-alike domain', 'kim@gruene-hessen.com'],
+    ['federal party domain', 'kim@gruene.de'],
+    ['Austrian domain', 'kim@gruene.at'],
+    ['prototype key as domain', 'kim@__proto__'],
+    ['prototype key as domain (constructor)', 'kim@constructor'],
+    ['no at-sign', 'gruene-hessen.de'],
+    ['empty local part', '@gruene-hessen.de'],
+    ['empty', ''],
+  ])('rejects %s', (_label, email) => {
+    expect(landesverbandBundeslandForEmail(email)).toBeNull();
+  });
+
+  it('rejects null and undefined', () => {
+    expect(landesverbandBundeslandForEmail(null)).toBeNull();
+    expect(landesverbandBundeslandForEmail(undefined)).toBeNull();
+  });
+});
+
+describe('landesverbandMailDomains', () => {
+  it('lists every domain of a Landesverband and none for unknown labels', () => {
+    expect(landesverbandMailDomains('Berlin')).toEqual(['gruene-berlin.de', 'gruene.berlin']);
+    expect(landesverbandMailDomains('Hessen')).toEqual(['gruene-hessen.de']);
+    expect(landesverbandMailDomains('Wien')).toEqual([]);
   });
 });

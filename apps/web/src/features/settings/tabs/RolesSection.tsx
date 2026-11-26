@@ -32,6 +32,7 @@ import {
   isCustomRolleOffered,
   autoAssignedRole,
   suggestedRoleForEmail,
+  landesverbandMailDomains,
 } from '@gruenerator/shared/roles';
 import {
   Button,
@@ -304,14 +305,21 @@ export default function RolesSection() {
     const offer = landesverbandOfferForBundesland(isAustrian ? 'Österreich' : wizBundesland);
     if (!offer) return null;
 
-    const teile = [offer.agents === 1 ? '1 Agenten' : `${offer.agents} Agenten`];
-    if (offer.skills > 0) teile.push(offer.skills === 1 ? '1 Rezept' : `${offer.skills} Rezepte`);
-    const aufzaehlung =
-      teile.length > 1 ? `${teile.slice(0, -1).join(', ')} und ${teile.at(-1)}` : teile[0];
+    const rezepte = offer.skills === 1 ? 'das Rezept' : `die ${offer.skills} Rezepte`;
+    const inhalt = `Darin liegen ${offer.skills > 0 ? `${rezepte} und ` : ''}das Notebook ${offer.title}.`;
+    // Automatisch hinein kommt nur, wessen bestätigte Adresse auf einer Domain des
+    // Landesverbands liegt (apps/api/services/groups/landesverbandProjects.ts);
+    // Österreich hat keine solche Domain.
+    const domains = isAustrian ? [] : landesverbandMailDomains(wizBundesland);
+    const zugang =
+      domains.length > 0
+        ? `Mit einer bestätigten Adresse ${domains.map((d) => `@${d}`).join(' oder ')} kommst du automatisch hinein und kannst es als Admin anpassen. Sonst brauchst du einen Einladungslink aus dem Projekt.`
+        : 'Hinein kommst du mit einem Einladungslink aus dem Projekt.';
 
+    // Gleicher Name wie das Projekt, das der Server anlegt (`landesverbandProjectSeed`).
     return {
-      title: offer.title,
-      beschreibung: `${aufzaehlung} sowie das Notebook ${offer.title} erscheinen künftig im Marktplatz und im Chat.`,
+      title: `Grüne ${offer.title}`,
+      beschreibung: `${inhalt} ${zugang}`,
     };
   }, [wizEbene, wizBundesland, wizRolle, isAustrian]);
 
@@ -896,7 +904,7 @@ export default function RolesSection() {
             {wizAngebot && (
               <div className="rounded-lg border border-grey-200 bg-background-alt/40 p-md dark:border-grey-700">
                 <p className="text-sm font-medium text-foreground-heading">
-                  Du bekommst Zugang zum Landesverband {wizAngebot.title}
+                  Projekt „{wizAngebot.title}“
                 </p>
                 <p className="mt-xs text-sm text-foreground-muted">{wizAngebot.beschreibung}</p>
               </div>

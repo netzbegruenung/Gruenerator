@@ -6,6 +6,7 @@ import { profiles } from '../../database/schema/core.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { type DeleteResult, getPostgresInstance } from '../../database/services/PostgresService.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
+import { syncLandesverbandAccess } from '../groups/landesverbandProjects.js';
 import { deriveLandesverbandFromRoles } from '../landesverband/LandesverbandDerivationService.js';
 
 import { cleanUpBeforeProfileDelete } from './accountDeletionCleanup.js';
@@ -474,6 +475,7 @@ class ProfileService {
       const updated = await this.updateProfile(userId, { user_defaults: defaults });
       if (generator === 'profile' && key === 'roles') {
         await deriveLandesverbandFromRoles(userId, value as { bundesland?: string }[]);
+        await syncLandesverbandAccess(userId);
       }
       return updated;
     } catch (error: unknown) {
@@ -515,6 +517,7 @@ class ProfileService {
           userId,
           (value as Record<string, unknown>).roles as { bundesland?: string }[]
         );
+        await syncLandesverbandAccess(userId);
       }
       return updated;
     } catch (error: unknown) {

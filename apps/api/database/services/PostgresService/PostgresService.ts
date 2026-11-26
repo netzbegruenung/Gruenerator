@@ -176,6 +176,17 @@ export class PostgresService {
         console.warn('[PostgresService] ⚠️ System group setup skipped:', (error as Error).message);
       }
 
+      try {
+        const { ensureLandesverbandProjects } =
+          await import('../../../services/groups/landesverbandProjects.js');
+        await ensureLandesverbandProjects();
+      } catch (error) {
+        console.warn(
+          '[PostgresService] ⚠️ Landesverband projects skipped:',
+          (error as Error).message
+        );
+      }
+
       // Auto-sync schema columns (non-critical — log internally)
       let schemaOk = true;
       try {
