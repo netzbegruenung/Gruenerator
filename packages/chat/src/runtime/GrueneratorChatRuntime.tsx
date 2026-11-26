@@ -579,17 +579,29 @@ export function GrueneratorChatRuntimeProvider({
     [onExternalThreadClick, activePath]
   );
 
-  // The path is read through a ref so the context value survives navigations:
-  // a new value would re-render every thread-list row on every route change,
-  // and the rows only need the path inside click handlers.
+  // Path and navigate are read through refs so the context value survives
+  // navigations: a new value would re-render every thread-list row on every
+  // route change, and the rows only need both inside click handlers. The
+  // navigate ref matters as much as the path: react-router's `useNavigate()`
+  // outside a data router returns a new function on every location change
+  // (#6118).
   const activePathRef = useRef<string | null>(activePath ?? null);
+  const onNavigateRef = useRef(onNavigate);
   useLayoutEffect(() => {
     activePathRef.current = activePath ?? null;
-  }, [activePath]);
+    onNavigateRef.current = onNavigate;
+  }, [activePath, onNavigate]);
+  const hasNavigation = onNavigate != null;
   const navigationCtx = useMemo(
     () =>
-      onNavigate ? { navigate: onNavigate, getActivePath: () => activePathRef.current } : null,
-    [onNavigate]
+      hasNavigation
+        ? {
+            navigate: (path: string, opts?: ChatNavigateOptions) =>
+              onNavigateRef.current?.(path, opts),
+            getActivePath: () => activePathRef.current,
+          }
+        : null,
+    [hasNavigation]
   );
 
   return (
