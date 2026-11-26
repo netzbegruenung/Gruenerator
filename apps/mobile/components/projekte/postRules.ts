@@ -1,5 +1,9 @@
 import { type MenuAction } from '@expo/ui/community/menu';
-import { GROUP_POST_FILE_LIMIT, GROUP_POST_FILE_MAX_BYTES } from '@gruenerator/contracts';
+import {
+  GROUP_POST_FILE_LIMIT,
+  GROUP_POST_FILE_MAX_BYTES,
+  GROUP_SHARE_NOTE_MAX,
+} from '@gruenerator/contracts';
 import { canShareIntoGroup, type NativeUploadFile } from '@gruenerator/shared/groups';
 
 export type PostMenuId = 'edit-post' | 'delete-post';
@@ -89,4 +93,12 @@ export function canSubmitPost(
   busy: boolean
 ): boolean {
   return !busy && !tooLong && (text.trim().length > 0 || fileCount > 0);
+}
+
+/**
+ * Mit angehängten eigenen Inhalten wird der Text ihre Notiz (wie im Web,
+ * `GroupComposer`) — und die ist kürzer als ein Beitrag.
+ */
+export function noteTooLong(text: string, pickedCount: number): boolean {
+  return pickedCount > 0 && text.trim().length > GROUP_SHARE_NOTE_MAX;
 }

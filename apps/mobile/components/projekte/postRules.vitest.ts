@@ -1,4 +1,8 @@
-import { GROUP_POST_FILE_LIMIT, GROUP_POST_FILE_MAX_BYTES } from '@gruenerator/contracts';
+import {
+  GROUP_POST_FILE_LIMIT,
+  GROUP_POST_FILE_MAX_BYTES,
+  GROUP_SHARE_NOTE_MAX,
+} from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -8,6 +12,7 @@ import {
   canEditPost,
   canSubmitPost,
   canWritePost,
+  noteTooLong,
   toUploadFile,
   visibilityHint,
   type DraftFile,
@@ -102,5 +107,14 @@ describe('toUploadFile / canSubmitPost', () => {
     expect(canSubmitPost('', 1, false, false)).toBe(true);
     expect(canSubmitPost('hi', 0, true, false)).toBe(false);
     expect(canSubmitPost('hi', 0, false, true)).toBe(false);
+  });
+});
+
+describe('noteTooLong', () => {
+  it('only caps the text when own content is attached', () => {
+    const long = 'x'.repeat(GROUP_SHARE_NOTE_MAX + 1);
+    expect(noteTooLong(long, 0)).toBe(false);
+    expect(noteTooLong(long, 1)).toBe(true);
+    expect(noteTooLong('x'.repeat(GROUP_SHARE_NOTE_MAX), 2)).toBe(false);
   });
 });
