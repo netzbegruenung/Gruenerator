@@ -2,6 +2,8 @@ import { Alert, AlertDescription, Button, Input } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState } from 'react';
 
+import { AdminPanel } from '../components/adminUi';
+
 import { type ImportProgress, runParteitagImport, type SelectedFile } from './parteitagImport';
 
 /**
@@ -77,89 +79,89 @@ export function ParteitagImportPanel() {
   const canStart = selected.length > 0 && (noPassword || password.length > 0) && !running;
 
   return (
-    <section
-      aria-labelledby={`${folderId}-title`}
-      className="flex flex-col gap-md rounded-md border p-md"
+    <AdminPanel
+      title="Parteitag importieren"
+      description="Den Export-Ordner wählen (mit manifest.json, reels/ und posters/). Schon vorhandene Dateien werden übersprungen; ein erneuter Import aktualisiert den Parteitag."
     >
-      <h3 id={`${folderId}-title`} className="text-base font-semibold">
-        Parteitag importieren
-      </h3>
-      <p className="text-sm text-muted-foreground">
-        Den Export-Ordner wählen (mit manifest.json, reels/ und posters/). Schon vorhandene Dateien
-        werden übersprungen; ein erneuter Import aktualisiert den Parteitag.
-      </p>
-
-      <div className="flex flex-col gap-xs">
-        <label htmlFor={folderId} className="text-sm">
-          Export-Ordner
-        </label>
-        <input
-          id={folderId}
-          type="file"
-          multiple
-          disabled={running}
-          // Not in React's input typings; lets the picker choose a whole folder.
-          ref={(el) => el?.setAttribute('webkitdirectory', '')}
-          className="text-sm"
-          onChange={(e) =>
-            setSelected(
-              Array.from(e.target.files ?? []).map((file) => ({
-                path: file.webkitRelativePath || file.name,
-                file,
-              }))
-            )
-          }
-        />
-        {selected.length > 0 && (
-          <span className="text-sm text-muted-foreground">{selected.length} Dateien gewählt</span>
-        )}
-      </div>
-
-      <div className="flex flex-wrap items-end gap-sm">
+      <div className="flex flex-col gap-md">
         <div className="flex flex-col gap-xs">
-          <label htmlFor={passwordId} className="text-sm">
-            Passwort
+          <label htmlFor={folderId} className="text-sm font-medium">
+            Export-Ordner
           </label>
-          <Input
-            id={passwordId}
-            type="password"
-            autoComplete="new-password"
-            disabled={noPassword || running}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </div>
-        <label htmlFor={openId} className="flex items-center gap-xs text-sm">
           <input
-            id={openId}
-            type="checkbox"
-            checked={noPassword}
+            id={folderId}
+            type="file"
+            multiple
             disabled={running}
-            onChange={(e) => setNoPassword(e.target.checked)}
+            // Not in React's input typings; lets the picker choose a whole folder.
+            ref={(el) => el?.setAttribute('webkitdirectory', '')}
+            className="text-sm"
+            onChange={(e) =>
+              setSelected(
+                Array.from(e.target.files ?? []).map((file) => ({
+                  path: file.webkitRelativePath || file.name,
+                  file,
+                }))
+              )
+            }
           />
-          Ohne Passwort (offen für alle Eingeloggten)
-        </label>
-      </div>
+          {selected.length > 0 && (
+            <span className="text-sm text-grey-600 dark:text-grey-400">
+              {selected.length} Dateien gewählt
+            </span>
+          )}
+        </div>
 
-      <div className="flex flex-wrap gap-sm">
-        <Button disabled={!canStart} onClick={() => void start()}>
-          Importieren
-        </Button>
-        {running && (
-          <Button variant="outline" onClick={() => abortRef.current?.abort()}>
-            Abbrechen
+        <div className="flex flex-wrap items-end gap-sm">
+          <div className="flex flex-col gap-xs">
+            <label htmlFor={passwordId} className="text-sm font-medium">
+              Passwort
+            </label>
+            <Input
+              id={passwordId}
+              type="password"
+              autoComplete="new-password"
+              disabled={noPassword || running}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+          <label htmlFor={openId} className="flex items-center gap-xs text-sm">
+            <input
+              id={openId}
+              type="checkbox"
+              checked={noPassword}
+              disabled={running}
+              onChange={(e) => setNoPassword(e.target.checked)}
+            />
+            Ohne Passwort (offen für alle Eingeloggten)
+          </label>
+        </div>
+
+        <div className="flex flex-wrap gap-sm">
+          <Button variant="brand" disabled={!canStart} onClick={() => void start()}>
+            Importieren
           </Button>
+          {running && (
+            <Button variant="outline" onClick={() => abortRef.current?.abort()}>
+              Abbrechen
+            </Button>
+          )}
+        </div>
+
+        <p
+          role="status"
+          aria-live="polite"
+          className="m-0 text-sm text-grey-600 dark:text-grey-400"
+        >
+          {progress ? progressText(progress) : (done ?? '')}
+        </p>
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         )}
       </div>
-
-      <p role="status" aria-live="polite" className="text-sm">
-        {progress ? progressText(progress) : (done ?? '')}
-      </p>
-      {error && (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-    </section>
+    </AdminPanel>
   );
 }
