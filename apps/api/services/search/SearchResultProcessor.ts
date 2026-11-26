@@ -12,6 +12,7 @@ import { citationReferenceRegex, SOURCE_LINK_SCHEME } from '@gruenerator/shared/
 import { vectorConfig } from '../../config/vectorConfig.js';
 import { PROMPT_SOURCE_MAX_CHARS } from '../document-services/TextChunker/chunkBudget.js';
 
+import { claimsByCitation, supportingSentence } from './citationQuote.js';
 import { recencyBoost, resolveSourceDate } from './recency.js';
 import { selectRelevantExcerpt } from './relevantExcerpt.js';
 
@@ -308,6 +309,7 @@ export function validateAndInjectCitations(
   // kostet zweimal — einmal in der Karte und einmal im nächsten Zug, denn
   // `notebookHistoryService` trägt `cited_text` als `chunk_text` weiter.
   const citedTextMaxChars = vectorConfig.get('content').maxExcerptLength;
+  const claims = claimsByCitation(content);
   const citations: Citation[] = [...usedIds].map((id) => {
     const ref = referencesMap[id];
     const head = ref.snippets[0]?.[0] || '';
@@ -321,9 +323,15 @@ export function validateAndInjectCitations(
     const citedText =
       excerpt?.text ??
       (options.question && ref.chunk_text ? ref.chunk_text.slice(0, citedTextMaxChars) : head);
+    const quote = supportingSentence(
+      ref.chunk_text ?? citedText,
+      claims.get(id) ?? [],
+      options.question
+    );
     return {
       index: id,
       cited_text: citedText,
+      ...(quote && { quote }),
       document_title: ref.title,
       document_id: ref.document_id,
       source_url: ref.source_url || null,
