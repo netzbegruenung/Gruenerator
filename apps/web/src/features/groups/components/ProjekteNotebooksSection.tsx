@@ -1,4 +1,6 @@
+import { useUserLandesverbaende } from '@gruenerator/chat';
 import { type MarketplaceItemOf } from '@gruenerator/contracts';
+import { LANDESVERBAENDE } from '@gruenerator/shared/agents';
 import {
   marketplaceHref,
   useMarketplaceKind,
@@ -12,7 +14,10 @@ import { Link } from 'react-router-dom';
 import { getToolTheme } from '../../../config/toolTheme';
 import { notebookFavouriteId } from '../../../stores/sidebarFavouritesStore';
 import { useNotebookCollections } from '../../auth/hooks/useProfileData';
-import { type NotebookConfigEntry } from '../../notebook/config/notebooksConfig';
+import {
+  getListedNotebookById,
+  type NotebookConfigEntry,
+} from '../../notebook/config/notebooksConfig';
 import { useSharedNotebookCollections } from '../../notebook/hooks/useSharedNotebookCollections';
 import { OwnNotebookActions } from '../../notebook/wissen/OwnNotebookMenu';
 import { collectionSlug } from '../../notebook/wissen/useNotebookShelves';
@@ -49,6 +54,22 @@ export function useMyNotebooks() {
     };
   }, [query.data, sharedQuery.data]);
   return { ...lists, loading: query.isLoading, failed: query.isError };
+}
+
+/**
+ * Die Notebooks der eigenen Landesverbände, aus den Profilrollen abgeleitet
+ * (`useUserLandesverbaende`, nur Landesgeschäftsstellen-Rollen) — ohne Merken,
+ * die Rolle ist die Zuteilung. Nur was diese Instanz anbietet.
+ */
+function useLandesverbandNotebooks(): NotebookConfigEntry[] {
+  const { lvIds } = useUserLandesverbaende();
+  return useMemo(
+    () =>
+      LANDESVERBAENDE.filter((lv) => lvIds?.includes(lv.id))
+        .map((lv) => getListedNotebookById(lv.notebookId))
+        .filter((entry): entry is NotebookConfigEntry => entry !== undefined),
+    [lvIds]
+  );
 }
 
 type SavedNotebook = MarketplaceItemOf<'notebook'>;
@@ -171,12 +192,17 @@ export function SystemNotebookTile({
 
 /**
  * „Deine Notebooks" auf `/projekte`: eigene Notebooks, die, die andere in
- * ein gemeinsames Projekt geteilt haben, und die im Marktplatz gemerkten —
+ * ein gemeinsames Projekt geteilt haben, die der eigenen Landesverbände
+ * (per Rolle) und die im Marktplatz gemerkten —
  * dieselbe Kachel wie Projekte und Rezepte.
  */
 export function ProjekteNotebooksSection() {
   const { own, shared, loading, failed } = useMyNotebooks();
-  const shownIds = useMemo(() => new Set([...own, ...shared].map((c) => c.id)), [own, shared]);
+  const lvNotebooks = useLandesverbandNotebooks();
+  const shownIds = useMemo(
+    () => new Set([...own, ...shared, ...lvNotebooks].map((c) => c.id)),
+    [own, shared, lvNotebooks]
+  );
   const saved = useSavedNotebooks(shownIds);
 
   const actions = (
@@ -197,13 +223,16 @@ export function ProjekteNotebooksSection() {
   return (
     <section aria-label="Deine Notebooks" className="mt-xl">
       <SectionHeader title="Deine Notebooks" actions={actions} />
-      {own.length + shared.length + saved.items.length > 0 ? (
+      {own.length + shared.length + lvNotebooks.length + saved.items.length > 0 ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] sm:gap-4">
           {own.map((c) => (
             <NotebookTile key={c.id} collection={c} isOwn />
           ))}
           {shared.map((c) => (
             <NotebookTile key={c.id} collection={c} isOwn={false} />
+          ))}
+          {lvNotebooks.map((entry) => (
+            <SystemNotebookTile key={entry.id} entry={entry} extraMeta={['Dein Landesverband']} />
           ))}
           {saved.items.map((item) => (
             <SavedNotebookTile key={item.key} item={item} />
