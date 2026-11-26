@@ -16,12 +16,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
+  Badge,
   Button,
   Input,
   Skeleton,
 } from '@gruenerator/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useId, useState } from 'react';
+
+import { AdminEmptyState } from '../components/adminUi';
 
 import { ParteitagImportPanel } from './ParteitagImportPanel';
 
@@ -113,16 +116,16 @@ function Speeches({ slug, conventionId }: { slug: string; conventionId: string }
   }
 
   return (
-    <ul className="flex flex-col gap-sm">
+    <ul className="m-0 flex list-none flex-col divide-y divide-grey-200 p-0 dark:divide-grey-800">
       {detail.data.speeches.map((sp) => {
         const name = `${sp.firstName} ${sp.lastName}`;
         const isHidden = sp.moderation === 'hidden';
         const inputId = `${reasonBase}-${sp.id}`;
         return (
-          <li key={sp.id} className="flex flex-wrap items-center gap-sm">
+          <li key={sp.id} className="flex flex-wrap items-center gap-sm py-sm">
             <span className="min-w-48 text-sm">{name}</span>
             {isHidden && (
-              <span className="text-sm text-muted-foreground">
+              <span className="text-sm text-grey-600 dark:text-grey-400">
                 ausgeblendet: {sp.hiddenReason ?? ''}
               </span>
             )}
@@ -228,17 +231,25 @@ function ConventionRow({ convention }: { convention: ParteitageAdminSummary }) {
   });
 
   return (
-    <section aria-label={convention.title} className="flex flex-col gap-md rounded-md border p-md">
-      <header className="flex flex-wrap items-baseline justify-between gap-sm">
-        <h3 className="text-base font-semibold">{convention.title}</h3>
-        <span className="text-sm text-muted-foreground">
-          {STATUS_LABEL[convention.status]} · {convention.speechCount} Reden
-        </span>
+    <section
+      aria-label={convention.title}
+      className="flex flex-col gap-md rounded-xl border border-grey-200 bg-background p-md dark:border-grey-800"
+    >
+      <header className="flex flex-wrap items-center justify-between gap-sm">
+        <h3 className="m-0 font-[Raleway] text-base font-bold text-foreground-heading">
+          {convention.title}
+        </h3>
+        <div className="flex items-center gap-sm text-sm text-grey-600 dark:text-grey-400">
+          <Badge variant={convention.status === 'published' ? 'default' : 'outline'}>
+            {STATUS_LABEL[convention.status]}
+          </Badge>
+          <span className="tabular-nums">{convention.speechCount} Reden</span>
+        </div>
       </header>
 
       <div className="flex flex-wrap items-end gap-sm">
         <div className="flex flex-col gap-xs">
-          <label htmlFor={statusId} className="text-sm">
+          <label htmlFor={statusId} className="text-sm font-medium">
             Status
           </label>
           <select
@@ -257,7 +268,7 @@ function ConventionRow({ convention }: { convention: ParteitageAdminSummary }) {
         </div>
 
         <div className="flex flex-col gap-xs">
-          <label htmlFor={passwordId} className="text-sm">
+          <label htmlFor={passwordId} className="text-sm font-medium">
             Passwort
           </label>
           <Input
@@ -276,7 +287,7 @@ function ConventionRow({ convention }: { convention: ParteitageAdminSummary }) {
         >
           Passwort setzen
         </Button>
-        <p className="text-sm">
+        <p className="m-0 text-sm text-grey-600 dark:text-grey-400">
           {convention.hasPassword ? 'Passwort gesetzt' : 'Offen für alle Eingeloggten'}
         </p>
         {convention.hasPassword && (
@@ -302,7 +313,7 @@ function ConventionRow({ convention }: { convention: ParteitageAdminSummary }) {
         )}
       </div>
 
-      <div className="flex flex-wrap gap-sm">
+      <div className="flex flex-wrap gap-sm border-t border-grey-200 pt-md dark:border-grey-800">
         <Button variant="outline" size="sm" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
           {open ? 'Reden verbergen' : 'Reden verwalten'}
         </Button>
@@ -350,7 +361,7 @@ export default function ParteitageTab() {
     retry: false,
   });
 
-  if (list.isPending) return <Skeleton className="h-32 w-full" />;
+  if (list.isPending) return <Skeleton className="h-32 w-full rounded-xl" />;
   if (list.isError) {
     return (
       <Alert variant="destructive">
@@ -362,7 +373,13 @@ export default function ParteitageTab() {
   return (
     <div className="flex flex-col gap-md">
       <ParteitagImportPanel />
-      {list.data.length === 0 && <p className="text-sm">Noch keine Parteitage importiert.</p>}
+      {list.data.length === 0 ? (
+        <AdminEmptyState>Noch keine Parteitage importiert.</AdminEmptyState>
+      ) : (
+        <h2 className="m-0 font-[Raleway] text-base font-bold text-foreground-heading">
+          Parteitage ({list.data.length})
+        </h2>
+      )}
       {list.data.map((c) => (
         <ConventionRow key={c.id} convention={c} />
       ))}

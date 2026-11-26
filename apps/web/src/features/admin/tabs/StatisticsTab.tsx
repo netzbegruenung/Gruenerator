@@ -13,10 +13,9 @@ import {
   SelectTrigger,
   SelectValue,
   Skeleton,
-  ToggleGroup,
-  ToggleGroupItem,
 } from '@gruenerator/ui';
 import { useId, useState } from 'react';
+import { FiChevronDown, FiChevronRight } from 'react-icons/fi';
 
 import {
   DOCUMENT_TYPE_LABELS,
@@ -24,6 +23,8 @@ import {
   formatCount,
   formatDate,
 } from '../../../utils/usageFormat';
+import SegmentedControl from '../../settings/components/SegmentedControl';
+import { AdminEmptyState, AdminPanel, AdminStat, AdminStatGrid } from '../components/adminUi';
 import { useAdminStats } from '../hooks/useAdminStats';
 
 const KIND_LABELS: Record<AdminStatsKind, string> = {
@@ -74,8 +75,8 @@ function subtypeLabel(kind: AdminStatsKind, subtype: string): string {
 type RangeId = '30d' | '12m' | 'year' | 'all';
 
 const RANGES: { id: RangeId; label: string; buckets: AdminStatsBucket[] }[] = [
-  { id: '30d', label: 'Letzte 30 Tage', buckets: ['day', 'week'] },
-  { id: '12m', label: 'Letzte 12 Monate', buckets: ['week', 'month'] },
+  { id: '30d', label: '30 Tage', buckets: ['day', 'week'] },
+  { id: '12m', label: '12 Monate', buckets: ['week', 'month'] },
   { id: 'year', label: 'Dieses Jahr', buckets: ['week', 'month'] },
   { id: 'all', label: 'Seit Beginn', buckets: ['month'] },
 ];
@@ -150,7 +151,11 @@ function Bars({ bars }: { bars: { bucket: string; value: number | null }[] }) {
             y={height - h}
             width={Math.max(step * 0.7, 1)}
             height={h}
-            className={v === null ? 'fill-grey-300 dark:fill-grey-600' : 'fill-primary-500'}
+            className={
+              v === null
+                ? 'fill-grey-300 dark:fill-grey-600'
+                : 'fill-primary-600 dark:fill-primary-400'
+            }
           />
         );
       })}
@@ -164,6 +169,9 @@ interface RowProps {
   minGroupSize: number;
 }
 
+const CHIP =
+  'rounded-full border border-grey-300 px-sm py-1 text-sm text-foreground hover:bg-grey-100 aria-pressed:border-foreground-heading aria-pressed:bg-grey-100 aria-pressed:font-medium dark:border-grey-700 dark:hover:bg-grey-800 dark:aria-pressed:bg-grey-800';
+
 function KindDetail({ series, bucket, minGroupSize }: RowProps) {
   const [subtype, setSubtype] = useState<string | null>(null);
   const subtypes = [
@@ -172,8 +180,8 @@ function KindDetail({ series, bucket, minGroupSize }: RowProps) {
   const note = KIND_NOTES[series.kind];
 
   return (
-    <div className="flex flex-col gap-sm pb-md pl-md">
-      {note && <p className="m-0 text-sm text-grey-500 dark:text-grey-400">{note}</p>}
+    <div className="flex flex-col gap-sm px-md pb-md">
+      {note && <p className="m-0 text-sm text-grey-600 dark:text-grey-400">{note}</p>}
       {subtypes.length > 0 && (
         <ul className="m-0 flex list-none flex-wrap gap-xs p-0">
           <li>
@@ -181,7 +189,7 @@ function KindDetail({ series, bucket, minGroupSize }: RowProps) {
               type="button"
               onClick={() => setSubtype(null)}
               aria-pressed={subtype === null}
-              className="rounded-full border border-grey-200 px-sm py-1 text-sm aria-pressed:bg-primary-100 aria-pressed:border-primary-500 dark:border-grey-700 dark:aria-pressed:bg-primary-900"
+              className={CHIP}
             >
               Alle
             </button>
@@ -194,7 +202,7 @@ function KindDetail({ series, bucket, minGroupSize }: RowProps) {
                   type="button"
                   onClick={() => setSubtype(s)}
                   aria-pressed={subtype === s}
-                  className="rounded-full border border-grey-200 px-sm py-1 text-sm aria-pressed:bg-primary-100 aria-pressed:border-primary-500 dark:border-grey-700 dark:aria-pressed:bg-primary-900"
+                  className={CHIP}
                 >
                   {subtypeLabel(series.kind, s)} · {partial ? 'mind. ' : ''}
                   {formatCount(value)}
@@ -206,7 +214,7 @@ function KindDetail({ series, bucket, minGroupSize }: RowProps) {
       )}
       <table className="w-full max-w-md text-sm">
         <thead>
-          <tr className="text-left text-grey-500 dark:text-grey-400">
+          <tr className="text-left text-grey-600 dark:text-grey-400">
             <th className="py-1 font-normal">{BUCKET_LABELS[bucket]}</th>
             <th className="py-1 text-right font-normal">
               {subtype === null ? 'Anzahl' : subtypeLabel(series.kind, subtype)}
@@ -215,7 +223,7 @@ function KindDetail({ series, bucket, minGroupSize }: RowProps) {
         </thead>
         <tbody>
           {[...series.points].reverse().map((point) => (
-            <tr key={point.bucket} className="border-t border-grey-100 dark:border-grey-800">
+            <tr key={point.bucket} className="border-t border-grey-200 dark:border-grey-800">
               <td className="py-1">{bucketLabel(point.bucket, bucket)}</td>
               <td className="py-1 text-right tabular-nums">
                 {formatCell(valueOf(point, subtype), minGroupSize)}
@@ -232,17 +240,19 @@ function KindRow({ series, bucket, minGroupSize }: RowProps) {
   const [open, setOpen] = useState(false);
   const detailId = useId();
   const { value, partial } = summarize(series, null);
+  const Chevron = open ? FiChevronDown : FiChevronRight;
   return (
-    <li className="border-t border-grey-200 first:border-t-0 dark:border-grey-700">
+    <li className="border-t border-grey-200 first:border-t-0 dark:border-grey-800">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-controls={detailId}
-        className="grid w-full grid-cols-[1fr_auto_auto] items-center gap-md py-sm text-left"
+        className="grid w-full grid-cols-[auto_1fr_auto_auto] items-center gap-md px-md py-sm text-left hover:bg-grey-100 focus-visible:outline-2 focus-visible:-outline-offset-2 dark:hover:bg-grey-800"
       >
+        <Chevron aria-hidden className="text-grey-600 dark:text-grey-400" />
         <span className="font-medium text-foreground-heading">{KIND_LABELS[series.kind]}</span>
-        <span className="tabular-nums">
+        <span className="tabular-nums text-right">
           {series.kind === 'active_users' ? 'Spitze ' : partial ? 'mind. ' : ''}
           {formatCount(value)}
         </span>
@@ -257,12 +267,13 @@ function KindRow({ series, bucket, minGroupSize }: RowProps) {
   );
 }
 
+const HEADLINE_KINDS: AdminStatsKind[] = ['active_users', 'signups', 'chats', 'documents'];
+
 export default function StatisticsTab() {
   const [range, setRange] = useState<RangeId>('12m');
   const [bucket, setBucket] = useState<AdminStatsBucket>('month');
   const [locale, setLocale] = useState<AdminStatsLocale>('all');
   const [source, setSource] = useState<AdminStatsSource>('live');
-  const rangeId = useId();
   const localeId = useId();
 
   // A country view is month-only (the server explains why); each range has its own buckets.
@@ -277,29 +288,37 @@ export default function StatisticsTab() {
   });
 
   const series = data ? (source === 'live' ? data.live : data.counter.series) : [];
+  const headline = HEADLINE_KINDS.flatMap((kind) => {
+    const s = series.find((entry) => entry.kind === kind);
+    return s ? [{ kind, ...summarize(s, null) }] : [];
+  });
 
   return (
-    <div className="flex flex-col gap-md">
-      <div className="flex flex-wrap items-end gap-sm">
-        <div className="flex flex-col gap-1">
-          <label htmlFor={rangeId} className="text-xs text-grey-500 dark:text-grey-400">
-            Zeitraum
-          </label>
-          <Select value={range} onValueChange={(v) => setRange(v as RangeId)}>
-            <SelectTrigger id={rangeId} className="w-44">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {RANGES.map((r) => (
-                <SelectItem key={r.id} value={r.id}>
-                  {r.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex flex-col gap-1">
-          <label htmlFor={localeId} className="text-xs text-grey-500 dark:text-grey-400">
+    <>
+      <div className="flex flex-wrap items-end gap-md">
+        <SegmentedControl
+          aria-label="Zeitraum"
+          value={range}
+          onChange={setRange}
+          options={RANGES.map((r) => ({ value: r.id, label: r.label }))}
+        />
+        <SegmentedControl
+          aria-label="Raster"
+          value={effectiveBucket}
+          onChange={setBucket}
+          options={allowed.map((b) => ({ value: b, label: BUCKET_LABELS[b] }))}
+        />
+        <SegmentedControl
+          aria-label="Quelle"
+          value={source}
+          onChange={setSource}
+          options={[
+            { value: 'live', label: 'Bestand' },
+            { value: 'counter', label: 'Zähler' },
+          ]}
+        />
+        <div className="flex items-center gap-xs">
+          <label htmlFor={localeId} className="text-sm text-grey-600 dark:text-grey-400">
             Land
           </label>
           <Select value={locale} onValueChange={(v) => setLocale(v as AdminStatsLocale)}>
@@ -315,32 +334,19 @@ export default function StatisticsTab() {
             </SelectContent>
           </Select>
         </div>
-        <ToggleGroup
-          type="single"
-          value={effectiveBucket}
-          onValueChange={(v) => v && setBucket(v as AdminStatsBucket)}
-          aria-label="Raster"
-          variant="outline"
-        >
-          {(['day', 'week', 'month'] as const).map((b) => (
-            <ToggleGroupItem key={b} value={b} disabled={!allowed.includes(b)}>
-              {BUCKET_LABELS[b]}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-        <ToggleGroup
-          type="single"
-          value={source}
-          onValueChange={(v) => v && setSource(v as AdminStatsSource)}
-          aria-label="Quelle"
-          variant="outline"
-        >
-          <ToggleGroupItem value="live">Bestand</ToggleGroupItem>
-          <ToggleGroupItem value="counter">Zähler</ToggleGroupItem>
-        </ToggleGroup>
+        {data && (
+          <span className="ml-auto text-sm text-grey-600 dark:text-grey-400">
+            Stand:{' '}
+            {new Date(data.generated_at).toLocaleTimeString('de-DE', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}{' '}
+            · bis zu 15 Minuten verzögert
+          </span>
+        )}
       </div>
 
-      <p className="m-0 text-sm text-grey-500 dark:text-grey-400">
+      <p className="m-0 max-w-[80ch] text-sm text-grey-600 dark:text-grey-400">
         {source === 'live'
           ? 'Gezählt wird, was heute noch da ist (auch im Papierkorb). Endgültig Gelöschtes und gelöschte Konten fehlen.'
           : data?.counter.since
@@ -352,36 +358,57 @@ export default function StatisticsTab() {
 
       {isLoading ? (
         <div className="flex flex-col gap-sm">
+          <Skeleton className="h-20 w-full" />
           {Array.from({ length: 6 }, (_, i) => (
             <Skeleton key={i} className="h-10 w-full" />
           ))}
         </div>
       ) : isError || !data ? (
-        <p className="py-lg text-center text-sm text-grey-500 dark:text-grey-400">
-          Die Statistik konnte nicht geladen werden.
-        </p>
+        <AdminEmptyState>Die Statistik konnte nicht geladen werden.</AdminEmptyState>
       ) : (
         <>
-          <ul className="m-0 list-none rounded-lg border border-grey-200 px-md py-0 dark:border-grey-700">
-            {series.map((s) => (
-              <KindRow
-                key={`${source}-${s.kind}`}
-                series={s}
-                bucket={data.bucket}
-                minGroupSize={data.min_group_size}
-              />
-            ))}
-          </ul>
-          <p className="m-0 text-xs text-grey-500 dark:text-grey-400">
-            {formatDate(data.from)} – {formatDate(data.to)} · Stand{' '}
-            {new Date(data.generated_at).toLocaleTimeString('de-DE', {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}{' '}
-            · bis zu 15 Minuten verzögert
-          </p>
+          {headline.length > 0 && (
+            <AdminStatGrid>
+              {headline.map(({ kind, value, partial }) => (
+                <AdminStat
+                  key={kind}
+                  label={KIND_LABELS[kind]}
+                  value={`${partial && kind !== 'active_users' ? 'mind. ' : ''}${formatCount(value)}`}
+                  hint={
+                    kind === 'active_users'
+                      ? 'Spitze im Zeitraum'
+                      : `${formatDate(data.from)} – ${formatDate(data.to)}`
+                  }
+                />
+              ))}
+            </AdminStatGrid>
+          )}
+          {series.length === 0 ? (
+            <AdminEmptyState>Für diese Auswahl liegen keine Zahlen vor.</AdminEmptyState>
+          ) : (
+            <AdminPanel
+              flush
+              title="Nach Art"
+              aside={
+                <span className="text-grey-600 dark:text-grey-400">
+                  {formatDate(data.from)} – {formatDate(data.to)}
+                </span>
+              }
+            >
+              <ul className="m-0 list-none p-0">
+                {series.map((s) => (
+                  <KindRow
+                    key={`${source}-${s.kind}`}
+                    series={s}
+                    bucket={data.bucket}
+                    minGroupSize={data.min_group_size}
+                  />
+                ))}
+              </ul>
+            </AdminPanel>
+          )}
         </>
       )}
-    </div>
+    </>
   );
 }

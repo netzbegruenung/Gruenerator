@@ -9,6 +9,8 @@ import { Button, Skeleton } from '@gruenerator/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type ReactNode, useState } from 'react';
 
+import { AdminPanel } from '../components/adminUi';
+
 import { connectInPopup, unwrap } from './connectorTestApi';
 
 const STATUS_KEY = ['connector-test-status'];
@@ -22,10 +24,10 @@ function errorText(error: unknown): string {
 function Result({ ok, children }: { ok: boolean; children: ReactNode }) {
   return (
     <div
-      className={`rounded-md border p-sm text-sm ${
+      className={`rounded-lg border bg-background p-sm text-sm ${
         ok
-          ? 'border-green-300 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-900/20 dark:text-green-300'
-          : 'border-red-300 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300'
+          ? 'border-grey-200 text-green-800 dark:border-grey-800 dark:text-green-300'
+          : 'border-grey-200 text-red-700 dark:border-grey-800 dark:text-red-300'
       }`}
     >
       {children}
@@ -62,11 +64,11 @@ function FileRow({
   reading: boolean;
 }) {
   return (
-    <li className="flex items-center gap-sm border-b border-grey-100 py-xs last:border-b-0 dark:border-grey-800">
+    <li className="flex items-center gap-sm border-b border-grey-200 py-xs last:border-b-0 dark:border-grey-800">
       <span aria-hidden>{file.isFolder ? '📁' : '📄'}</span>
       <span className="min-w-0 flex-1 truncate text-sm">{file.name}</span>
       {file.mimeType && (
-        <span className="hidden truncate font-mono text-xs text-grey-500 sm:inline">
+        <span className="hidden truncate font-mono text-xs text-grey-600 dark:text-grey-400 sm:inline">
           {file.mimeType}
         </span>
       )}
@@ -159,24 +161,24 @@ function ProviderCard({
   const isGoogle = provider.provider === 'google';
 
   return (
-    <section className="rounded-lg border border-grey-200 p-md dark:border-grey-700">
-      <header className="mb-md flex flex-wrap items-center gap-sm">
-        <h2 className="m-0 flex-1 text-xl font-semibold">{provider.label}</h2>
+    <AdminPanel
+      title={provider.label}
+      aside={
         <span
-          className={`rounded px-2 py-0.5 text-xs ${
+          className={`rounded-full border px-2 py-0.5 text-xs ${
             provider.connected
-              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-              : 'bg-grey-100 text-grey-700 dark:bg-grey-800 dark:text-grey-300'
+              ? 'border-green-700 text-green-800 dark:border-green-400 dark:text-green-300'
+              : 'border-grey-300 text-grey-600 dark:border-grey-700 dark:text-grey-400'
           }`}
         >
           {provider.connected
             ? `verbunden${provider.connectedAt ? ` seit ${new Date(provider.connectedAt).toLocaleString('de-DE')}` : ''}`
             : 'nicht verbunden'}
         </span>
-      </header>
-
+      }
+    >
       <div className="mb-md flex flex-wrap gap-sm">
-        <Button onClick={() => connect.mutate()} disabled={connect.isPending}>
+        <Button variant="brand" onClick={() => connect.mutate()} disabled={connect.isPending}>
           {connect.isPending
             ? 'Warte auf Popup…'
             : provider.connected
@@ -258,7 +260,9 @@ function ProviderCard({
 
         {pickedFiles.length > 0 && (
           <div>
-            <h3 className="m-0 mb-xs text-sm font-semibold">Im Picker gewählt</h3>
+            <h3 className="m-0 mb-xs font-[Raleway] text-sm font-bold text-foreground-heading">
+              Im Picker gewählt
+            </h3>
             <ul className="m-0 list-none p-0">
               {pickedFiles.map((file) => (
                 <FileRow
@@ -273,18 +277,20 @@ function ProviderCard({
           </div>
         )}
 
-        {read.isPending && <p className="m-0 text-sm text-grey-500">Lese „{readTarget}“…</p>}
+        {read.isPending && (
+          <p className="m-0 text-sm text-grey-600 dark:text-grey-400">Lese „{readTarget}“…</p>
+        )}
         {read.isError && <Result ok={false}>{errorText(read.error)}</Result>}
         {read.data && !read.isPending && (
           <div>
-            <h3 className="m-0 mb-xs text-sm font-semibold">
+            <h3 className="m-0 mb-xs font-[Raleway] text-sm font-bold text-foreground-heading">
               „{readTarget}“ über @connect gelesen
             </h3>
             <ReadResult result={read.data} />
           </div>
         )}
       </div>
-    </section>
+    </AdminPanel>
   );
 }
 
@@ -299,7 +305,7 @@ export function ConnectorTestView() {
   if (!status.data) return null;
 
   return (
-    <div className="flex flex-col gap-md">
+    <>
       {!status.data.nangoConfigured && (
         <Result ok={false}>
           <code>NANGO_SECRET_KEY</code> ist in der API nicht gesetzt — nichts hier kann
@@ -319,6 +325,6 @@ export function ConnectorTestView() {
           pickerConfigured={status.data.pickerConfigured}
         />
       ))}
-    </div>
+    </>
   );
 }

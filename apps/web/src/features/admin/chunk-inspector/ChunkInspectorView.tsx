@@ -11,6 +11,7 @@ import {
 } from '@gruenerator/ui';
 import { useState } from 'react';
 
+import { AdminEmptyState, AdminPanel } from '../components/adminUi';
 import { CHUNK_PAGE_SIZE, useChunkSearch, useDocumentChunks } from '../hooks/useChunkInspector';
 
 const NOT_STORED = 'nicht gespeichert';
@@ -18,12 +19,12 @@ const NOT_STORED = 'nicht gespeichert';
 function HeaderField({ label, value }: { label: string; value: string | null }) {
   return (
     <div className="flex flex-col gap-3xs">
-      <dt className="text-xs uppercase tracking-wide text-grey-500 dark:text-grey-400">{label}</dt>
+      <dt className="text-xs uppercase tracking-wide text-grey-600 dark:text-grey-400">{label}</dt>
       <dd
         className={
           value === null
-            ? 'text-sm italic text-grey-500 dark:text-grey-400'
-            : 'text-sm text-foreground'
+            ? 'm-0 text-sm italic text-grey-600 dark:text-grey-400'
+            : 'm-0 text-sm text-foreground'
         }
       >
         {value ?? NOT_STORED}
@@ -34,38 +35,40 @@ function HeaderField({ label, value }: { label: string; value: string | null }) 
 
 function DocumentHeader({ header }: { header: InspectedDocumentHeader }) {
   return (
-    <dl className="grid grid-cols-2 gap-md md:grid-cols-4 mb-lg">
-      <HeaderField label="Titel" value={header.title} />
-      <HeaderField label="Datei" value={header.filename} />
-      <HeaderField label="Extraktionsverfahren" value={header.extractionMethod} />
-      <HeaderField
-        label="Herkunft der Angabe"
-        value={
-          header.extractionMethodOrigin === 'postgres_metadata'
-            ? 'documents.metadata'
-            : header.extractionMethodOrigin === 'qdrant_payload'
-              ? 'Qdrant-Nutzlast'
-              : null
-        }
-      />
-      <HeaderField
-        label="Seiten"
-        value={header.pageCount === null ? null : String(header.pageCount)}
-      />
-      <HeaderField label="Chunks" value={String(header.chunkCount)} />
-      <HeaderField label="Qdrant-Sammlung" value={header.qdrantCollection} />
-      <HeaderField
-        label="Zuletzt geändert / erstellt"
-        value={
-          header.indexedAt === null ? null : new Date(header.indexedAt).toLocaleString('de-DE')
-        }
-      />
-      <HeaderField label="Titel-Präfix beim Einbetten" value={header.embeddingTitlePrefix} />
-      <HeaderField
-        label="Abrufschwelle"
-        value={header.qualityThreshold === null ? null : header.qualityThreshold.toFixed(2)}
-      />
-    </dl>
+    <AdminPanel title="Dokument">
+      <dl className="m-0 grid grid-cols-2 gap-md md:grid-cols-4">
+        <HeaderField label="Titel" value={header.title} />
+        <HeaderField label="Datei" value={header.filename} />
+        <HeaderField label="Extraktionsverfahren" value={header.extractionMethod} />
+        <HeaderField
+          label="Herkunft der Angabe"
+          value={
+            header.extractionMethodOrigin === 'postgres_metadata'
+              ? 'documents.metadata'
+              : header.extractionMethodOrigin === 'qdrant_payload'
+                ? 'Qdrant-Nutzlast'
+                : null
+          }
+        />
+        <HeaderField
+          label="Seiten"
+          value={header.pageCount === null ? null : String(header.pageCount)}
+        />
+        <HeaderField label="Chunks" value={String(header.chunkCount)} />
+        <HeaderField label="Qdrant-Sammlung" value={header.qdrantCollection} />
+        <HeaderField
+          label="Zuletzt geändert / erstellt"
+          value={
+            header.indexedAt === null ? null : new Date(header.indexedAt).toLocaleString('de-DE')
+          }
+        />
+        <HeaderField label="Titel-Präfix beim Einbetten" value={header.embeddingTitlePrefix} />
+        <HeaderField
+          label="Abrufschwelle"
+          value={header.qualityThreshold === null ? null : header.qualityThreshold.toFixed(2)}
+        />
+      </dl>
+    </AdminPanel>
   );
 }
 
@@ -88,7 +91,7 @@ function ChunkRow({
     <>
       <TableRow
         id={`chunk-${chunk.index}`}
-        className={hitSimilarity === null ? undefined : 'bg-primary-50 dark:bg-primary-950'}
+        className={hitSimilarity === null ? undefined : 'bg-grey-100 dark:bg-grey-800'}
       >
         <TableCell>
           <button
@@ -100,16 +103,18 @@ function ChunkRow({
             #{chunk.index}
           </button>
         </TableCell>
-        <TableCell>{chunk.page === null ? NOT_STORED : chunk.page}</TableCell>
-        <TableCell>{chunk.charCount}</TableCell>
+        <TableCell className="tabular-nums">
+          {chunk.page === null ? NOT_STORED : chunk.page}
+        </TableCell>
+        <TableCell className="tabular-nums">{chunk.charCount}</TableCell>
         <TableCell>
           {chunk.qualityScore === null ? (
-            <span className="italic text-grey-500 dark:text-grey-400">{NOT_STORED}</span>
+            <span className="italic text-grey-600 dark:text-grey-400">{NOT_STORED}</span>
           ) : (
             <span>
               {chunk.qualityScore.toFixed(2)}
               {belowThreshold && (
-                <span className="ml-2xs text-xs text-red-600 dark:text-red-400">
+                <span className="ml-2xs text-xs text-red-700 dark:text-red-300">
                   unter Abrufschwelle — nie abrufbar
                 </span>
               )}
@@ -123,7 +128,7 @@ function ChunkRow({
         </TableCell>
         <TableCell>
           {hitSimilarity === null ? (
-            <span className="text-grey-400">—</span>
+            <span className="text-grey-600 dark:text-grey-400">—</span>
           ) : (
             <span className="font-medium">
               Treffer · {hitSimilarity.toFixed(2).replace('.', ',')}
@@ -174,9 +179,9 @@ export function ChunkInspectorView({
 
   if (isError || !data) {
     return (
-      <p className="py-lg text-center text-sm text-grey-500 dark:text-grey-400">
+      <AdminEmptyState>
         {error?.message ?? 'Die Chunks konnten nicht geladen werden.'}
-      </p>
+      </AdminEmptyState>
     );
   }
 
@@ -184,11 +189,11 @@ export function ChunkInspectorView({
   const hasHitsOutsidePage = (search.data?.hits.length ?? 0) > markedHitCount;
 
   return (
-    <div className="flex flex-col gap-lg">
+    <div className="flex flex-col gap-md">
       <DocumentHeader header={data.header} />
 
       <form
-        className="flex flex-col gap-2xs"
+        className="flex flex-col gap-xs"
         onSubmit={(event) => {
           event.preventDefault();
           setSubmittedQuery(draftQuery.trim());
@@ -203,9 +208,9 @@ export function ChunkInspectorView({
           value={draftQuery}
           onChange={(event) => setDraftQuery(event.target.value)}
           placeholder="Frage stellen, wie im Chat"
-          className="rounded-md border border-grey-300 px-sm py-2xs text-sm dark:border-grey-700 dark:bg-grey-900"
+          className="w-full max-w-xl rounded-md border border-grey-300 bg-background px-sm py-1.5 text-sm dark:border-grey-700"
         />
-        <div className="text-sm text-grey-500 dark:text-grey-400" aria-live="polite">
+        <div className="text-sm text-grey-600 dark:text-grey-400" aria-live="polite">
           {search.data && (
             <>
               <p className="m-0">
@@ -221,7 +226,7 @@ export function ChunkInspectorView({
             </>
           )}
           {search.isError && (
-            <p className="m-0 text-sm text-red-600 dark:text-red-400">
+            <p className="m-0 text-sm text-red-700 dark:text-red-300">
               {search.error?.message ?? 'Die Suche ist fehlgeschlagen.'}
             </p>
           )}
@@ -229,41 +234,41 @@ export function ChunkInspectorView({
       </form>
 
       {data.chunks.length === 0 ? (
-        <p className="py-lg text-center text-sm text-grey-500 dark:text-grey-400">
-          Zu diesem Dokument liegen keine Chunks vor.
-        </p>
+        <AdminEmptyState>Zu diesem Dokument liegen keine Chunks vor.</AdminEmptyState>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-grey-200 dark:border-grey-700">
-          <Table>
-            <TableCaption>
-              Seite und Qualität stammen aus der Nutzlast, Vektor aus dem gespeicherten Vektor
-              selbst. Zeichen und Tabelle (erkannt) werden beim Lesen aus dem gespeicherten Text
-              berechnet.
-            </TableCaption>
-            <TableHeader>
-              <TableRow>
-                <TableHead>#</TableHead>
-                <TableHead>Seite</TableHead>
-                <TableHead>Zeichen</TableHead>
-                <TableHead>Qualität</TableHead>
-                <TableHead>Tabelle (erkannt)</TableHead>
-                <TableHead>Vektor</TableHead>
-                <TableHead>Suche</TableHead>
-                <TableHead>Anfang</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.chunks.map((chunk) => (
-                <ChunkRow
-                  key={chunk.index}
-                  chunk={chunk}
-                  qualityThreshold={data.header.qualityThreshold}
-                  hitSimilarity={hitByIndex.get(chunk.index) ?? null}
-                />
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <AdminPanel flush title="Chunks">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableCaption>
+                Seite und Qualität stammen aus der Nutzlast, Vektor aus dem gespeicherten Vektor
+                selbst. Zeichen und Tabelle (erkannt) werden beim Lesen aus dem gespeicherten Text
+                berechnet.
+              </TableCaption>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>#</TableHead>
+                  <TableHead>Seite</TableHead>
+                  <TableHead>Zeichen</TableHead>
+                  <TableHead>Qualität</TableHead>
+                  <TableHead>Tabelle (erkannt)</TableHead>
+                  <TableHead>Vektor</TableHead>
+                  <TableHead>Suche</TableHead>
+                  <TableHead>Anfang</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.chunks.map((chunk) => (
+                  <ChunkRow
+                    key={chunk.index}
+                    chunk={chunk}
+                    qualityThreshold={data.header.qualityThreshold}
+                    hitSimilarity={hitByIndex.get(chunk.index) ?? null}
+                  />
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </AdminPanel>
       )}
 
       <div className="flex items-center justify-between">
@@ -271,7 +276,7 @@ export function ChunkInspectorView({
           type="button"
           disabled={offset === 0}
           onClick={() => setOffset((v) => Math.max(0, v - CHUNK_PAGE_SIZE))}
-          className="text-sm underline-offset-2 hover:underline disabled:text-grey-400"
+          className="text-sm text-primary-700 underline-offset-2 hover:underline disabled:text-grey-600 disabled:no-underline dark:text-primary-400 dark:disabled:text-grey-400"
         >
           Vorherige Seite
         </button>
@@ -279,7 +284,7 @@ export function ChunkInspectorView({
           type="button"
           disabled={data.nextOffset === null}
           onClick={() => setOffset(data.nextOffset ?? offset)}
-          className="text-sm underline-offset-2 hover:underline disabled:text-grey-400"
+          className="text-sm text-primary-700 underline-offset-2 hover:underline disabled:text-grey-600 disabled:no-underline dark:text-primary-400 dark:disabled:text-grey-400"
         >
           Nächste Seite
         </button>

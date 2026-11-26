@@ -5,7 +5,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 
 import { server } from '../../../test/msw-server';
 import { renderWithProviders } from '../../../test-utils';
-import ReportsTabLabel from '../components/ReportsTabLabel';
+import { ReportsNavBadge } from '../components/AdminNavBadges';
 
 import ReportsTab from './ReportsTab';
 
@@ -150,9 +150,9 @@ describe('ReportsTab', () => {
     );
   });
 
-  it('tells screen readers that the tab count means open reports', async () => {
+  it('tells screen readers that the nav count means open reports', async () => {
     server.use(http.get(`${LIST}/stats`, () => HttpResponse.json({ open: 2 })));
-    const { container } = renderWithProviders(<ReportsTabLabel />);
-    await waitFor(() => expect(container).toHaveTextContent('Meldungen(2 offen)'));
+    const { container } = renderWithProviders(<ReportsNavBadge />);
+    await waitFor(() => expect(container).toHaveTextContent('2 offen'));
   });
 });
