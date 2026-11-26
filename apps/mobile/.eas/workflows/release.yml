@@ -11,11 +11,12 @@ on:
     inputs:
       submit_profile:
         type: choice
-        description: 'production = Play internal + TestFlight; open-testing = Play beta (Open testing) + TestFlight'
+        # The app is public since 11/2026: production is the release path.
+        description: 'production = Play production + TestFlight (App Store release is then started in App Store Connect); open-testing = Play beta (Open testing) + TestFlight'
         options:
           - production
           - open-testing
-        default: open-testing
+        default: production
 
 jobs:
   build_android:
