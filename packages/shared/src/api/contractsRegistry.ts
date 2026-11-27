@@ -87,6 +87,7 @@ import {
   speechContract,
   studioAssetsContract,
   subtitlerContract,
+  tableRepairContract,
   templateInteractionsContract,
   texteContract,
   threadsContract,
@@ -192,6 +193,7 @@ export type ContractRegistryName =
   | 'speechContract'
   | 'studioAssetsContract'
   | 'subtitlerContract'
+  | 'tableRepairContract'
   | 'templateInteractionsContract'
   | 'texteContract'
   | 'threadsContract'
@@ -293,6 +295,7 @@ export const CONTRACTS: Pick<typeof ContractsModule, ContractRegistryName> = {
   speechContract,
   studioAssetsContract,
   subtitlerContract,
+  tableRepairContract,
   templateInteractionsContract,
   texteContract,
   threadsContract,

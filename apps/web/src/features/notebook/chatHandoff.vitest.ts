@@ -63,3 +63,25 @@ describe('chatHandoff', () => {
     expect(isRepeat('G', 3000)).toBe(false);
   });
 });
+
+describe('chatHandoff — recipe', () => {
+  it('carries the recipe to the new tab, outside the handoff params', () => {
+    const url = buildChatHandoffUrl(
+      '/notebooks/nordrhein-westfalen',
+      { question: 'Katalog', filters: {}, sourceIds: null },
+      { mention: 'mein-stil', recipeId: 'r-1' }
+    );
+    const params = new URL(url, 'https://x.test').searchParams;
+    expect(params.get('rezept')).toBe('mein-stil');
+    expect(params.get('rezeptId')).toBe('r-1');
+    // Sending the question clears the handoff, not the recipe.
+    expect(new URLSearchParams(withoutChatHandoff(params.toString())).get('rezept')).toBe(
+      'mein-stil'
+    );
+  });
+
+  it('leaves the recipe out without one', () => {
+    const url = buildChatHandoffUrl('/x', { question: 'Q', filters: {}, sourceIds: null });
+    expect(new URL(url, 'https://x.test').searchParams.has('rezept')).toBe(false);
+  });
+});

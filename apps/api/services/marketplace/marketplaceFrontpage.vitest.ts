@@ -107,7 +107,7 @@ describe('getMarketplaceFrontpage', () => {
     expect(starter.items.map((i) => i.key).slice(0, 4)).toEqual([
       'recipe:presse',
       'recipe:antrag',
-      'agent:gruenerator-rede-schreiber',
+      'recipe:rede',
       'recipe:buergermail',
     ]);
     expect(m.list.mock.calls.filter(([, q]) => q.templateType === 'canva')).toEqual([

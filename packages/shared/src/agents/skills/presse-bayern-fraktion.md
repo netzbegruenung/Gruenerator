@@ -11,4 +11,5 @@ audience: 'de-DE'
 lvEbene: 'fraktion'
 promptTemplate: 'Schreibe eine Pressemitteilung der Landtags-Grünen Bayern zum Thema: '
 order: 61
+recommendedTools: ['gruenerator_pressemitteilung_examples']
 ---

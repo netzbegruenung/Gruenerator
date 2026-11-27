@@ -77,6 +77,14 @@ export const SKILL_SLIMS: readonly SkillSlim[] = [
     audience: 'all',
   },
   {
+    identifier: 'gruenerator-rede-schreiber',
+    mention: 'rede',
+    title: 'Rede',
+    iconKey: 'PiMicrophoneStage',
+    skillCategory: 'dokumente',
+    audience: 'all',
+  },
+  {
     identifier: 'gruenerator-universal',
     mention: 'beschlusslage',
     title: 'Beschlusslage',

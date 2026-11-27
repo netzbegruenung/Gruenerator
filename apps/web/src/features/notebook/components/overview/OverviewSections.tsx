@@ -1,5 +1,4 @@
 import { type NotebookInstagramPost, type TopicCategory } from '@gruenerator/contracts';
-import { getAgentSlug, type Agent } from '@gruenerator/shared/agents';
 import {
   deltaText,
   formatPollDate,
@@ -693,58 +692,6 @@ export function TermCloud({
             srDetail: 'Dokumente in den letzten 90 Tagen',
           }))}
         />
-      )}
-    </OverviewCard>
-  );
-}
-
-// ── Agents ─────────────────────────────────────────────────────────────────
-
-export function NotebookGrueneratoren({
-  agents,
-  hub,
-}: {
-  agents: readonly Agent[];
-  hub: { slug: string; name: string } | null;
-}) {
-  return (
-    <OverviewCard
-      title="Agents"
-      className="lg:col-span-2"
-      subtitle="Für Pressearbeit, Bürger*innenanfragen und Wahlprüfsteine – mit diesem Notebook als Wissensbasis"
-    >
-      <ul className="grid gap-2 md:grid-cols-3">
-        {agents.map((agent) => (
-          <li key={agent.identifier}>
-            <Link
-              to={`/agents/${getAgentSlug(agent.identifier)}`}
-              className={cn(
-                'group flex h-full items-center gap-3 rounded-lg border border-[rgba(82,144,122,0.18)] px-4 py-3 no-underline',
-                'transition-colors hover:border-[#D6006E]/50 hover:bg-[#FBEDF4] dark:border-[#4A2A3B] dark:hover:bg-white/5'
-              )}
-            >
-              <span className="flex min-w-0 flex-1 flex-col">
-                <span className={cn('text-sm font-semibold', NOTEBOOK_TEXT_STRONG)}>
-                  {agent.title}
-                </span>
-                {agent.description && (
-                  <span className={cn('line-clamp-2 text-xs', NOTEBOOK_TEXT_MUTED)}>
-                    {agent.description}
-                  </span>
-                )}
-              </span>
-              <FiArrowRight aria-hidden className={cn('size-4 shrink-0', NOTEBOOK_TEXT_MUTED)} />
-            </Link>
-          </li>
-        ))}
-      </ul>
-      {hub && (
-        <Link
-          to={`/agents/${hub.slug}`}
-          className="text-sm font-semibold text-[#B4005C] no-underline hover:underline dark:text-[#F2A1C6]"
-        >
-          Alle Agents von {hub.name}
-        </Link>
       )}
     </OverviewCard>
   );

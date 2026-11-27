@@ -11,4 +11,5 @@ audience: 'de-DE'
 lvEbene: 'partei'
 promptTemplate: 'Schreibe eine Pressemitteilung der bayerischen GRÜNEN zum Thema: '
 order: 61
+recommendedTools: ['gruenerator_pressemitteilung_examples']
 ---

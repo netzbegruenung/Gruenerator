@@ -13,7 +13,13 @@ import { keepOriginal, removeOriginal } from '../documentOriginals.js';
 import { chunkAndEmbedText } from './chunkingPipeline.js';
 import { ingestRetryDelayMs } from './ingestRetry.js';
 import { DocumentReadError, NO_TEXT_MESSAGE, processingErrorMessage } from './processingError.js';
-import { fetchOriginal, keptOriginalPath, wolkeOrigin, type WolkeOrigin } from './reindexOrigin.js';
+import {
+  fetchOriginal,
+  isCsvStoredAsText,
+  keptOriginalPath,
+  wolkeOrigin,
+  type WolkeOrigin,
+} from './reindexOrigin.js';
 import {
   capStoredText,
   extractDocumentFromFile,
@@ -179,7 +185,7 @@ export async function processUploadedDocument(
   let filePath: string | null = null;
   // Gesetzt, wenn die Zeile über „Neu indexieren" kam und das Original erst
   // geholt werden muss. Bis `vectorsReplaced` bleiben die alten Punkte stehen.
-  let reindex: WolkeOrigin | { kind: 'original' } | null = null;
+  let reindex: WolkeOrigin | { kind: 'original' } | { kind: 'stored-text' } | null = null;
   let vectorsReplaced = false;
   // Nur wer vorher durchsuchbar war, fällt bei einem Fehlschlag auf die alte
   // Fassung zurück; eine schon kaputte Quelle bleibt `failed`, mit Grund.
@@ -267,6 +273,25 @@ export async function processUploadedDocument(
         buffer,
         mimetype: 'application/octet-stream',
         originalname: document.filename || 'document',
+        size: buffer.length,
+      };
+    } else if (metadata?.reindex_origin === 'stored-text') {
+      // Eine alte CSV: der gespeicherte Text ist die Datei (`reindexOrigin.ts`).
+      reindex = { kind: 'stored-text' };
+      prevSearchable = metadata.reindex_prev_searchable === true;
+      const stored = {
+        filename: document.filename ?? null,
+        markdown_content:
+          typeof document.markdown_content === 'string' ? document.markdown_content : null,
+      };
+      if (!isCsvStoredAsText(stored)) {
+        throw new DocumentReadError('Die Quelle liegt schon als Tabelle vor.');
+      }
+      const buffer = Buffer.from(stored.markdown_content ?? '', 'utf8');
+      file = {
+        buffer,
+        mimetype: 'text/csv',
+        originalname: document.filename || 'document.csv',
         size: buffer.length,
       };
     } else {

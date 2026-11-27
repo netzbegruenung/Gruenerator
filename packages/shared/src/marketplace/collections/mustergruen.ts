@@ -27,7 +27,7 @@ export const MUSTERGRUEN_COLLECTION = {
     { kind: 'agent', ref: 'mustergruen-maxi-einladung' },
     { kind: 'recipe', ref: 'presse' },
     { kind: 'recipe', ref: 'instagram' },
-    { kind: 'agent', ref: 'gruenerator-rede-schreiber' },
+    { kind: 'recipe', ref: 'rede' },
   ],
   fill: [],
   show: 16,

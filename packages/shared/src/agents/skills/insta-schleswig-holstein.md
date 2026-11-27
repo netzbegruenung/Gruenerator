@@ -10,5 +10,5 @@ skillCategory: social
 audience: 'de-DE'
 promptTemplate: 'Instagram-Post der Grünen Schleswig-Holstein zum Thema: '
 order: 66
-recommendedTools: ['vorlagen_vorschlagen']
+recommendedTools: ['gruenerator_search', 'vorlagen_vorschlagen']
 ---

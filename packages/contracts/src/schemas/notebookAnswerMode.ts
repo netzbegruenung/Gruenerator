@@ -33,6 +33,8 @@ export type NotebookResolvedAnswerMode = z.infer<typeof notebookResolvedAnswerMo
  * - `guard_fallback`: `auto`, the guard failed or answered garbage → `chat`.
  * - `ineligible`: no notebook on the page the loop could read → `chat`.
  * - `default`: nothing asked for, or nothing decided yet → `chat`.
+ * - `recipe`: the turn applies a recipe, which only shapes the answer of the
+ *   RAG pipeline → `chat`, whatever mode was asked for.
  */
 export const notebookAnswerModeReasonSchema = z.enum([
   'explicit',
@@ -41,6 +43,7 @@ export const notebookAnswerModeReasonSchema = z.enum([
   'guard_fallback',
   'ineligible',
   'default',
+  'recipe',
 ]);
 export type NotebookAnswerModeReason = z.infer<typeof notebookAnswerModeReasonSchema>;
 

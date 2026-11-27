@@ -11,4 +11,5 @@ audience: 'de-DE'
 lvEbene: 'partei'
 promptTemplate: 'Schreibe eine Pressemitteilung der Berliner GRÜNEN zum Thema: '
 order: 51
+recommendedTools: ['gruenerator_pressemitteilung_examples']
 ---

@@ -1,5 +1,6 @@
 import { useAgentStore, useUserProfileStore, type UserRole } from '@gruenerator/chat/stores';
-import { getAgentSlug, getLandesverbandHubById } from '@gruenerator/shared/agents';
+import { LV_HUBS, getLandesverbandHubById } from '@gruenerator/shared/agents';
+import { type NotebookId } from '@gruenerator/shared/notebooks';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -87,7 +88,7 @@ describe('RoleShortcutsSidebarSection — Landesverband', () => {
     expect(chat.chatViewMode).toBe('overview');
   });
 
-  it('starts a new chat with an LV recipe and links notebook and Marktplatz', async () => {
+  it('opens an LV recipe in the LV notebook and links notebook and Marktplatz', async () => {
     const user = userEvent.setup();
     const { onNavigate } = renderSection([lvShortcut()]);
     await user.click(screen.getByRole('button', { name: berlin.name }));
@@ -104,11 +105,45 @@ describe('RoleShortcutsSidebarSection — Landesverband', () => {
     expect(screen.getByRole('menuitem', { name: 'Notebook' })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'Alle Rezepte' })).toBeInTheDocument();
 
+    // The recipe shapes an answer from the LV's own sources, not a chat turn.
     await user.click(screen.getByRole('menuitem', { name: recipes[0]!.title }));
     expect(onNavigate).toHaveBeenCalledWith(
-      `/chat?rezept=${recipes[0]!.mention}`,
+      `/notebooks/berlin?rezept=${recipes[0]!.mention}`,
       recipes[0]!.title
     );
+    expect(lvShortcut().starters.links.map((l) => l.path)).toEqual(
+      recipes.map((r) => `/notebooks/berlin?rezept=${r.mention}`)
+    );
+  });
+
+  it('opens every LV recipe in its own LV notebook, or in the chat where there is none', () => {
+    const withoutNotebook: string[] = [];
+    for (const hub of LV_HUBS) {
+      const shortcut = landesverbandShortcut(hub, [], hub.audience, 'production');
+      const notebook = shortcut.links.find((l) => l.key === 'notebook');
+      if (!notebook) withoutNotebook.push(hub.slug);
+      for (const link of shortcut.starters.links) {
+        expect(link.path, `${hub.slug}: ${link.key}`).toBe(
+          notebook ? `${notebook.path}?rezept=${link.key}` : `/chat?rezept=${link.key}`
+        );
+      }
+    }
+    // Hamburg and Schleswig-Holstein have no notebook page, and today no
+    // recipe either — so in practice every LV recipe opens its notebook.
+    expect(withoutNotebook).toEqual(['gruene-hamburg', 'gruene-schleswig-holstein']);
+  });
+
+  it('keeps the chat link for a hub without a notebook page', () => {
+    const shortcut = landesverbandShortcut(
+      { ...berlin, notebookId: 'kein-notebook' as NotebookId },
+      [],
+      'de-DE',
+      'production'
+    );
+    expect(shortcut.links.some((l) => l.key === 'notebook')).toBe(false);
+    for (const link of shortcut.starters.links) {
+      expect(link.path).toBe(`/chat?rezept=${link.key}`);
+    }
   });
 
   it('has no axe violations with the menu open', async () => {
@@ -195,14 +230,14 @@ describe('RoleShortcutsSidebarSection — Bundesgeschäftsstelle', () => {
 });
 
 describe('RoleShortcutsSidebarSection — MdB-Büro', () => {
-  it('is named after the MP and offers the Bundestag agents and notebooks', () => {
+  it('is named after the MP and offers the Bundestag recipes and notebooks', () => {
     const shortcut = mdbBueroShortcut([mdbBuero], 'production');
     expect(shortcut?.name).toBe('Büro Lisa Badum');
+    expect(shortcut?.starters.heading).toBe('Neuer Chat mit Rezept');
     expect(shortcut?.starters.links.map((l) => l.key)).toEqual([
-      'gruenerator-bundestag',
-      'gruenerator-abgeordnetenwatch',
-      'gruenerator-rede-schreiber',
-      'gruenerator-buergerservice',
+      'bundestagsrecherche',
+      'rede',
+      'buergermail',
     ]);
     expect(shortcut?.links.map((l) => l.key)).toEqual([
       'bundestagsfraktion-notebook',
@@ -218,15 +253,12 @@ describe('RoleShortcutsSidebarSection — MdB-Büro', () => {
     expect(mdbBueroShortcut([bgst], 'production')).toBeNull();
   });
 
-  it('opens the Abgeordnetenwatch agent', async () => {
+  it('opens the speech recipe', async () => {
     const user = userEvent.setup();
     const { onNavigate } = renderSection([mdbBueroShortcut([mdbBuero], 'production')!]);
     await user.click(screen.getByRole('button', { name: 'Büro Lisa Badum' }));
-    await user.click(screen.getByRole('menuitem', { name: 'Abgeordnetenwatch' }));
-    expect(onNavigate).toHaveBeenCalledWith(
-      `/agents/${getAgentSlug('gruenerator-abgeordnetenwatch')}`,
-      'Abgeordnetenwatch'
-    );
+    await user.click(screen.getByRole('menuitem', { name: 'Rede' }));
+    expect(onNavigate).toHaveBeenCalledWith('/chat?rezept=rede', 'Rede');
   });
 });
 

@@ -11,4 +11,5 @@ audience: 'de-DE'
 lvEbene: 'fraktion'
 promptTemplate: 'Schreibe eine Pressemitteilung der Grünen Fraktion Berlin zum Thema: '
 order: 51
+recommendedTools: ['gruenerator_pressemitteilung_examples']
 ---

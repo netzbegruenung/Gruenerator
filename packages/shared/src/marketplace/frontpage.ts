@@ -170,7 +170,7 @@ export const MARKETPLACE_COLLECTIONS = [
       { kind: 'recipe', ref: 'presse' },
       { kind: 'recipe', ref: 'instagram' },
       { kind: 'recipe', ref: 'antrag' },
-      { kind: 'agent', ref: 'gruenerator-rede-schreiber' },
+      { kind: 'recipe', ref: 'rede' },
       { kind: 'recipe', ref: 'buergermail' },
     ],
     fill: [],
