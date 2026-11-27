@@ -12,6 +12,7 @@ import {
   type Agent,
 } from '@gruenerator/shared/agents';
 
+import { getPipelineAgent } from '../../../routes/chat/agents/pipelines/index.js';
 import {
   listPublicUserAgentListings,
   listUserAgents,
@@ -96,7 +97,12 @@ async function candidates(
     landesverbandRegion(a.identifier).localeCompare(landesverbandRegion(b.identifier))
   );
   return [
-    ...catalog.generalAgents.map((a, rank) => ({
+    // Same for the transfer agents (Einfache/Leichte Sprache): their recipe
+    // stands in front and runs the same chain (`getPipelineAgentForRecipe`).
+    ...(forList
+      ? catalog.generalAgents.filter((a) => !getPipelineAgent(a.identifier))
+      : catalog.generalAgents
+    ).map((a, rank) => ({
       item: officialItem(a, 'offiziell'),
       rank,
       searchText: [a.identifier],

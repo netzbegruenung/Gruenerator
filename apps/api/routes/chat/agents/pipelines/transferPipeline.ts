@@ -28,6 +28,8 @@ import { type PipelineAgent } from './types.js';
 
 export interface TransferPipelineSpec {
   identifier: string;
+  /** Das Rezept, das diese Kette auslöst. Siehe `PipelineAgent.recipeMention`. */
+  recipeMention: string;
   /** „Einfache Sprache" — wie das Register im Prompt heisst. */
   registerName: string;
   /** „Sprachniveau B1" — die Stufe, gegen die Korrekturvorschläge formuliert werden. */
@@ -377,6 +379,7 @@ const PRUEF_ID = 'es-pruefung';
 export function buildTransferPipeline(spec: TransferPipelineSpec): PipelineAgent {
   return {
     identifier: spec.identifier,
+    recipeMention: spec.recipeMention,
     registerName: spec.registerName,
     systemRole: spec.systemRole,
     forceIntent: 'produktion',

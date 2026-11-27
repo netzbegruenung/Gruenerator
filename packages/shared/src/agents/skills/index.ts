@@ -107,6 +107,22 @@ export function lvEbeneForSkillMention(mention: string): LvEbene | null {
   return ebeneMap.get(canonicalSkillMention(mention).toLowerCase()) ?? null;
 }
 
+const hintMap = new Map<string, NonNullable<SystemSkill['autoRoutingHint']>>(
+  (SKILLS as readonly SystemSkill[]).flatMap((skill) =>
+    skill.autoRoutingHint ? [[skill.mention.toLowerCase(), skill.autoRoutingHint] as const] : []
+  )
+);
+
+/**
+ * Die Lane-Klasse, die ein Systemrezept unter „Automatisch" verlangt, oder null.
+ * Ausgewertet von `resolveAutoSelection` in der API, nach dem Hinweis des Agents.
+ */
+export function autoRoutingHintForSkillMention(
+  mention: string
+): SystemSkill['autoRoutingHint'] | null {
+  return hintMap.get(canonicalSkillMention(mention).toLowerCase()) ?? null;
+}
+
 const roleMap = new Map<string, SkillRole>(
   (SKILLS as readonly SystemSkill[]).flatMap((skill) =>
     skill.rolle ? [[skill.mention.toLowerCase(), skill.rolle] as const] : []

@@ -14,6 +14,8 @@
  */
 import { z } from 'zod';
 
+import { autoRoutingHintSchema } from './agent.js';
+
 export const skillCategorySchema = z.enum([
   'presse',
   'social',
@@ -106,6 +108,13 @@ export const skillFrontmatterSchema = z.object({
     .array(z.string().regex(/^[a-z_][a-z0-9_]*$/, 'tool names are snake_case'))
     .nonempty()
     .optional(),
+  /**
+   * Lane class for this recipe's turns when the model choice is "Automatisch"
+   * — the same field agents carry. Applies only when the recipe is fixed before
+   * the turn (pinned or @-mentioned); an agent's own hint wins, and a model the
+   * person picked always wins. Read by `resolveAutoSelection` in the API.
+   */
+  autoRoutingHint: autoRoutingHintSchema.optional(),
   /**
    * Numeric ordering hint for the generated SKILLS array. Lower wins. Ties
    * break alphabetically by `mention`. When omitted, the skill sorts after

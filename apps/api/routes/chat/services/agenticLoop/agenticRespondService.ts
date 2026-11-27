@@ -311,6 +311,7 @@ export async function streamAgenticResponse(
           demotedFromProse: finalState.loopDemotedFromProse,
         }),
         agentId: agentConfig.identifier,
+        recipeMention: finalState.activeSkillMention ?? null,
         ...(finalState.complexity != null && { complexity: finalState.complexity }),
         ...(finalState.taskShape != null && { taskShape: finalState.taskShape }),
         materialChars: carriedMaterialChars,

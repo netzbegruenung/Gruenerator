@@ -38,6 +38,7 @@ import {
   applyAgentToolWhitelist,
   shouldApplyAgentToolWhitelist,
 } from '../../../routes/chat/agents/agentToolWhitelist.js';
+import { recipePipelineAgentId } from '../../../routes/chat/agents/pipelines/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import type { ChatGraphInput, ChatGraphState, SearchIntent } from './types.js';
@@ -55,6 +56,19 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
 
   if (!agentConfig) {
     throw new Error(`Agent not found: ${input.agentId}`);
+  }
+
+  // A transfer recipe (Einfache/Leichte Sprache) brings its whole agent: its
+  // turn is a chain of steps with separate contexts (`pipelines/`), which no
+  // recipe text can express. Routing, model choice, persona and the chain all
+  // key on the agent identifier, so taking the agent over is what makes the
+  // pinned recipe behave exactly like the agent did. Same gate as the scoping
+  // below: an explicitly selected non-default agent always wins.
+  const pipelineAgentId = recipePipelineAgentId(agentId, input.activeSkillMention);
+  const pipelineAgent = pipelineAgentId ? await getAgent(pipelineAgentId) : undefined;
+  if (pipelineAgent) {
+    agentConfig = pipelineAgent;
+    log.info(`[ChatGraph] Rezept ${input.activeSkillMention} übernimmt Agent ${pipelineAgentId}`);
   }
 
   // Skill mentions carry the identifier of their owning agent (e.g.
