@@ -13,6 +13,7 @@
  * Notebooks lesbar, ohne dass der user_id-Filter in `documentRetrieval` fällt.
  */
 import { applyContextCap } from '../../utils/contextCap.js';
+import { SENTENCE_OVERLAP_CHARS } from '../document-services/TextChunker/chunkPostProcessing.js';
 import { buildPageRangesFromRaw } from '../document-services/TextChunker/pageMarkerProcessing.js';
 import { resolveWolkeDisplayUrl } from '../scrapers/utils/wolkeShareSecrets.js';
 import { uploadCopyKey } from '../search/SearchResultProcessor.js';
@@ -494,17 +495,64 @@ export function locateInOriginal(text: string, chunks: DocumentChunkItem[]): Chu
   });
 }
 
+/** Kürzeste Überlappung, die als Wiederholung gilt; ein kürzerer gleicher Anfang ist Zufall. */
+const MIN_CHUNK_OVERLAP = 20;
+
 /**
- * Offsets in den aus Chunks zusammengesetzten Text. Die Nutzlast-Offsets zeigen
- * ins Original und gelten hier NICHT.
+ * Wie viele Zeichen am Anfang von `next` schon am Ende von `joined` stehen.
+ * Der Chunker wiederholt die letzten Sätze eines Chunks am Anfang des nächsten
+ * (`sentenceRepack`) — byte-gleich, weil beide aus demselben Text geschnitten
+ * sind. Die frühste Fundstelle ist die längste Überlappung. Gesucht wird nur
+ * in den letzten `SENTENCE_OVERLAP_CHARS` Zeichen: ein Absatz, der im Text
+ * wirklich zweimal hintereinander steht, ist länger und bleibt doppelt.
  */
-export function locateInJoined(chunks: DocumentChunkItem[]): ChunkLocator[] {
-  let cursor = 0;
-  return chunks.map((c, i) => {
-    const start = cursor + (i === 0 ? 0 : 2);
-    cursor = start + c.text.length;
-    return { index: c.index, charStart: start, charEnd: cursor, pageNumber: c.pageNumber ?? null };
+function chunkOverlap(joined: string, next: string): number {
+  const probe = next.slice(0, MIN_CHUNK_OVERLAP);
+  if (probe.length < MIN_CHUNK_OVERLAP) return 0;
+  let pos = joined.indexOf(
+    probe,
+    Math.max(0, joined.length - Math.min(next.length, SENTENCE_OVERLAP_CHARS))
+  );
+  while (pos !== -1) {
+    if (next.startsWith(joined.slice(pos))) return joined.length - pos;
+    pos = joined.indexOf(probe, pos + 1);
+  }
+  return 0;
+}
+
+/**
+ * Der Text einer Quelle ohne gespeichertes Original: die Chunks in Reihenfolge,
+ * ihre Überlappung nur einmal. Bloß aneinandergehängt stand jede Überlappung
+ * doppelt im Text — eine Wortzählung lag dann um ein Viertel zu hoch (#6144).
+ * Die Offsets zeigen in diesen Text; die Nutzlast-Offsets zeigen ins Original
+ * und gelten hier NICHT. Ohne erkannte Überlappung trennt eine Leerzeile.
+ */
+export function joinChunks(chunks: DocumentChunkItem[]): {
+  text: string;
+  chunkMap: ChunkLocator[];
+} {
+  let text = '';
+  const chunkMap = chunks.map((c, i) => {
+    const overlap = i === 0 ? 0 : chunkOverlap(text, c.text);
+    let start: number;
+    if (i === 0) {
+      start = 0;
+      text = c.text;
+    } else if (overlap > 0) {
+      start = text.length - overlap;
+      text += c.text.slice(overlap);
+    } else {
+      start = text.length + 2;
+      text = `${text}\n\n${c.text}`;
+    }
+    return {
+      index: c.index,
+      charStart: start,
+      charEnd: start + c.text.length,
+      pageNumber: c.pageNumber ?? null,
+    };
   });
+  return { text, chunkMap };
 }
 
 /** Der Fehlertext von `getDocumentChunks` für eine Quelle ohne Chunks. */
@@ -542,12 +590,7 @@ export async function readSourceText(
       chunks,
     };
   }
-  return {
-    text: chunks.map((c) => c.text).join('\n\n'),
-    origin: 'chunks',
-    chunkMap: locateInJoined(chunks),
-    chunks,
-  };
+  return { ...joinChunks(chunks), origin: 'chunks', chunks };
 }
 
 export interface SourceSlice {

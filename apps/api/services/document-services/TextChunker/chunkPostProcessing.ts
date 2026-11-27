@@ -26,6 +26,14 @@ interface PositionedChunk {
 }
 
 /**
+ * Höchstlänge der Satz-Überlappung zwischen zwei Chunks. Auch der Leser
+ * braucht die Zahl: `joinChunks` (notebookSources) nimmt beim Zusammensetzen
+ * nur so viel als Überlappung heraus, sonst striche er eine echte längere
+ * Wiederholung im Text.
+ */
+export const SENTENCE_OVERLAP_CHARS = 400;
+
+/**
  * Repack chunks into sentence-aligned chunks with proper overlap
  */
 export function sentenceRepack(
@@ -36,7 +44,7 @@ export function sentenceRepack(
     overlapChars?: number;
   } = {}
 ): Chunk[] {
-  const { baseMetadata = {}, targetChars = 1600, overlapChars = 400 } = options;
+  const { baseMetadata = {}, targetChars = 1600, overlapChars = SENTENCE_OVERLAP_CHARS } = options;
 
   if (!Array.isArray(chunks) || chunks.length === 0) return [];
 
