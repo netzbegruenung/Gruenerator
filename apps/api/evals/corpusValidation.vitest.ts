@@ -206,6 +206,47 @@ describe('promptFile', () => {
   });
 });
 
+describe('extra corpus directory', () => {
+  const base = {
+    filter: 'extra-1',
+    slow: false,
+    mcp: false,
+    notebook: false,
+    systemMcp: false,
+    deepResearch: false,
+    bgstKorpus: false,
+    memory: false,
+    userNotebook: false,
+    attachedDoc: false,
+  };
+
+  it('loads .jsonl files from extraCorpusDir next to the repo corpus', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'extra-corpus-'));
+    writeFileSync(
+      join(dir, 'private.jsonl'),
+      JSON.stringify({
+        id: 'extra-1',
+        category: 'x',
+        turns: [{ prompt: 'p', expect: {} }],
+      })
+    );
+    expect(loadCorpus(HERE, { ...base, extraCorpusDir: dir }).map((s) => s.id)).toEqual([
+      'extra-1',
+    ]);
+    expect(loadCorpus(HERE, base)).toEqual([]);
+  });
+
+  it('rejects an id that the repo corpus already uses', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'extra-corpus-'));
+    const repoId = loadCorpus(HERE, { ...base, filter: '' })[0]!.id;
+    writeFileSync(
+      join(dir, 'dup.jsonl'),
+      JSON.stringify({ id: repoId, category: 'x', turns: [{ prompt: 'p', expect: {} }] })
+    );
+    expect(() => loadCorpus(HERE, { ...base, extraCorpusDir: dir })).toThrow(/Duplicate/);
+  });
+});
+
 describe('unified-loop corpus gating', () => {
   it('gates the scenario that writes memory behind the memory lane', () => {
     const base = {
