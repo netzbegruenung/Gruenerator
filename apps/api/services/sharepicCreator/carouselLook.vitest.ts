@@ -1,7 +1,7 @@
 import { type SharepicSlide, type SharepicSpec } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { carouselLookProblems } from './carouselLook.js';
+import { carouselLookProblems, holdCarouselSurface } from './carouselLook.js';
 import { loadExamples } from './styleguide.js';
 
 type Bg = SharepicSlide['background'];
@@ -178,6 +178,90 @@ describe('carouselLookProblems', () => {
     )
     .filter(([, spec]) => spec.slides.length >= 3);
   it.each(carousels)('example %s holds one look', (_id, spec) => {
+    expect(carouselLookProblems(spec)).toBeNull();
+  });
+});
+
+describe('holdCarouselSurface', () => {
+  const surfaces = (spec: SharepicSpec) =>
+    spec.slides.map((s) =>
+      s.background.kind === 'farbe' ? s.background.color : s.background.kind
+    );
+
+  it('puts the colours after the cover on the first content slide’s surface', () => {
+    const held = holdCarouselSurface(
+      deck([unten('tanne'), farbe('mint'), farbe('tanne'), farbe('mint'), farbe('grasgruen')])
+    );
+    expect(surfaces(held)).toEqual(['foto-unten', 'mint', 'mint', 'mint', 'mint']);
+    expect(carouselLookProblems(held)).toBeNull();
+  });
+
+  it('leaves a carousel alone that holds its look, and a photo story with its late change', () => {
+    const one = deck([unten('tanne'), farbe('tanne'), farbe('tanne'), farbe('tanne')]);
+    expect(holdCarouselSurface(one)).toBe(one);
+    const story = deck([foto, foto, foto, farbe('mint'), farbe('mint')]);
+    expect(holdCarouselSurface(story)).toBe(story);
+  });
+
+  it('takes the surface most slides stand on, so a one-off accent cannot win', () => {
+    const held = holdCarouselSurface(
+      deck([unten('tanne'), farbe('grasgruen'), farbe('tanne'), farbe('tanne'), farbe('tanne')])
+    );
+    expect(surfaces(held)).toEqual(['foto-unten', 'tanne', 'tanne', 'tanne', 'tanne']);
+  });
+
+  it('does not let an infographic on its light ground paint the carousel white', () => {
+    const spec = deck([
+      unten('tanne'),
+      farbe('weiss'),
+      farbe('tanne'),
+      farbe('mint'),
+      farbe('tanne'),
+    ]);
+    spec.slides[1]!.items = [{ type: 'infografik' }] as SharepicSlide['items'];
+    expect(surfaces(holdCarouselSurface(spec))).toEqual([
+      'foto-unten',
+      'weiss',
+      'tanne',
+      'tanne',
+      'tanne',
+    ]);
+  });
+
+  it('drops a header band that would vanish into the new ground', () => {
+    const spec = deck([
+      unten('dunkeltanne'),
+      farbe('dunkeltanne'),
+      { kind: 'farbe', color: 'mint', kopfband: 'dunkeltanne' } as Bg,
+      { kind: 'farbe', color: 'mint', kopfband: 'grasgruen' } as Bg,
+      farbe('dunkeltanne'),
+      farbe('dunkeltanne'),
+    ]);
+    const [, , vanished, kept] = holdCarouselSurface(spec).slides;
+    expect(vanished!.background).toEqual({ kind: 'farbe', color: 'dunkeltanne' });
+    expect(kept!.background).toEqual({
+      kind: 'farbe',
+      color: 'dunkeltanne',
+      kopfband: 'grasgruen',
+    });
+  });
+});
+
+describe('carouselLookProblems: builds', () => {
+  it('leaves an interview with frage + absatz on every middle slide alone', () => {
+    const spec = deck([
+      farbe('tanne'),
+      farbe('tanne'),
+      farbe('tanne'),
+      farbe('tanne'),
+      farbe('tanne'),
+    ]);
+    for (const slide of spec.slides) {
+      slide.items = [
+        { type: 'frage', text: 'Frage?' },
+        { type: 'absatz', text: 'Antwort' },
+      ] as SharepicSlide['items'];
+    }
     expect(carouselLookProblems(spec)).toBeNull();
   });
 });
