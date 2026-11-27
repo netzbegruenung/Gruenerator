@@ -174,6 +174,25 @@ describe('CitationSidePanel — Darstellung', () => {
     expect(screen.queryByText(/# Kapitel/)).not.toBeInTheDocument();
   });
 
+  it('liest Gendersterne nicht als Kursivschrift', async () => {
+    const fullText = 'Die Kandidat*innen des KV und die Direktkandidat*innen wählen.';
+    useChatConfigStore.getState().configure({
+      fetch: async () =>
+        chunksResponse('doc-1', [{ index: 0, text: fullText, tokens: 9 }], {
+          full_text: fullText,
+          chunk_map: [{ index: 0, charStart: 0, charEnd: fullText.length }],
+        }),
+    });
+    render(
+      <Harness
+        sources={[source({ chunkIndex: 0, citedText: 'Direktkandidat*innen', quote: undefined })]}
+      />
+    );
+    const mark = await screen.findByText('Direktkandidat*innen', { selector: 'mark' });
+    expect(mark.closest('p')?.textContent).toBe(fullText);
+    expect(mark.closest('p')?.querySelector('em')).toBeNull();
+  });
+
   it('setzt Seitenmarken als Trenner und markiert über Absatzgrenzen hinweg', async () => {
     const fullText = '## Seite 1\n\nErster Satz.\n\n## Seite 2\n\nZweiter Satz.';
     useChatConfigStore.getState().configure({

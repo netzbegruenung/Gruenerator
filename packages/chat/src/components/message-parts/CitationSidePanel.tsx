@@ -28,7 +28,7 @@ import remarkGfm from 'remark-gfm';
 
 import { useCitationPanel, type CitationPanelSource } from '../../context/CitationPanelContext';
 import { findCitedRange } from '../../lib/citedTextRange';
-import { rehypeMarkRange } from '../../lib/rehypeMarkRange';
+import { protectGenderStars, rehypeMarkRange } from '../../lib/rehypeMarkRange';
 import { cn } from '../../lib/utils';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 
@@ -370,6 +370,7 @@ function CitationPanelBody({
   );
   const cited = source ? (chunks.find((c) => c.index === source.chunkIndex) ?? null) : null;
   const fullText = chunksQuery.data?.fullText ?? '';
+  const markdownSource = useMemo(() => protectGenderStars(fullText), [fullText]);
   const citedRange = useMemo(
     () =>
       source && chunksQuery.data
@@ -566,10 +567,10 @@ function CitationPanelBody({
             <div ref={textRef} data-document-text className={cn(BODY_CLS, 'mb-5')}>
               <ReactMarkdown
                 remarkPlugins={remarkPlugins}
-                rehypePlugins={[[rehypeMarkRange, { source: fullText, range: citedRange }]]}
+                rehypePlugins={[[rehypeMarkRange, { source: markdownSource, range: citedRange }]]}
                 components={markdownComponents}
               >
-                {fullText}
+                {markdownSource}
               </ReactMarkdown>
             </div>
           </>

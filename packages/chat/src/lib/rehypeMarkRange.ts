@@ -63,10 +63,34 @@ function walk(node: HastNode, source: string, from: number, to: number): void {
   });
 }
 
+/** Private-use stand-in for a gender star, one UTF-16 unit like `*` itself. */
+const STAR_STANDIN = '\uE000';
+
+/**
+ * „Kandidat*innen … Direktkandidat*innen" is emphasis to Markdown: both stars
+ * sit between letters, so the parser pairs them, drops them and sets the text
+ * between in italics. A star between two letters is a gender star in our
+ * documents, never emphasis — it is swapped for a stand-in before parsing and
+ * put back by `rehypeMarkRange`. Same length, so every source offset holds.
+ */
+export function protectGenderStars(text: string): string {
+  return text.replace(/(?<=\p{L})\*(?=\p{L})/gu, STAR_STANDIN);
+}
+
+function restoreStars(node: HastNode): void {
+  if (node.type === 'text') {
+    const text = node as HastText;
+    text.value = text.value.replaceAll(STAR_STANDIN, '*');
+    return;
+  }
+  if ('children' in node && node.children) node.children.forEach(restoreStars);
+}
+
+/** `source` must be the exact string the Markdown was parsed from. */
 export function rehypeMarkRange(options: { source: string; range: [number, number] | null }) {
   return (tree: HastNode) => {
-    if (!options.range) return;
-    const [from, to] = options.range;
-    if (to > from) walk(tree, options.source, from, to);
+    const range = options.range;
+    if (range && range[1] > range[0]) walk(tree, options.source, range[0], range[1]);
+    restoreStars(tree);
   };
 }
