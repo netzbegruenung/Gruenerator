@@ -1281,3 +1281,49 @@ describe('Follow-up on a failed tool turn runs the loop', () => {
     expect(result.reasoning).not.toMatch(/fehlgeschlagen/);
   });
 });
+
+// Since 11/2026 `@bundestagsrecherche` stands in front of the Bundestag agent
+// (#6122); on the default agent it must route like the agent did.
+describe('Bundestag research by agent or by its recipe', () => {
+  // A bare topic: without the forcing it falls through to `direct`.
+  const ask = 'Förderung von Wärmepumpen im Gebäudeenergiegesetz';
+
+  it('the Bundestag agent forces the bundestag intent', async () => {
+    const result = await classifierNode(
+      buildState({
+        userMessage: ask,
+        agentConfig: { ...STUB_AGENT_CONFIG, identifier: 'gruenerator-bundestag' },
+      })
+    );
+    expect(result.intent).toBe('bundestag');
+  });
+
+  it('its (method) recipe on the default agent forces the same', async () => {
+    const result = await classifierNode(
+      buildState({ userMessage: ask, methodSkillMentions: ['bundestagsrecherche'] })
+    );
+    expect(result.intent).toBe('bundestag');
+  });
+
+  it('another recipe does not', async () => {
+    const result = await classifierNode(
+      buildState({
+        userMessage: ask,
+        activeSkillMention: 'presse',
+        methodSkillMentions: ['rechtsstand'],
+      })
+    );
+    expect(result.reasoning).not.toMatch(/Bundestag agent selected/);
+  });
+
+  it('not for de-AT', async () => {
+    const result = await classifierNode(
+      buildState({
+        userMessage: ask,
+        methodSkillMentions: ['bundestagsrecherche'],
+        userLocale: 'de-AT',
+      })
+    );
+    expect(result.reasoning).not.toMatch(/Bundestag agent selected/);
+  });
+});
