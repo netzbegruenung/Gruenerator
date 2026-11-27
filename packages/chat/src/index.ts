@@ -222,7 +222,7 @@ export {
   type CategoryFilterConfig,
 } from './components/notebook/NotebookComposer';
 export { type CategoryFilterField } from './components/notebook/NotebookSettingsPopover';
-export { type NotebookRecipeGroup } from './components/notebook/NotebookRecipePicker';
+export { type NotebookRecipeGroup } from './components/notebook/NotebookRecipeChip';
 export { useNotebookRecipeGroups } from './hooks/useNotebookRecipeGroups';
 
 // Thread Components

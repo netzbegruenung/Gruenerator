@@ -222,11 +222,7 @@ export const NotebookPageContent = ({
       : undefined;
     return pageConfig ? (getNotebookByPath(getNotebookPath(pageConfig))?.id ?? null) : null;
   }, [systemCollectionId]);
-  const {
-    groups: recipeGroups,
-    starters: recipeStarters,
-    find: findRecipe,
-  } = useNotebookRecipeGroups(notebookRegistryId);
+  const { groups: recipeGroups, find: findRecipe } = useNotebookRecipeGroups(notebookRegistryId);
   const recipeMention = searchParams.get(RECIPE_PARAM);
   const recipeId = searchParams.get(RECIPE_ID_PARAM);
   const recipeChoice = useMemo(
@@ -525,7 +521,6 @@ export const NotebookPageContent = ({
                   recipe={recipe}
                   recipeGroups={recipeGroups}
                   onRecipeChange={setRecipe}
-                  recipeStarters={recipeStarters}
                 />
               </div>
             </AuiIf>

@@ -1,7 +1,7 @@
 import { LANDESVERBAENDE, skillRole } from '@gruenerator/shared/agents';
 import { useMemo } from 'react';
 
-import { type NotebookRecipeGroup } from '../components/notebook/NotebookRecipePicker';
+import { type NotebookRecipeGroup } from '../components/notebook/NotebookRecipeChip';
 import {
   getAgentMentionables,
   landesverbandRecipeMentionables,
@@ -24,8 +24,6 @@ import { useRecipeLibrary } from './useRecipeLibrary';
  */
 export function useNotebookRecipeGroups(notebookId: string | null): {
   groups: NotebookRecipeGroup[];
-  /** Die Rezepte des Landesverbands — Einstiegs-Chips auf der Startseite. */
-  starters: readonly Mentionable[];
   /** Ein Rezept aus den Gruppen wiederfinden — für `?rezept=` und die Übergabe. */
   find: (mention: string, recipeId?: string | null) => Mentionable | null;
 } {
@@ -50,7 +48,7 @@ export function useNotebookRecipeGroups(notebookId: string | null): {
       ...getAgentMentionables().filter((m) => m.isSystemDefault),
     ]);
     const groups: NotebookRecipeGroup[] = [
-      ...(lv ? [{ title: `Für ${lv.title}`, recipes: lvRecipes }] : []),
+      ...(lv ? [{ title: `Rezepte für ${lv.title}`, recipes: lvRecipes }] : []),
       { title: 'Eigene Rezepte', recipes: own },
       { title: lv ? 'Weitere Rezepte' : 'Rezepte', recipes: more },
     ];
@@ -62,6 +60,6 @@ export function useNotebookRecipeGroups(notebookId: string | null): {
         (m) => m.mention.toLowerCase() === mention.toLowerCase()
       ) ??
       null;
-    return { groups, starters: lvRecipes, find };
+    return { groups, find };
   }, [notebookId, forms, items]);
 }
