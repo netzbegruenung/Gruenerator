@@ -92,6 +92,7 @@ die ohne Parameter, ein Fehler schützte nichts. Geprüft wird mit dem stillen
 | Instanz-Überblick | `/api/auth/admin/bgst` | `routes/admin/instanceAdminOverviewContractRouter.ts` |
 | Landesverbands-Zuordnung | `/api/auth/admin/landesverbaende` | `routes/admin/lvAdminAssignmentContractRouter.ts` |
 | **Chunk-Inspektor** | `/api/auth/admin/chunk-inspector` | `routes/admin/chunkInspectorContractRouter.ts` |
+| Tabellen-Reparatur (`/admin/tabellen`: Quellen mit übersehenen Tabellen finden und über „Neu indexieren" einreihen; Liste ohne Titel/Dateinamen) | `/api/auth/admin/table-repair` | `routes/admin/tableRepairContractRouter.ts` |
 | Konnektor-Test (Google/Microsoft über Nango, `/admin/konnektoren`) | `/api/auth/admin/connector-test` | `routes/admin/connectorTestContractRouter.ts` |
 | Meldungen (`content_reports`, je Ziel gruppiert; Auto-Ausblenden ab 3 Meldenden) | `/api/auth/admin/reports` | `routes/admin/adminReportsContractRouter.ts` |
 
