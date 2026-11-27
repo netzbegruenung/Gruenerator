@@ -8,12 +8,22 @@ import {
   getVisibleSystemAgentsForLocale,
   isLandesverbandIdentifier,
   lvIdForAgentIdentifier,
+  ownsSystemRecipe,
 } from '@gruenerator/shared/agents';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { SourceQuery } from './types.js';
 
-const TRANSFER_AGENTS = ['gruenerator-einfache-sprache', 'gruenerator-leichte-sprache'];
+/** Agents whose recipe stands in front of them since 11/2026 (#6122). */
+const RECIPE_OWNERS = [
+  'gruenerator-einfache-sprache',
+  'gruenerator-leichte-sprache',
+  'gruenerator-oeffentlichkeitsarbeit',
+  'gruenerator-antrag',
+  'gruenerator-buergerservice',
+  'gruenerator-bundestag',
+  'gruenerator-wahlpruefsteine',
+];
 
 const m = vi.hoisted(() => ({
   listPublicUserAgentListings: vi.fn(),
@@ -133,7 +143,7 @@ describe('agentSource.list', () => {
   it('lists official agents first, then the public user agents of the viewer’s country', async () => {
     const page = await agentSource.list(ctx(), query());
     const official = getVisibleSystemAgentsForLocale('de-DE', 'production').filter(
-      (a) => !isLandesverbandIdentifier(a.identifier) && !TRANSFER_AGENTS.includes(a.identifier)
+      (a) => !isLandesverbandIdentifier(a.identifier) && !ownsSystemRecipe(a.identifier)
     );
     expect(page.items.slice(0, official.length).map((i) => i.ref)).toEqual(
       official.map((a) => a.identifier)
@@ -175,10 +185,10 @@ describe('agentSource.list', () => {
     expect(all.some((ref) => lvIdForAgentIdentifier(ref) !== null)).toBe(false);
   });
 
-  it('lists no transfer agents — their recipes stand in front, the agents still resolve', async () => {
-    // Einfache/Leichte Sprache since 11/2026: the recipe runs the same chain.
+  it('lists no agent that owns a recipe — the recipe stands in front, the agent still resolves', async () => {
     const listed = await refs();
-    for (const id of TRANSFER_AGENTS) {
+    for (const id of RECIPE_OWNERS) {
+      expect(ownsSystemRecipe(id), id).toBe(true);
       expect(listed).not.toContain(id);
       expect(await agentSource.get(ctx(), id)).toMatchObject({ ref: id, origin: 'offiziell' });
     }

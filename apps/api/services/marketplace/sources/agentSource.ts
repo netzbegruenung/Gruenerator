@@ -9,10 +9,10 @@ import {
   agentRef,
   getAgentSlug,
   landesverbandRegion,
+  ownsSystemRecipe,
   type Agent,
 } from '@gruenerator/shared/agents';
 
-import { getPipelineAgent } from '../../../routes/chat/agents/pipelines/index.js';
 import {
   listPublicUserAgentListings,
   listUserAgents,
@@ -97,10 +97,11 @@ async function candidates(
     landesverbandRegion(a.identifier).localeCompare(landesverbandRegion(b.identifier))
   );
   return [
-    // Same for the transfer agents (Einfache/Leichte Sprache): their recipe
-    // stands in front and runs the same chain (`getPipelineAgentForRecipe`).
+    // An agent that owns a system recipe is not listed either: the recipe
+    // stands in front and runs with the agent's scoping (`initializeChatState`;
+    // the transfer recipes even take the whole agent over). #6122.
     ...(forList
-      ? catalog.generalAgents.filter((a) => !getPipelineAgent(a.identifier))
+      ? catalog.generalAgents.filter((a) => !ownsSystemRecipe(a.identifier))
       : catalog.generalAgents
     ).map((a, rank) => ({
       item: officialItem(a, 'offiziell'),
