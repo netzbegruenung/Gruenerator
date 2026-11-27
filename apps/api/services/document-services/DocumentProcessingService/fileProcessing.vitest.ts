@@ -397,3 +397,43 @@ describe('processUploadedDocument — Neu indexieren aus dem aufbewahrten Origin
     );
   });
 });
+
+describe('processUploadedDocument — CSV aus dem gespeicherten Text', () => {
+  const run = (markdownContent: string, update = vi.fn().mockResolvedValue(undefined)) =>
+    processUploadedDocument(
+      {
+        updateDocumentMetadata: update,
+        getDocumentById: vi.fn().mockResolvedValue({
+          id: 'd1',
+          title: 'Wahl',
+          filename: 'wahl.csv',
+          source_type: 'manual',
+          markdown_content: markdownContent,
+          metadata: { reindex_origin: 'stored-text', reindex_prev_searchable: true },
+        }),
+      } as never,
+      { storeDocumentVectors } as never,
+      'd1',
+      'u1'
+    ).then(() => update);
+
+  it('liest den gespeicherten Text als CSV-Datei', async () => {
+    extractDocumentFromFile.mockResolvedValue(extracted('| Ort | Stimmen |'));
+    await run('Ort;Stimmen\nBonn;3');
+    expect(extractDocumentFromFile.mock.calls[0]?.[0]).toMatchObject({
+      originalname: 'wahl.csv',
+      buffer: Buffer.from('Ort;Stimmen\nBonn;3'),
+    });
+  });
+
+  it('liest eine schon reparierte Tabelle nicht noch einmal als CSV', async () => {
+    const update = vi.fn().mockResolvedValue(undefined);
+    await run('| Ort | Stimmen |\n| --- | --- |\n| Bonn | 3 |', update).catch(() => null);
+    expect(extractDocumentFromFile).not.toHaveBeenCalled();
+    expect(update).toHaveBeenLastCalledWith(
+      'd1',
+      'u1',
+      expect.objectContaining({ status: 'completed' })
+    );
+  });
+});
