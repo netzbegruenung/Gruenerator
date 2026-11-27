@@ -100,18 +100,6 @@ export const FUNCTION_LABELS: Record<string, string> = {
   embedding_tokens: 'Einbettungen',
 };
 
-/** Order the function sections appear in — text first, it dominates every window. */
-export const FUNCTION_ORDER = [
-  'tokens',
-  'images',
-  'transcriptions',
-  'searches',
-  'speech_seconds',
-  'characters',
-  'ocr_pages',
-  'embedding_tokens',
-] as const;
-
 /**
  * Human names for the upstreams the tracker records.
  *
@@ -226,20 +214,6 @@ export function formatEnergy(wh: number): string {
  * would overstate the distance by the occupancy factor.
  */
 export const CAR_G_PER_PERSON_KM = 164;
-
-export function carComparison(grams: number): string {
-  const metres = (grams / CAR_G_PER_PERSON_KM) * 1000;
-  const rounded = Math.round(metres);
-  if (rounded >= 10_000) return `${numberFormat.format(Math.round(metres / 1000))} km Pkw-Fahrt`;
-  return `${numberFormat.format(rounded)} m Pkw-Fahrt`;
-}
-
-export function formatDay(day: string): string {
-  const date = new Date(`${day}T00:00:00Z`);
-  return Number.isNaN(date.getTime())
-    ? day
-    : date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
-}
 
 /**
  * How much the reference (GPT-4o, Jegham et al. 2025) itself is an estimate —
