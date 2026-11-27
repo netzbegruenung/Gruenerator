@@ -102,6 +102,7 @@ export {
   type NotebookAdapterConfig,
   type NotebookMessageMetadata,
   type NotebookAdapterCallbacks,
+  type NotebookRecipeChoice,
   type SharepicContextConfig,
 } from './runtime/NotebookModelAdapter';
 export {

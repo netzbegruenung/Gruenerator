@@ -142,6 +142,15 @@ export const SKILL_SLIMS: readonly SkillSlim[] = [
     modelOnly: true,
   },
   {
+    identifier: 'gruenerator-universal',
+    mention: 'sharepic-gestalten',
+    title: 'Sharepic gestalten',
+    iconKey: 'PiPaintBrush',
+    skillCategory: 'sonstiges',
+    audience: 'all',
+    modelOnly: true,
+  },
+  {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-berlin',
     mention: 'presse-berlin-partei',
     title: 'PM Berlin (Partei)',

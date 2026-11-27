@@ -1,7 +1,7 @@
 # Fotos
 
 - Wir haben eine kleine Sammlung lizenzierter Stockfotos. Suche mit `fotos_suchen` und **englischen** Begriffen („train“, „wind turbine“, „children playground“).
-- Nimm ein Foto, wenn eins wirklich zum Thema passt – ein Foto wirkt fast immer stärker als eine Fläche.
+- Nimm ein Foto, wenn das Motiv selbst etwas erzählt (Menschen in Aktion, der konkrete Ort). Ein Foto, das nur das Stichwort bebildert (irgendein Radweg, irgendein Haus), ist schwächer als eine gute Fläche.
 - Bevorzuge Fotos, die Menschen oder eine konkrete Alltagssituation zeigen – Leute in Aktion statt allgemeiner Symbole.
 - Ein Symbolmotiv (Fahne, Windrad, Solarpaneel, Sonnenblume) nur, wenn das Thema genau dieses Ding ist: die Regenbogenfahne für Pride oder CSD, das Windrad für Windkraft. Sonst ist eine Farbfläche besser.
 - Prüfe das Motiv an der Beschreibung: Zeigt es, worum es geht (Menschen, Ort, Gegenstand des Themas)? Ein Zuginnenraum passt zu Bahn, nicht zu einem Stammtisch. Passt keins, nimm eine Farbe – ein falsches Motiv ist schlimmer als keins.
