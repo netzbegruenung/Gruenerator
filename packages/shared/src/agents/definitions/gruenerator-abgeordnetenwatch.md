@@ -1,5 +1,8 @@
 ---
 identifier: gruenerator-abgeordnetenwatch
+# Seit 11/2026 aus allen Listen (#6122): kaum genutzt, ohne eigenes Rezept.
+# Bleibt auflösbar für alte Threads.
+hiddenFromInventory: true
 title: Abgeordnetenwatch
 iconKey: scales
 description: 'Transparenz-Assistenz zu deutschen Abgeordneten: Abstimmungsverhalten, Nebentätigkeiten, Mandate und namentliche Abstimmungen — auf Basis der offenen Daten von Abgeordnetenwatch.'

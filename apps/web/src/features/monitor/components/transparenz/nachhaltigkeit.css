@@ -1,0 +1,129 @@
+/*
+ * Palette and motion of the transparency page ("Nachhaltigkeit" + "Rechenweg").
+ *
+ * One token layer so the components never carry hex values: the hero and the
+ * dark bands stay dark in both themes, the light bands swap. Motion only runs
+ * for people who did not ask for less of it.
+ */
+.nh {
+  --nh-hero: #3f7a64;
+  --nh-hero-soft: #5e9a83;
+  --nh-hero-deep: #2f5446;
+  --nh-deep: #1f3a30;
+  --nh-glow: #a8e0c6;
+  --nh-glow-soft: #c9ded4;
+  --nh-road: #3d4f47;
+  --nh-mint: #e3efe9;
+  --nh-paper: #ffffff;
+  --nh-mist: #f4f7f5;
+  --nh-ink: #1f3a30;
+  --nh-strong: #2c5a49;
+  --nh-accent: #3f7a64;
+  --nh-muted: #5b6b64;
+  --nh-line: #dce6e1;
+  --nh-tree: #86b5a1;
+  --nh-tree-soft: #a8c9ba;
+  --nh-sun: #f3e9b5;
+  --nh-cloud: #ffffff;
+  --nh-cloud-soft: #eef3f0;
+  --nh-card: #ffffff;
+  --nh-chip: #e3efe9;
+  --nh-chip-ink: #1f3a30;
+  --nh-warn: #f3e9b5;
+  --nh-warn-ink: #4a3f10;
+  --nh-code: #f4f7f5;
+  background: var(--nh-paper);
+  color: var(--nh-ink);
+}
+
+[data-theme='dark'] .nh {
+  --nh-mint: #1a2c25;
+  --nh-paper: #111b17;
+  --nh-mist: #15221d;
+  --nh-ink: #e3efe9;
+  --nh-strong: #a8e0c6;
+  --nh-accent: #86b5a1;
+  --nh-muted: #a9bbb3;
+  --nh-line: #2a3d35;
+  --nh-tree: #3f7a64;
+  --nh-tree-soft: #2f5446;
+  --nh-cloud: #22362e;
+  --nh-cloud-soft: #1c2d26;
+  --nh-card: #172520;
+  --nh-chip: #22362e;
+  --nh-chip-ink: #c9ded4;
+  --nh-warn: #4a3f10;
+  --nh-warn-ink: #f3e9b5;
+  --nh-code: #0d1512;
+}
+
+/* The global stylesheet colours headings; here they take the colour of their band. */
+.nh :is(h1, h2, h3) {
+  color: inherit;
+}
+
+/* Bands below the fold are neither laid out nor painted until scrolled near. */
+.nh-band {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 900px;
+}
+
+.nh-display {
+  font-family: Raleway, sans-serif;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .nh-spin {
+    animation: nh-spin 4s linear infinite;
+  }
+  .nh-drift {
+    animation: nh-drift 80s linear infinite;
+    will-change: transform;
+  }
+  .nh-drive {
+    animation: nh-drive 9s linear infinite;
+  }
+  .nh-live-dot {
+    animation: nh-pulse 1.4s ease-in-out infinite;
+  }
+  .nh-slot {
+    transition:
+      transform 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+      opacity 0.5s ease;
+  }
+}
+
+@keyframes nh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes nh-drift {
+  from {
+    transform: translateX(-260px);
+  }
+  to {
+    transform: translateX(100vw);
+  }
+}
+
+/* transform, not `left`: stays on the compositor instead of re-laying-out the lane. */
+@keyframes nh-drive {
+  from {
+    transform: translateX(-140px);
+  }
+  to {
+    transform: translateX(100vw);
+  }
+}
+
+@keyframes nh-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}

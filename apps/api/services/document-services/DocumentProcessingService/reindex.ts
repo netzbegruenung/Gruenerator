@@ -75,7 +75,7 @@ async function defaultDeps(): Promise<ReindexDeps> {
 }
 
 const ROW_COLUMNS =
-  'id, user_id, filename, status, wolke_share_link_id, wolke_file_path, vector_count, metadata';
+  'id, user_id, filename, status, wolke_share_link_id, wolke_file_path, file_path, markdown_content, vector_count, metadata';
 
 /**
  * Setzt eingereihte Zeilen zurück auf `uploaded`. Die Bedingung auf den Status

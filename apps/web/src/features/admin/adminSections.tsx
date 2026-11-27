@@ -8,6 +8,7 @@ import {
   FiCpu,
   FiFlag,
   FiGlobe,
+  FiGrid,
   FiInbox,
   FiLayers,
   FiLink,
@@ -202,6 +203,16 @@ export const ADMIN_SECTIONS = [
     description:
       'Was der Abruf zu einem Dokument gespeichert hat — die Chunks in ihrer Reihenfolge, mit den Feldern, die im Punkt liegen. Leere Felder sind nicht berechnet worden, sondern nicht gespeichert.',
     ...lazySection(() => import('./chunk-inspector/ChunkInspectorSection')),
+  },
+  {
+    id: 'tabellen',
+    group: 'werkzeuge',
+    label: 'Tabellen-Reparatur',
+    icon: FiGrid,
+    title: 'Tabellen-Reparatur',
+    description:
+      'Quellen finden, deren Tabellen ein neuer Lauf besser lesen würde, und sie neu indexieren. Ohne Titel und Dateinamen — eine einzelne Quelle öffnet der Chunk-Inspektor.',
+    ...lazySection(() => import('./table-repair/TableRepairView')),
   },
   {
     id: 'konnektoren',

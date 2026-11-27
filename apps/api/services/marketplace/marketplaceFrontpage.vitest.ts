@@ -97,18 +97,18 @@ beforeEach(() => {
 
 describe('getMarketplaceFrontpage', () => {
   it('resolves each collection: pinned items through their source, fills as lists', async () => {
-    // The viewer may not see the Kommunalpolitik agent; it drops out, the rest keeps its order.
+    // The viewer may not see the Instagram recipe; it drops out, the rest keeps its order.
     m.get.mockImplementation((kind, ref) =>
-      Promise.resolve(ref === 'gruenerator-antrag' ? null : item(kind, ref))
+      Promise.resolve(ref === 'instagram' ? null : item(kind, ref))
     );
     const page = await getMarketplaceFrontpage(ctx(false));
 
     const starter = page.collections.find((c) => c.collectionId === 'starter')!;
     expect(starter.items.map((i) => i.key).slice(0, 4)).toEqual([
-      'agent:gruenerator-oeffentlichkeitsarbeit',
       'recipe:presse',
-      'recipe:instagram',
       'recipe:antrag',
+      'recipe:rede',
+      'recipe:buergermail',
     ]);
     expect(m.list.mock.calls.filter(([, q]) => q.templateType === 'canva')).toEqual([
       ['template', expect.objectContaining({ sort: 'beliebt', limit: 5, origin: null })],
@@ -144,14 +144,14 @@ describe('getMarketplaceFrontpage', () => {
 
   it('leaves out a collection below its minimum', async () => {
     m.get.mockImplementation((kind, ref) =>
-      Promise.resolve(ref === 'gruenerator-einfache-sprache' ? null : item(kind, ref))
+      Promise.resolve(ref === 'einfache-sprache' ? null : item(kind, ref))
     );
     const page = await getMarketplaceFrontpage(ctx(false));
     expect(page.collections.map((c) => c.collectionId)).not.toContain('barrierefreiheit');
   });
 
   it('asks each shelf’s kinds with its sort, origin and size, and keeps the shelf order', async () => {
-    m.get.mockResolvedValue(item('agent', 'gruenerator-leichte-sprache'));
+    m.get.mockResolvedValue(item('recipe', 'leichte-sprache'));
     const page = await getMarketplaceFrontpage(ctx(true));
 
     expect(listed()).toEqual(
@@ -173,12 +173,12 @@ describe('getMarketplaceFrontpage', () => {
       'beliebt',
       'gestalten',
     ]);
-    expect(page.featured?.ref).toBe('gruenerator-leichte-sprache');
+    expect(page.featured?.ref).toBe('leichte-sprache');
     expect(page.featureId).toBe('leichte-sprache');
   });
 
   it('lists the Rezepte shelf for web only — shipped mobile binaries do not know its id', async () => {
-    m.get.mockResolvedValue(item('agent', 'gruenerator-leichte-sprache'));
+    m.get.mockResolvedValue(item('recipe', 'leichte-sprache'));
 
     const web = await getMarketplaceFrontpage(ctx(false, 'de-DE', 'web'));
     expect(listed()).toContainEqual({
@@ -198,7 +198,7 @@ describe('getMarketplaceFrontpage', () => {
   });
 
   it('does not list the Landesverband shelf for a viewer without one', async () => {
-    m.get.mockResolvedValue(item('agent', 'gruenerator-leichte-sprache'));
+    m.get.mockResolvedValue(item('recipe', 'leichte-sprache'));
     const page = await getMarketplaceFrontpage(ctx(false));
 
     expect(listed().some((q) => q.origin === 'landesverband')).toBe(false);
@@ -209,7 +209,7 @@ describe('getMarketplaceFrontpage', () => {
     m.get.mockResolvedValue(null);
     const page = await getMarketplaceFrontpage(ctx(false, 'de-AT'));
 
-    expect(m.get).toHaveBeenCalledWith('agent', 'gruenerator-leichte-sprache');
+    expect(m.get).toHaveBeenCalledWith('recipe', 'leichte-sprache');
     expect(page.featureId).toBeNull();
     expect(page.featured?.createdAt).toBe('2026-10-05T00:00:00.000Z');
     const neu = page.shelves.find((s) => s.shelfId === 'neu')!;

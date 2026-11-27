@@ -1,9 +1,11 @@
 ---
 identifier: gruenerator-ricarda-lang
+# Seit 11/2026 aus allen Listen (#6122): kaum genutzt, ohne eigenes Rezept.
+# Bleibt auflösbar für alte Threads.
+hiddenFromInventory: true
 audience: de-DE
 title: Tweet like Ricarda
 iconKey: bird
-pinnedToSidebar: true
 description: 'Du gibst ein Thema, ich schreibe 4–5 Tweets im Stil von Ricarda Lang — geerdet an ihren echten Tweets der letzten 12 Monate.'
 avatar: "\U0001F426"
 backgroundColor: '#316049'

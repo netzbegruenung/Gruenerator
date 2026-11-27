@@ -1045,6 +1045,21 @@ describe('Pipeline-Turn: genau ein Ausgangstext im Prompt', () => {
     expect(out).not.toContain('ZU ÜBERTRAGENDER TEXT');
     expect(out).toContain('Radwege');
   });
+
+  it('das eigene Rezept steht nicht ein zweites Mal neben der Persona', async () => {
+    // Seit 11/2026 steht das Rezept vorn; sein Rumpf IST die Persona
+    // (`codeRecipes.ts`). Ohne die Sperre stünde das Regelwerk doppelt im Prompt.
+    const { getPipelineAgent } = await import('../../../../routes/chat/agents/pipelines/index.js');
+    const role = getPipelineAgent('gruenerator-einfache-sprache')?.systemRole ?? '';
+    const base = state({ pipelineSourceText: pinned, activeSkillMention: 'einfache-sprache' });
+    const out = await buildSystemMessage({
+      ...base,
+      agentConfig: { ...base.agentConfig, systemRole: role },
+    });
+    const marker = role.slice(0, 80);
+    expect(out.split(marker).length - 1).toBe(1);
+    expect(out).not.toContain('AKTIVE PLATTFORM: Einfache Sprache');
+  });
 });
 
 /**

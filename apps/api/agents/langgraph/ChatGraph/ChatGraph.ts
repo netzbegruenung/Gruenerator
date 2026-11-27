@@ -17,11 +17,7 @@
  * directly instead of the annotation-derived type.
  */
 
-import {
-  LANDESVERBAENDE,
-  lvIdForAgentIdentifier,
-  resolveSkillMention,
-} from '@gruenerator/shared/agents';
+import { LANDESVERBAENDE, resolveSkillMention } from '@gruenerator/shared/agents';
 
 import {
   isNotebookImplicitlySearchable,
@@ -38,6 +34,7 @@ import {
   applyAgentToolWhitelist,
   shouldApplyAgentToolWhitelist,
 } from '../../../routes/chat/agents/agentToolWhitelist.js';
+import { recipePipelineAgentId } from '../../../routes/chat/agents/pipelines/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import type { ChatGraphInput, ChatGraphState, SearchIntent } from './types.js';
@@ -57,6 +54,19 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     throw new Error(`Agent not found: ${input.agentId}`);
   }
 
+  // A transfer recipe (Einfache/Leichte Sprache) brings its whole agent: its
+  // turn is a chain of steps with separate contexts (`pipelines/`), which no
+  // recipe text can express. Routing, model choice, persona and the chain all
+  // key on the agent identifier, so taking the agent over is what makes the
+  // pinned recipe behave exactly like the agent did. Same gate as the scoping
+  // below: an explicitly selected non-default agent always wins.
+  const pipelineAgentId = recipePipelineAgentId(agentId, input.activeSkillMention);
+  const pipelineAgent = pipelineAgentId ? await getAgent(pipelineAgentId) : undefined;
+  if (pipelineAgent) {
+    agentConfig = pipelineAgent;
+    log.info(`[ChatGraph] Rezept ${input.activeSkillMention} übernimmt Agent ${pipelineAgentId}`);
+  }
+
   // Skill mentions carry the identifier of their owning agent (e.g.
   // /presse-berlin → gruenerator-oeffentlichkeitsarbeit-berlin). On the
   // default agent, adopt that agent's scoping (defaultFilter +
@@ -65,10 +75,11 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
   // model, provider and systemRole of the active agent stay untouched, and an
   // explicitly selected non-default agent always wins.
   //
-  // A Landesverband recipe also brings its LV's notebook: since 11/2026 the
-  // LV recipes stand in front of the LV agents (hub, sidebar, `/chat?rezept=`),
-  // and without the notebook `@presse-bayern-partei` on the universal agent
-  // searched `deutschland` while the Bayern agent searched Bayern.
+  // The recipe also brings its owner's notebooks: since 11/2026 recipes stand
+  // in front of their agents (LV recipes in #6005, the rest in #6122), and
+  // without them `@presse-bayern-partei` on the universal agent searched
+  // `deutschland` while the Bayern agent searched Bayern, and `@wahlpruefstein`
+  // lost the federal programme notebooks.
   const scopeNotebookIds: string[] = [];
   if (input.activeSkillMention && agentId === getDefaultAgentId()) {
     const skillAgentId = resolveSkillMention(input.activeSkillMention);
@@ -86,9 +97,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
           `[ChatGraph] Skill ${input.activeSkillMention} adopted scoping from agent ${skillAgentId}`
         );
       }
-      if (skillAgent && lvIdForAgentIdentifier(skillAgentId)) {
-        scopeNotebookIds.push(...(skillAgent.defaultNotebookIds ?? []));
-      }
+      if (skillAgent) scopeNotebookIds.push(...(skillAgent.defaultNotebookIds ?? []));
     }
   }
 

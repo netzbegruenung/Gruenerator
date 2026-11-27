@@ -241,7 +241,8 @@ export type DocumentContentResponse = z.infer<typeof documentContentResponseSche
  * `kind` mirrors the branch taken in
  * apps/api/services/document-services/DocumentProcessingService/textExtraction.ts:
  *   - 'ocr'  → handed to Mistral OCR
- *   - 'text' → decoded as utf-8
+ *   - 'text'  → decoded as utf-8
+ *   - 'table' → read cell by cell and written as Markdown tables
  *
  * Adding an entry here is a promise the pipeline has to keep; extend
  * textExtraction.ts in the same change.
@@ -262,7 +263,20 @@ export const DOCUMENT_UPLOAD_FORMATS = [
   },
   { extension: '.txt', label: 'TXT', mimeTypes: ['text/plain'], kind: 'text' },
   { extension: '.md', label: 'MD', mimeTypes: ['text/markdown', 'text/x-markdown'], kind: 'text' },
-  { extension: '.csv', label: 'CSV', mimeTypes: ['text/csv'], kind: 'text' },
+  { extension: '.csv', label: 'CSV', mimeTypes: ['text/csv'], kind: 'table' },
+  {
+    extension: '.xlsx',
+    label: 'XLSX',
+    mimeTypes: ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+    kind: 'table',
+  },
+  { extension: '.xls', label: 'XLS', mimeTypes: ['application/vnd.ms-excel'], kind: 'table' },
+  {
+    extension: '.ods',
+    label: 'ODS',
+    mimeTypes: ['application/vnd.oasis.opendocument.spreadsheet'],
+    kind: 'table',
+  },
   { extension: '.png', label: 'PNG', mimeTypes: ['image/png'], kind: 'ocr' },
   { extension: '.jpg', label: 'JPG', mimeTypes: ['image/jpeg', 'image/jpg'], kind: 'ocr' },
   { extension: '.jpeg', label: 'JPEG', mimeTypes: ['image/jpeg', 'image/jpg'], kind: 'ocr' },

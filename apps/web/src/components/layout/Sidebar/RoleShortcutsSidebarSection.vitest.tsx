@@ -1,5 +1,5 @@
 import { useAgentStore, useUserProfileStore, type UserRole } from '@gruenerator/chat/stores';
-import { LV_HUBS, getAgentSlug, getLandesverbandHubById } from '@gruenerator/shared/agents';
+import { LV_HUBS, getLandesverbandHubById } from '@gruenerator/shared/agents';
 import { type NotebookId } from '@gruenerator/shared/notebooks';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -230,14 +230,14 @@ describe('RoleShortcutsSidebarSection — Bundesgeschäftsstelle', () => {
 });
 
 describe('RoleShortcutsSidebarSection — MdB-Büro', () => {
-  it('is named after the MP and offers the Bundestag agents and notebooks', () => {
+  it('is named after the MP and offers the Bundestag recipes and notebooks', () => {
     const shortcut = mdbBueroShortcut([mdbBuero], 'production');
     expect(shortcut?.name).toBe('Büro Lisa Badum');
+    expect(shortcut?.starters.heading).toBe('Neuer Chat mit Rezept');
     expect(shortcut?.starters.links.map((l) => l.key)).toEqual([
-      'gruenerator-bundestag',
-      'gruenerator-abgeordnetenwatch',
-      'gruenerator-rede-schreiber',
-      'gruenerator-buergerservice',
+      'bundestagsrecherche',
+      'rede',
+      'buergermail',
     ]);
     expect(shortcut?.links.map((l) => l.key)).toEqual([
       'bundestagsfraktion-notebook',
@@ -253,15 +253,12 @@ describe('RoleShortcutsSidebarSection — MdB-Büro', () => {
     expect(mdbBueroShortcut([bgst], 'production')).toBeNull();
   });
 
-  it('opens the Abgeordnetenwatch agent', async () => {
+  it('opens the speech recipe', async () => {
     const user = userEvent.setup();
     const { onNavigate } = renderSection([mdbBueroShortcut([mdbBuero], 'production')!]);
     await user.click(screen.getByRole('button', { name: 'Büro Lisa Badum' }));
-    await user.click(screen.getByRole('menuitem', { name: 'Abgeordnetenwatch' }));
-    expect(onNavigate).toHaveBeenCalledWith(
-      `/agents/${getAgentSlug('gruenerator-abgeordnetenwatch')}`,
-      'Abgeordnetenwatch'
-    );
+    await user.click(screen.getByRole('menuitem', { name: 'Rede' }));
+    expect(onNavigate).toHaveBeenCalledWith('/chat?rezept=rede', 'Rede');
   });
 });
 

@@ -299,6 +299,7 @@ const NAMESPACES = {
   skillPrompt: { contract: 'skillPromptContract', opts: 'plain' },
   agentVisibility: { contract: 'agentVisibilityContract', opts: 'plain' },
   chunkInspector: { contract: 'chunkInspectorContract', opts: 'plain' },
+  tableRepair: { contract: 'tableRepairContract', opts: 'plain' },
   bundestagQa: { contract: 'bundestagQaContract', opts: 'plain' },
   connectorTest: { contract: 'connectorTestContract', opts: 'plain' },
   connections: { contract: 'connectionsContract', opts: 'plain' },

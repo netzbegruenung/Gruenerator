@@ -5,13 +5,21 @@
 
 import fs from 'fs';
 
+import { resolveDocumentUploadFormat } from '@gruenerator/contracts';
+
 import { hasAiConsent } from '../../../middleware/requireAiConsent.js';
 import { keepOriginal, removeOriginal } from '../documentOriginals.js';
 
 import { chunkAndEmbedText } from './chunkingPipeline.js';
 import { ingestRetryDelayMs } from './ingestRetry.js';
 import { DocumentReadError, NO_TEXT_MESSAGE, processingErrorMessage } from './processingError.js';
-import { fetchOriginal, wolkeOrigin, type WolkeOrigin } from './reindexOrigin.js';
+import {
+  fetchOriginal,
+  isCsvStoredAsText,
+  keptOriginalPath,
+  wolkeOrigin,
+  type WolkeOrigin,
+} from './reindexOrigin.js';
 import {
   capStoredText,
   extractDocumentFromFile,
@@ -46,6 +54,11 @@ import type {
  *
  * `knownPageCount` gehört zu `knownText`: die Seitenzahl aus derselben Extraktion.
  *
+ * Ausnahme Tabellendateien: für sie ist `knownText` die rohe CSV bzw. der
+ * Docling-Text des Chat-Anhangs, und die Umwandlung aus der Datei kostet keinen
+ * Anbieteraufruf. Indiziert wird deshalb immer die Markdown-Tabelle aus
+ * `spreadsheetText.ts` — dieselben Werte, aber mit Spaltenköpfen in jedem Chunk.
+ *
  * `origin.sourceUrl`: der Text stammt von einer Webseite (eine im Chat benannte
  * Seite, `namedPageDocuments`). Sie landet als `source_url` in jedem Chunk — die
  * Dokumentsuche reicht das als `url` an Zitat und Quellenkarte weiter, die
@@ -64,9 +77,12 @@ export async function processFileUpload(
 ): Promise<FileUploadResult> {
   console.log(`[DocumentProcessingService] Processing file upload: ${title}`);
 
-  const extraction: FileExtraction = knownText?.trim()
-    ? { text: knownText, pageCount: knownPageCount, extractionMethod: null }
-    : await extractDocumentFromFile(file, { pageMarkers: true });
+  const isTableFile =
+    !origin && resolveDocumentUploadFormat(file.originalname, file.mimetype)?.kind === 'table';
+  const extraction: FileExtraction =
+    knownText?.trim() && !isTableFile
+      ? { text: knownText, pageCount: knownPageCount, extractionMethod: null }
+      : await extractDocumentFromFile(file, { pageMarkers: true });
   const extractedText = extraction.text;
 
   if (!extractedText || extractedText.trim().length === 0) {
@@ -169,7 +185,7 @@ export async function processUploadedDocument(
   let filePath: string | null = null;
   // Gesetzt, wenn die Zeile über „Neu indexieren" kam und das Original erst
   // geholt werden muss. Bis `vectorsReplaced` bleiben die alten Punkte stehen.
-  let reindex: WolkeOrigin | null = null;
+  let reindex: WolkeOrigin | { kind: 'original' } | { kind: 'stored-text' } | null = null;
   let vectorsReplaced = false;
   // Nur wer vorher durchsuchbar war, fällt bei einem Fehlschlag auf die alte
   // Fassung zurück; eine schon kaputte Quelle bleibt `failed`, mit Grund.
@@ -236,6 +252,46 @@ export async function processUploadedDocument(
         buffer,
         mimetype: metadata?.mimetype || 'application/octet-stream',
         originalname: document.filename || 'document',
+        size: buffer.length,
+      };
+    } else if (metadata?.reindex_origin === 'original') {
+      // Das aufbewahrte Original: gelesen, nie verschoben oder gelöscht —
+      // `filePath` bleibt null, also greifen `keepOriginal` und das Aufräumen unten nicht.
+      reindex = { kind: 'original' };
+      prevSearchable = metadata.reindex_prev_searchable === true;
+      const originalPath = keptOriginalPath({
+        file_path: typeof document.file_path === 'string' ? document.file_path : null,
+        filename: document.filename ?? null,
+      });
+      if (!originalPath) {
+        throw new DocumentReadError(
+          'Die Originaldatei liegt nicht mehr vor. Lade sie erneut hoch.'
+        );
+      }
+      const buffer = fs.readFileSync(originalPath);
+      file = {
+        buffer,
+        mimetype: 'application/octet-stream',
+        originalname: document.filename || 'document',
+        size: buffer.length,
+      };
+    } else if (metadata?.reindex_origin === 'stored-text') {
+      // Eine alte CSV: der gespeicherte Text ist die Datei (`reindexOrigin.ts`).
+      reindex = { kind: 'stored-text' };
+      prevSearchable = metadata.reindex_prev_searchable === true;
+      const stored = {
+        filename: document.filename ?? null,
+        markdown_content:
+          typeof document.markdown_content === 'string' ? document.markdown_content : null,
+      };
+      if (!isCsvStoredAsText(stored)) {
+        throw new DocumentReadError('Die Quelle liegt schon als Tabelle vor.');
+      }
+      const buffer = Buffer.from(stored.markdown_content ?? '', 'utf8');
+      file = {
+        buffer,
+        mimetype: 'text/csv',
+        originalname: document.filename || 'document.csv',
         size: buffer.length,
       };
     } else {

@@ -25,10 +25,9 @@ export const MUSTERGRUEN_COLLECTION = {
   pinned: [
     { kind: 'agent', ref: 'mustergruen-maxi-mustermensch' },
     { kind: 'agent', ref: 'mustergruen-maxi-einladung' },
-    { kind: 'agent', ref: 'gruenerator-oeffentlichkeitsarbeit' },
     { kind: 'recipe', ref: 'presse' },
     { kind: 'recipe', ref: 'instagram' },
-    { kind: 'agent', ref: 'gruenerator-rede-schreiber' },
+    { kind: 'recipe', ref: 'rede' },
   ],
   fill: [],
   show: 16,

@@ -327,6 +327,8 @@ export interface Skill {
   instances?: readonly string[];
   /** Loop-Werkzeuge, die dieses Rezept empfiehlt. Siehe `skillFrontmatterSchema`. */
   recommendedTools?: readonly string[];
+  /** Lane class under "Automatisch", like the agent field. See `skillFrontmatterSchema`. */
+  autoRoutingHint?: Agent['autoRoutingHint'];
   // NOTE: there is deliberately no `skillSystemPrompt` here. A skill's prompt
   // body is party-internal and lives outside this repo; the API loads it at
   // runtime (apps/api/services/skills/internalPrompts.ts) and serves it to

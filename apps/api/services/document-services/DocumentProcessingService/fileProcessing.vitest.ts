@@ -102,6 +102,19 @@ describe('processFileUpload — knownText', () => {
     expect(extractDocumentFromFile).toHaveBeenCalledOnce();
     expect(chunkAndEmbedText.mock.calls[0]?.[0]).toBe('aus der Datei gelesen');
   });
+
+  it('liest eine Tabellendatei selbst, auch wenn der Chat ihren Text mitreicht', async () => {
+    // Der Chat-Text einer CSV ist die rohe CSV; indiziert wird die Markdown-Tabelle,
+    // damit jeder Chunk seine Spaltenköpfe trägt.
+    const { pg, qdrant } = services();
+    const csv = { ...file, mimetype: 'text/csv', originalname: 'wahl.csv' };
+    extractDocumentFromFile.mockResolvedValue(extracted('| Ort | Stimmen |'));
+
+    await processFileUpload(pg, qdrant, 'u1', csv, 'wahl.csv', 'documentchat', 'Ort;Stimmen');
+
+    expect(extractDocumentFromFile).toHaveBeenCalledOnce();
+    expect(chunkAndEmbedText.mock.calls[0]?.[0]).toBe('| Ort | Stimmen |');
+  });
 });
 
 describe('processFileUpload — knownPageCount', () => {
@@ -319,5 +332,108 @@ describe('processUploadedDocument — Originale behalten', () => {
     );
     expect(completion?.[2]).not.toHaveProperty('filePath');
     expect(fs.existsSync(pending)).toBe(false);
+  });
+});
+
+describe('processUploadedDocument — Neu indexieren aus dem aufbewahrten Original', () => {
+  let originals: string;
+
+  beforeEach(() => {
+    originals = fs.mkdtempSync(path.join(os.tmpdir(), 'originals-'));
+    vi.stubEnv('DOCUMENT_ORIGINALS_DIR', originals);
+    fs.mkdirSync(path.join(originals, 'u1'));
+    fs.writeFileSync(path.join(originals, 'u1/d1.csv'), 'Ort;Stimmen\nBonn;3\n');
+    extractDocumentFromFile.mockResolvedValue(extracted('| Ort | Stimmen |'));
+  });
+
+  const run = (update = vi.fn().mockResolvedValue(undefined)) =>
+    processUploadedDocument(
+      {
+        updateDocumentMetadata: update,
+        getDocumentById: vi.fn().mockResolvedValue({
+          id: 'd1',
+          title: 'Wahl',
+          filename: 'wahl.csv',
+          source_type: 'manual',
+          file_path: 'u1/d1.csv',
+          metadata: { reindex_origin: 'original', reindex_prev_searchable: true },
+        }),
+      } as never,
+      { storeDocumentVectors } as never,
+      'd1',
+      'u1'
+    ).then(() => update);
+
+  it('liest das Original, lässt es liegen und schreibt keinen neuen Pfad', async () => {
+    const update = await run();
+
+    expect(extractDocumentFromFile.mock.calls[0]?.[0]).toMatchObject({
+      originalname: 'wahl.csv',
+      buffer: Buffer.from('Ort;Stimmen\nBonn;3\n'),
+    });
+    const completion = update.mock.calls.find(
+      (c) => (c[2] as { status?: string }).status === 'completed'
+    );
+    expect(completion?.[2]).not.toHaveProperty('filePath');
+    expect(fs.existsSync(path.join(originals, 'u1/d1.csv'))).toBe(true);
+  });
+
+  it('lässt die bisherige Fassung durchsuchbar, wenn das Original fehlt', async () => {
+    fs.rmSync(path.join(originals, 'u1/d1.csv'));
+    const update = vi.fn().mockResolvedValue(undefined);
+
+    await run(update).catch(() => null);
+
+    expect(storeDocumentVectors).not.toHaveBeenCalled();
+    expect(update).toHaveBeenLastCalledWith(
+      'd1',
+      'u1',
+      expect.objectContaining({
+        status: 'completed',
+        additionalMetadata: expect.objectContaining({
+          processing_error: expect.stringContaining('Die bisherige Fassung bleibt durchsuchbar.'),
+        }),
+      })
+    );
+  });
+});
+
+describe('processUploadedDocument — CSV aus dem gespeicherten Text', () => {
+  const run = (markdownContent: string, update = vi.fn().mockResolvedValue(undefined)) =>
+    processUploadedDocument(
+      {
+        updateDocumentMetadata: update,
+        getDocumentById: vi.fn().mockResolvedValue({
+          id: 'd1',
+          title: 'Wahl',
+          filename: 'wahl.csv',
+          source_type: 'manual',
+          markdown_content: markdownContent,
+          metadata: { reindex_origin: 'stored-text', reindex_prev_searchable: true },
+        }),
+      } as never,
+      { storeDocumentVectors } as never,
+      'd1',
+      'u1'
+    ).then(() => update);
+
+  it('liest den gespeicherten Text als CSV-Datei', async () => {
+    extractDocumentFromFile.mockResolvedValue(extracted('| Ort | Stimmen |'));
+    await run('Ort;Stimmen\nBonn;3');
+    expect(extractDocumentFromFile.mock.calls[0]?.[0]).toMatchObject({
+      originalname: 'wahl.csv',
+      buffer: Buffer.from('Ort;Stimmen\nBonn;3'),
+    });
+  });
+
+  it('liest eine schon reparierte Tabelle nicht noch einmal als CSV', async () => {
+    const update = vi.fn().mockResolvedValue(undefined);
+    await run('| Ort | Stimmen |\n| --- | --- |\n| Bonn | 3 |', update).catch(() => null);
+    expect(extractDocumentFromFile).not.toHaveBeenCalled();
+    expect(update).toHaveBeenLastCalledWith(
+      'd1',
+      'u1',
+      expect.objectContaining({ status: 'completed' })
+    );
   });
 });

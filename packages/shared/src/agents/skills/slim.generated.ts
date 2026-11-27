@@ -77,6 +77,14 @@ export const SKILL_SLIMS: readonly SkillSlim[] = [
     audience: 'all',
   },
   {
+    identifier: 'gruenerator-rede-schreiber',
+    mention: 'rede',
+    title: 'Rede',
+    iconKey: 'PiMicrophoneStage',
+    skillCategory: 'dokumente',
+    audience: 'all',
+  },
+  {
     identifier: 'gruenerator-universal',
     mention: 'beschlusslage',
     title: 'Beschlusslage',
@@ -715,6 +723,22 @@ export const SKILL_SLIMS: readonly SkillSlim[] = [
     title: 'Terminumfrage mit nuudel (Experimentell)',
     iconKey: 'PiListChecks',
     skillCategory: 'sonstiges',
+    audience: 'all',
+  },
+  {
+    identifier: 'gruenerator-einfache-sprache',
+    mention: 'einfache-sprache',
+    title: 'Einfache Sprache',
+    iconKey: 'PiTranslate',
+    skillCategory: 'dokumente',
+    audience: 'all',
+  },
+  {
+    identifier: 'gruenerator-leichte-sprache',
+    mention: 'leichte-sprache',
+    title: 'Leichte Sprache',
+    iconKey: 'PiChatCircle',
+    skillCategory: 'dokumente',
     audience: 'all',
   },
 ];

@@ -169,7 +169,7 @@ describe('reindexDocument — welche Quelle ein Original hat', () => {
   });
 
   it('nimmt nur Wolke-Dateien in lesbaren Formaten — keine URL-, keine WordPress-Quelle', () => {
-    expect(reindexOrigin({ ...WOLKE, filename: 'tabelle.xlsx' })).toBeNull();
+    expect(reindexOrigin({ ...WOLKE, filename: 'brief.odt' })).toBeNull();
     // Eine URL- oder WordPress-Quelle hat keine Wolke-Felder — sie ist nicht dabei.
     expect(reindexOrigin(row({ id: 'wp', filename: 'beitrag.md' }))).toBeNull();
   });
@@ -558,5 +558,37 @@ describe('vorübergehender Fehler — der Worker versucht es von selbst wieder',
         }),
       })
     );
+  });
+});
+
+describe('reindexOrigin — aufbewahrte Originale', () => {
+  it('nimmt einen fertigen Upload, dessen Original liegt', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'originals-'));
+    vi.stubEnv('DOCUMENT_ORIGINALS_DIR', dir);
+    fs.mkdirSync(path.join(dir, OWNER));
+    fs.writeFileSync(path.join(dir, OWNER, 'doc-1.pdf'), '%PDF-1.4');
+
+    expect(reindexOrigin({ ...UPLOAD, file_path: `${OWNER}/doc-1.pdf` })).toEqual({
+      kind: 'original',
+    });
+    // Weg, außerhalb des Verzeichnisses oder ohne Spalte: nichts.
+    expect(reindexOrigin({ ...UPLOAD, file_path: `${OWNER}/weg.pdf` })).toBeNull();
+    expect(reindexOrigin({ ...UPLOAD, file_path: '../etc/passwd' })).toBeNull();
+    expect(reindexOrigin(UPLOAD)).toBeNull();
+    vi.unstubAllEnvs();
+  });
+});
+
+describe('reindexOrigin — CSV aus dem gespeicherten Text', () => {
+  it('nur solange der Text noch die rohe CSV ist', () => {
+    const csv = { ...UPLOAD, filename: 'wahl.csv' };
+    expect(reindexOrigin({ ...csv, markdown_content: 'Ort;Stimmen\nBonn;3' })).toEqual({
+      kind: 'stored-text',
+    });
+    // Schon repariert: ein zweiter Lauf läse die Tabelle sonst als CSV.
+    expect(
+      reindexOrigin({ ...csv, markdown_content: '| Ort | Stimmen |\n| --- | --- |\n| Bonn | 3 |' })
+    ).toBeNull();
+    expect(reindexOrigin({ ...UPLOAD, markdown_content: 'Ort;Stimmen' })).toBeNull();
   });
 });

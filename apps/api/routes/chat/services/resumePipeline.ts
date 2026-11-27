@@ -527,6 +527,7 @@ async function runChatGraphResumeUnlocked({
         demotedFromProse: finalState.loopDemotedFromProse,
       }),
       agentId: finalState.agentConfig.identifier,
+      recipeMention: finalState.activeSkillMention ?? null,
       ...(finalState.complexity != null && { complexity: finalState.complexity }),
       ...(finalState.taskShape != null && { taskShape: finalState.taskShape }),
       materialChars: turnMaterialChars(finalState),

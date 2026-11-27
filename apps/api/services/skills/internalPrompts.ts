@@ -34,6 +34,8 @@ import { env } from '../../config/env.js';
 import { toError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 
+import { CODE_RECIPE_BODIES } from './codeRecipes.js';
+
 const log = createLogger('internalPrompts');
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -74,7 +76,10 @@ const caches = new Map<Kind, Map<string, string>>();
  */
 function warnOnRecipesWithoutBody(prompts: Map<string, string>): void {
   if (prompts.size === 0) return; // directory not rolled out — already warned
-  const missing = SKILLS.filter((s) => !prompts.has(s.mention)).map((s) => s.mention);
+  // A code recipe (`codeRecipes.ts`) has its body here, not in the intern repo.
+  const missing = SKILLS.filter(
+    (s) => !prompts.has(s.mention) && !(s.mention in CODE_RECIPE_BODIES)
+  ).map((s) => s.mention);
   if (missing.length > 0) {
     log.warn(
       `${missing.length} public recipe(s) have no internal body: ${missing.join(', ')} — ` +
