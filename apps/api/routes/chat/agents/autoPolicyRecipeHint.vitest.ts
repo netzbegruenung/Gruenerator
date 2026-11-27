@@ -2,8 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 
 /**
  * Ein Rezept kann unter „Automatisch" eine Lane-Klasse verlangen, wie ein
- * Agent (`autoRoutingHint`). Heute trägt kein Systemrezept das Feld; der
- * Nachschlag ist deshalb gestellt — geprüft wird die Rangfolge in der Politik.
+ * Agent (`autoRoutingHint`); ohne eigenes Feld gilt der Hinweis des Agents,
+ * dem es gehört. Heute trägt kein Systemrezept das Feld; der Nachschlag ist
+ * deshalb gestellt — geprüft wird die Rangfolge in der Politik.
  */
 vi.mock('@gruenerator/shared/agents', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@gruenerator/shared/agents')>();
@@ -29,6 +30,18 @@ describe('autoPolicy — Rezept-Hinweis', () => {
     expect(resolveAutoSelection({ intent: 'direct', recipeMention: 'presse' }).modelId).toBe(
       resolveAutoSelection({ intent: 'direct' }).modelId
     );
+  });
+
+  it('ohne eigenen Hinweis gilt der des Agents, dem das Rezept gehört', () => {
+    // `@wahlpruefstein` gehört `gruenerator-wahlpruefsteine` (precise) und steht
+    // seit 11/2026 vor ihm (#6122) — auf dem Standard-Agenten dieselbe Lane.
+    expect(
+      resolveAutoSelection({
+        intent: 'direct',
+        agentId: 'gruenerator-universal',
+        recipeMention: 'wahlpruefstein',
+      }).modelId
+    ).toBe('mistral-medium-3.5');
   });
 
   it('der Hinweis des Agents gewinnt vor dem des Rezepts', () => {

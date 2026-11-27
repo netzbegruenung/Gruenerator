@@ -29,7 +29,11 @@
  * split mode was removed in #5441.
  */
 
-import { autoRoutingHintForSkillMention, getSystemAgent } from '@gruenerator/shared/agents';
+import {
+  autoRoutingHintForSkillMention,
+  getSystemAgent,
+  resolveSkillMention,
+} from '@gruenerator/shared/agents';
 import { type ChatIntentId, intentsWithDisposition } from '@gruenerator/shared/chat-intents';
 
 import {
@@ -40,7 +44,7 @@ import {
 
 import { getPipelineAgent } from './pipelines/index.js';
 
-import type { SearchIntent } from '@gruenerator/contracts';
+import type { AutoRoutingHint, SearchIntent } from '@gruenerator/contracts';
 
 /**
  * Reasoning strength. `off` means "do not think at all" — for the lanes that
@@ -404,6 +408,21 @@ export const MATERIAL_LANE_MIN_CHARS = 3_000;
 const PIPELINE_LANE: AutoEntry = { modelId: GEMMA, reasoning: 'off' };
 
 /**
+ * The class a recipe asks for: its own `autoRoutingHint`, else the one of the
+ * agent that owns it. The recipe stands in front of that agent since 11/2026
+ * (#6122), so `@bundestagsrecherche` on the universal agent keeps the lane the
+ * Bundestag agent had.
+ */
+function recipeRoutingHint(mention: string): AutoRoutingHint | null {
+  const owner = resolveSkillMention(mention);
+  return (
+    autoRoutingHintForSkillMention(mention) ??
+    (owner ? getSystemAgent(owner)?.autoRoutingHint : null) ??
+    null
+  );
+}
+
+/**
  * Resolve `auto` to a concrete lane + reasoning strength.
  *
  * Order: surface pin → pipeline pin → table lookup by intent → complexity
@@ -452,7 +471,7 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
   if (isHintOverridable(intent)) {
     const hint =
       (input.agentId ? getSystemAgent(input.agentId)?.autoRoutingHint : undefined) ??
-      (input.recipeMention ? autoRoutingHintForSkillMention(input.recipeMention) : null);
+      (input.recipeMention ? recipeRoutingHint(input.recipeMention) : null);
     if (hint === 'precise') modelId = MEDIUM;
   }
   // AFTER the agent hint on purpose: an output contract is the user's own

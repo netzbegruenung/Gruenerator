@@ -17,11 +17,7 @@
  * directly instead of the annotation-derived type.
  */
 
-import {
-  LANDESVERBAENDE,
-  lvIdForAgentIdentifier,
-  resolveSkillMention,
-} from '@gruenerator/shared/agents';
+import { LANDESVERBAENDE, resolveSkillMention } from '@gruenerator/shared/agents';
 
 import {
   isNotebookImplicitlySearchable,
@@ -79,10 +75,11 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
   // model, provider and systemRole of the active agent stay untouched, and an
   // explicitly selected non-default agent always wins.
   //
-  // A Landesverband recipe also brings its LV's notebook: since 11/2026 the
-  // LV recipes stand in front of the LV agents (hub, sidebar, `/chat?rezept=`),
-  // and without the notebook `@presse-bayern-partei` on the universal agent
-  // searched `deutschland` while the Bayern agent searched Bayern.
+  // The recipe also brings its owner's notebooks: since 11/2026 recipes stand
+  // in front of their agents (LV recipes in #6005, the rest in #6122), and
+  // without them `@presse-bayern-partei` on the universal agent searched
+  // `deutschland` while the Bayern agent searched Bayern, and `@wahlpruefstein`
+  // lost the federal programme notebooks.
   const scopeNotebookIds: string[] = [];
   if (input.activeSkillMention && agentId === getDefaultAgentId()) {
     const skillAgentId = resolveSkillMention(input.activeSkillMention);
@@ -100,9 +97,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
           `[ChatGraph] Skill ${input.activeSkillMention} adopted scoping from agent ${skillAgentId}`
         );
       }
-      if (skillAgent && lvIdForAgentIdentifier(skillAgentId)) {
-        scopeNotebookIds.push(...(skillAgent.defaultNotebookIds ?? []));
-      }
+      if (skillAgent) scopeNotebookIds.push(...(skillAgent.defaultNotebookIds ?? []));
     }
   }
 
