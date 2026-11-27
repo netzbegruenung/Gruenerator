@@ -345,6 +345,17 @@ describe('runAssertions — each failure class we hit live', () => {
     expect(names(rs)['topic:Vermögensteuer']).toBe(false);
   });
 
+  it('topicsCovered reads through markdown emphasis', () => {
+    const rs = runAssertions(
+      trace({ fullText: 'Das steht auf Seite **5**, und es sind __27__ Treffer.' }),
+      {
+        topicsCovered: ['seite 5', '27 treffer'],
+      }
+    );
+    expect(names(rs)['topic:seite 5']).toBe(true);
+    expect(names(rs)['topic:27 treffer']).toBe(true);
+  });
+
   it('correctsFalsePremise passes when the answer negates the premise', () => {
     expect(
       names(
