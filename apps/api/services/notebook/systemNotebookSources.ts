@@ -33,7 +33,7 @@ import {
   compareRows,
   DESC_BY_DEFAULT,
   FIND_MAX_LIMIT,
-  locateInJoined,
+  joinChunks,
   locateInOriginal,
   outlineSource,
   type ChunkLocator,
@@ -521,7 +521,7 @@ export async function readSystemSourceText(
       qdrantCollection: collection.qdrantCollection,
     })
   );
-  const joined = chunks.map((c) => c.text).join('\n\n');
+  const joined = joinChunks(chunks);
   const title = full.title || '(ohne Titel)';
   // `full_text` liegt nur auf manchen Chunk-0-Punkten; sonst IST der Text die
   // Verkettung der Chunks, und deren Offsets gelten. Ob er aus der Nutzlast
@@ -530,7 +530,7 @@ export async function readSystemSourceText(
   // Dokumenten ein abgeschnittener Text; dann gilt die geblätterte Verkettung.
   // Kein Längenvergleich: überlappende Chunks machen `joined` auch bei echtem
   // `full_text` länger.
-  const fromPayload = full.chunkCount === 1 && full.fullText !== joined;
+  const fromPayload = full.chunkCount === 1 && full.fullText !== joined.text;
   if (full.fullText && fromPayload) {
     return {
       title,
@@ -540,7 +540,7 @@ export async function readSystemSourceText(
       chunks,
     };
   }
-  return { title, text: joined, origin: 'chunks', chunkMap: locateInJoined(chunks), chunks };
+  return { title, ...joined, origin: 'chunks', chunks };
 }
 
 /**

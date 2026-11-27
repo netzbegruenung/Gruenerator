@@ -513,6 +513,48 @@ describe('readSourceText', () => {
   });
 });
 
+describe('readSourceText — chunk overlap (#6144)', () => {
+  const a = 'Der Radweg kommt 2027 an die B 12. Die Stadt zahlt die Hälfte der Kosten.';
+  const b = 'Die Stadt zahlt die Hälfte der Kosten. Baustart ist im April, sagt der Kreis.';
+
+  it('keeps the overlap the chunker repeats only once', async () => {
+    const { deps } = makeDeps({
+      markdown: '',
+      chunks: [chunk({ index: 0, text: a }), chunk({ index: 1, text: b })],
+    });
+    const out = await readSourceText({ sourceId: 'd1', ownerUserId: 'o' }, deps);
+    expect(out.text).toBe(
+      'Der Radweg kommt 2027 an die B 12. Die Stadt zahlt die Hälfte der Kosten. Baustart ist im April, sagt der Kreis.'
+    );
+    expect(out.text.match(/Hälfte/g)).toHaveLength(1);
+    const second = out.chunkMap[1]!;
+    expect(out.text.slice(second.charStart, second.charEnd)).toBe(b);
+  });
+
+  it('keeps a repeat longer than the chunker overlap twice', async () => {
+    const block = 'Ein Absatz, der im Text wirklich zweimal steht. '.repeat(12).trim();
+    expect(block.length).toBeGreaterThan(400);
+    const { deps } = makeDeps({
+      markdown: '',
+      chunks: [chunk({ index: 0, text: block }), chunk({ index: 1, text: block })],
+    });
+    const out = await readSourceText({ sourceId: 'd1', ownerUserId: 'o' }, deps);
+    expect(out.text.length).toBeGreaterThan(block.length * 2 - 400);
+  });
+
+  it('separates chunks whose shared start is shorter than the minimum', async () => {
+    const { deps } = makeDeps({
+      markdown: '',
+      chunks: [
+        chunk({ index: 0, text: 'Kapitel eins endet.' }),
+        chunk({ index: 1, text: 'endet. Neu' }),
+      ],
+    });
+    const out = await readSourceText({ sourceId: 'd1', ownerUserId: 'o' }, deps);
+    expect(out.text).toBe('Kapitel eins endet.\n\nendet. Neu');
+  });
+});
+
 describe('readSourceText — failed chunk reads', () => {
   it('throws when the chunk read fails, instead of reading as "no pages"', async () => {
     const { deps } = makeDeps({ markdown: 'Text', chunkError: 'Qdrant not available' });
