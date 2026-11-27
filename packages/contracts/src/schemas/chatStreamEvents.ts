@@ -138,6 +138,9 @@ export const chatWarningCodeSchema = z.enum([
   // Notebook-Seite: Präzision war ausdrücklich gewählt, aber kein Notebook der
   // Seite ist für `notebook_quellen` lesbar — die Antwort läuft im Chatmodus.
   'notebook_praezision_unavailable',
+  // Notebook-Seite: das gewählte Rezept hat keinen Text (unbekannt, nicht mehr
+  // freigegeben, interner Inhalt fehlt) — die Antwort kommt ohne Formvorgabe.
+  'notebook_recipe_unavailable',
   // Compute
   'compute_failed',
   // Provider / privacy
@@ -1039,3 +1042,18 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
  * Nothing intent-shaped belongs here any more: this file owns the wire enum
  * (`searchIntentSchema` above), and the registry is keyed by it.
  */
+
+/**
+ * Rezept-Attribution einer Antwort: welche Schreibvorgabe(n) sie geformt
+ * haben — dezent unter der Antwort ausgewiesen („Rezept: …"). Chat (`done`)
+ * und Notebook-Seite (`completion`) senden dieselbe Form und speichern sie als
+ * `recipesUsed` an der Assistant-Zeile; `id` trägt eine Nutzerzeile.
+ */
+export const recipeUsedSchema = z.object({
+  mention: z.string(),
+  title: z.string(),
+  source: z.enum(['system', 'user']).optional(),
+  id: z.string().optional(),
+});
+export type RecipeUsed = z.infer<typeof recipeUsedSchema>;
+export const recipesUsedSchema = z.array(recipeUsedSchema);

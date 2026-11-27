@@ -216,6 +216,7 @@ export const DECISION_POINTS = {
       'guard_fallback',
       'ineligible',
       'default',
+      'recipe',
     ],
   },
 } as const satisfies Record<string, { readonly branches: readonly string[] }>;

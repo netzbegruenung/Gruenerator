@@ -3,6 +3,9 @@ import {
   isAdminVisibleSkill,
   isLvItemVisibleForRoles,
   isSkillOfferedIn,
+  LANDESVERBAENDE,
+  landesverbandAgentIds,
+  skillRole,
 } from '@gruenerator/shared/agents';
 import {
   allIntentMentions,
@@ -295,14 +298,34 @@ export function setScheduledTasksEnabled(enabled: boolean): void {
  * what the instance carries by construction. Discovery only — `resolveMentionable`
  * stays unfiltered so an existing @mention keeps resolving.
  */
+function isOfferedSkill(m: Mentionable): boolean {
+  return (
+    !isSkillAbsorbedByMention(m.mention) &&
+    (m.audience === undefined || m.audience === 'all' || m.audience === mentionLocale) &&
+    isAdminVisibleSkill(m.mention, hiddenSkillMentions) &&
+    isSkillOfferedIn(m, getMentionInstance())
+  );
+}
+
 export function getAgentMentionables(): Mentionable[] {
   return agentMentionables.filter(
-    (m) =>
-      !isSkillAbsorbedByMention(m.mention) &&
-      (m.audience === undefined || m.audience === 'all' || m.audience === mentionLocale) &&
-      isAdminVisibleSkill(m.mention, hiddenSkillMentions) &&
-      isSkillOfferedIn(m, getMentionInstance()) &&
-      isLvItemVisibleForRoles(m.identifier, mentionLandesverbaende)
+    (m) => isOfferedSkill(m) && isLvItemVisibleForRoles(m.identifier, mentionLandesverbaende)
+  );
+}
+
+/**
+ * Die Textsorten-Rezepte des Landesverbands, dem ein System-Notebook gehört
+ * (`bayern-notebook` → `wahlpruefstein-bayern`, `presse-bayern-partei`, …), für
+ * den Rezept-Wähler der Notebook-Seite. Ohne Rollenbindung: wer das
+ * LV-Notebook öffnet, bekommt seine Rezepte. Locale, Admin-Ausblendung und Instanz gelten weiter.
+ * Methoden-Rezepte fehlen: sie steuern eine Recherche, keine Form.
+ */
+export function landesverbandRecipeMentionables(notebookId: string | null): Mentionable[] {
+  const lv = notebookId ? LANDESVERBAENDE.find((l) => l.notebookId === notebookId) : undefined;
+  if (!lv) return [];
+  const owners = new Set(landesverbandAgentIds(lv));
+  return agentMentionables.filter(
+    (m) => owners.has(m.identifier) && isOfferedSkill(m) && skillRole(m.mention) === 'textsorte'
   );
 }
 

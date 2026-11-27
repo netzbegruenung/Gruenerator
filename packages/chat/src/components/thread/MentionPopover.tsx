@@ -4,7 +4,11 @@ import { useEffect, useMemo, useRef } from 'react';
 
 import { mentionableKey, type Mentionable } from '../../lib/mentionables';
 import { getFilteredMentionables } from '../../lib/mentionDetection';
-import { buildMentionSections, countMentionSectionItems } from '../../lib/mentionSections';
+import {
+  buildMentionSections,
+  countMentionSectionItems,
+  type MentionSection,
+} from '../../lib/mentionSections';
 import { phosphorAgentIcon } from '../../lib/phosphorAgentIcon';
 
 import { MentionFloatingPanel } from './MentionFloatingPanel';
@@ -16,6 +20,8 @@ interface MentionPopoverProps {
   onDismiss: () => void;
   selectedIndex: number;
   anchorRect: { x: number; y: number } | null;
+  /** A surface's own list instead of the combined one (see `mentionSource`). */
+  sections?: MentionSection[];
 }
 
 export function MentionPopover({
@@ -25,13 +31,14 @@ export function MentionPopover({
   onDismiss,
   selectedIndex,
   anchorRect,
+  sections: ownSections,
 }: MentionPopoverProps) {
   const listRef = useRef<HTMLDivElement>(null);
 
   // Not memoised on `query` alone: `filterMentionables` reads module-level lists
   // that `mentionableSync` refills asynchronously, and those writes are what a
   // re-render is meant to pick up.
-  const sections = buildMentionSections(query);
+  const sections = ownSections ?? buildMentionSections(query);
   const totalItems = countMentionSectionItems(sections);
 
   useEffect(() => {

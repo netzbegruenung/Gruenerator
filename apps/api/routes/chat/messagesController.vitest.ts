@@ -100,6 +100,24 @@ describe('GET /api/chat-service/messages — notebook source tier', () => {
   });
 });
 
+describe('GET /api/chat-service/messages — recipe attribution', () => {
+  it('passes the recipes a turn used through, so „Rezept: …" survives a reload', async () => {
+    const recipesUsed = [
+      { mention: 'leichte-sprache', title: 'Leichte Sprache', source: 'system' },
+      { mention: 'mein-stil', title: 'Mein Stil', source: 'user', id: 'r-1' },
+    ];
+    expect((await load({ intent: 'direct', recipesUsed })).recipesUsed).toEqual(recipesUsed);
+  });
+
+  it('drops an empty list and malformed entries', async () => {
+    expect(await load({ intent: 'direct', recipesUsed: [] })).not.toHaveProperty('recipesUsed');
+    expect(await load({ intent: 'direct', recipesUsed: [{ title: 7 }] })).not.toHaveProperty(
+      'recipesUsed'
+    );
+    expect(await load({ intent: 'direct' })).not.toHaveProperty('recipesUsed');
+  });
+});
+
 describe('GET /api/chat-service/messages — attachment preview', () => {
   it('strips the page markers a PDF attachment carries for the model', async () => {
     query.mockResolvedValueOnce([

@@ -13,7 +13,9 @@ import {
   notebookMentionables,
   supportsSourceTier,
   useAgentStore,
+  useNotebookRecipeGroups,
   type CategoryFilterConfig,
+  type Mentionable,
   type CitationOriginalViewer,
   type CategoryFilterField,
   type NotebookMessageMetadata,
@@ -32,9 +34,19 @@ import { useAuthStore } from '../../../stores/authStore';
 import { whenIdle } from '../../../utils/whenIdle';
 import { useModelPreferences } from '../../models/hooks/useModelPreferences';
 import { useRecordItemUsage } from '../../usage/useItemUsage';
-import { buildChatHandoffUrl, createRepeatGuard, readChatHandoff } from '../chatHandoff';
-import { getNotebookConfig } from '../config/notebookPagesConfig';
-import { getNotebookById } from '../config/notebooksConfig';
+import {
+  buildChatHandoffUrl,
+  createRepeatGuard,
+  readChatHandoff,
+  RECIPE_ID_PARAM,
+  RECIPE_PARAM,
+} from '../chatHandoff';
+import {
+  getNotebookConfig,
+  getNotebookConfigByCollectionId,
+  getNotebookPath,
+} from '../config/notebookPagesConfig';
+import { getNotebookById, getNotebookByPath } from '../config/notebooksConfig';
 import { useNotebookChatBridge } from '../hooks/useNotebookChatBridge';
 import { useNotebookCollection } from '../hooks/useNotebookCollection';
 import { prefetchNotebookOverview } from '../hooks/useNotebookOverview';
@@ -168,6 +180,15 @@ export const NotebookPageContent = ({
   const setAnswerMode = useAgentStore((s) => s.setNotebookAnswerMode);
   const answerMode = notebookComposerModeDef(storedAnswerMode).mode;
   const [searchParams, setSearchParams] = useSearchParams();
+  // The query string as of the latest render. `setSearchParams(prev => …)`
+  // hands over the `prev` of the render that created the callback, and the
+  // `thread_created` callback can run on an older one: it lands right after
+  // `PendingQuestionSender` dropped `?frage=`, and live (27.11.2026) `prev`
+  // put the question back into the URL, so every reload sent it again.
+  const searchParamsRef = useRef(searchParams);
+  useEffect(() => {
+    searchParamsRef.current = searchParams;
+  }, [searchParams]);
   // A question opened from another tab's start page, with the filters it was
   // asked under — read once, the sender clears the params after sending.
   const [handoff] = useState(() => readChatHandoff(searchParams));
@@ -181,14 +202,66 @@ export const NotebookPageContent = ({
       setThreadId(newThreadId);
       // Put the fresh conversation in the URL so reloading stays inside it.
       setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
+        () => {
+          const next = new URLSearchParams(searchParamsRef.current);
           next.set('thread', newThreadId);
           return next;
         },
         { replace: true }
       );
     },
+    [setSearchParams]
+  );
+
+  // Das Rezept steht in der URL (`?rezept=`, `?rezeptId=` wie auf /chat): so
+  // überlebt es den Reload und geht mit einer Frage in den neuen Tab. Gesendet
+  // wird, was in der URL steht; die Liste liefert nur Titel und Symbol.
+  const notebookRegistryId = useMemo(() => {
+    const pageConfig = systemCollectionId
+      ? getNotebookConfigByCollectionId(systemCollectionId)
+      : undefined;
+    return pageConfig ? (getNotebookByPath(getNotebookPath(pageConfig))?.id ?? null) : null;
+  }, [systemCollectionId]);
+  const { groups: recipeGroups, find: findRecipe } = useNotebookRecipeGroups(notebookRegistryId);
+  const recipeMention = searchParams.get(RECIPE_PARAM);
+  const recipeId = searchParams.get(RECIPE_ID_PARAM);
+  const recipeChoice = useMemo(
+    () => (recipeMention ? { mention: recipeMention, recipeId } : null),
+    [recipeMention, recipeId]
+  );
+  const recipe = useMemo<Mentionable | null>(() => {
+    if (!recipeMention) return null;
+    return (
+      findRecipe(recipeMention, recipeId) ?? {
+        // Until the list knows it: the short name, under the key the listed
+        // recipe will have, so the settings panel marks it once it loads.
+        type: recipeId ? 'textform' : 'agent',
+        category: 'skill',
+        trigger: '@',
+        identifier: recipeId ?? recipeMention,
+        title: recipeMention,
+        description: '',
+        avatar: '',
+        backgroundColor: '',
+        mention: recipeMention,
+      }
+    );
+  }, [recipeMention, recipeId, findRecipe]);
+  const setRecipe = useCallback(
+    (next: Mentionable | null) =>
+      setSearchParams(
+        () => {
+          const params = new URLSearchParams(searchParamsRef.current);
+          params.delete(RECIPE_PARAM);
+          params.delete(RECIPE_ID_PARAM);
+          if (next) {
+            params.set(RECIPE_PARAM, next.mention);
+            if (next.type === 'textform') params.set(RECIPE_ID_PARAM, next.identifier);
+          }
+          return params;
+        },
+        { replace: true }
+      ),
     [setSearchParams]
   );
 
@@ -312,11 +385,15 @@ export const NotebookPageContent = ({
   const openChatTab = useCallback(
     (question: string) => {
       if (isRepeatSubmit(question)) return;
-      const url = buildChatHandoffUrl(location.pathname, {
-        question,
-        filters: systemCollectionId ? keywordFilters(activeFiltersStore[systemCollectionId]) : {},
-        sourceIds: isMulti && selectedIds.length < localeCollections.length ? selectedIds : null,
-      });
+      const url = buildChatHandoffUrl(
+        location.pathname,
+        {
+          question,
+          filters: systemCollectionId ? keywordFilters(activeFiltersStore[systemCollectionId]) : {},
+          sourceIds: isMulti && selectedIds.length < localeCollections.length ? selectedIds : null,
+        },
+        recipeChoice
+      );
       window.open(url, '_blank', 'noopener');
     },
     [
@@ -327,6 +404,7 @@ export const NotebookPageContent = ({
       isMulti,
       selectedIds,
       localeCollections.length,
+      recipeChoice,
     ]
   );
 
@@ -406,7 +484,8 @@ export const NotebookPageContent = ({
       mode={mode}
       {...(offersSourceTier ? { sourceTier } : {})}
       answerMode={toNotebookAnswerMode(answerMode)}
-      magicSearch={answerMode === 'auto'}
+      magicSearch={answerMode === 'auto' && !recipeChoice}
+      recipe={recipeChoice}
       documentIds={documentIds}
       offerExplainable
     >
@@ -441,6 +520,9 @@ export const NotebookPageContent = ({
                   pageGradient={pageGradient}
                   footer={startpageFooter}
                   onOpenChat={openChatTab}
+                  recipe={recipe}
+                  recipeGroups={recipeGroups}
+                  onRecipeChange={setRecipe}
                 />
               </div>
             </AuiIf>
@@ -473,6 +555,9 @@ export const NotebookPageContent = ({
                     answerMode={answerMode}
                     onAnswerModeChange={setAnswerMode}
                     settingsClassName={NOTEBOOK_COMPOSER_ACCENT}
+                    recipe={recipe}
+                    recipeGroups={recipeGroups}
+                    onRecipeChange={setRecipe}
                   />
                 </div>
               </div>

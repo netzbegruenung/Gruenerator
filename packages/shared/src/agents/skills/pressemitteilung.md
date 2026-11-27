@@ -10,4 +10,5 @@ skillCategory: presse
 isSystemDefault: true
 promptTemplate: 'Schreibe eine PM zum Thema: '
 order: 4
+recommendedTools: ['gruenerator_pressemitteilung_examples']
 ---
