@@ -507,6 +507,25 @@ export function locateInJoined(chunks: DocumentChunkItem[]): ChunkLocator[] {
   });
 }
 
+/**
+ * Der Lesetext einer Quelle: das gespeicherte Original, wo es eins gibt, sonst
+ * die Verkettung der Chunks — samt Offsets jedes Chunks im gewählten Text.
+ * Eine Regel für die Lese-Werkzeuge und die Zitat-Seitenleiste.
+ */
+export function composeSourceText(
+  original: string | null,
+  chunks: DocumentChunkItem[]
+): { text: string; fromOriginal: boolean; chunkMap: ChunkLocator[] } {
+  if (original?.trim()) {
+    return { text: original, fromOriginal: true, chunkMap: locateInOriginal(original, chunks) };
+  }
+  return {
+    text: chunks.map((c) => c.text).join('\n\n'),
+    fromOriginal: false,
+    chunkMap: locateInJoined(chunks),
+  };
+}
+
 /** Der Fehlertext von `getDocumentChunks` für eine Quelle ohne Chunks. */
 const NO_CHUNKS_FOUND = 'No chunks found';
 
@@ -533,19 +552,11 @@ export async function readSourceText(
     deps.documentService.getDocumentChunks(input.ownerUserId, input.sourceId),
   ]);
   const chunks = chunksOrThrow(chunkResult);
-  const original = rows[0]?.markdown_content ?? '';
-  if (original.trim()) {
-    return {
-      text: original,
-      origin: 'original',
-      chunkMap: locateInOriginal(original, chunks),
-      chunks,
-    };
-  }
+  const composed = composeSourceText(rows[0]?.markdown_content ?? null, chunks);
   return {
-    text: chunks.map((c) => c.text).join('\n\n'),
-    origin: 'chunks',
-    chunkMap: locateInJoined(chunks),
+    text: composed.text,
+    origin: composed.fromOriginal ? 'original' : 'chunks',
+    chunkMap: composed.chunkMap,
     chunks,
   };
 }

@@ -129,11 +129,46 @@ describe('CitationSidePanel — Darstellung', () => {
     expect(screen.queryByText(/Abschnitt \d+ von/)).not.toBeInTheDocument();
   });
 
-  it('trennt die Passage von ihrer Umgebung', async () => {
+  it('zeigt das ganze Dokument als einen Text, nur das Zitat markiert', async () => {
     render(<Harness sources={[source()]} />);
-    expect(await screen.findByText('Zitierte Passage')).toBeInTheDocument();
-    expect(screen.getByText('Kontext davor')).toBeInTheDocument();
-    expect(screen.getByText('Kontext danach')).toBeInTheDocument();
+    const mark = await screen.findByText('informellen Spielregeln machen');
+    const body = mark.closest('p');
+    expect(body).toHaveTextContent(CHUNKS[0]!.text);
+    expect(body).toHaveTextContent(CHUNKS[2]!.text);
+    expect(body?.querySelectorAll('mark')).toHaveLength(1);
+    expect(screen.queryByText('Kontext davor')).not.toBeInTheDocument();
+    expect(screen.queryByText('Zitierte Passage')).not.toBeInTheDocument();
+  });
+
+  it('liest den gespeicherten Volltext und markiert über die Chunk-Offsets', async () => {
+    // Der Volltext hat Struktur, die die Chunks nicht tragen (Überschrift,
+    // Absätze); der Satz steht zweimal — markiert wird der im zitierten Chunk.
+    const fullText =
+      '# Kapitel 3\n\nSo regeln wir es.\n\nWir regeln es so: So regeln wir es.\n\nEnde.';
+    const second = fullText.lastIndexOf('So regeln wir es.');
+    useChatConfigStore.getState().configure({
+      fetch: async () =>
+        chunksResponse(
+          'doc-1',
+          [
+            { index: 0, text: 'So regeln wir es.', tokens: 4 },
+            { index: 1, text: 'Wir regeln es so: So regeln wir es.', tokens: 8 },
+          ],
+          {
+            full_text: fullText,
+            chunk_map: [
+              { index: 0, charStart: 14, charEnd: 31 },
+              { index: 1, charStart: second - 18, charEnd: second + 17 },
+            ],
+          }
+        ),
+    });
+    render(<Harness sources={[source({ chunkIndex: 1, citedText: 'So regeln wir es.' })]} />);
+    const mark = await screen.findByText('So regeln wir es.', { selector: 'mark' });
+    const body = mark.closest('p')!;
+    expect(body.textContent).toBe(fullText);
+    expect(body.textContent!.indexOf(mark.textContent!, second)).toBe(second);
+    expect(mark.previousSibling?.textContent).toBe(fullText.slice(0, second));
   });
 
   it('blättert durch die Quellen einer Antwort, ohne zu schließen', async () => {
@@ -152,14 +187,14 @@ describe('CitationSidePanel — Darstellung', () => {
 
   it('blendet den Blätterfuß bei einer einzigen Quelle aus', async () => {
     render(<Harness sources={[source()]} />);
-    await screen.findByText('Zitierte Passage');
+    await screen.findByText('informellen Spielregeln machen');
     expect(screen.queryByRole('button', { name: /Weiter/ })).not.toBeInTheDocument();
   });
 
   it('zeigt das Dokument weiter, wenn der zitierte Chunk nach Neu-Indizierung fehlt', async () => {
-    render(<Harness sources={[source({ chunkIndex: 99 })]} />);
-    expect(await screen.findByText('Originaltext')).toBeInTheDocument();
-    expect(screen.queryByText('Zitierte Passage')).not.toBeInTheDocument();
+    render(<Harness sources={[source({ chunkIndex: 99, citedText: undefined })]} />);
+    expect(await screen.findByText(/Vorlauf: worum es im Kapitel geht/)).toBeInTheDocument();
+    expect(document.querySelector('mark')).toBeNull();
     // Auch ohne Hervorhebung bleibt das Dokument gerahmt.
     expect(screen.getByText('Anfang des Dokuments')).toBeInTheDocument();
     expect(screen.getByText('Ende des Dokuments')).toBeInTheDocument();
@@ -169,10 +204,11 @@ describe('CitationSidePanel — Darstellung', () => {
     // Ohne die Rahmung liest sich ein vollständiges kurzes Dokument wie ein
     // abgeschnittenes — genau so entstand der Befund „nur ein Kapitel davor".
     render(<Harness sources={[source({ chunkIndex: 0, citedText: undefined })]} />);
-    await screen.findByText('Zitierte Passage');
+    // Ohne auffindbares Zitat ist der zitierte Chunk selbst markiert.
+    const mark = await screen.findByText(CHUNKS[0]!.text, { selector: 'mark' });
+    expect(mark).toBeInTheDocument();
     expect(screen.getByText('Anfang des Dokuments')).toBeInTheDocument();
     expect(screen.getByText('Ende des Dokuments')).toBeInTheDocument();
-    expect(screen.queryByText('Kontext davor')).not.toBeInTheDocument();
   });
 
   it('bietet am Dokumentende den Sprung zur vollständigen Quelle an', async () => {
@@ -183,7 +219,7 @@ describe('CitationSidePanel — Darstellung', () => {
 
   it('lässt den Quellen-Sprung weg, wenn keine URL bekannt ist', async () => {
     render(<Harness sources={[source({ sourceUrl: '' })]} />);
-    await screen.findByText('Zitierte Passage');
+    await screen.findByText('informellen Spielregeln machen');
     expect(
       screen.queryByRole('link', { name: 'Vollständige Quelle öffnen' })
     ).not.toBeInTheDocument();
@@ -199,7 +235,7 @@ describe('CitationSidePanel — Darstellung', () => {
 
   it('hat keine axe-Verstöße', async () => {
     const { baseElement } = render(<Harness sources={[source()]} />);
-    await screen.findByText('Zitierte Passage');
+    await screen.findByText('informellen Spielregeln machen');
     await waitFor(async () => {
       expect(await axe(baseElement)).toHaveNoViolations();
     });
@@ -309,7 +345,7 @@ describe('CitationSidePanel — gespeichertes Original', () => {
 
   it('zeigt keinen Knopf ohne gespeichertes Original', async () => {
     render(<Harness sources={[source()]} />);
-    await screen.findByText('Zitierte Passage');
+    await screen.findByText('informellen Spielregeln machen');
     const originals = screen
       .queryAllByRole('link')
       .filter((a) => a.getAttribute('href')?.includes('/original'));
@@ -353,7 +389,7 @@ describe('CitationSidePanel — PDF-Ansicht', () => {
     render(<Harness sources={sources} originalViewer={viewer} />);
 
     const pdf = await screen.findByRole('button', { name: 'PDF', pressed: false });
-    expect(screen.getByText('Zitierte Passage')).toBeVisible();
+    expect(screen.getByText('informellen Spielregeln machen')).toBeVisible();
     await user.click(pdf);
 
     expect(await screen.findByTestId('pdf-viewer')).toBeInTheDocument();
@@ -415,7 +451,7 @@ describe('CitationSidePanel — PDF-Ansicht', () => {
         }),
     });
     render(<Harness sources={[source({ documentTitle: 'notiz.txt' })]} originalViewer={viewer} />);
-    await screen.findByText('Zitierte Passage');
+    await screen.findByText('informellen Spielregeln machen');
     expect(screen.queryByRole('button', { name: 'PDF' })).not.toBeInTheDocument();
   });
 });
