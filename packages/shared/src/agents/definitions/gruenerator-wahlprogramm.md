@@ -1,6 +1,9 @@
 ---
 iconKey: book-open-text
 identifier: gruenerator-wahlprogramm
+# Seit 11/2026 aus allen Listen (#6122): kaum genutzt, ohne eigenes Rezept.
+# Bleibt auflösbar für alte Threads.
+hiddenFromInventory: true
 autoRoutingHint: creative
 title: Wahlprogramm
 description: Erstellt strukturierte Wahlprogramm-Kapitel mit konkreten Forderungen und zukunftsorientierter Sprache.

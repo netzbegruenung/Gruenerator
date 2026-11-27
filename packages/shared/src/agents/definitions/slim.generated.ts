@@ -90,7 +90,7 @@ export const AGENT_SLIMS: readonly AgentSlim[] = [
     identifier: 'gruenerator-ricarda-lang',
     title: 'Tweet like Ricarda',
     iconKey: 'bird',
-    pinnedToSidebar: true,
+    hiddenFromInventory: true,
     audience: 'de-DE',
   },
   {
@@ -99,7 +99,12 @@ export const AGENT_SLIMS: readonly AgentSlim[] = [
     iconKey: 'chats-circle',
   },
   { identifier: 'gruenerator-rede-schreiber', title: 'Rede', iconKey: 'microphone' },
-  { identifier: 'gruenerator-wahlprogramm', title: 'Wahlprogramm', iconKey: 'book-open-text' },
+  {
+    identifier: 'gruenerator-wahlprogramm',
+    title: 'Wahlprogramm',
+    iconKey: 'book-open-text',
+    hiddenFromInventory: true,
+  },
   { identifier: 'gruenerator-leichte-sprache', title: 'Leichte Sprache', iconKey: 'hand-heart' },
   {
     identifier: 'gruenerator-docs-editor',
@@ -149,6 +154,7 @@ export const AGENT_SLIMS: readonly AgentSlim[] = [
     identifier: 'gruenerator-abgeordnetenwatch',
     title: 'Abgeordnetenwatch',
     iconKey: 'scales',
+    hiddenFromInventory: true,
     audience: 'de-DE',
   },
   { identifier: 'gruenerator-bundestag', title: 'Bundestag', iconKey: 'bank', audience: 'de-DE' },
