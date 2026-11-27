@@ -87,7 +87,7 @@ describe('RoleShortcutsSidebarSection — Landesverband', () => {
     expect(chat.chatViewMode).toBe('overview');
   });
 
-  it('starts a new chat with an LV recipe and links notebook and Marktplatz', async () => {
+  it('opens an LV recipe in the LV notebook and links notebook and Marktplatz', async () => {
     const user = userEvent.setup();
     const { onNavigate } = renderSection([lvShortcut()]);
     await user.click(screen.getByRole('button', { name: berlin.name }));
@@ -104,10 +104,14 @@ describe('RoleShortcutsSidebarSection — Landesverband', () => {
     expect(screen.getByRole('menuitem', { name: 'Notebook' })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'Alle Rezepte' })).toBeInTheDocument();
 
+    // The recipe shapes an answer from the LV's own sources, not a chat turn.
     await user.click(screen.getByRole('menuitem', { name: recipes[0]!.title }));
     expect(onNavigate).toHaveBeenCalledWith(
-      `/chat?rezept=${recipes[0]!.mention}`,
+      `/notebooks/berlin?rezept=${recipes[0]!.mention}`,
       recipes[0]!.title
+    );
+    expect(lvShortcut().starters.links.map((l) => l.path)).toEqual(
+      recipes.map((r) => `/notebooks/berlin?rezept=${r.mention}`)
     );
   });
 

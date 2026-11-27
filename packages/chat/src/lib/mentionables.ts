@@ -317,8 +317,7 @@ export function getAgentMentionables(): Mentionable[] {
  * Die Textsorten-Rezepte des Landesverbands, dem ein System-Notebook gehört
  * (`bayern-notebook` → `wahlpruefstein-bayern`, `presse-bayern-partei`, …), für
  * den Rezept-Wähler der Notebook-Seite. Ohne Rollenbindung: wer das
- * LV-Notebook öffnet, bekommt seine Rezepte — wie die Karte „Agents" der
- * Notebook-Übersicht. Locale, Admin-Ausblendung und Instanz gelten weiter.
+ * LV-Notebook öffnet, bekommt seine Rezepte. Locale, Admin-Ausblendung und Instanz gelten weiter.
  * Methoden-Rezepte fehlen: sie steuern eine Recherche, keine Form.
  */
 export function landesverbandRecipeMentionables(notebookId: string | null): Mentionable[] {
