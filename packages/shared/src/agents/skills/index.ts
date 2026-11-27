@@ -68,6 +68,17 @@ export function resolveSkillMention(alias: string): string | null {
   return mentionMap.get(canonicalSkillMention(alias).toLowerCase()) ?? null;
 }
 
+const recipeOwners = new Set<string>(SKILLS.map((skill) => skill.identifier));
+
+/**
+ * Gehört diesem Agenten mindestens ein Systemrezept? Dann steht das Rezept vor
+ * ihm: der Marktplatz listet den Agenten nicht mehr, aufgelöst wird er weiter
+ * (alte Threads, Links, Likes). Seit 11/2026, #6122.
+ */
+export function ownsSystemRecipe(agentIdentifier: string): boolean {
+  return recipeOwners.has(agentIdentifier);
+}
+
 /**
  * Gibt es zu dieser Mention ein MITGELIEFERTES Rezept?
  *
@@ -105,6 +116,22 @@ const ebeneMap = new Map<string, LvEbene>(
  */
 export function lvEbeneForSkillMention(mention: string): LvEbene | null {
   return ebeneMap.get(canonicalSkillMention(mention).toLowerCase()) ?? null;
+}
+
+const hintMap = new Map<string, NonNullable<SystemSkill['autoRoutingHint']>>(
+  (SKILLS as readonly SystemSkill[]).flatMap((skill) =>
+    skill.autoRoutingHint ? [[skill.mention.toLowerCase(), skill.autoRoutingHint] as const] : []
+  )
+);
+
+/**
+ * Die Lane-Klasse, die ein Systemrezept unter „Automatisch" verlangt, oder null.
+ * Ausgewertet von `resolveAutoSelection` in der API, nach dem Hinweis des Agents.
+ */
+export function autoRoutingHintForSkillMention(
+  mention: string
+): SystemSkill['autoRoutingHint'] | null {
+  return hintMap.get(canonicalSkillMention(mention).toLowerCase()) ?? null;
 }
 
 const roleMap = new Map<string, SkillRole>(

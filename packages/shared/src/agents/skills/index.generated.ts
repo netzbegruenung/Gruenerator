@@ -1261,4 +1261,30 @@ export const SKILLS = [
       'nuudel_umfrage_loeschen',
     ],
   },
+  {
+    identifier: 'gruenerator-einfache-sprache',
+    title: 'Einfache Sprache',
+    description:
+      'Überträgt einen vorhandenen Text vollständig in Einfache Sprache (B1) und prüft die Fassung in getrennten Schritten nach. Nutzen, wenn ein Beschluss, Antrag oder Pressetext verständlicher werden soll.',
+    iconKey: 'PiTranslate',
+    avatar: '📖',
+    backgroundColor: '#316049',
+    mention: 'einfache-sprache',
+    skillCategory: 'dokumente',
+    audience: 'all',
+    promptTemplate: 'Übertrage diesen Text in Einfache Sprache: ',
+  },
+  {
+    identifier: 'gruenerator-leichte-sprache',
+    title: 'Leichte Sprache',
+    description:
+      'Überträgt einen vorhandenen Text in Leichte Sprache nach den Regeln des Netzwerks Leichte Sprache und prüft die Fassung nach. Nutzen, wenn Menschen den Text verstehen sollen, die nicht gut lesen können.',
+    iconKey: 'PiChatCircle',
+    avatar: '🗣️',
+    backgroundColor: '#316049',
+    mention: 'leichte-sprache',
+    skillCategory: 'dokumente',
+    audience: 'all',
+    promptTemplate: 'Übertrage diesen Text in Leichte Sprache: ',
+  },
 ] as const satisfies readonly SystemSkill[];
