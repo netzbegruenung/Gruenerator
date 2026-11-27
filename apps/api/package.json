@@ -140,6 +140,7 @@
     "winston": "^3.19.0",
     "winston-transport": "^4.9.0",
     "ws": "^8.23.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "yjs": "^13.6.33",
     "zod": "^4.6.6"
   },

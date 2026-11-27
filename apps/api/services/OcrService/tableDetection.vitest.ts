@@ -112,6 +112,45 @@ describe('Tabellenerkennung — gebaute Seiten', () => {
     expect(pageHasTable(items)).toBe(false);
   });
 
+  it('erkennt eine an den Inhalt angepasste Tabelle mit nur dem Zellpolster als Lücke', () => {
+    // Geometrie aus einem Chromium-PDF einer gewöhnlichen Tabelle mit Rahmen
+    // (4px Polster, 12pt): zwischen „1.250.000 €" und „1.310.000 €" liegen
+    // 12,7 pt = 1,06 em. Mit der alten Schwelle von 2 em verschmolzen die drei
+    // hinteren Spalten zu einer Zelle.
+    const item = (str: string, x: number, width: number, y: number): PdfTextItem => ({
+      str,
+      transform: [12, 0, 0, 12, x, y],
+      width,
+    });
+    const rows: Array<[string, number, string, number, string, number, string, number]> = [
+      ['Posten', 40, '2025', 26.7, '2026', 26.7, 'Änderung', 56.7],
+      ['Personal', 47.4, '1.250.000 €', 63.4, '1.310.000 €', 63.4, '+4,8 %', 37.7],
+      ['Sachkosten', 62.7, '420.000 €', 53.4, '398.000 €', 53.4, '−5,2 %', 37.7],
+      ['Investitionen', 67.4, '2.100.000 €', 63.4, '2.650.000 €', 63.4, '+26,2 %', 44.4],
+    ];
+    const items = rows.flatMap(([a, aw, b, bw, c, cw, d, dw], i) => {
+      const y = 723.6 - i * 20.2;
+      return [
+        item(a, 63.4, aw, y),
+        item(b, 143.6, bw, y),
+        item(c, 219.7, cw, y),
+        item(d, 295.9, dw, y),
+      ];
+    });
+    expect(pageHasTable(items)).toBe(true);
+  });
+
+  it('zählt gedrehten Text nicht als Spalte', () => {
+    // Nummerierte Absätze mit einer senkrechten Randmarke daneben: ohne den
+    // Filter ergäben Nummer, Text und Randmarke drei Spalten.
+    const items = [700, 686, 672].flatMap((y, i) => [
+      at(`(${i + 55})`, 40, y),
+      at(PROSE.slice(0, 40), 80, y),
+      { str: 'Kapitel 1', transform: [0, 6, -6, 0, 402, y], width: 30 },
+    ]);
+    expect(pageHasTable(items)).toBe(false);
+  });
+
   it('ignoriert Leerraum-Items, mit denen pdfjs Tabellenlücken füllt', () => {
     const items = [700, 686, 672].flatMap((y) => [
       at('Datenart', 60, y),

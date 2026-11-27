@@ -12,10 +12,19 @@
  * verarbeitet wird sie gelöscht, gescheitert bleibt sie liegen, bis der
  * `pending`-Sweep (`uploadsCleanupService.ts`, 7 Tage) sie abräumt. Solange sie
  * da ist, liest der Worker sie über `metadata.filePath` wie beim ersten Lauf.
+ *
+ * AUFBEWAHRTE ORIGINALE. Seit 23.11.2026 bleibt das Original eines fertigen
+ * manuellen Uploads liegen (`documentOriginals.ts`, Spalte `file_path`). Damit
+ * lässt sich eine Quelle neu lesen, wenn die Extraktion besser geworden ist —
+ * etwa Tabellen (`scripts/repair-notebook-tables.ts`). Geprüft wird nur, wo der
+ * Leser `file_path` mitliest; die Notebook-Liste tut das nicht und bleibt ohne
+ * Dateisystem-Aufruf.
  */
 import fs from 'fs';
 
 import { resolveDocumentUploadFormat } from '@gruenerator/contracts';
+
+import { resolveOriginalPath } from '../documentOriginals.js';
 
 import { DocumentReadError } from './processingError.js';
 
@@ -27,7 +36,7 @@ export interface WolkeOrigin {
   filePath: string;
 }
 
-export type ReindexOrigin = WolkeOrigin | { kind: 'upload' };
+export type ReindexOrigin = WolkeOrigin | { kind: 'original' } | { kind: 'upload' };
 
 export interface ReindexRow {
   id: string;
@@ -36,6 +45,8 @@ export interface ReindexRow {
   status: string | null;
   wolke_share_link_id: string | null;
   wolke_file_path?: string | null;
+  /** Relativer Pfad des aufbewahrten Originals (`documentOriginals.ts`). */
+  file_path?: string | null;
   vector_count?: number | null;
   /** Objekt oder JSON-Text, je nach Leser. */
   metadata?: unknown;
@@ -45,7 +56,17 @@ export interface ReindexRow {
  * Woher das Original kommt — `null` heißt: nur noch der gespeicherte Text.
  */
 export function reindexOrigin(row: ReindexRow): ReindexOrigin | null {
-  return wolkeOrigin(row) ?? (hasKeptUpload(row) ? { kind: 'upload' } : null);
+  const wolke = wolkeOrigin(row);
+  if (wolke) return wolke;
+  if (keptOriginalPath(row)) return { kind: 'original' };
+  return hasKeptUpload(row) ? { kind: 'upload' } : null;
+}
+
+/** Absoluter Pfad des aufbewahrten Originals, wenn es lesbar daliegt. */
+export function keptOriginalPath(row: Pick<ReindexRow, 'file_path' | 'filename'>): string | null {
+  if (!row.file_path || !resolveDocumentUploadFormat(row.filename ?? '', '')) return null;
+  const absolute = resolveOriginalPath(row.file_path);
+  return absolute && fs.existsSync(absolute) ? absolute : null;
 }
 
 /** Eine Wolke-Datei zählt nur, wenn der Upload-Pfad ihr Format lesen kann. */

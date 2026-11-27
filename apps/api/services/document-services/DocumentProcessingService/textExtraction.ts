@@ -14,6 +14,7 @@ import { ocrService } from '../../OcrService/index.js';
 import { stripPageMarkers, type PageMarkerOptions } from '../../OcrService/pageMarkers.js';
 
 import { DocumentReadError } from './processingError.js';
+import { spreadsheetToMarkdown } from './spreadsheetText.js';
 
 import type { UploadedFile } from './types.js';
 
@@ -57,7 +58,7 @@ export interface FileExtraction {
   text: string;
   /** Aus der OCR-Kette; `null` für Textformate, die keine Seiten kennen. */
   pageCount: number | null;
-  /** `pdfjs-direct`, `mistral-ocr`, `docling`; `null` für Textformate. */
+  /** `pdfjs-direct`, `mistral-ocr`, `docling`, `spreadsheet`; `null` für Textformate. */
   extractionMethod: string | null;
 }
 
@@ -110,6 +111,12 @@ export async function extractDocumentFromFile(
     } finally {
       await fs.unlink(tempFilePath);
     }
+  } else if (format?.kind === 'table') {
+    return {
+      text: spreadsheetToMarkdown(file.buffer, format.extension),
+      pageCount: null,
+      extractionMethod: 'spreadsheet',
+    };
   } else if (format?.kind === 'text' || file.mimetype.startsWith('text/')) {
     return { text: file.buffer.toString('utf-8'), pageCount: null, extractionMethod: null };
   } else {

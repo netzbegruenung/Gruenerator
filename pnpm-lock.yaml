@@ -580,6 +580,9 @@ importers:
       ws:
         specifier: ^8.23.0
         version: 8.23.0
+      xlsx:
+        specifier: https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
+        version: https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
       yjs:
         specifier: ^13.6.33
         version: 13.6.33
