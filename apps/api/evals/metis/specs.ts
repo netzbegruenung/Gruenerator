@@ -402,7 +402,7 @@ const computeVerify: ResolverSpec = {
  * `notebookTurnNeeds`: die Fragen `zaehlen` und `stelle`, je einzeln gemessen
  * mit den Kriterien aus dem Code. Ein Fall trägt beide Labels. Fälle aus dem
  * internen Repo (Dokument- und BGSt-Fragen) kommen dazu, wenn
- * `EVAL_EXTRA_CORPUS_DIR` gesetzt ist (`metis-notebookNeeds.jsonl` dort).
+ * `EVAL_EXTRA_CORPUS_DIR` gesetzt ist (`metis/notebookNeeds.jsonl` dort).
  * Ids `nh-` sind der Holdout: vor der ersten Messung committet, nie zum
  * Nachschärfen angesehen.
  */
@@ -424,7 +424,7 @@ function loadNeedsCases(): NeedsCase[] {
   const own = parse(readFileSync(join(here, 'notebookNeeds.jsonl'), 'utf8'));
   const extraDir = process.env.EVAL_EXTRA_CORPUS_DIR;
   const extra = extraDir
-    ? parse(readFileSync(join(extraDir, 'metis-notebookNeeds.jsonl'), 'utf8'))
+    ? parse(readFileSync(join(extraDir, 'metis', 'notebookNeeds.jsonl'), 'utf8'))
     : [];
   return [...own, ...extra];
 }
