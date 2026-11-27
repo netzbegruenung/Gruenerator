@@ -20,6 +20,7 @@ import { axe } from '../../test-utils';
 
 import { NotebookComposer } from './NotebookComposer';
 
+import type { Mentionable } from '../../lib/mentionables';
 import type { NotebookDepth } from '@gruenerator/contracts';
 import type { TextModelId } from '@gruenerator/shared/models';
 
@@ -651,5 +652,105 @@ describe('NotebookComposer — source tier (Quellen-Ampel)', () => {
       })
     );
     expect(onSourceTierChange).toHaveBeenLastCalledWith('equal');
+  });
+});
+
+describe('NotebookComposer — recipe picker', () => {
+  const recipe = (mention: string, title: string, description = ''): Mentionable => ({
+    type: 'agent',
+    category: 'skill',
+    trigger: '@',
+    identifier: `owner-${mention}`,
+    title,
+    description,
+    avatar: '',
+    backgroundColor: '#316049',
+    mention,
+  });
+  const WPS = recipe('wahlpruefstein-nrw', 'Wahlprüfsteine NRW', 'Ein Katalog, Frage für Frage.');
+  const GROUPS = [
+    { title: 'Für Nordrhein-Westfalen', recipes: [WPS, recipe('presse-nrw', 'PM NRW')] },
+    { title: 'Eigene Rezepte', recipes: [] },
+    { title: 'Weitere Rezepte', recipes: [recipe('presse', 'Pressemitteilung')] },
+  ];
+
+  it('offers the recipes by section, leaves empty ones out, and reports the pick', async () => {
+    const user = userEvent.setup();
+    const onRecipeChange = vi.fn();
+    render(
+      <NotebookComposer
+        mode="deep"
+        onModeChange={vi.fn()}
+        recipeGroups={GROUPS}
+        onRecipeChange={onRecipeChange}
+      />
+    );
+    await user.click(within(screen.getByTestId('leading')).getByRole('button', { name: 'Rezept' }));
+    expect(await screen.findByText('Für Nordrhein-Westfalen')).toBeVisible();
+    expect(screen.queryByText('Eigene Rezepte')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('menuitem')).toHaveLength(3);
+    await user.click(screen.getByRole('menuitem', { name: /Wahlprüfsteine NRW/ }));
+    expect(onRecipeChange).toHaveBeenCalledWith(WPS);
+  });
+
+  it('shows a picked recipe as a removable chip and steps the answer mode aside', async () => {
+    const user = userEvent.setup();
+    const onRecipeChange = vi.fn();
+    render(
+      <NotebookComposer
+        mode="deep"
+        onModeChange={vi.fn()}
+        answerMode="auto"
+        onAnswerModeChange={vi.fn()}
+        recipe={WPS}
+        recipeGroups={GROUPS}
+        onRecipeChange={onRecipeChange}
+      />
+    );
+    expect(screen.queryByRole('button', { name: 'Rezept' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('send-adornment')).toBeEmptyDOMElement();
+    await user.click(screen.getByRole('button', { name: 'Rezept Wahlprüfsteine NRW entfernen' }));
+    expect(onRecipeChange).toHaveBeenCalledWith(null);
+  });
+
+  it('keeps the answer mode reachable while searching, and hides the recipe there', () => {
+    render(
+      <NotebookComposer
+        mode="deep"
+        onModeChange={vi.fn()}
+        answerMode="manuell"
+        onAnswerModeChange={vi.fn()}
+        onManualSubmit={vi.fn()}
+        recipe={WPS}
+        recipeGroups={GROUPS}
+        onRecipeChange={vi.fn()}
+      />
+    );
+    expect(
+      within(screen.getByTestId('send-adornment')).getByRole('button', { name: /Antwortmodus/ })
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Wahlprüfsteine NRW')).not.toBeInTheDocument();
+  });
+
+  it('is not there when the surface does not offer recipes', () => {
+    render(<NotebookComposer mode="deep" onModeChange={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: 'Rezept' })).not.toBeInTheDocument();
+  });
+
+  it('has no axe violations, closed and open', async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <NotebookComposer
+        mode="deep"
+        onModeChange={vi.fn()}
+        recipeGroups={GROUPS}
+        onRecipeChange={vi.fn()}
+      />
+    );
+    expect(await axe(container)).toHaveNoViolations();
+    await user.click(screen.getByRole('button', { name: 'Rezept' }));
+    await screen.findByText('Für Nordrhein-Westfalen');
+    // The portalled menu itself — `region` is a page rule a bare test body fails.
+    expect(await axe(screen.getByRole('menu'))).toHaveNoViolations();
   });
 });

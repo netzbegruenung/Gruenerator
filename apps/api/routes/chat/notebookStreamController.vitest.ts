@@ -94,6 +94,14 @@ vi.mock('./services/notebookPraezisionTurn.js', () => ({
   runNotebookPraezisionTurn: (...args: unknown[]) => runNotebookPraezisionTurn(...args),
 }));
 
+const resolveRecipeBody = vi.fn(
+  async (_params: { mention: string | null; recipeId?: string | null }): Promise<unknown> => null
+);
+vi.mock('../../services/recipes/resolveRecipeBody.js', () => ({
+  resolveRecipeBody: (params: { mention: string | null; recipeId?: string | null }) =>
+    resolveRecipeBody(params),
+}));
+
 const aiDecide = vi.fn(async (..._args: unknown[]) => ({
   mode: { choice: 'praezision', confidence: 0.8, probabilities: {} },
 }));
@@ -296,6 +304,108 @@ describe('POST /api/chat-service/notebook/stream — Panda tier', () => {
     const options = handleNotebookStream.mock.calls[0]![0] as Record<string, unknown>;
     expect(options.mode).toBe('ultra');
     expect(options.model).toBe('gruenerator-ultra');
+  });
+});
+
+describe('POST /api/chat-service/notebook/stream — recipe', () => {
+  const WPS = {
+    id: null,
+    mention: 'wahlpruefstein-nrw',
+    title: 'Wahlprüfsteine NRW',
+    body: 'Antworte Frage für Frage.',
+    source: 'system',
+    untrusted: false,
+  };
+
+  it('shapes the RAG answer with the recipe, whatever answer mode was asked for', async () => {
+    resolveRecipeBody.mockResolvedValueOnce(WPS);
+    await post({ answerMode: 'praezision', activeSkillMention: 'wahlpruefstein-nrw' });
+    expect(resolveRecipeBody).toHaveBeenCalledWith({
+      mention: 'wahlpruefstein-nrw',
+      recipeId: null,
+      userId: 'user-1',
+    });
+    expect(runNotebookPraezisionTurn).not.toHaveBeenCalled();
+    const options = handleNotebookStream.mock.calls[0]![0] as Record<string, unknown>;
+    expect(options.recipe).toEqual({
+      title: 'Wahlprüfsteine NRW',
+      body: 'Antworte Frage für Frage.',
+      untrusted: false,
+    });
+    expect(options.completionMetadata).toEqual({
+      answerMode: 'chat',
+      answerModeReason: 'recipe',
+      recipesUsed: [
+        { mention: 'wahlpruefstein-nrw', title: 'Wahlprüfsteine NRW', source: 'system' },
+      ],
+    });
+    expect(sent.find((e) => e.event === 'answer_mode')!.data).toEqual({
+      requested: 'praezision',
+      resolved: 'chat',
+      reason: 'recipe',
+    });
+    expect(persistedAssistantMetadata()).toMatchObject({
+      answerModeReason: 'recipe',
+      recipesUsed: [
+        { mention: 'wahlpruefstein-nrw', title: 'Wahlprüfsteine NRW', source: 'system' },
+      ],
+    });
+  });
+
+  it('keeps the row id of a user recipe', async () => {
+    const id = '7b2f0c43-8c1e-4f43-9a54-3b1d9c0f6a11';
+    resolveRecipeBody.mockResolvedValueOnce({ ...WPS, id, source: 'user', untrusted: true });
+    await post({ activeRecipeId: id });
+    expect(resolveRecipeBody).toHaveBeenCalledWith({
+      mention: null,
+      recipeId: id,
+      userId: 'user-1',
+    });
+    const options = handleNotebookStream.mock.calls[0]![0] as Record<string, unknown>;
+    expect(options.recipe).toMatchObject({ untrusted: true });
+    expect(persistedAssistantMetadata().recipesUsed).toEqual([
+      { mention: 'wahlpruefstein-nrw', title: 'Wahlprüfsteine NRW', source: 'user', id },
+    ]);
+  });
+
+  it('answers without the recipe and says so when it has no text', async () => {
+    await post({ answerMode: 'chat', activeSkillMention: 'gibt-es-nicht' });
+    expect(sent.find((e) => e.event === 'warning')!.data.code).toBe('notebook_recipe_unavailable');
+    const options = handleNotebookStream.mock.calls[0]![0] as Record<string, unknown>;
+    expect(options).not.toHaveProperty('recipe');
+    expect(options.completionMetadata).toEqual({
+      answerMode: 'chat',
+      answerModeReason: 'explicit',
+    });
+    expect(persistedAssistantMetadata()).not.toHaveProperty('recipesUsed');
+  });
+
+  it('looks nothing up and changes nothing without a recipe', async () => {
+    await post({});
+    expect(resolveRecipeBody).not.toHaveBeenCalled();
+    expect(sent.some((e) => e.event === 'warning')).toBe(false);
+    expect(handleNotebookStream.mock.calls[0]![0]).not.toHaveProperty('recipe');
+  });
+
+  it('answers without the recipe when the lookup throws', async () => {
+    resolveRecipeBody.mockRejectedValueOnce(new Error('db down'));
+    await post({ activeSkillMention: 'wahlpruefstein-nrw' });
+    expect(sent.find((e) => e.event === 'warning')!.data.code).toBe('notebook_recipe_unavailable');
+    expect(handleNotebookStream).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects a recipe id that is not a uuid at the contract', async () => {
+    const req = { body: { activeRecipeId: 'nope' }, user: { id: 'user-1' } };
+    let status = 0;
+    const res = {
+      status: (code: number) => {
+        status = code;
+        return res;
+      },
+      json: () => res,
+    };
+    validate(req, res, () => {});
+    expect(status).toBe(400);
   });
 });
 

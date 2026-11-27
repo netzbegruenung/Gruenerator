@@ -14,11 +14,14 @@ import {
 import { type ComposerOption, ComposerOptionPicker } from '../thread/ComposerOptionPicker';
 import { GrueneratorComposer } from '../thread/GrueneratorComposer';
 
+import { NotebookRecipePicker, type NotebookRecipeGroup } from './NotebookRecipePicker';
 import {
   NotebookSettingsPopover,
   type CategoryFilterConfig,
   type SourceFilterConfig,
 } from './NotebookSettingsPopover';
+
+import type { Mentionable } from '../../lib/mentionables';
 
 const toOption = (m: NotebookComposerModeDef): ComposerOption<NotebookComposerMode> => ({
   id: m.mode,
@@ -56,6 +59,11 @@ interface NotebookComposerProps {
   /** Classes for the settings panel, which is portalled out of the surface's
    *  accent scope. */
   settingsClassName?: string;
+  /** Recipe picker — only where the surface offers it. A picked recipe only
+   *  shapes the answer, so the answer mode picker steps aside meanwhile. */
+  recipe?: Mentionable | null;
+  recipeGroups?: readonly NotebookRecipeGroup[];
+  onRecipeChange?: (recipe: Mentionable | null) => void;
 }
 
 export function NotebookComposer({
@@ -72,6 +80,9 @@ export function NotebookComposer({
   magicIntent,
   onChatSubmit,
   settingsClassName,
+  recipe = null,
+  recipeGroups,
+  onRecipeChange,
 }: NotebookComposerProps) {
   const isRunning = useAuiState((s) => s.thread.isRunning);
   // Without a manual handler `manuell` is not on offer, and a stored one falls
@@ -114,17 +125,28 @@ export function NotebookComposer({
       {...(!searches && onChatSubmit ? { onChatSubmit } : {})}
       slots={{
         leading: (
-          <NotebookSettingsPopover
-            mode={mode}
-            onModeChange={onModeChange}
-            sourceTier={sourceTier}
-            onSourceTierChange={onSourceTierChange}
-            sourceFilters={sourceFilters}
-            categoryFilters={categoryFilters}
-            {...(settingsClassName ? { className: settingsClassName } : {})}
-          />
+          <>
+            <NotebookSettingsPopover
+              mode={mode}
+              onModeChange={onModeChange}
+              sourceTier={sourceTier}
+              onSourceTierChange={onSourceTierChange}
+              sourceFilters={sourceFilters}
+              categoryFilters={categoryFilters}
+              {...(settingsClassName ? { className: settingsClassName } : {})}
+            />
+            {recipeGroups && onRecipeChange && !searches && (
+              <NotebookRecipePicker
+                value={recipe}
+                onChange={onRecipeChange}
+                groups={recipeGroups}
+              />
+            )}
+          </>
         ),
-        ...(activeAnswerMode && onAnswerModeChange
+        // Searching („Manuell") ignores the recipe, so the mode picker stays
+        // there to switch back — otherwise neither control would show.
+        ...(activeAnswerMode && onAnswerModeChange && !(recipe && !searches)
           ? {
               sendAdornment: (
                 <ComposerOptionPicker

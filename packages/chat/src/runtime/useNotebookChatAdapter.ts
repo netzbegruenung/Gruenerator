@@ -9,6 +9,7 @@ import {
   createNotebookModelAdapter,
   type NotebookAdapterConfig,
   type NotebookMessageMetadata,
+  type NotebookRecipeChoice,
   type SharepicContextConfig,
 } from './NotebookModelAdapter';
 
@@ -36,6 +37,8 @@ export interface NotebookChatAdapterOptions {
   answerMode?: NotebookAnswerMode;
   /** Magic Search: a first question with `auto` goes out as `chat`. */
   magicSearch?: boolean;
+  /** Recipe that shapes the answer, read at send time; null ⇒ none. */
+  recipe?: NotebookRecipeChoice | null;
   endpoint?: string;
   documentIds?: string[];
   threadId?: string | null;
@@ -62,6 +65,7 @@ export function useNotebookChatAdapter({
   sourceTier,
   answerMode,
   magicSearch,
+  recipe,
   endpoint,
   documentIds,
   threadId: initialThreadId,
@@ -95,6 +99,8 @@ export function useNotebookChatAdapter({
   answerModeRef.current = answerMode;
   const magicSearchRef = useRef(magicSearch);
   magicSearchRef.current = magicSearch;
+  const recipeRef = useRef(recipe);
+  recipeRef.current = recipe;
   const endpointRef = useRef(endpoint);
   endpointRef.current = endpoint;
   const documentIdsRef = useRef(documentIds);
@@ -133,6 +139,7 @@ export function useNotebookChatAdapter({
       ...(sourceTierRef.current ? { sourceTier: sourceTierRef.current } : {}),
       ...(answerModeRef.current ? { answerMode: answerModeRef.current } : {}),
       ...(magicSearchRef.current ? { magicSearch: true } : {}),
+      ...(recipeRef.current ? { recipe: recipeRef.current } : {}),
       endpoint: endpointRef.current,
       documentIds: documentIdsRef.current,
       threadId: threadIdRef.current,

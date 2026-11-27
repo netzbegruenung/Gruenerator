@@ -19,8 +19,24 @@ export interface ChatHandoff {
   sourceIds: string[] | null;
 }
 
-export function buildChatHandoffUrl(pathname: string, handoff: ChatHandoff): string {
+/**
+ * The recipe picked on a notebook page. Lives in the URL like on `/chat`
+ * (`?rezept=` / `?rezeptId=`) and is NOT a handoff param: it stays after the
+ * question is sent, so a reload or the new tab keeps the recipe.
+ */
+export const RECIPE_PARAM = 'rezept';
+export const RECIPE_ID_PARAM = 'rezeptId';
+
+export function buildChatHandoffUrl(
+  pathname: string,
+  handoff: ChatHandoff,
+  recipe: { mention: string; recipeId?: string | null } | null = null
+): string {
   const params = new URLSearchParams({ [QUESTION]: handoff.question });
+  if (recipe) {
+    params.set(RECIPE_PARAM, recipe.mention);
+    if (recipe.recipeId) params.set(RECIPE_ID_PARAM, recipe.recipeId);
+  }
   const filters = Object.fromEntries(
     Object.entries(handoff.filters).filter(([, values]) => values.length > 0)
   );

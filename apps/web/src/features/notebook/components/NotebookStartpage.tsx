@@ -1,11 +1,13 @@
-import { useAuiState } from '@assistant-ui/react';
+import { useAui, useAuiState } from '@assistant-ui/react';
 import {
   composerModeRunsLiveSearch,
   detectMagicIntent,
   NotebookComposer,
   type CategoryFilterConfig,
   type MagicIntent,
+  type Mentionable,
   type NotebookComposerMode,
+  type NotebookRecipeGroup,
   type SourceFilterConfig,
 } from '@gruenerator/chat';
 import { type NotebookDepth, type NotebookSourceTier } from '@gruenerator/contracts';
@@ -59,6 +61,12 @@ interface NotebookStartpageProps {
   /** Opens a chat question in its own browser tab, so this page keeps the
    *  query and its hits. Without it the question is asked here. */
   onOpenChat?: (question: string) => void;
+  /** Recipe picker in the composer; a picked recipe only shapes the answer. */
+  recipe?: Mentionable | null;
+  recipeGroups?: readonly NotebookRecipeGroup[];
+  onRecipeChange?: (recipe: Mentionable | null) => void;
+  /** Offered as chips under the composer while no recipe is picked (the LV's recipes). */
+  recipeStarters?: readonly Mentionable[];
 }
 
 // Signature 2a gradient — pink radial (light) / deep-green radial (dark). Applied
@@ -93,6 +101,10 @@ export function NotebookStartpage({
   pageGradient = true,
   footer,
   onOpenChat,
+  recipe = null,
+  recipeGroups,
+  onRecipeChange,
+  recipeStarters = [],
 }: NotebookStartpageProps) {
   const hasCollections = recentCollectionIds.length > 0;
   const manualSearchAvailable = showManualSearch && hasCollections;
@@ -100,8 +112,12 @@ export function NotebookStartpage({
   // Only the start page searches live, and only in the modes that ask for it.
   const composerText = useAuiState((s) => s.composer.text);
   const [submitted, setSubmitted] = useState<string | null>(null);
+  // A recipe asks for a text, never for hits: no live search, no Magic Search.
   const liveSearch =
-    manualSearchAvailable && answerMode !== undefined && composerModeRunsLiveSearch(answerMode);
+    manualSearchAvailable &&
+    answerMode !== undefined &&
+    composerModeRunsLiveSearch(answerMode) &&
+    !(recipe && answerMode === 'auto');
   const hasHits = liveSearch && composerText.trim().length >= LIVE_SEARCH_MIN_LENGTH;
   // The composer moves up once the first answer is on screen, not with the
   // first keystroke, and stays up even when the field is cleared — the page
@@ -118,7 +134,7 @@ export function NotebookStartpage({
   }, [raised, hasText]);
 
   const magicIntent: MagicIntent | null =
-    answerMode === 'auto' && manualSearchAvailable && hasText
+    answerMode === 'auto' && manualSearchAvailable && hasText && !recipe
       ? detectMagicIntent(composerText)
       : null;
 
@@ -180,7 +196,11 @@ export function NotebookStartpage({
             settingsClassName={NOTEBOOK_COMPOSER_ACCENT}
             {...(onOpenChat ? { onChatSubmit: onOpenChat } : {})}
             {...(manualSearchAvailable ? { onManualSubmit: setSubmitted } : {})}
+            {...(recipeGroups && onRecipeChange ? { recipe, recipeGroups, onRecipeChange } : {})}
           />
+          {!recipe && !raised && onRecipeChange && recipeStarters.length > 0 && (
+            <RecipeChips recipes={recipeStarters} onPick={onRecipeChange} />
+          )}
         </div>
       </div>
 
@@ -211,5 +231,43 @@ export function NotebookStartpage({
 
       {footer}
     </PageContainer>
+  );
+}
+
+/**
+ * The notebook's own recipes as one-click starters: picks the recipe and puts
+ * its opening line into the composer, like a recipe starter in the empty chat.
+ */
+function RecipeChips({
+  recipes,
+  onPick,
+}: {
+  recipes: readonly Mentionable[];
+  onPick: (recipe: Mentionable) => void;
+}) {
+  const composer = useAui().composer;
+  return (
+    <ul
+      aria-label="Rezepte für dieses Notebook"
+      className="m-0 mt-4 flex list-none flex-wrap justify-center gap-2 p-0"
+    >
+      {recipes.map((m) => (
+        <li key={m.mention}>
+          <button
+            type="button"
+            {...(m.description ? { title: m.description } : {})}
+            className="rounded-full border border-border bg-background/70 px-3 py-1.5 text-xs text-foreground transition-colors hover:border-primary/40 hover:bg-primary/5"
+            onClick={() => {
+              onPick(m);
+              if (m.promptTemplate && !composer.getState().text.trim()) {
+                composer.setText(m.promptTemplate);
+              }
+            }}
+          >
+            {m.title}
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }

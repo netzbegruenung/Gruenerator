@@ -234,6 +234,39 @@ describe('NotebookModelAdapter — answer mode', () => {
     expect('answerMode' in without.body).toBe(false);
   });
 
+  it('sends the picked recipe as the chat fields, the row id only for a user recipe', async () => {
+    const system = await runTurn([COMPLETION], { recipe: { mention: 'wahlpruefstein-nrw' } });
+    expect(system.body.activeSkillMention).toBe('wahlpruefstein-nrw');
+    expect('activeRecipeId' in system.body).toBe(false);
+    const id = '7b2f0c43-8c1e-4f43-9a54-3b1d9c0f6a11';
+    const own = await runTurn([COMPLETION], { recipe: { mention: 'mein-stil', recipeId: id } });
+    expect(own.body).toMatchObject({ activeSkillMention: 'mein-stil', activeRecipeId: id });
+    const none = await runTurn([COMPLETION]);
+    expect('activeSkillMention' in none.body).toBe(false);
+    expect('activeRecipeId' in none.body).toBe(false);
+  });
+
+  it('puts the recipe attribution where the answer reads it, with or without a trace', async () => {
+    const recipesUsed = [{ mention: 'wahlpruefstein-nrw', title: 'Wahlprüfsteine NRW' }];
+    const done = (metadata: Record<string, unknown>): Frame => ({
+      event: 'completion',
+      data: { answer: 'Antwort.', citations: [], sources: [], allSources: [], metadata },
+    });
+    const bare = await runTurn([done({ recipesUsed })]);
+    expect(customOf(bare.results.at(-1)).streamMetadata).toEqual({
+      intent: 'direct',
+      searchCount: 0,
+      recipesUsed,
+    });
+    const traced = await runTurn([done({ recipesUsed, traceId: 't1' })]);
+    expect(customOf(traced.results.at(-1)).streamMetadata).toMatchObject({
+      traceId: 't1',
+      recipesUsed,
+    });
+    const garbage = await runTurn([done({ recipesUsed: [{ title: 7 }] })]);
+    expect(customOf(garbage.results.at(-1)).streamMetadata).toBeUndefined();
+  });
+
   it('carries an earlier answer’s mode in the wire history', async () => {
     const { body } = await runTurn([COMPLETION], { answerMode: 'auto' }, [
       { role: 'user', content: [{ type: 'text', text: 'Wie viele Quellen?' }] },
