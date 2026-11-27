@@ -1,6 +1,8 @@
 ---
 iconKey: microphone
 identifier: gruenerator-rede-schreiber
+# Das Redenwissen steht im Rezept @rede (#6122); alte Threads laden es vorab.
+defaultRecipeMention: 'rede'
 autoRoutingHint: creative
 title: Rede
 description: 'Erstellt überzeugende politische Reden für {{partyName}} mit Einstiegsideen, Kernargumenten und Tipps für die*den Redner*in.'

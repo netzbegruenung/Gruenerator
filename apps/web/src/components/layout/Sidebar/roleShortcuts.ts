@@ -2,9 +2,7 @@ import { resolveSkillIcon } from '@gruenerator/chat';
 import { type UserRole } from '@gruenerator/chat/stores';
 import {
   SKILL_SLIMS,
-  getAgentSlug,
   getLandesverbandHubsByIds,
-  getSlimAgent,
   isSkillOfferedIn,
   landesverbandIdsForRoles,
   type LvHub,
@@ -15,8 +13,6 @@ import { NOTEBOOK_ICONS } from '@gruenerator/shared/notebook-icons';
 import { isNotebookOfferedIn, type NotebookId } from '@gruenerator/shared/notebooks';
 import { grueneJugendRoleLocale } from '@gruenerator/shared/roles';
 import { type IconType } from 'react-icons';
-
-import { getAgentIcon } from './sidebarAgentConfig';
 
 import {
   GiHedgehog,
@@ -241,16 +237,15 @@ export function bundesgeschaeftsstelleShortcut(
 }
 
 const MDB_BUERO_ROLLE = 'Mitarbeiter*in MdB-Büro';
-const MDB_BUERO_AGENTS = [
-  'gruenerator-bundestag',
-  'gruenerator-abgeordnetenwatch',
-  'gruenerator-rede-schreiber',
-  'gruenerator-buergerservice',
-] as const;
+/**
+ * Seit 11/2026 Rezepte statt Agents (#6122): die Rezepte stehen vor ihren
+ * Agents, Abgeordnetenwatch ist ohne Agent ein Werkzeug des Chats.
+ */
+const MDB_BUERO_RECIPES = ['bundestagsrecherche', 'rede', 'buergermail'] as const;
 
 /**
- * Für ein MdB-Büro: Bundestag-Recherche, Abgeordnetenwatch, Rede und
- * Bürger*innenanfragen, dazu die Notebooks Bundestagsfraktion und DIP. Benannt
+ * Für ein MdB-Büro: die Rezepte Bundestag-Recherche, Rede und
+ * Bürger*innenmail, dazu die Notebooks Bundestagsfraktion und DIP. Benannt
  * nach der*dem Abgeordneten, sobald die Rolle sie*ihn kennt.
  */
 export function mdbBueroShortcut(
@@ -267,17 +262,17 @@ export function mdbBueroShortcut(
     Icon: PiBank,
     role,
     starters: {
-      heading: 'Neuer Chat mit Agent',
-      links: MDB_BUERO_AGENTS.flatMap((agentId) => {
-        const agent = getSlimAgent(agentId);
-        if (!agent) return [];
+      heading: 'Neuer Chat mit Rezept',
+      links: MDB_BUERO_RECIPES.flatMap((mention) => {
+        const recipe = SKILL_SLIMS.find((skill) => skill.mention === mention);
+        if (!recipe || !isSkillOfferedIn(recipe, instance)) return [];
         return [
           {
-            key: agentId,
-            label: agent.title,
-            Icon: getAgentIcon(agentId),
-            path: `/agents/${getAgentSlug(agentId)}`,
-            title: agent.title,
+            key: recipe.mention,
+            label: recipe.title,
+            Icon: resolveSkillIcon(recipe.iconKey) as IconType,
+            path: `/chat?rezept=${recipe.mention}`,
+            title: recipe.title,
           },
         ];
       }),
