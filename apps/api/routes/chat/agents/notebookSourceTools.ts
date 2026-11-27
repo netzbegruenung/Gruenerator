@@ -157,6 +157,11 @@ const FAILURE_BY_ACTION: Record<(typeof READ_ACTIONS)[number], string> = {
 
 let helperSingleton: NotebookQdrantHelper | null = null;
 
+/** Die Abhängigkeiten, mit denen `notebook_quellen` liest — für Leser außerhalb des Werkzeugs. */
+export function defaultNotebookSourceDeps(): NotebookSourceToolDeps {
+  return resolveDeps(undefined);
+}
+
 function resolveDeps(partial: Partial<NotebookSourceToolDeps> | undefined): NotebookSourceToolDeps {
   return {
     helper: partial?.helper ?? (helperSingleton ??= new NotebookQdrantHelper()),
@@ -267,13 +272,19 @@ export async function sourcesForPrompt(
   userId: string,
   limit: number,
   partial?: Partial<NotebookSourceToolDeps>
-): Promise<{ total: number; items: Array<{ ref: string; title: string }> } | null> {
+): Promise<{
+  total: number;
+  items: Array<{ ref: string; title: string; detail: string; pages: number | null }>;
+} | null> {
   if (!isUserNotebookId(collectionId)) return null;
   const deps = resolveDeps(partial);
   const access = await deps.access(collectionId, userId);
   if (!access.exists || !access.canRead) return null;
   const { total, items } = await listNotebookSources({ collectionId, sortBy: 'name', limit }, deps);
-  return { total, items: items.map((r) => ({ ref: r.id, title: r.title })) };
+  return {
+    total,
+    items: items.map((r) => ({ ref: r.id, title: r.title, detail: rowDetail(r), pages: r.pages })),
+  };
 }
 
 /**

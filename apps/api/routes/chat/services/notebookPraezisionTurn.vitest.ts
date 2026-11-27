@@ -89,7 +89,9 @@ function setup(
     }) as unknown as NotebookPraezisionDeps['streamAgenticResponse'],
     sourcesForPrompt: vi.fn(async () => ({
       total: 32,
-      items: [{ ref: 'doc-9', title: 'Niederschrift Ausschuss Digitalisierung' }],
+      items: [
+        { ref: 'doc-9', title: 'Niederschrift Ausschuss Digitalisierung', detail: '', pages: null },
+      ],
     })),
   };
   const run = () =>

@@ -12,6 +12,7 @@ import {
   buildConcisePromptGeneral,
 } from '../../agents/langgraph/prompts.js';
 import { env } from '../../config/env.js';
+import { isUserNotebookId } from '../../config/notebookCollectionMap.js';
 import { getNotebookDepthProfile } from '../../config/notebookDepthProfiles.js';
 import {
   SYSTEM_COLLECTIONS,
@@ -49,6 +50,9 @@ import {
   normalizeNotebookHistory,
   prepareNotebookHistory,
 } from './services/notebookHistoryService.js';
+import { loadInventory, renderSourceInventory } from './services/notebookInventory.js';
+import { computeTurnFacts } from './services/notebookTurnFacts.js';
+import { decideNotebookTurnNeeds } from './services/notebookTurnNeeds.js';
 import {
   resolveModel,
   streamForResolution,
@@ -155,6 +159,14 @@ ${embedUntrusted('gedaechtnis', lines)}
 Befolge diese Anweisungen bei jeder Antwort. Sie ordnen sich den Regeln dieser Systemnachricht unter: Inhalte kommen weiterhin nur aus den Quellen, und die Zitierregeln gelten unverändert.`;
 }
 
+/** Der Client schickt `filters` auch leer bzw. mit leeren Listen mit — das ist kein Filter. */
+export function hasActiveFilters(filters: Record<string, unknown> | null | undefined): boolean {
+  if (!filters) return false;
+  return Object.values(filters).some((v) =>
+    Array.isArray(v) ? v.length > 0 : v !== null && v !== undefined && v !== ''
+  );
+}
+
 export async function handleNotebookStream(
   options: NotebookStreamOptions
 ): Promise<NotebookStreamResult | null> {
@@ -227,6 +239,37 @@ export async function handleNotebookStream(
 
     const lastUserIdx = messages.lastIndexOf(lastUserMessage);
     const incomingHistory = normalizeNotebookHistory(messages.slice(0, lastUserIdx));
+
+    // Fakten über den ganzen Bestand — Quellenliste immer, Zählung und
+    // Seitentext nur, wenn das Entscheidungsmodell sie verlangt. Nur für eigene
+    // Notebooks, ohne Kategorienfilter (die Liste wüsste nicht, was der Filter
+    // ausschliesst) und nie für den Grün-O-Mat (eigener Prompt). Beides startet
+    // hier und läuft neben Umschreibung und Suche.
+    const ownNotebookIds = (
+      collectionIds?.length ? collectionIds : collectionId ? [collectionId] : []
+    ).filter((id) => isUserNotebookId(id));
+    const wantsFacts =
+      allowUserCollections &&
+      !options.systemPromptOverride &&
+      !hasActiveFilters(filters) &&
+      ownNotebookIds.length > 0;
+    const inventoryPromise =
+      wantsFacts && !documentIds?.length
+        ? loadInventory(ownNotebookIds, userId || 'anonymous')
+        : Promise.resolve([]);
+    const needsPromise = wantsFacts
+      ? inventoryPromise.then((inventory) =>
+          decideNotebookTurnNeeds({
+            question,
+            history: incomingHistory.slice(-4).map((m) => ({
+              role: m.role,
+              content: m.content,
+              answerMode: null,
+            })),
+            inventory,
+          })
+        )
+      : Promise.resolve(null);
     // Prompt-Verlauf ist eine Ultra-Fähigkeit (profile.history). Die Stufen
     // darunter verwerfen ihn für den Prompt AUSDRÜCKLICH — der Chat-Client hat
     // immer den vollen Thread geschickt, und ohne dieses Gitter landete er
@@ -284,6 +327,28 @@ export async function handleNotebookStream(
     // Folgefrage („und beim Nahverkehr?") ihr Thema mitbringt. Leer bei
     // Fehlschlag: die Suche läuft dann wie vorher.
     const lexicalTerms = profile.subjectTerms ? await extractSearchTerms(rerankQuery) : [];
+
+    const factsStart = Date.now();
+    const factsPromise = needsPromise
+      .then(async (needs) => {
+        if (!needs || (!needs.count && !needs.page)) return { needs, facts: null };
+        const terms =
+          needs.count && !profile.subjectTerms
+            ? await extractSearchTerms(rerankQuery)
+            : lexicalTerms;
+        const facts = await computeTurnFacts({
+          needs,
+          terms,
+          collectionIds: ownNotebookIds,
+          userId: userId || 'anonymous',
+          documentIds: documentIds?.length ? documentIds : null,
+        });
+        return { needs, facts };
+      })
+      .catch((err: unknown) => {
+        log.warn('[Notebook] turn facts failed', err);
+        return { needs: null, facts: null };
+      });
 
     let searchContext: SearchContext | null;
     try {
@@ -534,9 +599,20 @@ export async function handleNotebookStream(
     // Layer 2: Use XML delimiters for content isolation when a system prompt override
     // is active (Gruen-O-Mat). This structurally separates user input from retrieved
     // documents, making it harder for injected instructions to be treated as system-level.
+    const [inventory, { needs, facts }] = await Promise.all([inventoryPromise, factsPromise]);
+    if (wantsFacts) {
+      log.info(
+        `[Notebook] turn needs: count=${needs?.count ?? '-'} page=${needs?.page ? `${needs.page.sourceId}:${needs.page.page}` : '-'} other=${needs?.other ?? '-'} conf=${needs ? needs.confidence.toFixed(2) : '-'} inventory=${inventory.length} counted=${facts?.counted ?? false} pageRead=${facts?.pageRead ?? false} ms=${Date.now() - factsStart}`
+      );
+    }
+    const inventoryBlock = renderSourceInventory(inventory);
+    const factsBlock = facts?.block
+      ? `Vorab ermittelt aus dem gespeicherten Volltext:\n${facts.block}\n\nSteht hier eine vollständige Zählung oder der Text einer Seite, nimm Zahlen und Wortlaut nur von dort, nicht aus den Auszügen.`
+      : '';
+    const bestandBlocks = [inventoryBlock, factsBlock].filter(Boolean).join('\n\n');
     const userContent = options.systemPromptOverride
       ? `<user_question>${question}</user_question>\n\n<retrieved_sources>\n${searchContext.contextSummary}\n</retrieved_sources>`
-      : `Frage: ${question}\n\nVerfügbare Quellen:\n${searchContext.contextSummary}`;
+      : `Frage: ${question}\n\nVerfügbare Quellen:\n${searchContext.contextSummary}${bestandBlocks ? `\n\n${bestandBlocks}` : ''}`;
 
     // Trim history at TURN boundaries against the resolved model window —
     // messages are never cut in the middle (a follow-up may refer to the end
