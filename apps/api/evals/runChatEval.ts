@@ -372,7 +372,13 @@ async function runTurn(
           content: m.parts.map((p) => p.text).join(''),
           ...(m.answerMode ? { answerMode: m.answerMode } : {}),
         })),
-        collectionIds: (scenario.collectionIds ?? []).map(withUserNotebook),
+        // Wie der Client (`NotebookModelAdapter`): ein Notebook als
+        // `collectionId`, mehrere als `collectionIds`. Der Mehrfach-Pfad kennt
+        // nur System-Sammlungen — ein eigenes Notebook dort ist „Unknown
+        // collection" und die Antwort leer.
+        ...((scenario.collectionIds ?? []).length === 1
+          ? { collectionId: withUserNotebook(scenario.collectionIds![0]!) }
+          : { collectionIds: (scenario.collectionIds ?? []).map(withUserNotebook) }),
         ...(scenario.notebookMode ? { mode: scenario.notebookMode } : {}),
         ...((NOTEBOOK_ANSWER_MODE ?? scenario.notebookAnswerMode)
           ? { answerMode: NOTEBOOK_ANSWER_MODE ?? scenario.notebookAnswerMode }
