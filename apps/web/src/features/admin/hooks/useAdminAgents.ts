@@ -28,6 +28,9 @@ export function useSetAgentHidden() {
       // Der öffentliche Endpunkt, aus dem jede Entdeckungsfläche liest —
       // ungültig machen, damit ein Schalter hier ohne Neuladen ankommt.
       void qc.invalidateQueries({ queryKey: ['admin-hidden-agents'] });
+      // Die Rezepte eines ausgeblendeten Agents gelten mit als ausgeblendet
+      // (`getEffectiveHiddenSkillMentions`, #6122).
+      void qc.invalidateQueries({ queryKey: ['admin-hidden-skills'] });
     },
   });
 }
