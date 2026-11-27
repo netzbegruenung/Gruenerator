@@ -10,4 +10,5 @@ skillCategory: presse
 audience: 'de-DE'
 promptTemplate: 'Schreibe eine Pressemitteilung im Stil der Saar-Grünen zum Thema: '
 order: 65
+recommendedTools: ['gruenerator_pressemitteilung_examples']
 ---

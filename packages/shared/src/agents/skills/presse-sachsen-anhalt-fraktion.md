@@ -11,4 +11,5 @@ audience: 'de-DE'
 lvEbene: 'fraktion'
 promptTemplate: 'Schreibe eine Pressemitteilung der grünen Landtagsfraktion Sachsen-Anhalt zum Thema: '
 order: 65
+recommendedTools: ['gruenerator_pressemitteilung_examples']
 ---

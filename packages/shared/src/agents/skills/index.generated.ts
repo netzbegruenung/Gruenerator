@@ -17,6 +17,7 @@ export const SKILLS = [
     skillCategory: 'presse',
     promptTemplate: 'Schreibe eine PM zum Thema: ',
     isSystemDefault: true,
+    recommendedTools: ['gruenerator_pressemitteilung_examples'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
@@ -242,6 +243,7 @@ export const SKILLS = [
     audience: 'de-DE',
     promptTemplate: 'Schreibe eine Pressemitteilung der Berliner GRÜNEN zum Thema: ',
     lvEbene: 'partei',
+    recommendedTools: ['gruenerator_pressemitteilung_examples'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-berlin',
@@ -256,6 +258,7 @@ export const SKILLS = [
     audience: 'de-DE',
     promptTemplate: 'Schreibe eine Pressemitteilung der Grünen Fraktion Berlin zum Thema: ',
     lvEbene: 'fraktion',
+    recommendedTools: ['gruenerator_pressemitteilung_examples'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-berlin',
@@ -311,6 +314,7 @@ export const SKILLS = [
     audience: 'de-DE',
     promptTemplate: 'Schreibe eine Pressemitteilung der GRÜNEN Mecklenburg-Vorpommern zum Thema: ',
     lvEbene: 'partei',
+    recommendedTools: ['gruenerator_pressemitteilung_examples'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern',
@@ -326,6 +330,7 @@ export const SKILLS = [
     promptTemplate:
       'Schreibe eine Pressemitteilung der GRÜNEN Landtagsfraktion Mecklenburg-Vorpommern zum Thema: ',
     lvEbene: 'fraktion',
+    recommendedTools: ['gruenerator_pressemitteilung_examples'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern',
@@ -353,6 +358,7 @@ export const SKILLS = [
     skillCategory: 'presse',
     audience: 'de-DE',
     promptTemplate: 'Schreibe eine Pressemitteilung im Stil Bündnisgrüne Thüringen zum Thema: ',
+    recommendedTools: ['gruenerator_pressemitteilung_examples'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-thueringen',
@@ -380,6 +386,7 @@ export const SKILLS = [
     skillCategory: 'presse',
     audience: 'de-DE',
     promptTemplate: 'Schreibe eine Pressemitteilung im Stil Brandenburger Bündnisgrüne zum Thema: ',
+    recommendedTools: ['gruenerator_pressemitteilung_examples'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-brandenburg',
@@ -408,6 +415,7 @@ export const SKILLS = [
     audience: 'de-DE',
     promptTemplate: 'Schreibe eine Pressemitteilung der bayerischen GRÜNEN zum Thema: ',
     lvEbene: 'partei',
+    recommendedTools: ['gruenerator_pressemitteilung_examples'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-bayern',
@@ -422,6 +430,7 @@ export const SKILLS = [
     audience: 'de-DE',
     promptTemplate: 'Schreibe eine Pressemitteilung der Landtags-Grünen Bayern zum Thema: ',
     lvEbene: 'fraktion',
+    recommendedTools: ['gruenerator_pressemitteilung_examples'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-hessen',
@@ -436,6 +445,7 @@ export const SKILLS = [
     audience: 'de-DE',
     promptTemplate: 'Schreibe eine Pressemitteilung der GRÜNEN Hessen zum Thema: ',
     lvEbene: 'partei',
+    recommendedTools: ['gruenerator_pressemitteilung_examples'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-hessen',
@@ -450,6 +460,7 @@ export const SKILLS = [
     audience: 'de-DE',
     promptTemplate: 'Schreibe eine Pressemitteilung der GRÜNEN Landtagsfraktion Hessen zum Thema: ',
     lvEbene: 'fraktion',
+    recommendedTools: ['gruenerator_pressemitteilung_examples'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-at',
@@ -463,6 +474,7 @@ export const SKILLS = [
     skillCategory: 'presse',
     audience: 'de-AT',
     promptTemplate: 'Schreibe eine Aussendung im Stil der Grünen Österreich zum Thema: ',
+    recommendedTools: ['gruenerator_pressemitteilung_examples'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-nordrhein-westfalen',
@@ -476,6 +488,7 @@ export const SKILLS = [
     skillCategory: 'presse',
     audience: 'de-DE',
     promptTemplate: 'Schreibe eine Pressemitteilung der Grünen NRW zum Thema: ',
+    recommendedTools: ['gruenerator_search', 'gruenerator_pressemitteilung_examples'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-saarland',
@@ -489,6 +502,7 @@ export const SKILLS = [
     skillCategory: 'presse',
     audience: 'de-DE',
     promptTemplate: 'Schreibe eine Pressemitteilung im Stil der Saar-Grünen zum Thema: ',
+    recommendedTools: ['gruenerator_pressemitteilung_examples'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-sachsen-anhalt',
@@ -504,6 +518,7 @@ export const SKILLS = [
     promptTemplate:
       'Schreibe eine Pressemitteilung von BÜNDNIS 90/DIE GRÜNEN Sachsen-Anhalt zum Thema: ',
     lvEbene: 'partei',
+    recommendedTools: ['gruenerator_pressemitteilung_examples'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-schleswig-holstein',
@@ -517,6 +532,7 @@ export const SKILLS = [
     skillCategory: 'presse',
     audience: 'de-DE',
     promptTemplate: 'Schreibe eine Pressemitteilung der Grünen Schleswig-Holstein zum Thema: ',
+    recommendedTools: ['gruenerator_search', 'gruenerator_pressemitteilung_examples'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-sachsen-anhalt',
@@ -532,6 +548,7 @@ export const SKILLS = [
     promptTemplate:
       'Schreibe eine Pressemitteilung der grünen Landtagsfraktion Sachsen-Anhalt zum Thema: ',
     lvEbene: 'fraktion',
+    recommendedTools: ['gruenerator_pressemitteilung_examples'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-nordrhein-westfalen',
@@ -545,7 +562,7 @@ export const SKILLS = [
     skillCategory: 'social',
     audience: 'de-DE',
     promptTemplate: 'Instagram-Post der Grünen NRW zum Thema: ',
-    recommendedTools: ['vorlagen_vorschlagen'],
+    recommendedTools: ['gruenerator_search', 'vorlagen_vorschlagen'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-saarland',
@@ -573,7 +590,7 @@ export const SKILLS = [
     skillCategory: 'social',
     audience: 'de-DE',
     promptTemplate: 'Instagram-Post der Grünen Schleswig-Holstein zum Thema: ',
-    recommendedTools: ['vorlagen_vorschlagen'],
+    recommendedTools: ['gruenerator_search', 'vorlagen_vorschlagen'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-bayern',
