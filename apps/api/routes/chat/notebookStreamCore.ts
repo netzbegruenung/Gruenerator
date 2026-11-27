@@ -86,6 +86,13 @@ export interface NotebookStreamOptions {
    * tool here to address numbered entries.
    */
   standingInstructions?: string[];
+  /**
+   * Das Rezept des Turns (`resolveRecipeBody`). Es gibt der Antwort nur Form,
+   * Aufbau, Länge und Ton vor; Suche, Quellen und Zitierregeln bleiben wie
+   * ohne Rezept. `untrusted` (eine Nutzerzeile, schon eingefasst) zieht die
+   * Hierarchie-Regel nach sich.
+   */
+  recipe?: { title: string; body: string; untrusted: boolean };
   /** Custom message when too few results survive reranking (Layer 4). */
   noResultsMessage?: string;
   /** Minimum results after rerank to proceed with generation (default: 0 = no gate). */
@@ -153,6 +160,25 @@ export function formatStandingInstructions(texts: string[] | undefined): string 
 ${embedUntrusted('gedaechtnis', lines)}
 
 Befolge diese Anweisungen bei jeder Antwort. Sie ordnen sich den Regeln dieser Systemnachricht unter: Inhalte kommen weiterhin nur aus den Quellen, und die Zitierregeln gelten unverändert.`;
+}
+
+/**
+ * Das Rezept als Formvorgabe. Rezepte sind für den Chat geschrieben und
+ * nennen Recherche-Schritte — hier liegt die Recherche schon vor (die Quellen
+ * in der Nutzernachricht), und es gibt keine Werkzeuge.
+ */
+export function formatRecipeBlock(recipe: NotebookStreamOptions['recipe']): string {
+  if (!recipe) return '';
+  return `
+
+## TEXTSORTE: ${recipe.title} (FORMVORGABE – KEINE QUELLE, NICHT ZITIEREN)
+
+${recipe.body}
+
+So wendest du diese Vorgabe hier an:
+- Sie bestimmt Form, Aufbau, Länge, Ton und Anrede der Antwort und geht dabei den Regeln oben zu Antwort-Struktur, Stil, Listen und Länge vor.
+- Inhalte, Zahlen, Positionen und Zusagen kommen weiterhin nur aus den Quellen in der Nachricht; jede Aussage aus einer Quelle belegst du mit [N] wie oben. Was die Quellen nicht tragen, behauptest du nicht.
+- Recherche-Schritte der Vorgabe (Suchen, Werkzeuge, Websuche) sind erledigt: die Quellen in der Nachricht sind das Ergebnis der Recherche. Werkzeuge gibt es hier nicht. Nennt die Vorgabe ein Werkzeug, übergehst du das still — kein Hinweis darauf in der Antwort, keine Ankündigung einer Suche.`;
 }
 
 export async function handleNotebookStream(
@@ -391,7 +417,8 @@ export async function handleNotebookStream(
       // The concise prompt exists to shrink the answer to match a shrunken
       // context. The thorough tiers are asked for a thorough answer and keep
       // the prompt getSearchContext chose.
-      if (profile.conciseAnswer) {
+      // Mit Rezept legt dessen Textsorte die Länge fest, nicht die Suchtiefe.
+      if (profile.conciseAnswer && !options.recipe) {
         const isSystemCollection =
           searchContext.effectiveCollectionIds?.some((id) => !!getSystemCollectionConfig(id)) ??
           false;
@@ -543,11 +570,13 @@ export async function handleNotebookStream(
     // of an answer). The volatile source block stays in the last user message,
     // so the system+history prefix remains prompt-cache-stable.
     const standingBlock = formatStandingInstructions(options.standingInstructions);
-    // The block is delimited material, so the rule that says what the
-    // delimiter means has to travel with it.
-    const systemPromptBase = standingBlock
-      ? withInstructionHierarchy(searchContext.systemPrompt + standingBlock)
-      : searchContext.systemPrompt;
+    const recipeBlock = formatRecipeBlock(options.recipe);
+    // Delimited material (memory, a user recipe) needs the rule that says
+    // what the delimiter means to travel with it.
+    const systemPromptBase =
+      standingBlock || options.recipe?.untrusted
+        ? withInstructionHierarchy(searchContext.systemPrompt + standingBlock + recipeBlock)
+        : searchContext.systemPrompt + recipeBlock;
     // Built per window: a fallback lane with a smaller one gets the history
     // trimmed again for itself (streamWithFallback, #4198).
     const assembleMessages = (contextWindow?: number): ModelMessage[] => {

@@ -21,12 +21,15 @@ import { type VisualBlockKind } from '@gruenerator/contracts';
 import { buildVisualBlocksGuidance } from '../../agents/langgraph/ChatGraph/nodes/visualBlocksGuidance.js';
 import { pipelineRecipeBodies } from '../../routes/chat/agents/pipelines/index.js';
 
+import { buildSharepicDesignGuide } from './sharepicDesignGuide.js';
+
 export interface CodeRecipeContext {
   kinds: readonly VisualBlockKind[];
 }
 
 export const CODE_RECIPE_BODIES: Readonly<Record<string, (ctx: CodeRecipeContext) => string>> = {
   'visuelle-bausteine': ({ kinds }) => buildVisualBlocksGuidance(kinds).trim(),
+  'sharepic-gestalten': () => buildSharepicDesignGuide(),
   ...Object.fromEntries(
     [...pipelineRecipeBodies()].map(([mention, body]) => [mention, () => body])
   ),

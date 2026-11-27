@@ -11,4 +11,5 @@ audience: 'de-DE'
 lvEbene: 'partei'
 promptTemplate: 'Schreibe eine Pressemitteilung von BÜNDNIS 90/DIE GRÜNEN Sachsen-Anhalt zum Thema: '
 order: 65
+recommendedTools: ['gruenerator_pressemitteilung_examples']
 ---

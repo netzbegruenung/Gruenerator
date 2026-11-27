@@ -11,4 +11,5 @@ audience: 'de-DE'
 lvEbene: 'partei'
 promptTemplate: 'Schreibe eine Pressemitteilung der GRÜNEN Mecklenburg-Vorpommern zum Thema: '
 order: 55
+recommendedTools: ['gruenerator_pressemitteilung_examples']
 ---

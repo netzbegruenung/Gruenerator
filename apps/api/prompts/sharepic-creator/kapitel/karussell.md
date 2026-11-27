@@ -49,11 +49,11 @@ Der `aufruf` steht allein auf der letzten Slide (höchstens eine `dachzeile` dar
 - **Textslider** (Interview, Statement): Textseiten mit 300–500 Zeichen je Slide. Interview-Auszüge auf `creme` mit einem Kernsatz in `++…++`, Cover ein `zitat` auf Foto.
 - **Forderungen**: `headline` „Unsere Forderungen:“ + `liste` – nach einer Fotogeschichte auf `mint`, sonst auf der Farbe des Karussells.
 - **Schluss**: auf derselben Fläche wie die Forderungen mit einem `aufruf` oder einer großen Headline mit `akzent`, `logo: true`.
-- **Kritik und Erklärung**: Cover mit Motiv (`foto-unten`), dann alle Slides bis zum Schluss auf derselben Farbe (z. B. `dunkeltanne`, oben, links) – auch Forderungen und Schluss. Ein Wechsel auf `mint` am Ende gehört nur zur Fotogeschichte.
+- **Die Fläche** eines Karussells wählst du wie bei jeder Slide aus den Grundlagen – nicht nach dem Thema. Sie bleibt dann für alle Slides gleich; ein Wechsel auf `mint` am Ende gehört nur zur Fotogeschichte.
 
 ## Österreich
 
-- **Kritik und Erklärung: alle Slides auf `dunkelgruen`**. Cover und Hook: die Headline allein, oben links (`position: oben`, `align: links`). Argument-Slides zentriert. Statt Headline gern zwei `absatz`-Bausteine in großer Schrift.
+- **Die Fläche ist fast immer `dunkelgruen`** (Korpus 10/2026: 8 von 11 Partei-Karussells, die übrigen drei sind Fotostrecken) – die Abwechslung kommt aus dem Inhalt jeder Slide, nicht aus der Farbe. Cover und Hook: die Headline allein, oben links (`position: oben`, `align: links`), oder ein Foto. Argument-Slides zentriert. Statt Headline gern zwei `absatz`-Bausteine in großer Schrift.
 - Ein Motiv zum Thema als `foto-unten` auf `dunkelgruen` (Text oben, Foto unten) – das Programm färbt das Foto grün ein, das häufigste Bildmittel der Posts. Auf dem Cover, gern auch auf Argument-Slides; der Schluss bleibt ohne Foto.
 - **Wort-Akzente** mit `==…==` in fast jeder Slide – das gelbe Vollkorn-Wort ist das Markenzeichen.
 - Brücke „Darum sagen wir:“ als `absatz` mit `betont: true`, darunter die Forderung.
