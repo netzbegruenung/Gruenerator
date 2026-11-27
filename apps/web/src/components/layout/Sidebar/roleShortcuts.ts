@@ -5,7 +5,6 @@ import {
   getLandesverbandHubsByIds,
   isSkillOfferedIn,
   landesverbandIdsForRoles,
-  skillRole,
   type LvHub,
 } from '@gruenerator/shared/agents';
 import { type InstanceId } from '@gruenerator/shared/instances';
@@ -53,10 +52,11 @@ export interface RoleShortcut {
 
 /**
  * Je Landesverband-Hub: seine Rezepte, sein Notebook und die Marktplatz-Seite.
- * Ein Textsorten-Rezept öffnet das LV-Notebook mit dem Rezept (`?rezept=`):
- * die Antwort stützt sich auf die Quellen des Landesverbands, das Rezept gibt
- * die Form. Ohne Notebook, und bei Methoden-Rezepten, die das Notebook nicht
- * anbietet, bleibt es beim Chat mit `@<rezept>`.
+ * Ein Rezept öffnet das LV-Notebook mit dem Rezept (`?rezept=`): die Antwort
+ * stützt sich auf die Quellen des Landesverbands, das Rezept gibt die Form.
+ * Ohne Notebook-Seite bleibt es beim Chat mit `@<rezept>`. Die LV-Familien
+ * sind alle Textsorten; `skillRole` prüft das hier bewusst nicht, es zöge den
+ * vollen Rezept-Index auf den Startpfad (Budget in `entry-budget.json`).
  */
 export function landesverbandShortcut(
   hub: LvHub,
@@ -67,9 +67,7 @@ export function landesverbandShortcut(
   const notebookPath = getNotebookById(hub.notebookId)?.path;
   const recipes = landesverbandRecipeLinks(hub, instance);
   const recipePath = (mention: string, chatPath: string) =>
-    notebookPath && skillRole(mention) === 'textsorte'
-      ? `${notebookPath}?rezept=${encodeURIComponent(mention)}`
-      : chatPath;
+    notebookPath ? `${notebookPath}?rezept=${encodeURIComponent(mention)}` : chatPath;
   return {
     key: hub.slug,
     name: hub.name,
