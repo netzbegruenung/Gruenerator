@@ -168,6 +168,15 @@ export const NotebookPageContent = ({
   const setAnswerMode = useAgentStore((s) => s.setNotebookAnswerMode);
   const answerMode = notebookComposerModeDef(storedAnswerMode).mode;
   const [searchParams, setSearchParams] = useSearchParams();
+  // The query string as of the latest render. `setSearchParams(prev => …)`
+  // hands over the `prev` of the render that created the callback, and the
+  // `thread_created` callback can run on an older one: it lands right after
+  // `PendingQuestionSender` dropped `?frage=`, and live (27.11.2026) `prev`
+  // put the question back into the URL, so every reload sent it again.
+  const searchParamsRef = useRef(searchParams);
+  useEffect(() => {
+    searchParamsRef.current = searchParams;
+  }, [searchParams]);
   // A question opened from another tab's start page, with the filters it was
   // asked under — read once, the sender clears the params after sending.
   const [handoff] = useState(() => readChatHandoff(searchParams));
@@ -181,8 +190,8 @@ export const NotebookPageContent = ({
       setThreadId(newThreadId);
       // Put the fresh conversation in the URL so reloading stays inside it.
       setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
+        () => {
+          const next = new URLSearchParams(searchParamsRef.current);
           next.set('thread', newThreadId);
           return next;
         },
