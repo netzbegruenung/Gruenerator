@@ -30,7 +30,7 @@ const CARD = 'rounded-2xl border border-[var(--nh-line)] bg-[var(--nh-card)] p-5
 const H2 = 'nh-display m-0 text-[22px] font-bold sm:text-[26px]';
 const MUTED = 'text-[var(--nh-muted)]';
 const CODE =
-  'm-0 overflow-x-auto whitespace-pre rounded-lg bg-[var(--nh-code)] p-3 font-mono text-[13px] leading-relaxed';
+  'm-0 overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-[var(--nh-code)] p-3 font-mono text-[13px] leading-relaxed';
 const TAG = 'rounded-full bg-[var(--nh-mist)] px-2.5 py-[3px] text-[13px]';
 
 const SECTIONS = [
@@ -223,50 +223,92 @@ function Formula({ data }: { data: GetTransparencyStatsResponseDto }) {
   );
 }
 
+/** Published coefficients keep every digit the profile has, in German notation. */
+const factor = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 6 });
+
+type Profile = GetTransparencyStatsResponseDto['calculation']['estimated_text']['profiles'][number];
+
+/** The three coefficients, defined once for the table (sm+) and the stacked list (phones). */
+const FACTOR_COLUMNS: { label: string; unit: string; value: (p: Profile) => number }[] = [
+  { label: 'Eingabe', unit: 'mWh/Token', value: (p) => p.input_mwh_per_token },
+  { label: 'Ausgabe', unit: 'mWh/Token', value: (p) => p.output_mwh_per_token },
+  { label: 'Grundwert', unit: 'mWh/Anfrage', value: (p) => p.fixed_mwh_per_request },
+];
+
+function BasisBadge({ basis }: { basis: Profile['basis'] }) {
+  return (
+    <span
+      className={cn(
+        'rounded-full px-2.5 py-0.5 text-[12px] font-bold',
+        basis === 'calibrated'
+          ? 'bg-[var(--nh-chip)] text-[var(--nh-chip-ink)]'
+          : 'bg-[var(--nh-warn)] text-[var(--nh-warn-ink)]'
+      )}
+    >
+      {basis === 'calibrated' ? 'kalibriert' : 'Bandbreite'}
+    </span>
+  );
+}
+
 function Factors({ data }: { data: GetTransparencyStatsResponseDto }) {
   const { profiles } = data.calculation.estimated_text;
+  const key = (p: Profile) =>
+    `${p.basis}-${p.input_mwh_per_token}-${p.output_mwh_per_token}-${p.fixed_mwh_per_request}`;
+
   return (
     <Section
       id="r-faktoren"
       title="Faktoren"
       aside="aus dem laufenden Berechnungsprofil · ohne Modellnamen"
     >
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[520px] border-collapse text-left text-[14px]">
-          <thead className={cn('text-[12px] uppercase tracking-[0.08em]', MUTED)}>
-            <tr className="border-b border-[var(--nh-line)]">
-              <th className="py-2 pr-4 font-semibold">Grundlage</th>
-              <th className="py-2 pr-4 text-right font-semibold">Eingabe mWh/Token</th>
-              <th className="py-2 pr-4 text-right font-semibold">Ausgabe mWh/Token</th>
-              <th className="py-2 text-right font-semibold">Grundwert mWh/Anfrage</th>
-            </tr>
-          </thead>
-          <tbody className="tabular-nums">
-            {profiles.map((p) => (
-              <tr
-                key={`${p.basis}-${p.input_mwh_per_token}-${p.output_mwh_per_token}-${p.fixed_mwh_per_request}`}
-                className="border-b border-[var(--nh-line)] last:border-0"
-              >
-                <td className="py-2 pr-4">
-                  <span
-                    className={cn(
-                      'rounded-full px-2.5 py-0.5 text-[12px] font-bold',
-                      p.basis === 'calibrated'
-                        ? 'bg-[var(--nh-chip)] text-[var(--nh-chip-ink)]'
-                        : 'bg-[var(--nh-warn)] text-[var(--nh-warn-ink)]'
-                    )}
-                  >
-                    {p.basis === 'calibrated' ? 'kalibriert' : 'Bandbreite'}
-                  </span>
-                </td>
-                <td className="py-2 pr-4 text-right">{p.input_mwh_per_token}</td>
-                <td className="py-2 pr-4 text-right">{p.output_mwh_per_token}</td>
-                <td className="py-2 text-right">{p.fixed_mwh_per_request}</td>
-              </tr>
+      {/* Phones: one block per profile, values labelled in place. */}
+      <ul className="m-0 flex list-none flex-col p-0 sm:hidden">
+        {profiles.map((p) => (
+          <li key={key(p)} className="border-b border-[var(--nh-line)] py-3 last:border-0">
+            <BasisBadge basis={p.basis} />
+            <dl className="m-0 mt-2 grid grid-cols-3 gap-2">
+              {FACTOR_COLUMNS.map((c) => (
+                <div key={c.label} className="flex min-w-0 flex-col-reverse">
+                  <dt className={cn('text-[12px] leading-tight', MUTED)}>
+                    {c.label}
+                    <br />
+                    {c.unit}
+                  </dt>
+                  <dd className="m-0 text-[15px] font-semibold tabular-nums">
+                    {factor.format(c.value(p))}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </li>
+        ))}
+      </ul>
+      <table className="hidden w-full border-collapse text-left text-[14px] sm:table">
+        <thead className={cn('text-[12px] uppercase tracking-[0.08em]', MUTED)}>
+          <tr className="border-b border-[var(--nh-line)]">
+            <th className="py-2 pr-4 font-semibold">Grundlage</th>
+            {FACTOR_COLUMNS.map((c) => (
+              <th key={c.label} className="py-2 pr-4 text-right font-semibold last:pr-0">
+                {c.label} {c.unit}
+              </th>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </tr>
+        </thead>
+        <tbody className="tabular-nums">
+          {profiles.map((p) => (
+            <tr key={key(p)} className="border-b border-[var(--nh-line)] last:border-0">
+              <td className="py-2 pr-4">
+                <BasisBadge basis={p.basis} />
+              </td>
+              {FACTOR_COLUMNS.map((c) => (
+                <td key={c.label} className="py-2 pr-4 text-right last:pr-0">
+                  {factor.format(c.value(p))}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
       <p className={cn('m-0 mt-4 text-[13px]', MUTED)}>
         Kalibriert: feste Werte pro Token, an genau diesem Modell gemessen. Bandbreite: Schätzung
         zwischen zwei gemessenen Modellen, fließt in die Spanne ein.

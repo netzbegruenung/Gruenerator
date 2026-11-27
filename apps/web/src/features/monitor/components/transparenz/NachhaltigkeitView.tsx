@@ -255,10 +255,12 @@ interface ChapterDef {
 function Chapter({ number, def, id }: { number: number; def: ChapterDef; id?: string }) {
   const tone = TONE[def.tone];
   // Explicit size: the global stylesheet sizes `b`, the prose must not inherit that.
+  // Figures stay on one line ("83 kg"); emphasised phrases may wrap on narrow screens.
   const strong = (text: ReactNode, size: 'normal' | 'large' = 'normal') => (
     <b
       className={cn(
-        'whitespace-nowrap font-extrabold tabular-nums',
+        'font-extrabold tabular-nums',
+        typeof text === 'string' && /\d/.test(text) && 'whitespace-nowrap',
         size === 'large' ? 'text-[1.25em]' : 'text-[1em]',
         tone.strong
       )}

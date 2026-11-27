@@ -236,7 +236,7 @@ function Tree({ height, pine }: { height: number; pine?: boolean }) {
 
 function Datacenter() {
   return (
-    <svg {...hidden} width="220" height="150" viewBox="0 0 220 150" className="flex-none">
+    <svg {...hidden} viewBox="0 0 220 150" className="h-auto w-[150px] flex-none sm:w-[220px]">
       {[50, 110, 170].map((cx) => (
         <g key={cx}>
           <circle cx={cx} cy="26" r="22" fill="var(--nh-tree-soft)" />
@@ -272,7 +272,7 @@ function Datacenter() {
 
 function SolarPanel() {
   return (
-    <svg {...hidden} width="120" height="80" viewBox="0 0 120 80" className="flex-none">
+    <svg {...hidden} viewBox="0 0 120 80" className="h-auto w-[84px] flex-none sm:w-[120px]">
       <path d="M14 10 L110 10 L100 56 L4 56 Z" fill="var(--nh-hero)" />
       <path
         d="M38 10 L30 56 M62 10 L54 56 M86 10 L78 56 M9 33 L105 33"
@@ -336,7 +336,7 @@ function Horizon({
   return (
     <div {...hidden} className="relative overflow-hidden" style={style}>
       <div className="absolute inset-x-0 bottom-0 h-3.5" style={{ background: ground }} />
-      <div className="absolute inset-x-0 bottom-3.5 flex items-end justify-around gap-3 px-6">
+      <div className="absolute inset-x-0 bottom-3.5 flex items-end justify-around gap-3 px-3 sm:px-6">
         {children}
       </div>
     </div>
@@ -347,19 +347,23 @@ export function DatacenterHorizon() {
   return (
     <Horizon ground="var(--nh-line)" height={190}>
       <Tree height={98} pine />
-      <Tree height={82} />
+      <span className="hidden sm:block">
+        <Tree height={82} />
+      </span>
       <span className="hidden sm:block">
         <Tree height={100} pine />
       </span>
       <Datacenter />
-      <span className="hidden sm:block">
+      <span className="hidden md:block">
         <WindTurbine height={150} fill="var(--nh-tree-soft)" />
       </span>
-      <Tree height={95} />
-      <span className="hidden md:block">
+      <span className="hidden sm:block">
+        <Tree height={95} />
+      </span>
+      <span className="hidden lg:block">
         <Tree height={93} />
       </span>
-      <span className="hidden md:block">
+      <span className="hidden lg:block">
         <WindTurbine height={120} fill="var(--nh-tree-soft)" speed={5} />
       </span>
       <Tree height={98} pine />
@@ -375,7 +379,7 @@ export function SolarHorizon() {
         <WindTurbine height={150} fill="var(--nh-tree-soft)" />
       </span>
       <SolarPanel />
-      <span className="hidden md:block">
+      <span className="hidden lg:block">
         <SolarPanel />
       </span>
       <span className="hidden sm:block">
@@ -391,7 +395,10 @@ export function SproutHorizon() {
   return (
     <Horizon ground="var(--nh-tree-soft)" height={180}>
       {heights.map((h, i) => (
-        <span key={i} className={i % 3 === 2 ? 'hidden sm:block' : undefined}>
+        <span
+          key={i}
+          className={i >= 8 ? 'hidden lg:block' : i >= 4 ? 'hidden sm:block' : undefined}
+        >
           {i % 4 === 3 ? <Tree height={h} /> : <Sprout height={h} />}
         </span>
       ))}
