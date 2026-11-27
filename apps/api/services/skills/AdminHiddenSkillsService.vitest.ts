@@ -20,7 +20,7 @@ vi.mock('./LandesverbandHiddenSkillsService.js', () => ({
   getHiddenSkillMentionsForLandesverband: async () => m.lv,
 }));
 vi.mock('../agents/AdminHiddenAgentsService.js', () => ({
-  getHiddenAgentIdentifiersCached: async () => m.agents,
+  getHiddenAgentIdentifiers: async () => m.agents,
 }));
 
 const { getEffectiveHiddenSkillMentions } = await import('./AdminHiddenSkillsService.js');

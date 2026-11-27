@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm';
 
 import { adminHiddenSkills } from '../../database/schema/index.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
-import { getHiddenAgentIdentifiersCached } from '../agents/AdminHiddenAgentsService.js';
+import { getHiddenAgentIdentifiers } from '../agents/AdminHiddenAgentsService.js';
 
 import { getHiddenSkillMentionsForLandesverband } from './LandesverbandHiddenSkillsService.js';
 
@@ -26,6 +26,9 @@ export async function getHiddenSkillMentions(): Promise<string[]> {
  * The agent layer exists since recipes stand in front of their agents (11/2026,
  * #6122): hiding the agent alone would let it come back through its recipe.
  * The default agent is left out — it owns the general recipes, not a persona.
+ * Read uncached like the recipe rows: the per-process agent cache is cleared
+ * only on the worker that served the admin toggle, and this set is not on the
+ * per-turn hot path.
  */
 export async function getEffectiveHiddenSkillMentions(
   landesverbandId: string | null
@@ -33,7 +36,7 @@ export async function getEffectiveHiddenSkillMentions(
   const [instanceWide, lvScoped, hiddenAgents] = await Promise.all([
     getHiddenSkillMentions(),
     landesverbandId ? getHiddenSkillMentionsForLandesverband(landesverbandId) : Promise.resolve([]),
-    getHiddenAgentIdentifiersCached(),
+    getHiddenAgentIdentifiers(),
   ]);
   const ofHiddenAgents = systemRecipeMentionsOf(
     hiddenAgents.filter((id) => id !== DEFAULT_SYSTEM_AGENT_ID)
