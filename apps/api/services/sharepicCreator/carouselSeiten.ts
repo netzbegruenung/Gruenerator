@@ -35,7 +35,7 @@ export function carouselSeitenText(
   if (lines.length === 0) return '';
   return `## Slide-Arten aus den Vorlagen
 
-So bauen die Vorlagen die Slides zwischen Cover und Schluss. Wechsle die Art von Slide zu Slide – zwei gleich gebaute Slides hintereinander nur in einer Fotostrecke oder einem Textslider. Nimm von einer Art nur den Aufbau: die Fläche bleibt die des Karussells.
+So bauen die Vorlagen die Slides zwischen Cover und Schluss. Wechsle die Art von Slide zu Slide – zwei gleich gebaute Slides hintereinander nur in einer Fotostrecke, einem Textslider oder einem Interview (frage + absatz). Nimm von einer Art nur den Aufbau: die Fläche bleibt die des Karussells.
 
 ${lines.join('\n')}`;
 }

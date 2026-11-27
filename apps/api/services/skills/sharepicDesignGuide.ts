@@ -11,6 +11,9 @@
  * nach der Regel in `kapitel/stoerer.md` (4 von 4); eine Vorlage gab ihren Aufbau 3 von 3 weiter; „in Rot“ wurde
  * still zu einer CD-Farbe. Wer hier etwas ergänzt, prüft es genauso.
  *
+ * Die Beispiele im Text nennen Weiß, die einzige Farbe in beiden Paletten
+ * (DE und AT); das Rezept gilt für beide.
+ *
  * Was aus Registern kommt (Formen, Farben), wird daraus
  * gebaut, damit der Text nicht hinter dem Code zurückbleibt. Die Namen der
  * Knöpfe bewacht `sharepicDesignGuide.vitest.ts` gegen den Quelltext der Karte.
@@ -33,10 +36,10 @@ export function buildSharepicDesignGuide(): string {
 **So antwortest du:** kurz, freundlich und ermutigend – wie ein Tipp unter Kolleg*innen. Gib 3–4 allgemeine Hinweise, jeden in einem Satz mit einem Beispiel zum Ausprobieren. Keine vollständigen Listen von Farben oder Formen, keine Warnungen und keine Einschränkungen, solange niemand danach fragt. Das Nachschlagewissen unten nutzt du nur für konkrete Rückfragen. Erfinde keine Knöpfe oder Funktionen, die dort nicht stehen.
 
 **Allgemeine Hinweise, aus denen du wählst:**
-- Im Auftrag sagen, wie es aussehen soll – z. B. „Erstelle ein Sharepic auf Mint mit einer Liste: …“ oder „… ohne Foto“.
+- Im Auftrag sagen, wie es aussehen soll – z. B. „Erstelle ein Sharepic auf Weiß mit einer Liste: …“ oder „… ohne Foto“.
 - Eine andere Form ausprobieren – über die Knöpfe „Als …“ unter dem Sharepic oder im Auftrag („als Karussell“, „als Zitat“).
 - Eine Vorlage nehmen, wenn ein bestimmter Look gewünscht ist – im Eingabefeld „@“ tippen und „Sharepic-Vorlage“ wählen.
-- Nach dem Entwurf einfach schreiben, was anders sein soll („Mach den Hintergrund hellgrau“), oder „Mach eine andere Variante“.
+- Nach dem Entwurf einfach schreiben, was anders sein soll („Mach den Hintergrund weiß“), oder „Mach eine andere Variante“.
 - Für Feinarbeit von Hand: der Knopf „Studio“ an der Karte öffnet den Editor.
 
 Bei der Frage, warum sich Sharepics ähneln: Derselbe Auftrag führt meist zu einem ähnlichen Entwurf; ein Gestaltungswunsch im Auftrag, eine andere Form oder eine Vorlage bringen Abwechslung.

@@ -182,50 +182,6 @@ describe('carouselLookProblems', () => {
   });
 });
 
-describe('carouselLookProblems: one build through the middle', () => {
-  type Items = SharepicSlide['items'];
-  const headlineAbsatz = [
-    { type: 'headline', lines: ['Zeile'] },
-    { type: 'absatz', text: 'Text' },
-  ] as Items;
-  const liste = [
-    { type: 'headline', lines: ['Zeile'] },
-    { type: 'liste', stil: 'punkte', punkte: ['a', 'b'] },
-  ] as Items;
-  const built = (middle: Items[], background: Bg = farbe('mint')): SharepicSpec =>
-    ({
-      locale: 'de-DE',
-      slides: [headlineAbsatz, ...middle, headlineAbsatz].map((items) => ({
-        background,
-        position: 'oben',
-        align: 'links',
-        items,
-        logo: false,
-      })),
-    }) as SharepicSpec;
-
-  it('flags three middle slides built alike', () => {
-    expect(carouselLookProblems(built([headlineAbsatz, headlineAbsatz, headlineAbsatz]))).toMatch(
-      /Slides 2–4 sind gleich gebaut \(headline \+ absatz\)/
-    );
-  });
-
-  it('accepts two alike in a row when the build then changes', () => {
-    expect(carouselLookProblems(built([headlineAbsatz, headlineAbsatz, liste]))).toBeNull();
-  });
-
-  it('lets a photo story and a text slider repeat their build', () => {
-    expect(
-      carouselLookProblems(built([headlineAbsatz, headlineAbsatz, headlineAbsatz], foto))
-    ).toBeNull();
-    const absaetze = [
-      { type: 'absatz', text: 'a' },
-      { type: 'absatz', text: 'b' },
-    ] as Items;
-    expect(carouselLookProblems(built([absaetze, absaetze, absaetze]))).toBeNull();
-  });
-});
-
 describe('holdCarouselSurface', () => {
   const surfaces = (spec: SharepicSpec) =>
     spec.slides.map((s) =>
@@ -245,5 +201,67 @@ describe('holdCarouselSurface', () => {
     expect(holdCarouselSurface(one)).toBe(one);
     const story = deck([foto, foto, foto, farbe('mint'), farbe('mint')]);
     expect(holdCarouselSurface(story)).toBe(story);
+  });
+
+  it('takes the surface most slides stand on, so a one-off accent cannot win', () => {
+    const held = holdCarouselSurface(
+      deck([unten('tanne'), farbe('grasgruen'), farbe('tanne'), farbe('tanne'), farbe('tanne')])
+    );
+    expect(surfaces(held)).toEqual(['foto-unten', 'tanne', 'tanne', 'tanne', 'tanne']);
+  });
+
+  it('does not let an infographic on its light ground paint the carousel white', () => {
+    const spec = deck([
+      unten('tanne'),
+      farbe('weiss'),
+      farbe('tanne'),
+      farbe('mint'),
+      farbe('tanne'),
+    ]);
+    spec.slides[1]!.items = [{ type: 'infografik' }] as SharepicSlide['items'];
+    expect(surfaces(holdCarouselSurface(spec))).toEqual([
+      'foto-unten',
+      'weiss',
+      'tanne',
+      'tanne',
+      'tanne',
+    ]);
+  });
+
+  it('drops a header band that would vanish into the new ground', () => {
+    const spec = deck([
+      unten('dunkeltanne'),
+      farbe('dunkeltanne'),
+      { kind: 'farbe', color: 'mint', kopfband: 'dunkeltanne' } as Bg,
+      { kind: 'farbe', color: 'mint', kopfband: 'grasgruen' } as Bg,
+      farbe('dunkeltanne'),
+      farbe('dunkeltanne'),
+    ]);
+    const [, , vanished, kept] = holdCarouselSurface(spec).slides;
+    expect(vanished!.background).toEqual({ kind: 'farbe', color: 'dunkeltanne' });
+    expect(kept!.background).toEqual({
+      kind: 'farbe',
+      color: 'dunkeltanne',
+      kopfband: 'grasgruen',
+    });
+  });
+});
+
+describe('carouselLookProblems: builds', () => {
+  it('leaves an interview with frage + absatz on every middle slide alone', () => {
+    const spec = deck([
+      farbe('tanne'),
+      farbe('tanne'),
+      farbe('tanne'),
+      farbe('tanne'),
+      farbe('tanne'),
+    ]);
+    for (const slide of spec.slides) {
+      slide.items = [
+        { type: 'frage', text: 'Frage?' },
+        { type: 'absatz', text: 'Antwort' },
+      ] as SharepicSlide['items'];
+    }
+    expect(carouselLookProblems(spec)).toBeNull();
   });
 });

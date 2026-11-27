@@ -44,4 +44,11 @@ describe('recipe sharepic-gestalten', () => {
     expect(body).toContain('Deutschland: Tanne, Dunkeltanne, Grasgrün, Mint');
     expect(body).toContain('Österreich: Dunkelgrün, Hellgrün, Weiß');
   });
+
+  it('gives only examples that exist in both the DE and the AT palette', () => {
+    const body = buildSharepicDesignGuide().split('### Nachschlagewissen')[0]!;
+    for (const colour of ['Mint', 'Hellgrau', 'hellgrau', 'Tanne', 'Dunkelgrün']) {
+      expect(body).not.toContain(colour);
+    }
+  });
 });

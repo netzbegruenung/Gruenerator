@@ -29,37 +29,6 @@ function runs(slides: readonly SharepicSlide[]): { start: number; end: number; s
   return out;
 }
 
-/** The blocks a slide is built from, in reading order. */
-const buildOf = (slide: SharepicSlide) => slide.items.map((i) => i.type).join(' + ');
-
-/**
- * A photo story and a text slider repeat one build on purpose (the Vorlagen
- * do); everything else changes its build between cover and close. Drafts held
- * one build through the whole middle (26.11.2026: 19 of 42 neighbours alike,
- * with the catalogue's slide kinds in the prompt).
- */
-function repeatsOnPurpose(slide: SharepicSlide): boolean {
-  return (
-    slide.background.kind === 'foto' ||
-    !!slide.zeilenboxen ||
-    slide.items.every((i) => i.type === 'absatz' || i.type === 'text')
-  );
-}
-
-const RUN = 3;
-
-function repeatedBuild(slides: readonly SharepicSlide[]): string | null {
-  const middle = slides.slice(1, -1);
-  for (let i = 0; i + RUN <= middle.length; i++) {
-    const run = middle.slice(i, i + RUN);
-    const build = buildOf(run[0]!);
-    if (run.every((s) => buildOf(s) === build && !repeatsOnPurpose(s))) {
-      return `Die Slides ${i + 2}–${i + RUN + 1} sind gleich gebaut (${build}). Baue mindestens eine davon anders – eine andere Art aus den Slide-Arten der Vorlagen, z. B. eine liste, frage + absatz, eine große Zahl oder ein bild.`;
-    }
-  }
-  return null;
-}
-
 /** The surface rule alone: how the colours change across the slides, or null when they hold. */
 function surfaceProblem(spec: SharepicSpec): string | null {
   const slides = spec.slides;
@@ -91,22 +60,48 @@ function surfaceProblem(spec: SharepicSpec): string | null {
  * The last attempt is accepted as it comes, and with the slide kinds in the
  * prompt it often still changed colours (5 and 8 of 18 carousels, 26.11.2026,
  * against 0 before). What the rule wants is unambiguous, so it is applied:
- * every colour slide after the cover takes the surface of the first one. A
- * photo story keeps its own change, and an infographic keeps its light ground.
+ * every colour slide after the cover takes the surface most of them already
+ * stand on (the earliest on a tie). An infographic keeps its light ground and
+ * does not vote, so it cannot paint the carousel white; a one-off accent
+ * cannot win against the run it interrupts. A photo story keeps its own change.
  */
 export function holdCarouselSurface(spec: SharepicSpec): SharepicSpec {
   if (spec.slides.length < 3 || !surfaceProblem(spec)) return spec;
-  const first = spec.slides[1]!;
-  if (first.background.kind === 'foto') return spec;
-  const target = surface(first) as SharepicColor;
+  if (spec.slides[1]!.background.kind === 'foto') return spec;
+  const held = (slide: SharepicSlide, i: number) =>
+    i > 0 &&
+    slide.background.kind !== 'foto' &&
+    !slide.items.some((item) => item.type === 'infografik');
+  const votes = new Map<string, number>();
+  spec.slides.forEach((slide, i) => {
+    if (held(slide, i)) votes.set(surface(slide), (votes.get(surface(slide)) ?? 0) + 1);
+  });
+  let target: SharepicColor | null = null;
+  let most = 0;
+  for (const [colour, count] of votes) {
+    if (count > most) [target, most] = [colour as SharepicColor, count];
+  }
+  if (!target) return spec;
+  const ground = target;
   return {
     ...spec,
     slides: spec.slides.map((slide, i) => {
       const bg = slide.background;
-      if (i === 0 || slide.items.some((item) => item.type === 'infografik')) return slide;
-      if (bg.kind === 'farbe') return { ...slide, background: { ...bg, color: target } };
+      if (!held(slide, i)) return slide;
+      if (bg.kind === 'farbe') {
+        // A band in the new ground colour would vanish into it.
+        const { kopfband, ...rest } = bg;
+        return {
+          ...slide,
+          background: {
+            ...rest,
+            color: ground,
+            ...(kopfband && kopfband !== ground && { kopfband }),
+          },
+        };
+      }
       if (bg.kind === 'foto-oben' || bg.kind === 'foto-unten') {
-        return { ...slide, background: { ...bg, panelColor: target } };
+        return { ...slide, background: { ...bg, panelColor: ground } };
       }
       return slide;
     }),
@@ -142,9 +137,7 @@ export function carouselLookProblems(spec: SharepicSpec): string | null {
       );
     }
   }
-  const look = problems.length
+  return problems.length
     ? `Karussell: ein Look für alle Slides. ${problems.join(' ')} Behalte Texte und Reihenfolge, ändere nur Hintergründe und Ausrichtung.`
     : null;
-  const sameBuild = repeatedBuild(slides);
-  return [look, sameBuild].filter(Boolean).join(' ') || null;
 }

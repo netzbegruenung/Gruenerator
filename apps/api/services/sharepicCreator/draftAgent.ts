@@ -605,6 +605,14 @@ export async function draftSharepic(
   for (const r of accepted.repairs ?? []) {
     bericht.push({ art: 'repariert', feld: r.feld, wert: r.wert.slice(0, 60) });
   }
+  // The hold can override a colour the person asked for on one slide; say so rather than drop it silently.
+  if (drafted !== accepted.spec) {
+    const ground = drafted.slides.find((s, i) => i > 0 && s.background.kind === 'farbe');
+    bericht.push({
+      art: 'gestaltung',
+      text: `Damit das Karussell einen Look hält, stehen die Slides nach dem Cover auf einer Fläche${ground?.background.kind === 'farbe' ? ` (${ground.background.color})` : ''}. Eine andere Farbe für einzelne Slides kannst du danach mit einem Satz verlangen.`,
+    });
+  }
   const scene = accepted.scene;
   let collageId: string | null = null;
   if (scene) {
