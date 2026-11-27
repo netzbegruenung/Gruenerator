@@ -39,7 +39,8 @@ import { aiObject, type AiObjectCall } from '../ai/generate.js';
 import { getUnsplashService } from '../unsplash/UnsplashApiService.js';
 
 import { weekdayId } from './briefFacts.js';
-import { carouselLookProblems } from './carouselLook.js';
+import { carouselLookProblems, holdCarouselSurface } from './carouselLook.js';
+import { carouselSeitenText } from './carouselSeiten.js';
 import { findStockPhotos, stockPhotoCredit, type FoundPhoto } from './catalog.js';
 import { type DatumRepair, repairDatum } from './datumRepair.js';
 import { type DraftFailure, DraftFailedError, sameFailure } from './draftFailure.js';
@@ -340,6 +341,7 @@ export async function draftSharepic(
     basicsText(locale, design),
     ownPhotos.length ? ownPhotosText(ownPhotos) : '',
     ...chapters.map(chapterText),
+    chapters.includes('karussell') ? carouselSeitenText(locale, design) : '',
     examplesText(
       locale,
       [...new Set([...(recipe?.anlass ?? []), ...wanted.anlass])].slice(0, 3),
@@ -487,7 +489,13 @@ export async function draftSharepic(
         return { ok: false, error: `Der Auftrag ist ein Sharepic der Form ${mismatch}` };
       }
       // A new carousel holds one look; the last attempt passes rather than fail the draft.
-      const look = !current && attempt < attempts ? carouselLookProblems(checked.value) : null;
+      // Colour changes are repaired after acceptance (`holdCarouselSurface`), so only what
+      // that cannot fix asks the model again: live 26.11.2026, 10 paid retries in 8 carousels
+      // were colour changes alone.
+      const look =
+        !current && attempt < attempts
+          ? carouselLookProblems(holdCarouselSurface(checked.value))
+          : null;
       if (look) return { ok: false, error: look };
       // Live 05.11.2026: „Auf dem Bild soll ich (Anhang) …“ got a generic surfer. The last attempt passes; the net reports.
       // Only a photo of ONE person is that person: a crowd in a landscape is no one to paint in
@@ -581,7 +589,8 @@ export async function draftSharepic(
   const accepted = draft.ok ? draft.data : photoKept!;
 
   // A revision keeps the draft's format unless the model names one.
-  const drafted = accepted.spec;
+  // A new carousel whose last attempt still changed colours gets the one surface the rule asks for.
+  const drafted = current ? accepted.spec : holdCarouselSurface(accepted.spec);
   let spec = current?.format && !drafted.format ? { ...drafted, format: current.format } : drafted;
   let hinweis: string | null = null;
   const bericht: SharepicBerichtEintrag[] = [];
@@ -595,6 +604,14 @@ export async function draftSharepic(
   }
   for (const r of accepted.repairs ?? []) {
     bericht.push({ art: 'repariert', feld: r.feld, wert: r.wert.slice(0, 60) });
+  }
+  // The hold can override a colour the person asked for on one slide; say so rather than drop it silently.
+  if (drafted !== accepted.spec) {
+    const ground = drafted.slides.find((s, i) => i > 0 && s.background.kind === 'farbe');
+    bericht.push({
+      art: 'gestaltung',
+      text: `Damit das Karussell einen Look hält, stehen die Slides nach dem Cover auf einer Fläche${ground?.background.kind === 'farbe' ? ` (${ground.background.color})` : ''}. Eine andere Farbe für einzelne Slides kannst du danach mit einem Satz verlangen.`,
+    });
   }
   const scene = accepted.scene;
   let collageId: string | null = null;

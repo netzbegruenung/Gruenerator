@@ -11,4 +11,5 @@ audience: 'de-DE'
 lvEbene: 'partei'
 promptTemplate: 'Schreibe eine Pressemitteilung der GRÜNEN Hessen zum Thema: '
 order: 63
+recommendedTools: ['gruenerator_pressemitteilung_examples']
 ---

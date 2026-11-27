@@ -1,14 +1,12 @@
 import { type TopicCategory } from '@gruenerator/contracts';
-import { LANDESVERBAENDE, LV_HUBS, getSystemAgentsForLocale } from '@gruenerator/shared/agents';
+import { LANDESVERBAENDE } from '@gruenerator/shared/agents';
 import { umfragenRegion } from '@gruenerator/shared/monitor';
 import { Skeleton, cn } from '@gruenerator/ui';
-import { useMemo } from 'react';
 import { FiExternalLink } from 'react-icons/fi';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 
 import withAuthRequired from '../../../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../../../components/common/PageContainer';
-import { useAuthStore } from '../../../../stores/authStore';
 import { formatRelativeDate } from '../../../../utils/dateFormatter';
 import {
   getNotebookPath,
@@ -29,7 +27,6 @@ import { NotebookTabs } from '../NotebookTabs';
 import {
   ActivityChart,
   InstagramPosts,
-  NotebookGrueneratoren,
   OverviewKpis,
   PeopleList,
   PollTrendCard,
@@ -65,21 +62,12 @@ function OverviewBody({ config }: { config: NotebookConfig }) {
   // The registry id (`mecklenburg-vorpommern-notebook`) — not `${config.id}-notebook`,
   // which is camelCase for MV and SH and so matched none of their agents.
   const entry = getNotebookByPath(chatPath);
-  const locale = useAuthStore((s) => s.locale) ?? 'de-DE';
   const navigate = useNavigate();
   const { clearAllFilters, setActiveFilter } = useNotebookStore();
   const { data: overview, isPending, isError, refetch } = useNotebookOverview(collectionId);
 
   const lv = entry ? LANDESVERBAENDE.find((l) => l.notebookId === entry.id) : undefined;
   const pollRegion = lv ? umfragenRegion(lv.id) : null;
-  const hub = entry ? (LV_HUBS.find((h) => h.notebookId === entry.id) ?? null) : null;
-  const agents = useMemo(
-    () =>
-      entry
-        ? getSystemAgentsForLocale(locale).filter((a) => a.defaultNotebookIds?.includes(entry.id))
-        : [],
-    [entry, locale]
-  );
 
   const selectTopic = (topic: TopicCategory) => {
     // The notebook filter store is shared with the chat tab: set exactly this
@@ -184,7 +172,6 @@ function OverviewBody({ config }: { config: NotebookConfig }) {
           {overview.terms && (
             <TermCloud terms={overview.terms} documents={overview.totals.documents} />
           )}
-          {agents.length > 0 && <NotebookGrueneratoren agents={agents} hub={hub} />}
         </div>
       )}
     </>

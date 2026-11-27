@@ -10,7 +10,9 @@ import {
   filterMentionables,
   getAllMentionables,
   setMentionInstance,
+  setMentionLandesverbaende,
   setMentionLocale,
+  landesverbandRecipeMentionables,
   userAgentToMentionable,
   textformToMentionable,
 } from './mentionables';
@@ -454,5 +456,40 @@ describe('textformToMentionable', () => {
       isPublic: false,
     });
     expect(m.description).toBe('Eigenes Rezept');
+  });
+});
+
+describe('landesverbandRecipeMentionables', () => {
+  afterEach(() => {
+    setMentionLocale('de-DE');
+    setMentionLandesverbaende(null);
+  });
+
+  it('offers an LV notebook its own text recipes, without the LGS role', () => {
+    // No Landesverband for this person: the chat picker hides the LV recipes,
+    // the LV notebook still offers them.
+    setMentionLandesverbaende([]);
+    const mentions = landesverbandRecipeMentionables('nordrhein-westfalen-notebook').map(
+      (m) => m.mention
+    );
+    expect(mentions).toEqual(expect.arrayContaining(['wahlpruefstein-nrw', 'presse-nrw']));
+    expect(getAgentMentionables().some((m) => m.mention === 'wahlpruefstein-nrw')).toBe(false);
+    expect(mentions.every((m) => m.endsWith('-nrw'))).toBe(true);
+  });
+
+  it('keeps every LV apart', () => {
+    const bayern = landesverbandRecipeMentionables('bayern-notebook').map((m) => m.mention);
+    expect(bayern).toContain('wahlpruefstein-bayern');
+    expect(bayern.some((m) => m.endsWith('-nrw') || m.endsWith('-saarland'))).toBe(false);
+    expect(landesverbandRecipeMentionables('saarland-notebook').map((m) => m.mention)).toContain(
+      'wahlpruefstein-saarland'
+    );
+  });
+
+  it('offers nothing on a notebook that belongs to no LV, and follows the locale', () => {
+    expect(landesverbandRecipeMentionables('gruenerator-notebook')).toEqual([]);
+    expect(landesverbandRecipeMentionables(null)).toEqual([]);
+    setMentionLocale('de-AT');
+    expect(landesverbandRecipeMentionables('nordrhein-westfalen-notebook')).toEqual([]);
   });
 });

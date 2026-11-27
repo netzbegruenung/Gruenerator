@@ -53,6 +53,7 @@ import {
   withPinnedConnectorToken,
 } from '../../lib/mentionInsertion';
 import { onMentionRequest } from '../../lib/mentionRequest';
+import { flattenMentionSections, type MentionSection } from '../../lib/mentionSections';
 import {
   PASTED_TEXT_ATTACHMENT_NAME,
   shouldCreatePastedTextAttachment,
@@ -130,6 +131,15 @@ interface GrueneratorComposerProps {
    * handed here instead of into this thread (notebook start page → new tab).
    */
   onChatSubmit?: (text: string) => void;
+  /**
+   * Replaces the combined @-list with the surface's own (the notebook offers
+   * only recipes). Picking strips the typed `@…` and hands the item here —
+   * no pill, no text, no store write. Works with `showMentions={false}`.
+   */
+  mentionSource?: {
+    sections: (query: string) => MentionSection[];
+    onSelect: (mentionable: Mentionable) => void;
+  };
 }
 
 const ROUND_BTN_BASE =
@@ -429,6 +439,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   enablePastedTextAttachments = false,
   onSearchSubmit,
   onChatSubmit,
+  mentionSource,
 }: GrueneratorComposerProps) {
   const onTextSubmit = onSearchSubmit ?? onChatSubmit;
   const textSubmit = onSearchSubmit ? 'search' : onChatSubmit ? 'send' : null;
@@ -559,6 +570,22 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     (mentionable: Mentionable) => {
       const textarea = textareaRef.current;
       if (!textarea) return;
+
+      if (mentionSource) {
+        if (mention.mentionStart >= 0) {
+          const currentText = composerRuntime.getState().text;
+          const before = currentText.slice(0, mention.mentionStart);
+          const after = currentText.slice(textarea.selectionStart);
+          composerRuntime.setText(`${before}${after}`);
+          requestAnimationFrame(() => {
+            textarea.setSelectionRange(before.length, before.length);
+            textarea.focus();
+          });
+        }
+        mentionSource.onSelect(mentionable);
+        dismissPopover();
+        return;
+      }
 
       // When user selects the @datei trigger, switch to file browser mode
       if (mentionable.type === 'document' && mentionable.identifier === 'datei-trigger') {
@@ -693,7 +720,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
         textarea.focus();
       });
     },
-    [composerRuntime, mention.mentionStart, dismissPopover]
+    [composerRuntime, mention.mentionStart, dismissPopover, mentionSource]
   );
 
   // Rezept-Starter im leeren Chat wählen über dieselbe Auswahl wie das @-Menü.
@@ -844,9 +871,9 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       announceTyping(e.target.value.length > 0);
-      if (showMentions) handleChange(e);
+      if (showMentions || mentionSource) handleChange(e);
     },
-    [announceTyping, showMentions, handleChange]
+    [announceTyping, showMentions, mentionSource, handleChange]
   );
   const draftEmpty = useAuiState((s) => s.composer.text === '');
   useEffect(() => {
@@ -916,7 +943,9 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
         return;
       }
 
-      const filtered = getFilteredMentionables(mention.query);
+      const filtered = mentionSource
+        ? flattenMentionSections(mentionSource.sections(mention.query))
+        : getFilteredMentionables(mention.query);
       if (filtered.length === 0) return;
 
       switch (e.key) {
@@ -965,6 +994,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
       sendWithPillMentions,
       removePillMention,
       inputHistory,
+      mentionSource,
     ]
   );
 
@@ -1185,7 +1215,19 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
 
         {slots?.aboveInput}
 
+        {mentionSource ? (
+          <MentionPopover
+            sections={mentionSource.sections(mention.query)}
+            query={mention.query}
+            visible={mention.visible}
+            onSelect={handleSelect}
+            onDismiss={dismissPopover}
+            selectedIndex={mention.selectedIndex}
+            anchorRect={mention.anchorRect}
+          />
+        ) : null}
         {showMentions &&
+          !mentionSource &&
           (mention.mode === 'datei' ? (
             <FileMentionPopover
               visible={mention.visible}

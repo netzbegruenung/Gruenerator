@@ -167,7 +167,7 @@ describe('NotebookOverviewPage', () => {
     );
   });
 
-  it('renders the exact figures and the LV agents MV used to lose', async () => {
+  it('renders the exact figures, without an agents card', async () => {
     server.use(
       http.get(ENDPOINT('mecklenburg-vorpommern-system'), () => HttpResponse.json(overview()))
     );
@@ -178,8 +178,8 @@ describe('NotebookOverviewPage', () => {
     expect(screen.getByText('+13 gegenüber den 30 Tagen davor')).toBeVisible();
     expect(screen.getByText('Mehr Busse für Vorpommern')).toBeVisible();
     expect(screen.getByText('Durchschnitt aller Landesverbände')).toBeVisible();
-    // `${config.id}-notebook` was `mecklenburgVorpommern-notebook` and matched no agent.
-    expect(screen.getByRole('heading', { name: 'Agents' })).toBeVisible();
+    // Recipes are picked in the composer now; the overview offers no agents.
+    expect(screen.queryByRole('heading', { name: 'Agents' })).not.toBeInTheDocument();
   });
 
   it('shows the Land poll and links the card to its trend page', async () => {

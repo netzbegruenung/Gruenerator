@@ -10,4 +10,5 @@ skillCategory: presse
 audience: 'de-DE'
 promptTemplate: 'Schreibe eine Pressemitteilung im Stil Bündnisgrüne Thüringen zum Thema: '
 order: 57
+recommendedTools: ['gruenerator_pressemitteilung_examples']
 ---

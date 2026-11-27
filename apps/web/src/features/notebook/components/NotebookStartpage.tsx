@@ -5,7 +5,9 @@ import {
   NotebookComposer,
   type CategoryFilterConfig,
   type MagicIntent,
+  type Mentionable,
   type NotebookComposerMode,
+  type NotebookRecipeGroup,
   type SourceFilterConfig,
 } from '@gruenerator/chat';
 import { type NotebookDepth, type NotebookSourceTier } from '@gruenerator/contracts';
@@ -59,6 +61,10 @@ interface NotebookStartpageProps {
   /** Opens a chat question in its own browser tab, so this page keeps the
    *  query and its hits. Without it the question is asked here. */
   onOpenChat?: (question: string) => void;
+  /** Recipe choice in the composer; a picked recipe only shapes the answer. */
+  recipe?: Mentionable | null;
+  recipeGroups?: readonly NotebookRecipeGroup[];
+  onRecipeChange?: (recipe: Mentionable | null) => void;
 }
 
 // Signature 2a gradient — pink radial (light) / deep-green radial (dark). Applied
@@ -93,6 +99,9 @@ export function NotebookStartpage({
   pageGradient = true,
   footer,
   onOpenChat,
+  recipe = null,
+  recipeGroups,
+  onRecipeChange,
 }: NotebookStartpageProps) {
   const hasCollections = recentCollectionIds.length > 0;
   const manualSearchAvailable = showManualSearch && hasCollections;
@@ -100,8 +109,12 @@ export function NotebookStartpage({
   // Only the start page searches live, and only in the modes that ask for it.
   const composerText = useAuiState((s) => s.composer.text);
   const [submitted, setSubmitted] = useState<string | null>(null);
+  // A recipe asks for a text, never for hits: no live search, no Magic Search.
   const liveSearch =
-    manualSearchAvailable && answerMode !== undefined && composerModeRunsLiveSearch(answerMode);
+    manualSearchAvailable &&
+    answerMode !== undefined &&
+    composerModeRunsLiveSearch(answerMode) &&
+    !(recipe && answerMode === 'auto');
   const hasHits = liveSearch && composerText.trim().length >= LIVE_SEARCH_MIN_LENGTH;
   // The composer moves up once the first answer is on screen, not with the
   // first keystroke, and stays up even when the field is cleared — the page
@@ -118,7 +131,7 @@ export function NotebookStartpage({
   }, [raised, hasText]);
 
   const magicIntent: MagicIntent | null =
-    answerMode === 'auto' && manualSearchAvailable && hasText
+    answerMode === 'auto' && manualSearchAvailable && hasText && !recipe
       ? detectMagicIntent(composerText)
       : null;
 
@@ -180,6 +193,7 @@ export function NotebookStartpage({
             settingsClassName={NOTEBOOK_COMPOSER_ACCENT}
             {...(onOpenChat ? { onChatSubmit: onOpenChat } : {})}
             {...(manualSearchAvailable ? { onManualSubmit: setSubmitted } : {})}
+            {...(recipeGroups && onRecipeChange ? { recipe, recipeGroups, onRecipeChange } : {})}
           />
         </div>
       </div>

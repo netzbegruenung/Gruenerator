@@ -10,4 +10,5 @@ skillCategory: presse
 audience: 'de-DE'
 promptTemplate: 'Schreibe eine Pressemitteilung der Grünen NRW zum Thema: '
 order: 65
+recommendedTools: ['gruenerator_search', 'gruenerator_pressemitteilung_examples']
 ---

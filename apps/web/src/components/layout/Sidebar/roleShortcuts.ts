@@ -52,8 +52,11 @@ export interface RoleShortcut {
 
 /**
  * Je Landesverband-Hub: seine Rezepte, sein Notebook und die Marktplatz-Seite.
- * Ein Rezept-Eintrag öffnet den Chat mit `@<rezept>` — wie bei der
- * Bundesgeschäftsstelle; die LV-Agenten stehen seit 11/2026 nicht mehr hier.
+ * Ein Rezept öffnet das LV-Notebook mit dem Rezept (`?rezept=`): die Antwort
+ * stützt sich auf die Quellen des Landesverbands, das Rezept gibt die Form.
+ * Ohne Notebook-Seite bleibt es beim Chat mit `@<rezept>`. Die LV-Familien
+ * sind alle Textsorten; `skillRole` prüft das hier bewusst nicht, es zöge den
+ * vollen Rezept-Index auf den Startpfad (Budget in `entry-budget.json`).
  */
 export function landesverbandShortcut(
   hub: LvHub,
@@ -63,6 +66,8 @@ export function landesverbandShortcut(
 ): RoleShortcut {
   const notebookPath = getNotebookById(hub.notebookId)?.path;
   const recipes = landesverbandRecipeLinks(hub, instance);
+  const recipePath = (mention: string, chatPath: string) =>
+    notebookPath ? `${notebookPath}?rezept=${encodeURIComponent(mention)}` : chatPath;
   return {
     key: hub.slug,
     name: hub.name,
@@ -75,7 +80,7 @@ export function landesverbandShortcut(
         label: recipe.title,
         // Siehe `bundesgeschaeftsstelleShortcut`: `SkillIcon` ist schmaler getippt.
         Icon: resolveSkillIcon(recipe.iconKey) as IconType,
-        path: recipe.path,
+        path: recipePath(recipe.mention, recipe.path),
         title: recipe.title,
       })),
     },

@@ -4,6 +4,8 @@
  * `notebook_quellen`, gesperrt auf die Notebooks der Seite).
  *
  * Reihenfolge:
+ * 0. Ein Rezept → chat (`recipe`): es gibt der Antwort der RAG-Pipeline nur
+ *    die Form vor, die Suche bleibt dieselbe — gleich, was gewählt war.
  * 1. Kein Feld → chat (`default`) — alte Mobile-Binaries, Eval, Grün-O-Mat.
  *    `chat` → chat (`explicit`).
  * 2. Kein Notebook der Seite, das `notebook_quellen` lesen kann → chat
@@ -78,6 +80,8 @@ export interface NotebookAnswerModeInput {
   question: string;
   /** Verlauf VOR der aktuellen Frage, älteste zuerst (siehe `notebookGuardHistory`). */
   history: readonly NotebookGuardTurn[];
+  /** Der Turn wendet ein Rezept an (aufgelöst, nicht nur angefragt). */
+  recipe?: boolean;
 }
 
 export interface NotebookAnswerModeResolution {
@@ -201,6 +205,7 @@ export async function resolveNotebookAnswerMode(
     return { decision: { requested, resolved, reason }, warning };
   };
 
+  if (input.recipe) return decide('chat', 'recipe', 'recipe');
   if (requested == null) return decide('chat', 'default', 'default');
   if (requested === 'chat') return decide('chat', 'explicit', 'explicit_chat');
 

@@ -10,4 +10,5 @@ skillCategory: presse
 audience: 'de-DE'
 promptTemplate: 'Schreibe eine Pressemitteilung im Stil Brandenburger Bündnisgrüne zum Thema: '
 order: 59
+recommendedTools: ['gruenerator_pressemitteilung_examples']
 ---
