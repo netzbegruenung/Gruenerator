@@ -88,6 +88,8 @@ export const CitationBadge = memo(function CitationBadge({
     0,
     panelSources.findIndex((s) => s.citationId === citation.id)
   );
+  const canOpenPanel =
+    citationPanel.isAvailable && panelSources.some((s) => s.citationId === citation.id);
   const inspectorHref =
     documentId !== null && collectionId !== null && chunkIndex !== null && chunkInspectorHref
       ? chunkInspectorHref({ documentId, collectionId, chunkIndex })
@@ -105,6 +107,16 @@ export const CitationBadge = memo(function CitationBadge({
           aria-label={`Quelle ${citationId}: ${citation.title}`}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
+          onClick={(e) => {
+            // Wie NotebookLM: Hover zeigt die Vorschau, ein Klick öffnet die
+            // Quelle direkt in der Seitenleiste. preventDefault hält Radix davon
+            // ab, das Popover dabei umzuschalten. Ohne Seitenleiste (oder bei
+            // einer Quelle, die sie nicht öffnen kann) bleibt der Klick beim Popover.
+            if (!canOpenPanel) return;
+            e.preventDefault();
+            setOpen(false);
+            citationPanel.open(panelSources, panelIndex);
+          }}
         >
           {citationId}
         </button>
