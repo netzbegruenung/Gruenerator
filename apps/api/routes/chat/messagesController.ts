@@ -8,8 +8,10 @@ import {
   notebookResolvedAnswerModeSchema,
   notebookSourceRefSchema,
   notebookSourceTierSchema,
+  recipesUsedSchema,
   type NotebookAnswerModeReason,
   type NotebookResolvedAnswerMode,
+  type RecipeUsed,
   type NotebookSourceTier,
 } from '@gruenerator/contracts';
 import { z } from 'zod';
@@ -265,6 +267,7 @@ router.get('/', async (req, res) => {
             turnDurationMs?: number;
             answerMode?: NotebookResolvedAnswerMode;
             answerModeReason?: NotebookAnswerModeReason;
+            recipesUsed?: RecipeUsed[];
             sourceTier?: NotebookSourceTier;
             followUpSuggestions?: string[];
             briefing?: Record<string, unknown>;
@@ -294,6 +297,7 @@ router.get('/', async (req, res) => {
           const answerMode = notebookResolvedAnswerModeSchema.safeParse(meta.answerMode);
           const answerModeReason = notebookAnswerModeReasonSchema.safeParse(meta.answerModeReason);
           const sourceTier = notebookSourceTierSchema.safeParse(meta.sourceTier);
+          const recipesUsed = recipesUsedSchema.safeParse(meta.recipesUsed);
           metadata = {
             ...(typeof meta.intent === 'string' && { intent: meta.intent }),
             ...(typeof meta.searchCount === 'number' && { searchCount: meta.searchCount }),
@@ -327,6 +331,10 @@ router.get('/', async (req, res) => {
             ...(answerMode.success && { answerMode: answerMode.data }),
             // Warum der Modus lief — „automatisch gewählt" überlebt so den Reload.
             ...(answerModeReason.success && { answerModeReason: answerModeReason.data }),
+            // „Rezept: …" unter der Antwort — Chat wie Notebook-Seite. Fehlte
+            // hier bis 11/2026, die Zeile verschwand beim Reload.
+            ...(recipesUsed.success &&
+              recipesUsed.data.length > 0 && { recipesUsed: recipesUsed.data }),
             // Quellen-Ampel: the note under a notebook answer that ran with the tier on.
             ...(sourceTier.success &&
               sourceTier.data === 'documents-first' && {

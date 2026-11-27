@@ -314,7 +314,7 @@ function buildCustomMetadata(metadata: LoadedMessage['metadata']): Record<string
 
   // Derived: drives the message-action affordances (copy/regenerate context)
   // and the thumbs feedback button (traceId), so it must survive reload.
-  if (metadata.intent || metadata.traceId) {
+  if (metadata.intent || metadata.traceId || metadata.recipesUsed?.length) {
     custom.streamMetadata = {
       intent: metadata.intent ?? 'direct',
       searchCount: metadata.searchCount ?? 0,
