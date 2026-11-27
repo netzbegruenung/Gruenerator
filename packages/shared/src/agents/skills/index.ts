@@ -80,6 +80,16 @@ export function ownsSystemRecipe(agentIdentifier: string): boolean {
 }
 
 /**
+ * Die Mentions der Systemrezepte, die diesen Agents gehören. Blendet ein Admin
+ * einen Agent aus, gelten seine Rezepte mit als ausgeblendet — sie stehen seit
+ * 11/2026 vor ihm, sonst käme das Ausgeblendete über das Rezept zurück (#6122).
+ */
+export function systemRecipeMentionsOf(agentIdentifiers: Iterable<string>): string[] {
+  const agents = new Set(agentIdentifiers);
+  return SKILLS.filter((skill) => agents.has(skill.identifier)).map((skill) => skill.mention);
+}
+
+/**
  * Gibt es zu dieser Mention ein MITGELIEFERTES Rezept?
  *
  * Der Unterschied entscheidet, ob eine angelernte Textform den Rumpf eines
