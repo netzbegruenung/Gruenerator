@@ -9,6 +9,7 @@ import {
   agentRef,
   getAgentSlug,
   landesverbandRegion,
+  ownsSystemRecipe,
   type Agent,
 } from '@gruenerator/shared/agents';
 
@@ -96,7 +97,13 @@ async function candidates(
     landesverbandRegion(a.identifier).localeCompare(landesverbandRegion(b.identifier))
   );
   return [
-    ...catalog.generalAgents.map((a, rank) => ({
+    // An agent that owns a system recipe is not listed either: the recipe
+    // stands in front and runs with the agent's scoping (`initializeChatState`;
+    // the transfer recipes even take the whole agent over). #6122.
+    ...(forList
+      ? catalog.generalAgents.filter((a) => !ownsSystemRecipe(a.identifier))
+      : catalog.generalAgents
+    ).map((a, rank) => ({
       item: officialItem(a, 'offiziell'),
       rank,
       searchText: [a.identifier],

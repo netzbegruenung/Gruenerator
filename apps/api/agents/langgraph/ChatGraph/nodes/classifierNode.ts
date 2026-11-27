@@ -16,6 +16,7 @@
  *   Residual:   The rule table's own verdict, named for what it is
  */
 
+import { resolveSkillMention } from '@gruenerator/shared/agents';
 import { type ChatIntentId, degradeTargetForLocale } from '@gruenerator/shared/chat-intents';
 import { isCloudShareUrl } from '@gruenerator/shared/utils';
 
@@ -1741,7 +1742,15 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // prompts otherwise fall through to `direct` and never reach the bundestag
     // search branch. Force it here — except obvious meta/help questions. de-AT
     // never reaches this (agent is de-DE only; downgrade guard above also covers it).
-    const isBundestagAgent = state.agentConfig.identifier === 'gruenerator-bundestag';
+    // Its recipe `@bundestagsrecherche` stands in front of the agent since
+    // 11/2026 (#6122) and forces the same, found by owner rather than by name.
+    // It is a method recipe, so it rides in `methodSkillMentions`, not in
+    // `activeSkillMention` (`partitionTurnRecipes`).
+    const isBundestagAgent =
+      state.agentConfig.identifier === 'gruenerator-bundestag' ||
+      [state.activeSkillMention, ...(state.methodSkillMentions ?? [])].some(
+        (mention) => mention != null && resolveSkillMention(mention) === 'gruenerator-bundestag'
+      );
     if (
       isBundestagAgent &&
       state.userLocale !== 'de-AT' &&
@@ -1749,7 +1758,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       !looksLikeMetaQuestion
     ) {
       log.info(
-        `[Classifier] Bundestag agent (${state.agentConfig.identifier}) active → forcing bundestag intent`
+        `[Classifier] Bundestag research (agent ${state.agentConfig.identifier}, Rezept ${state.agentConfig.identifier === 'gruenerator-bundestag' ? '-' : 'bundestagsrecherche'}) → forcing bundestag intent`
       );
       return {
         intent: 'bundestag',

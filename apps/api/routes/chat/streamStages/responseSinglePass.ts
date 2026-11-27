@@ -213,6 +213,7 @@ export async function runSinglePassAnswer({
       ...(finalState.taskShape != null && { taskShape: finalState.taskShape }),
       materialChars: turnMaterialChars(finalState),
       agentId: finalState.agentConfig.identifier,
+      recipeMention: finalState.activeSkillMention ?? null,
       // Measured BEFORE pruning on purpose: the question is "does this
       // turn need a bigger lane", and pruning is exactly the loss we
       // want to avoid by answering it.

@@ -935,6 +935,20 @@
       "description": "Terminumfrage (wie Doodle) oder Abstimmung auf nuudel.digitalcourage.de anlegen, auswerten, ändern und löschen. Nutzen, wenn eine Gruppe einen gemeinsamen Termin finden oder zwischen Vorschlägen wählen soll.",
       "avatar": "📅",
       "category": "sonstiges"
+    },
+    {
+      "command": "@einfache-sprache",
+      "title": "Einfache Sprache",
+      "description": "Überträgt einen vorhandenen Text vollständig in Einfache Sprache (B1) und prüft die Fassung in getrennten Schritten nach. Nutzen, wenn ein Beschluss, Antrag oder Pressetext verständlicher werden soll.",
+      "avatar": "📖",
+      "category": "dokumente"
+    },
+    {
+      "command": "@leichte-sprache",
+      "title": "Leichte Sprache",
+      "description": "Überträgt einen vorhandenen Text in Leichte Sprache nach den Regeln des Netzwerks Leichte Sprache und prüft die Fassung nach. Nutzen, wenn Menschen den Text verstehen sollen, die nicht gut lesen können.",
+      "avatar": "🗣️",
+      "category": "dokumente"
     }
   ],
   "skillCategoryLabels": {

@@ -53,6 +53,13 @@ export interface PipelineStep {
 export interface PipelineAgent {
   /** Agenten-Identifier. **F1** — nicht umbenennen. */
   readonly identifier: string;
+  /**
+   * Das Rezept, das vorn steht (seit 11/2026, wie bei den LV-Agents). Ist es im
+   * Turn angeheftet oder erwähnt, fährt der Turn diesen Agenten samt Kette
+   * (`initializeChatState`). Sein Rumpf ist `systemRole` (`codeRecipes.ts`).
+   * **F0**: Mention-Tokens in gespeicherten Nachrichten nennen ihn.
+   */
+  readonly recipeMention: string;
   /** „Leichte Sprache" — Titel des Prüfprotokolls. */
   readonly registerName: string;
   /**

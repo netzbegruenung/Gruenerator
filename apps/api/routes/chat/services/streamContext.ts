@@ -65,7 +65,7 @@ import { captureSseError } from '../../../utils/observability/captureSseError.js
 import { ThreadId, UserId } from '../../../utils/types/branded.js';
 import { withTimeout } from '../../../utils/withTimeout.js';
 import { notebookIdFromSteps } from '../agents/notebookSourceTools.js';
-import { getPipelineAgent } from '../agents/pipelines/index.js';
+import { getPipelineAgent, recipePipelineAgentId } from '../agents/pipelines/index.js';
 import { clientCanUseTabularToolFrom } from '../agents/tabelleAuswertenTool.js';
 
 import { priorLookups, priorTurnRetrievalFailed } from './agenticLoop/catalogAssembly.js';
@@ -1150,7 +1150,11 @@ async function buildStreamContextInner({
       // Aufruf im Hintergrund (ab 100 Zeichen) und den eigenen Text ab dann als
       // „FRÜHERE DOKUMENTE" zurück. Die Kette dagegen misst gegen den
       // Ausgangstext und braucht ihn auch im Folge-Turn, der nichts mitbringt.
-      promoted: promptIsPastedText && !!getPipelineAgent(agentId),
+      // Ein Übertragungs-Rezept auf dem Standard-Agenten zählt mit: der Turn
+      // fährt dann dessen Agenten (`initializeChatState`).
+      promoted:
+        promptIsPastedText &&
+        !!getPipelineAgent(recipePipelineAgentId(agentId, activeSkillMentionForTurn) ?? agentId),
     }
   );
   if (inlineMaterial) {

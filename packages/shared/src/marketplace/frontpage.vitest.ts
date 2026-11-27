@@ -2,8 +2,9 @@ import { type MarketplaceItem, type MarketplaceSection } from '@gruenerator/cont
 import { describe, expect, it, onTestFinished } from 'vitest';
 
 import { getSystemAgent } from '../agents/system';
-import { hasSystemRecipe } from '../agents/skills/index';
+import { hasSystemRecipe, ownsSystemRecipe } from '../agents/skills/index';
 
+import { type MarketplaceTarget } from './cache';
 import { DEFAULT_MARKETPLACE_FILTERS } from './filters';
 import { isSampleItem } from './sampleCollection';
 import {
@@ -285,6 +286,19 @@ describe('collections', () => {
             : hasSystemRecipe(target.ref);
         expect(known, `${collection.id}: ${target.kind}:${target.ref}`).toBe(true);
       }
+    }
+  });
+
+  // Since 11/2026 a recipe stands in front of the agent that owns it (#6122);
+  // pinning that agent would show the shelf an entry the lists no longer carry.
+  it('pins no agent that owns a recipe — the recipe stands in front', () => {
+    const targets: readonly MarketplaceTarget[] = [
+      ...MARKETPLACE_COLLECTIONS.flatMap((c): readonly MarketplaceTarget[] => c.pinned),
+      ...MARKETPLACE_FEATURES,
+    ];
+    for (const target of targets) {
+      if (target.kind !== 'agent') continue;
+      expect(ownsSystemRecipe(target.ref), `agent:${target.ref}`).toBe(false);
     }
   });
 

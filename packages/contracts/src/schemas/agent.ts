@@ -18,6 +18,14 @@ import { z } from 'zod';
 
 const agentAudienceSchema = z.enum(['de-DE', 'de-AT', 'all']);
 
+/**
+ * Lane class for the "Automatisch" model choice, read by `resolveAutoSelection`
+ * in the API. A class, never a model name: which model serves `precise` is
+ * decided by the lane table alone. Carried by agents and by recipes.
+ */
+export const autoRoutingHintSchema = z.enum(['creative', 'precise', 'research']);
+export type AutoRoutingHint = z.infer<typeof autoRoutingHintSchema>;
+
 const agentParamsSchema = z.object({
   max_tokens: z.number(),
   temperature: z.number(),
@@ -79,7 +87,7 @@ export const agentFrontmatterSchema = z.object({
   hiddenFromInventory: z.boolean().optional(),
   webOnly: z.boolean().optional(),
   defaultNotebookIds: z.array(z.string()).optional(),
-  autoRoutingHint: z.enum(['creative', 'precise', 'research']).optional(),
+  autoRoutingHint: autoRoutingHintSchema.optional(),
   /**
    * Fire the example search on every content-creation turn, without waiting for
    * the user to ask. Was inferred from a `/Nutze IMMER/i` match against the
