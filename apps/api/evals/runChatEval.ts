@@ -38,8 +38,13 @@
  *                   `web_search` aus — rot, ohne Aussage über den Code.
  *   EVAL_USER_NOTEBOOK_ID  include scenarios tagged `userNotebookLane` and
  *                   substitute this id for `{{EVAL_USER_NOTEBOOK_ID}}` in their
- *                   prompts and `notebookIds`. Must be a notebook the bypass
+ *                   prompts, `notebookIds` and `collectionIds`. Must be a notebook the bypass
  *                   user owns (see corpus/notebook-tools.jsonl).
+ *   EVAL_EXTRA_CORPUS_DIR  also load the .jsonl files of this directory —
+ *                   scenarios that must not live in this public repo (the
+ *                   BGSt questions sit in gruenerator-intern under evals/).
+ *   EVAL_NOTEBOOK_ANSWER_MODE  send this answerMode (auto|chat|praezision)
+ *                   for every notebook scenario instead of its own.
  *   EVAL_ATTACHED_DOC_ID  include scenarios tagged `attachedDocLane` and
  *                   substitute this id for `{{EVAL_ATTACHED_DOC_ID}}` in their
  *                   `documentChatIds`. Must be a multi-page document the bypass
@@ -63,6 +68,8 @@
 import { mkdirSync, readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { notebookAnswerModeSchema } from '@gruenerator/contracts';
 
 import {
   ampelMarke,
@@ -111,6 +118,17 @@ function withUserNotebook(text: string): string {
 
 const ATTACHED_DOC_ID = process.env.EVAL_ATTACHED_DOC_ID?.trim() ?? '';
 
+const EXTRA_CORPUS_DIR = process.env.EVAL_EXTRA_CORPUS_DIR?.trim() ?? '';
+
+/** Überschreibt `notebookAnswerMode` jedes Notebook-Szenarios (Gegenprobe chat gegen auto). */
+const NOTEBOOK_ANSWER_MODE = (() => {
+  const raw = process.env.EVAL_NOTEBOOK_ANSWER_MODE?.trim();
+  if (!raw) return null;
+  const parsed = notebookAnswerModeSchema.safeParse(raw);
+  if (!parsed.success) throw new Error(`EVAL_NOTEBOOK_ANSWER_MODE: unknown mode "${raw}"`);
+  return parsed.data;
+})();
+
 const CONCURRENCY = (() => {
   const n = Number.parseInt(process.env.EVAL_CONCURRENCY ?? '', 10);
   return Number.isInteger(n) && n >= 1 ? n : 1;
@@ -154,6 +172,7 @@ function selectedCorpus(): EvalScenario[] {
     memory: process.env.EVAL_MEMORY === '1',
     userNotebook: USER_NOTEBOOK_ID !== '',
     attachedDoc: ATTACHED_DOC_ID !== '',
+    ...(EXTRA_CORPUS_DIR ? { extraCorpusDir: EXTRA_CORPUS_DIR } : {}),
   });
 }
 
@@ -353,9 +372,17 @@ async function runTurn(
           content: m.parts.map((p) => p.text).join(''),
           ...(m.answerMode ? { answerMode: m.answerMode } : {}),
         })),
-        collectionIds: scenario.collectionIds ?? [],
+        // Wie der Client (`NotebookModelAdapter`): ein Notebook als
+        // `collectionId`, mehrere als `collectionIds`. Der Mehrfach-Pfad kennt
+        // nur System-Sammlungen — ein eigenes Notebook dort ist „Unknown
+        // collection" und die Antwort leer.
+        ...((scenario.collectionIds ?? []).length === 1
+          ? { collectionId: withUserNotebook(scenario.collectionIds![0]!) }
+          : { collectionIds: (scenario.collectionIds ?? []).map(withUserNotebook) }),
         ...(scenario.notebookMode ? { mode: scenario.notebookMode } : {}),
-        ...(scenario.notebookAnswerMode ? { answerMode: scenario.notebookAnswerMode } : {}),
+        ...((NOTEBOOK_ANSWER_MODE ?? scenario.notebookAnswerMode)
+          ? { answerMode: NOTEBOOK_ANSWER_MODE ?? scenario.notebookAnswerMode }
+          : {}),
         ...(ctx.threadId ? { threadId: ctx.threadId } : {}),
       }
     : {

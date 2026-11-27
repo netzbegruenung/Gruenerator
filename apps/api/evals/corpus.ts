@@ -117,9 +117,15 @@ export interface CorpusFilter {
   userNotebook: boolean;
   /** Szenarien, die ein angehängtes mehrseitiges Dokument des Eval-Kontos brauchen. */
   attachedDoc: boolean;
+  /**
+   * Ein Verzeichnis außerhalb des Repos, dessen `.jsonl`-Dateien dazukommen —
+   * für Szenarien, die nicht in dieses öffentliche Repo dürfen (z. B. die
+   * BGSt-Fragen im internen Repo). Gleiche Prüfung, gleiche Id-Eindeutigkeit.
+   */
+  extraCorpusDir?: string;
 }
 
-/** Glob evals/corpus/*.jsonl plus the legacy single-file corpus, then filter. */
+/** Glob evals/corpus/*.jsonl, the legacy single-file corpus and `extraCorpusDir`, then filter. */
 export function loadCorpus(here: string, opts: CorpusFilter): EvalScenario[] {
   const files: string[] = [];
   const legacy = join(here, 'chat-corpus.jsonl');
@@ -128,6 +134,11 @@ export function loadCorpus(here: string, opts: CorpusFilter): EvalScenario[] {
   if (existsSync(corpusDir)) {
     for (const f of readdirSync(corpusDir).sort()) {
       if (f.endsWith('.jsonl')) files.push(join(corpusDir, f));
+    }
+  }
+  if (opts.extraCorpusDir) {
+    for (const f of readdirSync(opts.extraCorpusDir).sort()) {
+      if (f.endsWith('.jsonl')) files.push(join(opts.extraCorpusDir, f));
     }
   }
 

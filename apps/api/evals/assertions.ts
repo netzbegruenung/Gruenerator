@@ -731,7 +731,8 @@ export function runAssertions(
       .split('|')
       .map((t) => t.trim())
       .filter(Boolean);
-    const haystack = trace.fullText.toLowerCase();
+    // Fettdruck und Kursiv zählen nicht zum Wortlaut: „Seite **5**" ist „Seite 5".
+    const haystack = trace.fullText.replace(/\*\*|__/g, '').toLowerCase();
     const present = spellings.some((s) => haystack.includes(s.toLowerCase()));
     results.push(
       present ? ok(`topic:${topic}`) : fail(`topic:${topic}`, 'not covered in the answer')
