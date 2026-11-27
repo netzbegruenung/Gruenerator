@@ -21,6 +21,7 @@ import { mountConnectorTestContractRouter } from './routes/admin/connectorTestCo
 import { mountInstanceAdminOverviewContractRouter } from './routes/admin/instanceAdminOverviewContractRouter.js';
 import { mountLandesverbandAdminContractRouter } from './routes/admin/landesverbandAdminContractRouter.js';
 import { mountLvAdminAssignmentContractRouter } from './routes/admin/lvAdminAssignmentContractRouter.js';
+import { mountTableRepairContractRouter } from './routes/admin/tableRepairContractRouter.js';
 import { mountAgentVisibilityContractRouter } from './routes/agents/agentVisibilityContractRouter.js';
 import antraegeRouter from './routes/antraege/index.js';
 import { mountAppReleaseContractRouter } from './routes/app/appReleaseContractRouter.js';
@@ -1008,6 +1009,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   // pro Handler — dieselbe Bauform wie die Admin-Router oben.
   app.use('/api/auth/admin/chunk-inspector', requireAuth);
   mountChunkInspectorContractRouter(app);
+  // Tabellen-Reparatur: dieselbe Bauform, requireInstanceAdmin pro Handler.
+  app.use('/api/auth/admin/table-repair', requireAuth);
+  mountTableRepairContractRouter(app);
   // Bundestag-Q&A: Anmeldung und KI-Einwilligung am Präfix, ein Tageslimit je
   // Endpunkt (Antwort: Lesemodell; Plan: Planmodell und DIP-Fächer, eigenes,
   // höheres Limit). Vor dem Router, denn Contract-Router erben keine später

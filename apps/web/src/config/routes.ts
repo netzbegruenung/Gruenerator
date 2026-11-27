@@ -587,7 +587,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/themen/:topic', component: MonitorTopicPage },
   { path: '/umfragen', component: MonitorUmfragenPage, layoutMode: 'sidebarOnly' },
   { path: '/umfragen/:land', component: MonitorUmfragenPage, layoutMode: 'sidebarOnly' },
-  { path: '/transparenz', component: MonitorTransparenzPage },
+  { path: '/transparenz', component: MonitorTransparenzPage, layoutMode: 'sidebarOnly' },
   ...(
     [
       ['/themen', 'themen'],

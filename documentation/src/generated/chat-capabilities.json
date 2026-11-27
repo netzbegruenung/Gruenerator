@@ -371,6 +371,13 @@
       "category": "dokumente"
     },
     {
+      "command": "@rede",
+      "title": "Rede",
+      "description": "Politische Rede mit Einstiegsideen, Kernargumenten, Schlussideen und Tipps für die*den Redner*in. Nutzen, wenn eine Rede für Parteitag, Rat, Kundgebung oder Veranstaltung geschrieben werden soll.",
+      "avatar": "🎤",
+      "category": "dokumente"
+    },
+    {
       "command": "@bundestagsrecherche",
       "title": "Bundestag-Recherche",
       "description": "Findet Drucksachen und Plenardebatten des Bundestags, liest sie und belegt Aussagen mit Fundstellen. Nutzen, wenn eine Antwort auf Bundestagsdokumenten beruhen soll.",
