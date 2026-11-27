@@ -4,6 +4,7 @@
  */
 
 import { chunkAndEmbedText } from './chunkingPipeline.js';
+import { capStoredText } from './textExtraction.js';
 
 import type {
   UrlProcessingResult,
@@ -34,6 +35,8 @@ export async function processUrlContent(
     vectorCount: chunks.length,
     fileSize: content.length,
     status: 'completed',
+    // Ohne Volltext setzt das Notebook die überlappenden Chunks zusammen (#6144).
+    markdownContent: capStoredText(content),
     additionalMetadata: {
       originalUrl: url.trim(),
       wordCount: content.split(/\s+/).filter((word: string) => word.length > 0).length,
