@@ -700,12 +700,15 @@ export async function runTransferTurn(params: {
   // gewöhnliche Antwort im Fachdeutsch.
   const transferSection = async (section: string, i: number): Promise<PartOutcome | null> => {
     const suffix = n > 1 ? `-${i + 1}` : '';
-    const system =
-      (await buildSystemMessage({
-        ...state,
-        customSystemPrompt: null,
-        pipelineSourceText: section,
-      })) + sectionNote(i, n);
+    const fassungState: ChatGraphState = {
+      ...state,
+      customSystemPrompt: null,
+      pipelineSourceText: section,
+    };
+    const system = (await buildSystemMessage(fassungState)) + sectionNote(i, n);
+    // Die Rezept-Zeile unter der Antwort („Rezept: Leichte Sprache") liest
+    // `usedRecipes` vom Turn-State; der Prompt wurde auf einer Kopie gebaut.
+    if (fassungState.usedRecipes) state.usedRecipes = fassungState.usedRecipes;
     const step = pipeline.steps.fassung;
     const fassung = await withProgress(
       sse,

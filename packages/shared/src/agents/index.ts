@@ -57,7 +57,9 @@ export {
   resolveSkillMention,
   canonicalSkillMention,
   hasSystemRecipe,
+  ownsSystemRecipe,
   lvEbeneForSkillMention,
+  autoRoutingHintForSkillMention,
   skillRole,
   isMethodSkill,
 } from './skills/index.js';

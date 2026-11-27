@@ -289,6 +289,8 @@ export async function resolveModel(
      *  resolveAutoSelection. */
     materialChars?: number | null;
     agentId?: string | null;
+    /** The turn's pinned or mentioned recipe — see AutoSelectionInput. */
+    recipeMention?: string | null;
     /** For surfaces without a classifier (notebook) — see resolveAutoSelection. */
     surface?: 'notebook';
   }
@@ -314,6 +316,7 @@ export async function resolveModel(
       ...(options?.taskShape != null && { taskShape: options.taskShape }),
       ...(options?.materialChars != null && { materialChars: options.materialChars }),
       ...(options?.agentId != null && { agentId: options.agentId }),
+      ...(options?.recipeMention != null && { recipeMention: options.recipeMention }),
       ...(options?.surface != null && { surface: options.surface }),
     });
 

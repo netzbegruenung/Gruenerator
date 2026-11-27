@@ -247,6 +247,7 @@ Beginne mit dem Titel.`;
 
 export const EINFACHE_SPRACHE_PIPELINE = buildTransferPipeline({
   identifier: 'gruenerator-einfache-sprache',
+  recipeMention: 'einfache-sprache',
   registerName: 'Einfache Sprache',
   levelLabel: 'Sprachniveau B1',
   versionTag: 'ES-Fassung',

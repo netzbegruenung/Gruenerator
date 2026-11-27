@@ -72,8 +72,8 @@ export interface MarketplaceFeature extends MarketplaceTarget {
 export const MARKETPLACE_FEATURES = [
   {
     id: 'leichte-sprache',
-    kind: 'agent',
-    ref: 'gruenerator-leichte-sprache',
+    kind: 'recipe',
+    ref: 'leichte-sprache',
     audience: 'all',
     kicker: 'Im Fokus',
     pitch:
@@ -167,13 +167,10 @@ export const MARKETPLACE_COLLECTIONS = [
       },
     },
     pinned: [
-      { kind: 'agent', ref: 'gruenerator-oeffentlichkeitsarbeit' },
       { kind: 'recipe', ref: 'presse' },
       { kind: 'recipe', ref: 'instagram' },
-      { kind: 'agent', ref: 'gruenerator-antrag' },
       { kind: 'recipe', ref: 'antrag' },
       { kind: 'agent', ref: 'gruenerator-rede-schreiber' },
-      { kind: 'agent', ref: 'gruenerator-buergerservice' },
       { kind: 'recipe', ref: 'buergermail' },
     ],
     fill: [],
@@ -199,8 +196,8 @@ export const MARKETPLACE_COLLECTIONS = [
       },
     },
     pinned: [
-      { kind: 'agent', ref: 'gruenerator-leichte-sprache' },
-      { kind: 'agent', ref: 'gruenerator-einfache-sprache' },
+      { kind: 'recipe', ref: 'leichte-sprache' },
+      { kind: 'recipe', ref: 'einfache-sprache' },
     ],
     fill: [],
     show: 6,
