@@ -20,6 +20,8 @@ import { axe } from '../../test-utils';
 
 import { NotebookComposer } from './NotebookComposer';
 
+import type { Mentionable } from '../../lib/mentionables';
+import type { MentionSection } from '../../lib/mentionSections';
 import type { NotebookDepth } from '@gruenerator/contracts';
 import type { TextModelId } from '@gruenerator/shared/models';
 
@@ -42,6 +44,10 @@ const composerProps: {
   onChatSubmit?: (text: string) => void;
   disclaimer?: string;
   disclaimerCompact?: string;
+  mentionSource?: {
+    sections: (query: string) => MentionSection[];
+    onSelect: (m: Mentionable) => void;
+  };
 }[] = [];
 vi.mock('../thread/GrueneratorComposer', () => ({
   GrueneratorComposer: (props: {
@@ -51,6 +57,10 @@ vi.mock('../thread/GrueneratorComposer', () => ({
     onChatSubmit?: (text: string) => void;
     disclaimer?: string;
     disclaimerCompact?: string;
+    mentionSource?: {
+      sections: (query: string) => MentionSection[];
+      onSelect: (m: Mentionable) => void;
+    };
   }) => {
     composerProps.push({
       showModelPicker: props.showModelPicker,
@@ -58,6 +68,7 @@ vi.mock('../thread/GrueneratorComposer', () => ({
       onChatSubmit: props.onChatSubmit,
       disclaimer: props.disclaimer,
       disclaimerCompact: props.disclaimerCompact,
+      mentionSource: props.mentionSource,
     });
     return (
       <div>
@@ -651,5 +662,173 @@ describe('NotebookComposer — source tier (Quellen-Ampel)', () => {
       })
     );
     expect(onSourceTierChange).toHaveBeenLastCalledWith('equal');
+  });
+});
+
+describe('NotebookComposer — recipes', () => {
+  const recipe = (mention: string, title: string, description = ''): Mentionable => ({
+    type: 'agent',
+    category: 'skill',
+    trigger: '@',
+    identifier: `owner-${mention}`,
+    title,
+    description,
+    avatar: '',
+    backgroundColor: '#316049',
+    mention,
+  });
+  const WPS = recipe('wahlpruefstein-nrw', 'Wahlprüfsteine NRW', 'Ein Katalog, Frage für Frage.');
+  const PM = recipe('presse-nrw', 'PM NRW');
+  const GROUPS = [
+    { title: 'Rezepte für Nordrhein-Westfalen', recipes: [WPS, PM] },
+    { title: 'Eigene Rezepte', recipes: [] },
+    { title: 'Weitere Rezepte', recipes: [recipe('presse', 'Pressemitteilung')] },
+  ];
+
+  it('offers the recipes in the settings panel by section and reports the pick', async () => {
+    const user = userEvent.setup();
+    const onRecipeChange = vi.fn();
+    render(
+      <NotebookComposer
+        mode="deep"
+        onModeChange={vi.fn()}
+        recipeGroups={GROUPS}
+        onRecipeChange={onRecipeChange}
+      />
+    );
+    // No button of its own: the settings button is the only control.
+    expect(within(screen.getByTestId('leading')).getAllByRole('button')).toHaveLength(1);
+    await user.click(screen.getByRole('button', { name: /Einstellungen/ }));
+    const lv = await screen.findByRole('region', { name: 'Rezepte für Nordrhein-Westfalen' });
+    expect(screen.queryByRole('region', { name: 'Eigene Rezepte' })).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Weitere Rezepte' })).toBeVisible();
+    await user.click(within(lv).getByRole('button', { name: 'Wahlprüfsteine NRW' }));
+    expect(onRecipeChange).toHaveBeenCalledWith(WPS);
+  });
+
+  it('marks the picked recipe and unpicks it on a second click', async () => {
+    const user = userEvent.setup();
+    const onRecipeChange = vi.fn();
+    render(
+      <NotebookComposer
+        mode="deep"
+        onModeChange={vi.fn()}
+        recipe={WPS}
+        recipeGroups={GROUPS}
+        onRecipeChange={onRecipeChange}
+      />
+    );
+    await user.click(screen.getByRole('button', { name: /Einstellungen/ }));
+    const picked = await screen.findByRole('button', { name: 'Wahlprüfsteine NRW' });
+    expect(picked).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'PM NRW' })).toHaveAttribute('aria-pressed', 'false');
+    await user.click(picked);
+    expect(onRecipeChange).toHaveBeenCalledWith(null);
+  });
+
+  it('offers only the recipes under @, filtered by the typed text', () => {
+    const onRecipeChange = vi.fn();
+    render(
+      <NotebookComposer
+        mode="deep"
+        onModeChange={vi.fn()}
+        recipeGroups={GROUPS}
+        onRecipeChange={onRecipeChange}
+      />
+    );
+    const source = composerProps.at(-1)?.mentionSource;
+    expect(source).toBeDefined();
+    expect(source?.sections('')).toEqual([
+      { kind: 'flat', label: 'Rezepte für Nordrhein-Westfalen', items: [WPS, PM] },
+      { kind: 'flat', label: 'Weitere Rezepte', items: [GROUPS[2]!.recipes[0]] },
+    ]);
+    expect(source?.sections('pm')).toEqual([
+      { kind: 'flat', label: 'Rezepte für Nordrhein-Westfalen', items: [PM] },
+    ]);
+    source?.onSelect(PM);
+    expect(onRecipeChange).toHaveBeenCalledWith(PM);
+  });
+
+  it('keeps @ open while Magic Search reads the line as a search', () => {
+    render(
+      <NotebookComposer
+        mode="deep"
+        onModeChange={vi.fn()}
+        answerMode="auto"
+        onAnswerModeChange={vi.fn()}
+        onManualSubmit={vi.fn()}
+        magicIntent="suche"
+        recipeGroups={GROUPS}
+        onRecipeChange={vi.fn()}
+      />
+    );
+    expect(composerProps.at(-1)?.mentionSource).toBeDefined();
+  });
+
+  it('shows a picked recipe as a removable chip and steps the answer mode aside', async () => {
+    const user = userEvent.setup();
+    const onRecipeChange = vi.fn();
+    render(
+      <NotebookComposer
+        mode="deep"
+        onModeChange={vi.fn()}
+        answerMode="auto"
+        onAnswerModeChange={vi.fn()}
+        recipe={WPS}
+        recipeGroups={GROUPS}
+        onRecipeChange={onRecipeChange}
+      />
+    );
+    expect(screen.getByTestId('send-adornment')).toBeEmptyDOMElement();
+    await user.click(screen.getByRole('button', { name: 'Rezept Wahlprüfsteine NRW entfernen' }));
+    expect(onRecipeChange).toHaveBeenCalledWith(null);
+  });
+
+  it('keeps the answer mode reachable while searching, and offers no recipe there', async () => {
+    const user = userEvent.setup();
+    render(
+      <NotebookComposer
+        mode="deep"
+        onModeChange={vi.fn()}
+        answerMode="manuell"
+        onAnswerModeChange={vi.fn()}
+        onManualSubmit={vi.fn()}
+        recipe={WPS}
+        recipeGroups={GROUPS}
+        onRecipeChange={vi.fn()}
+      />
+    );
+    expect(
+      within(screen.getByTestId('send-adornment')).getByRole('button', { name: /Antwortmodus/ })
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Wahlprüfsteine NRW')).not.toBeInTheDocument();
+    expect(composerProps.at(-1)?.mentionSource).toBeUndefined();
+    await user.click(screen.getByRole('button', { name: /Einstellungen/ }));
+    await screen.findByRole('region', { name: 'Suchtiefe' });
+    expect(screen.queryByRole('region', { name: /Rezepte/ })).not.toBeInTheDocument();
+  });
+
+  it('is not there when the surface does not offer recipes', async () => {
+    const user = userEvent.setup();
+    render(<NotebookComposer mode="deep" onModeChange={vi.fn()} />);
+    expect(composerProps.at(-1)?.mentionSource).toBeUndefined();
+    await user.click(screen.getByRole('button', { name: /Einstellungen/ }));
+    await screen.findByRole('region', { name: 'Suchtiefe' });
+    expect(screen.queryByRole('region', { name: /Rezepte/ })).not.toBeInTheDocument();
+  });
+
+  it('has no axe violations in the open panel', async () => {
+    const user = userEvent.setup();
+    render(
+      <NotebookComposer
+        mode="deep"
+        onModeChange={vi.fn()}
+        recipe={WPS}
+        recipeGroups={GROUPS}
+        onRecipeChange={vi.fn()}
+      />
+    );
+    await user.click(screen.getByRole('button', { name: /Einstellungen/ }));
+    expect(await axe(await screen.findByRole('dialog'))).toHaveNoViolations();
   });
 });

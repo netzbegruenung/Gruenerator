@@ -10,4 +10,5 @@ skillCategory: presse
 audience: 'de-AT'
 promptTemplate: 'Schreibe eine Aussendung im Stil der Grünen Österreich zum Thema: '
 order: 64
+recommendedTools: ['gruenerator_pressemitteilung_examples']
 ---

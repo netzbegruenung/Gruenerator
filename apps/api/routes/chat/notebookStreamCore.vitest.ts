@@ -647,6 +647,55 @@ describe('standing instructions', () => {
   });
 });
 
+describe('recipe', () => {
+  const WPS = { title: 'Wahlprüfsteine NRW', body: 'Antworte Frage für Frage.', untrusted: false };
+
+  async function runWith(
+    recipe?: Parameters<typeof handleNotebookStream>[0]['recipe'],
+    mode?: NotebookSearchDepth
+  ) {
+    vi.clearAllMocks();
+    setupMocks();
+    const { req, res, sse } = makeReqRes();
+    await handleNotebookStream({
+      req,
+      res,
+      sse,
+      messages: [{ role: 'user', content: 'Beantworte diesen Katalog: 1. Wind? 2. Bus?' }],
+      collectionId: 'grundsatz-system',
+      ...(mode && { mode }),
+      ...(recipe && { recipe }),
+      closeStream: false,
+    });
+    return modelMessages();
+  }
+
+  it('appends the recipe as a form rule behind the system prompt, sources unchanged', async () => {
+    const [system, user] = await runWith(WPS);
+    expect(system.content.startsWith('ORIGINAL_SYSTEM_PROMPT')).toBe(true);
+    expect(system.content).toContain('## TEXTSORTE: Wahlprüfsteine NRW');
+    expect(system.content).toContain('Antworte Frage für Frage.');
+    expect(system.content).toContain('Werkzeuge gibt es hier nicht');
+    expect(system.content).not.toContain('REGELHIERARCHIE');
+    expect(user.content).toMatch(/^Frage: Beantworte diesen Katalog/);
+  });
+
+  it('adds the instruction hierarchy for a user recipe', async () => {
+    const [system] = await runWith({ ...WPS, untrusted: true });
+    expect(system.content).toContain('REGELHIERARCHIE');
+  });
+
+  it('keeps the search prompt in fast instead of swapping in the concise one', async () => {
+    const [system] = await runWith(WPS, 'fast');
+    expect(system.content.startsWith('ORIGINAL_SYSTEM_PROMPT')).toBe(true);
+    expect((await runWith(undefined, 'fast'))[0].content).not.toContain('ORIGINAL_SYSTEM_PROMPT');
+  });
+
+  it('leaves the prompt untouched without a recipe', async () => {
+    expect((await runWith())[0].content).toBe('ORIGINAL_SYSTEM_PROMPT');
+  });
+});
+
 describe('handleNotebookStream — evidence_weak', () => {
   const KNOBS = ['NOTEBOOK_EVIDENCE_WEAK_ENABLED', 'NOTEBOOK_EVIDENCE_WEAK_THRESHOLD'] as const;
   let env: Record<(typeof KNOBS)[number], boolean | number>;

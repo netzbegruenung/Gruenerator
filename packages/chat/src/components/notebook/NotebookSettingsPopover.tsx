@@ -7,6 +7,7 @@ import { useId, useState, type ReactNode } from 'react';
 import { LuSettings2 } from 'react-icons/lu';
 
 import { useModelPreferencesContext } from '../../context/ModelPreferencesContext';
+import { mentionableKey, type Mentionable } from '../../lib/mentionables';
 import {
   notebookDepthDef,
   visibleNotebookDepths,
@@ -14,6 +15,8 @@ import {
 } from '../../lib/notebookDepth';
 import { SOURCE_TIER_DESCRIPTION, SOURCE_TIER_LABEL } from '../../lib/notebookSourceTier';
 import { composerToolbarButtonClass } from '../../lib/utils';
+
+import { type NotebookRecipeGroup } from './NotebookRecipeChip';
 
 export interface SourceFilterCollection {
   id: string;
@@ -185,8 +188,15 @@ export function NotebookSettingsPopover({
   onSourceTierChange,
   sourceFilters,
   categoryFilters,
+  recipes,
   className,
 }: {
+  /** Recipe choice; a picked recipe only shapes the answer. */
+  recipes?: {
+    value: Mentionable | null;
+    groups: readonly NotebookRecipeGroup[];
+    onChange: (recipe: Mentionable | null) => void;
+  };
   mode?: NotebookDepth;
   onModeChange?: (mode: NotebookDepth) => void;
   /** Quellen-Ampel; only set for notebooks whose collection knows demoted sources. */
@@ -229,7 +239,11 @@ export function NotebookSettingsPopover({
 
   // Nothing to set (e.g. gruen-o-mat): no settings button leading to an empty panel.
   const hasSourceTier = Boolean(sourceTier && onSourceTierChange);
-  if (!(mode && onModeChange) && !hasFilters && !hasSourceTier) return null;
+  const recipeGroups = recipes?.groups.filter((g) => g.recipes.length > 0) ?? [];
+  if (!(mode && onModeChange) && !hasFilters && !hasSourceTier && recipeGroups.length === 0) {
+    return null;
+  }
+  const pickedRecipe = recipes?.value ? mentionableKey(recipes.value) : null;
 
   // WCAG 2.5.3: the visible badge count has to be part of the accessible name.
   const settingsLabel = hasActiveBadge
@@ -289,6 +303,26 @@ export function NotebookSettingsPopover({
               <p className="text-xs text-foreground-muted">{activeDepth.description}</p>
             </div>
           )}
+
+          {recipes &&
+            recipeGroups.map((group) => (
+              <Section key={group.title} title={group.title}>
+                {group.recipes.map((recipe) => {
+                  const selected = mentionableKey(recipe) === pickedRecipe;
+                  return (
+                    <Chip
+                      key={mentionableKey(recipe)}
+                      selected={selected}
+                      onClick={() => recipes.onChange(selected ? null : recipe)}
+                      {...(recipe.description ? { title: recipe.description } : {})}
+                    >
+                      {selected && <Check className="h-4 w-4 shrink-0" aria-hidden />}
+                      {recipe.title}
+                    </Chip>
+                  );
+                })}
+              </Section>
+            ))}
 
           {sourceTier && onSourceTierChange && (
             <div className="space-y-2">

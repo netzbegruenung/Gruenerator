@@ -10,7 +10,8 @@ export interface LandesverbandRecipeLink {
   mention: string;
   title: string;
   iconKey: string;
-  /** Öffnet den Chat mit dem Rezept — dasselbe wie `@<mention>` tippen. */
+  /** Der Chat mit dem Rezept — dasselbe wie `@<mention>` tippen. Die
+   *  Seitenleiste öffnet Textsorten stattdessen im LV-Notebook. */
   path: string;
 }
 

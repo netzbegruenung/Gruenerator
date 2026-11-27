@@ -6,10 +6,12 @@
  */
 
 import {
+  chatStreamBodySchema,
   notebookAnswerModeSchema,
   notebookDepthSchema,
   notebookSourceTierSchema,
   notebookResolvedAnswerModeSchema,
+  type RecipeUsed,
 } from '@gruenerator/contracts';
 import { z } from 'zod';
 
@@ -18,6 +20,10 @@ import { validateBody, type TypedRequest } from '../../middleware/validateBody.j
 import { startStreamRecorder } from '../../services/chat/resumableStreams.js';
 import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import { memoryService } from '../../services/memory/index.js';
+import {
+  resolveRecipeBody,
+  type ResolvedRecipeBody,
+} from '../../services/recipes/resolveRecipeBody.js';
 import { withRetry } from '../../services/search/searchRetryStrategy.js';
 import { resolveNotebookTier } from '../../services/user/pandaEntitlement.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
@@ -84,6 +90,9 @@ const notebookStreamRequestSchema = z.object({
   answerMode: notebookAnswerModeSchema.optional(),
   documentIds: z.array(z.string()).optional(),
   threadId: z.string().nullable().optional(),
+  /** Das gewählte Rezept — dieselben Felder wie im Chat. Gibt nur die Form der Antwort vor. */
+  activeSkillMention: chatStreamBodySchema.shape.activeSkillMention,
+  activeRecipeId: chatStreamBodySchema.shape.activeRecipeId,
 });
 type NotebookStreamRequestBody = z.infer<typeof notebookStreamRequestSchema>;
 
@@ -105,6 +114,25 @@ async function loadStandingInstructions(userId: string, memoryEnabled: boolean):
   } catch (err) {
     log.warn('Memory lookup failed (continuing without):', err);
     return [];
+  }
+}
+
+/**
+ * Der Rezepttext wie im Chat (`resolveRecipeBody`: gepinnte Zeile, angelernter
+ * Stil, Systemrezept). Ohne Rezept, oder wenn es keinen Text hat, null — der
+ * Turn läuft dann wie ohne.
+ */
+async function loadRecipe(
+  mention: string | null,
+  recipeId: string | null,
+  userId: string
+): Promise<ResolvedRecipeBody | null> {
+  if (!mention && !recipeId) return null;
+  try {
+    return await resolveRecipeBody({ mention, recipeId, userId });
+  } catch (err) {
+    log.warn('Recipe lookup failed (continuing without):', err);
+    return null;
   }
 }
 
@@ -137,6 +165,8 @@ router.post(
       answerMode,
       documentIds,
       threadId: existingThreadId,
+      activeSkillMention,
+      activeRecipeId,
     } = req.body;
     const messages = rawMessages as ModelMessage[] | undefined;
     const { mode, model } = await resolveNotebookTier(requestedMode, requestedModel, user.id);
@@ -232,10 +262,24 @@ router.post(
           })
       : Promise.resolve(null);
 
-    const standingInstructions = await loadStandingInstructions(
-      user.id,
-      user.memory_enabled ?? true
-    );
+    const [standingInstructions, recipe] = await Promise.all([
+      loadStandingInstructions(user.id, user.memory_enabled ?? true),
+      loadRecipe(activeSkillMention ?? null, activeRecipeId ?? null, user.id),
+    ]);
+    // „Rezept: …" an der Antwort, live und nach dem Reload — dieselbe Form wie im Chat.
+    const recipesUsed: RecipeUsed[] | null = recipe
+      ? [
+          {
+            mention: recipe.mention,
+            title: recipe.title,
+            source: recipe.source,
+            ...(recipe.id && { id: recipe.id }),
+          },
+        ]
+      : null;
+    if ((activeSkillMention || activeRecipeId) && !recipe) {
+      sendChatWarning(sse, 'notebook_recipe_unavailable');
+    }
 
     const userLocale: UserLocale = extractLocaleFromRequest(req) === 'de-AT' ? 'de-AT' : 'de-DE';
     const pageCollectionIds = collectionIds?.length
@@ -250,6 +294,7 @@ router.post(
       userLocale,
       question: userText,
       history: notebookGuardHistory(rawMessages ?? []),
+      recipe: recipe != null,
     });
     log.info(
       `[NotebookAnswerMode] requested=${decision.requested ?? '-'} resolved=${decision.resolved} reason=${decision.reason} ms=${Date.now() - answerModeStart}`
@@ -304,6 +349,9 @@ router.post(
             userId: user.id,
             allowUserCollections: true,
             ...(standingInstructions.length > 0 && { standingInstructions }),
+            ...(recipe && {
+              recipe: { title: recipe.title, body: recipe.body, untrusted: recipe.untrusted },
+            }),
             sse,
             // Keep the stream open past the answer so the persistence step below can
             // still report a failure — sendChatWarning no-ops once the stream ended,
@@ -312,6 +360,7 @@ router.post(
             completionMetadata: {
               answerMode: decision.resolved,
               answerModeReason: decision.reason,
+              ...(recipesUsed && { recipesUsed }),
             },
             abortSignal: cancel.signal,
           });
@@ -335,6 +384,7 @@ router.post(
         ...(result.traceId && { traceId: result.traceId }),
         answerMode: decision.resolved,
         answerModeReason: decision.reason,
+        ...(recipesUsed && { recipesUsed }),
         // Only the RAG path applies the tier; the note survives a reload with the row.
         ...(sourceTier === 'documents-first' &&
           decision.resolved !== 'praezision' && { sourceTier }),

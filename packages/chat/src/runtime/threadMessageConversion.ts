@@ -314,7 +314,7 @@ function buildCustomMetadata(metadata: LoadedMessage['metadata']): Record<string
 
   // Derived: drives the message-action affordances (copy/regenerate context)
   // and the thumbs feedback button (traceId), so it must survive reload.
-  if (metadata.intent || metadata.traceId) {
+  if (metadata.intent || metadata.traceId || metadata.recipesUsed?.length) {
     custom.streamMetadata = {
       intent: metadata.intent ?? 'direct',
       searchCount: metadata.searchCount ?? 0,
@@ -369,20 +369,22 @@ export function convertNotebookLoadedMessages(messages: LoadedMessage[]): Thread
     const rawCitations = (m.metadata?.citations ?? []) as unknown[];
     const answerMode = notebookResolvedAnswerModeSchema.safeParse(m.metadata?.answerMode);
     const answerModeReason = notebookAnswerModeReasonSchema.safeParse(m.metadata?.answerModeReason);
+    const recipesUsed = m.metadata?.recipesUsed;
     const custom: Record<string, unknown> = {
       citations: mapRawCitationsToChat(rawCitations),
       rawCitations,
       sources: m.metadata?.sources ?? [],
       question: questionFor(idx),
       persistedMessageId: m.id,
-      // Reload half of the thumbs feedback: the buttons only show when the
-      // trace id is here, the same shape NotebookModelAdapter builds live.
-      ...(m.metadata?.traceId
+      // Reload half of the thumbs feedback (trace id) and of „Rezept: …" —
+      // the same shape NotebookModelAdapter builds live.
+      ...(m.metadata?.traceId || recipesUsed?.length
         ? {
             streamMetadata: {
               intent: 'direct',
               searchCount: 0,
-              traceId: m.metadata.traceId,
+              ...(m.metadata?.traceId && { traceId: m.metadata.traceId }),
+              ...(recipesUsed?.length && { recipesUsed }),
             },
           }
         : {}),
