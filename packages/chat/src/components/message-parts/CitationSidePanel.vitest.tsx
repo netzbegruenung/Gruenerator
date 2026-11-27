@@ -132,7 +132,7 @@ describe('CitationSidePanel — Darstellung', () => {
   it('zeigt das ganze Dokument als einen Text, nur das Zitat markiert', async () => {
     render(<Harness sources={[source()]} />);
     const mark = await screen.findByText('informellen Spielregeln machen');
-    const body = mark.closest('p');
+    const body = mark.closest('[data-document-text]');
     expect(body).toHaveTextContent(CHUNKS[0]!.text);
     expect(body).toHaveTextContent(CHUNKS[2]!.text);
     expect(body?.querySelectorAll('mark')).toHaveLength(1);
@@ -165,10 +165,32 @@ describe('CitationSidePanel — Darstellung', () => {
     });
     render(<Harness sources={[source({ chunkIndex: 1, citedText: 'So regeln wir es.' })]} />);
     const mark = await screen.findByText('So regeln wir es.', { selector: 'mark' });
-    const body = mark.closest('p')!;
-    expect(body.textContent).toBe(fullText);
-    expect(body.textContent!.indexOf(mark.textContent!, second)).toBe(second);
-    expect(mark.previousSibling?.textContent).toBe(fullText.slice(0, second));
+    // Der zweite Absatz trägt die Marke, der erste mit demselben Satz nicht.
+    expect(mark.closest('p')?.textContent).toBe('Wir regeln es so: So regeln wir es.');
+    expect(mark.previousSibling?.textContent).toBe('Wir regeln es so: ');
+    expect(screen.getAllByText('So regeln wir es.', { selector: 'p' })).toHaveLength(1);
+    // Markdown wird gesetzt, nicht als Rohzeile gezeigt.
+    expect(screen.getByRole('heading', { name: 'Kapitel 3' })).toBeInTheDocument();
+    expect(screen.queryByText(/# Kapitel/)).not.toBeInTheDocument();
+  });
+
+  it('setzt Seitenmarken als Trenner und markiert über Absatzgrenzen hinweg', async () => {
+    const fullText = '## Seite 1\n\nErster Satz.\n\n## Seite 2\n\nZweiter Satz.';
+    useChatConfigStore.getState().configure({
+      fetch: async () =>
+        chunksResponse('doc-1', [{ index: 0, text: 'Erster Satz. Zweiter Satz.', tokens: 6 }], {
+          full_text: fullText,
+          chunk_map: [{ index: 0, charStart: 12, charEnd: fullText.length }],
+        }),
+    });
+    render(
+      <Harness sources={[source({ chunkIndex: 0, citedText: undefined, quote: undefined })]} />
+    );
+    expect(await screen.findByText('Seite 2')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Seite 2' })).not.toBeInTheDocument();
+    // Der Chunk spannt über den Seitentrenner: eine Marke je Absatz, der Trenner bleibt Trenner.
+    const marks = await screen.findAllByText(/Satz\./, { selector: 'mark' });
+    expect(marks.map((m) => m.textContent)).toEqual(['Erster Satz.', 'Zweiter Satz.']);
   });
 
   it('blättert durch die Quellen einer Antwort, ohne zu schließen', async () => {
