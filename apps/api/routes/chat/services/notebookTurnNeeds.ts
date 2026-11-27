@@ -43,8 +43,6 @@ export interface NotebookTurnNeeds {
   count: boolean;
   /** Den Text einer bestimmten Seite eines Dokuments lesen. */
   page: { sourceId: string; page: number } | null;
-  /** Andere Arbeit mit ganzen Dokumenten — heute nur protokolliert. */
-  other: boolean;
   /** Kleinste `confidence` der beantworteten Fragen. */
   confidence: number;
 }
@@ -58,26 +56,17 @@ export const ZAEHLEN: ChoiceQuestion = {
   instructions:
     'Muss für die letzte Nachricht ein Wort in den Quellen gezählt oder gesucht werden?',
   criteria: YES_NO(
-    'sie fragt, WIE OFT ein Wort oder eine Formulierung in den Quellen vorkommt, oder IN WELCHEN Quellen es wörtlich steht',
-    'alles andere – auch eine Zahl, ein Betrag oder ein Datum, das in einer Quelle steht, und jede Inhaltsfrage'
+    'sie fragt, WIE OFT ein bestimmtes Wort oder eine Formulierung in den Quellen vorkommt, IN WELCHEN Quellen es wörtlich steht, oder ob ein Satz wörtlich drinsteht',
+    'alles andere – die Anzahl oder Seitenzahl der Dokumente, wie oft ein THEMA behandelt wird, eine Zahl, ein Betrag oder ein Datum aus einer Quelle, jede Inhaltsfrage'
   ),
 };
 
 export const STELLE: ChoiceQuestion = {
   type: 'choice',
-  instructions: 'Fragt die letzte Nachricht nach dem Inhalt einer bestimmten Seite?',
+  instructions: 'Soll der Text einer Seite gelesen werden, deren Seitenzahl genannt ist?',
   criteria: YES_NO(
-    'sie will wissen, was auf einer genannten Seite eines Dokuments steht („was steht auf Seite 3 …")',
-    'alles andere – auch „auf welcher Seite steht X"'
-  ),
-};
-
-const SONSTIGES: ChoiceQuestion = {
-  type: 'choice',
-  instructions: 'Verlangt die letzte Nachricht Arbeit mit ganzen Dokumenten?',
-  criteria: YES_NO(
-    'eine Statistik, Gliederung oder ein Vergleich ganzer Dokumente, der nicht aus einzelnen Textstellen folgt',
-    'alles andere'
+    'die Nachricht nennt eine SEITENZAHL wie „Seite 3" oder „S. 7" (oder „weiter"/„nächste Seite" nach einer gelesenen Seite im Verlauf) und will wissen, was auf dieser Seite steht',
+    'keine Seitenzahl genannt – Inhaltsfragen, Abschnitte, Kapitel und Absätze, ein Wort oder Zitat wörtlich prüfen oder zählen, auch die Frage „auf welcher Seite steht X"; Ziffern in einem Dokumentnamen wie „WP-05" sind keine Seite'
   ),
 };
 
@@ -121,14 +110,13 @@ export async function decideNotebookTurnNeeds(
       questions: {
         zaehlen: ZAEHLEN,
         stelle: STELLE,
-        sonstiges: SONSTIGES,
         ...(dokument ? { dokument } : {}),
       },
       timeoutMs: TIMEOUT_MS,
     });
-    const { zaehlen, stelle, sonstiges } = first;
-    if (!zaehlen || !stelle || !sonstiges) throw new Error('decision answer incomplete');
-    const confidences = [zaehlen.confidence, stelle.confidence, sonstiges.confidence];
+    const { zaehlen, stelle } = first;
+    if (!zaehlen || !stelle) throw new Error('decision answer incomplete');
+    const confidences = [zaehlen.confidence, stelle.confidence];
     let page: NotebookTurnNeeds['page'] = null;
 
     const picked = dokument ? first.dokument?.choice : undefined;
@@ -153,7 +141,6 @@ export async function decideNotebookTurnNeeds(
     return {
       count: zaehlen.choice === 'ja',
       page,
-      other: sonstiges.choice === 'ja',
       confidence: Math.min(...confidences),
     };
   } catch (err) {

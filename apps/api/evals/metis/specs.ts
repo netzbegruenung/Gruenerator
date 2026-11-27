@@ -21,8 +21,8 @@ import {
 } from '../../routes/chat/services/notebookAnswerModeResolver.js';
 import { STELLE, ZAEHLEN } from '../../routes/chat/services/notebookTurnNeeds.js';
 
-import type { MetisQuestion } from './metisClient.js';
 import type { ThreadToolContext } from '../../agents/langgraph/ChatGraph/types.js';
+import type { MetisQuestion } from './metisClient.js';
 
 export interface ResolverCase {
   id: string;
@@ -443,8 +443,8 @@ function needsSpec(
       id: c.id,
       text: c.text,
       label: c[key],
-      history: c.history,
-      note: c.note,
+      ...(c.history ? { history: c.history } : {}),
+      ...(c.note ? { note: c.note } : {}),
     })),
   };
 }

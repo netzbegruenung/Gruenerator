@@ -51,7 +51,6 @@ const FIRST_NO = {
   zaehlen: answer('nein'),
   stelle: answer('nein'),
   dokument: answer('keins'),
-  sonstiges: answer('nein'),
 };
 
 describe('decideNotebookTurnNeeds', () => {
@@ -62,13 +61,8 @@ describe('decideNotebookTurnNeeds', () => {
       { decide }
     );
     expect(calls).toHaveLength(1);
-    expect(Object.keys(calls[0]!.questions).sort()).toEqual([
-      'dokument',
-      'sonstiges',
-      'stelle',
-      'zaehlen',
-    ]);
-    expect(needs).toEqual({ count: true, page: null, other: false, confidence: 0.9 });
+    expect(Object.keys(calls[0]!.questions).sort()).toEqual(['dokument', 'stelle', 'zaehlen']);
+    expect(needs).toEqual({ count: true, page: null, confidence: 0.9 });
   });
 
   it('asks for the page only when a document was picked', async () => {
@@ -85,7 +79,6 @@ describe('decideNotebookTurnNeeds', () => {
     expect(needs).toEqual({
       count: false,
       page: { sourceId: 'ref-1', page: 3 },
-      other: false,
       confidence: 0.8,
     });
   });
@@ -104,7 +97,6 @@ describe('decideNotebookTurnNeeds', () => {
     const { decide, calls } = decider({
       zaehlen: answer('nein'),
       stelle: answer('ja'),
-      sonstiges: answer('nein'),
     });
     const needs = await decideNotebookTurnNeeds(
       { question: 'Seite 3?', history: [], inventory: inventory(DOC_OPTION_LIMIT + 1) },

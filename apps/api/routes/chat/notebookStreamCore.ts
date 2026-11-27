@@ -602,7 +602,7 @@ export async function handleNotebookStream(
     const [inventory, { needs, facts }] = await Promise.all([inventoryPromise, factsPromise]);
     if (wantsFacts) {
       log.info(
-        `[Notebook] turn needs: count=${needs?.count ?? '-'} page=${needs?.page ? `${needs.page.sourceId}:${needs.page.page}` : '-'} other=${needs?.other ?? '-'} conf=${needs ? needs.confidence.toFixed(2) : '-'} inventory=${inventory.length} counted=${facts?.counted ?? false} pageRead=${facts?.pageRead ?? false} ms=${Date.now() - factsStart}`
+        `[Notebook] turn needs: count=${needs?.count ?? '-'} page=${needs?.page ? `${needs.page.sourceId}:${needs.page.page}` : '-'} conf=${needs ? needs.confidence.toFixed(2) : '-'} inventory=${inventory.length} counted=${facts?.counted ?? false} pageRead=${facts?.pageRead ?? false} ms=${Date.now() - factsStart}`
       );
     }
     const inventoryBlock = renderSourceInventory(inventory);

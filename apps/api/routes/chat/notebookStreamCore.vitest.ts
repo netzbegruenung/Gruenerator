@@ -234,7 +234,6 @@ function setupMocks() {
   decideNotebookTurnNeeds.mockResolvedValue({
     count: false,
     page: null,
-    other: false,
     confidence: 0.9,
   });
   computeTurnFacts.mockResolvedValue({ block: '', counted: false, pageRead: false });
@@ -924,7 +923,6 @@ describe('handleNotebookStream — whole-notebook facts for own notebooks', () =
     decideNotebookTurnNeeds.mockResolvedValueOnce({
       count: true,
       page: null,
-      other: false,
       confidence: 0.9,
     });
     computeTurnFacts.mockResolvedValueOnce({
