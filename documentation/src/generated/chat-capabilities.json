@@ -386,6 +386,13 @@
       "category": "sonstiges"
     },
     {
+      "command": "@sharepic-gestalten",
+      "title": "Sharepic gestalten",
+      "description": "Wie man im Chat beeinflusst, wie ein Sharepic aussieht: Form, Farben, Fotos, Vorlagen, Änderungen, Studio. Nutzen, wenn jemand fragt, wie ein Sharepic anders aussehen kann oder warum sie sich ähneln.",
+      "avatar": "🎨",
+      "category": "sonstiges"
+    },
+    {
       "command": "@presse-berlin-partei",
       "title": "PM Berlin (Partei)",
       "description": "Pressemitteilung der Berliner GRÜNEN. Nutzen statt der allgemeinen Pressemitteilung, wenn für den Landesverband Berlin geschrieben wird.",
