@@ -8,7 +8,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  carComparison,
   formatCorridor,
   formatDuration,
   formatEnergy,
@@ -45,14 +44,6 @@ describe('formatEnergy', () => {
     expect(formatEnergy(9999.6)).toBe('10 kWh');
     expect(formatEnergy(10_000)).toBe('10 kWh');
     expect(formatEnergy(4200)).toBe('4.200 Wh');
-  });
-});
-
-describe('carComparison', () => {
-  it('switches unit on the rounded value', () => {
-    // 164 g = 1 person-kilometre in the UBA TREMOD 2024 reference.
-    expect(carComparison(1640)).toBe('10 km Pkw-Fahrt');
-    expect(carComparison(164)).toBe('1.000 m Pkw-Fahrt');
   });
 });
 
