@@ -4,11 +4,11 @@ import { describe, expect, it, vi } from 'vitest';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
 
 /**
- * Seit 11/2026 stehen die Rezepte „Einfache Sprache" und „Leichte Sprache" vor
- * ihren Agenten. Ihr Turn ist eine Kette mit getrennten Kontexten, die kein
- * Rezept-Text ausdrücken kann — deshalb übernimmt der Turn auf dem
- * Standard-Agenten den ganzen Pipeline-Agenten, und Routing, Modellwahl,
- * Persona und Kette laufen wie über den Agenten selbst.
+ * Seit 11/2026 stehen Rezepte vor den Agenten, denen sie gehören (#6005, #6122).
+ * Auf dem Standard-Agenten bringt ein Rezept deshalb mit, was sein Agent dem
+ * Turn gab: Filter, Werkzeug-Grenzen und Notebooks. Die Übertragungs-Rezepte
+ * (Einfache/Leichte Sprache) übernehmen den ganzen Pipeline-Agenten — ihr Turn
+ * ist eine Kette mit getrennten Kontexten, die kein Rezept-Text ausdrückt.
  */
 
 vi.mock('../../../routes/chat/agents/agentLoader.js', () => ({
@@ -44,7 +44,7 @@ const { initializeChatState } = await import('./ChatGraph.js');
 
 const base = { messages: [], userId: 'u1', enabledTools: {} };
 
-describe('initializeChatState — Übertragungs-Rezepte', () => {
+describe('initializeChatState — Rezept vor seinem Agenten', () => {
   it('ein Übertragungs-Rezept auf dem Standard-Agenten fährt dessen Pipeline-Agenten', async () => {
     const state = await initializeChatState({
       ...base,
@@ -70,5 +70,28 @@ describe('initializeChatState — Übertragungs-Rezepte', () => {
       activeSkillMention: 'presse',
     });
     expect(state.agentConfig.identifier).toBe('gruenerator-universal');
+  });
+
+  it('ein Rezept bringt die Notebooks seines Agenten mit, nicht nur im Landesverband', async () => {
+    const state = await initializeChatState({
+      ...base,
+      agentId: 'gruenerator-universal',
+      activeSkillMention: 'wahlpruefstein',
+    });
+    expect(state.agentConfig.identifier).toBe('gruenerator-universal');
+    // Dieselben Sammlungen wie über den Agenten selbst — auch dasselbe Gate
+    // für implizit durchsuchbare Notebooks.
+    const viaAgent = await initializeChatState({ ...base, agentId: 'gruenerator-wahlpruefsteine' });
+    expect(viaAgent.defaultNotebookCollectionIds).toContain('bundestagsfraktion');
+    expect(state.defaultNotebookCollectionIds).toEqual(viaAgent.defaultNotebookCollectionIds);
+  });
+
+  it('ein Agent ohne Notebooks gibt seinem Rezept keine mit', async () => {
+    const state = await initializeChatState({
+      ...base,
+      agentId: 'gruenerator-universal',
+      activeSkillMention: 'bundestagsrecherche',
+    });
+    expect(state.defaultNotebookCollectionIds ?? []).toEqual([]);
   });
 });

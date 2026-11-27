@@ -167,13 +167,10 @@ export const MARKETPLACE_COLLECTIONS = [
       },
     },
     pinned: [
-      { kind: 'agent', ref: 'gruenerator-oeffentlichkeitsarbeit' },
       { kind: 'recipe', ref: 'presse' },
       { kind: 'recipe', ref: 'instagram' },
-      { kind: 'agent', ref: 'gruenerator-antrag' },
       { kind: 'recipe', ref: 'antrag' },
       { kind: 'agent', ref: 'gruenerator-rede-schreiber' },
-      { kind: 'agent', ref: 'gruenerator-buergerservice' },
       { kind: 'recipe', ref: 'buergermail' },
     ],
     fill: [],

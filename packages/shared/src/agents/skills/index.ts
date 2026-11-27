@@ -68,6 +68,17 @@ export function resolveSkillMention(alias: string): string | null {
   return mentionMap.get(canonicalSkillMention(alias).toLowerCase()) ?? null;
 }
 
+const recipeOwners = new Set<string>(SKILLS.map((skill) => skill.identifier));
+
+/**
+ * Gehört diesem Agenten mindestens ein Systemrezept? Dann steht das Rezept vor
+ * ihm: der Marktplatz listet den Agenten nicht mehr, aufgelöst wird er weiter
+ * (alte Threads, Links, Likes). Seit 11/2026, #6122.
+ */
+export function ownsSystemRecipe(agentIdentifier: string): boolean {
+  return recipeOwners.has(agentIdentifier);
+}
+
 /**
  * Gibt es zu dieser Mention ein MITGELIEFERTES Rezept?
  *
