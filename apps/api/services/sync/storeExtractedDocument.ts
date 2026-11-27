@@ -7,7 +7,10 @@
  * den Text selbst aus und übergeben hier. Zwei Kopien dieser Kette hätten
  * irgendwann verschieden gechunkt oder verschiedene Felder gefüllt.
  */
-import { generateContentPreview } from '../document-services/DocumentProcessingService/textExtraction.js';
+import {
+  capStoredText,
+  generateContentPreview,
+} from '../document-services/DocumentProcessingService/textExtraction.js';
 import {
   DocumentSearchService,
   getPostgresDocumentService,
@@ -68,6 +71,7 @@ export async function storeExtractedDocument(
       vectorCount: chunks.length,
       lastSyncedAt: new Date().toISOString(),
       status: 'completed',
+      markdownContent: capStoredText(input.text),
       additionalMetadata: { content_preview: contentPreview },
     });
   } else {
@@ -77,6 +81,8 @@ export async function storeExtractedDocument(
       filename: input.filename,
       vectorCount: chunks.length,
       fileSize: input.fileSize,
+      // Ohne Volltext setzt das Notebook die überlappenden Chunks zusammen (#6144).
+      markdownContent: capStoredText(input.text),
       additionalMetadata: { ...input.create.additionalMetadata, content_preview: contentPreview },
       status: 'completed',
     });

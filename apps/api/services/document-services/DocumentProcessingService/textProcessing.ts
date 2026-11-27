@@ -4,7 +4,7 @@
  */
 
 import { chunkAndEmbedText } from './chunkingPipeline.js';
-import { generateContentPreview } from './textExtraction.js';
+import { capStoredText, generateContentPreview } from './textExtraction.js';
 
 import type {
   TextProcessingResult,
@@ -42,6 +42,8 @@ export async function processTextContent(
     vectorCount: chunks.length,
     fileSize: content.length,
     status: 'completed',
+    // Ohne Volltext setzt das Notebook die überlappenden Chunks zusammen (#6144).
+    markdownContent: capStoredText(content.trim()),
     additionalMetadata: {
       content_preview: generateContentPreview(content),
     },
