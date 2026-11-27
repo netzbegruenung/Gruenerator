@@ -106,6 +106,7 @@ export {
   skillPromptContract,
   agentVisibilityContract,
   chunkInspectorContract,
+  tableRepairContract,
   bundestagQaContract,
   connectorTestContract,
   connectionsContract,
@@ -158,6 +159,7 @@ export * from './schemas/searchGraph.js';
 export * from './schemas/chatStreamEvents.js';
 export * from './schemas/chatVisualBlocks.js';
 export * from './schemas/chunkInspector.js';
+export * from './schemas/tableRepair.js';
 export * from './schemas/bundestagQa.js';
 export * from './schemas/landtagQa.js';
 export * from './schemas/connectorTest.js';

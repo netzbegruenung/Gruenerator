@@ -578,3 +578,17 @@ describe('reindexOrigin — aufbewahrte Originale', () => {
     vi.unstubAllEnvs();
   });
 });
+
+describe('reindexOrigin — CSV aus dem gespeicherten Text', () => {
+  it('nur solange der Text noch die rohe CSV ist', () => {
+    const csv = { ...UPLOAD, filename: 'wahl.csv' };
+    expect(reindexOrigin({ ...csv, markdown_content: 'Ort;Stimmen\nBonn;3' })).toEqual({
+      kind: 'stored-text',
+    });
+    // Schon repariert: ein zweiter Lauf läse die Tabelle sonst als CSV.
+    expect(
+      reindexOrigin({ ...csv, markdown_content: '| Ort | Stimmen |\n| --- | --- |\n| Bonn | 3 |' })
+    ).toBeNull();
+    expect(reindexOrigin({ ...UPLOAD, markdown_content: 'Ort;Stimmen' })).toBeNull();
+  });
+});

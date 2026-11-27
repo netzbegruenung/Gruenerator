@@ -19,12 +19,20 @@
  * etwa Tabellen (`scripts/repair-notebook-tables.ts`). Geprüft wird nur, wo der
  * Leser `file_path` mitliest; die Notebook-Liste tut das nicht und bleibt ohne
  * Dateisystem-Aufruf.
+ *
+ * GESPEICHERTER TEXT, nur für CSV. Vor 11/2026 wurde eine CSV als Text
+ * gespeichert und wie Fliesstext zerlegt; ihr `markdown_content` IST die
+ * Datei. Daraus lässt sich die Tabelle ohne Original neu bauen — aber nur,
+ * solange der Text noch keine Markdown-Tabelle ist: sonst läse ein zweiter
+ * Lauf die fertige Tabelle als CSV. Wie beim Original nur, wo der Leser
+ * `markdown_content` mitliest.
  */
 import fs from 'fs';
 
 import { resolveDocumentUploadFormat } from '@gruenerator/contracts';
 
 import { resolveOriginalPath } from '../documentOriginals.js';
+import { hasMarkdownTable } from '../TextChunker/blockSegmentation.js';
 
 import { DocumentReadError } from './processingError.js';
 
@@ -36,7 +44,8 @@ export interface WolkeOrigin {
   filePath: string;
 }
 
-export type ReindexOrigin = WolkeOrigin | { kind: 'original' } | { kind: 'upload' };
+export type ReindexOrigin =
+  WolkeOrigin | { kind: 'original' } | { kind: 'upload' } | { kind: 'stored-text' };
 
 export interface ReindexRow {
   id: string;
@@ -47,6 +56,8 @@ export interface ReindexRow {
   wolke_file_path?: string | null;
   /** Relativer Pfad des aufbewahrten Originals (`documentOriginals.ts`). */
   file_path?: string | null;
+  /** Der gespeicherte Volltext — nur für die CSV-Herkunft `stored-text` gelesen. */
+  markdown_content?: string | null;
   vector_count?: number | null;
   /** Objekt oder JSON-Text, je nach Leser. */
   metadata?: unknown;
@@ -59,7 +70,17 @@ export function reindexOrigin(row: ReindexRow): ReindexOrigin | null {
   const wolke = wolkeOrigin(row);
   if (wolke) return wolke;
   if (keptOriginalPath(row)) return { kind: 'original' };
-  return hasKeptUpload(row) ? { kind: 'upload' } : null;
+  if (hasKeptUpload(row)) return { kind: 'upload' };
+  return isCsvStoredAsText(row) ? { kind: 'stored-text' } : null;
+}
+
+/** Eine CSV, deren gespeicherter Text noch die rohe Datei ist. */
+export function isCsvStoredAsText(row: Pick<ReindexRow, 'filename' | 'markdown_content'>): boolean {
+  return (
+    resolveDocumentUploadFormat(row.filename ?? '', '')?.extension === '.csv' &&
+    Boolean(row.markdown_content?.trim()) &&
+    !hasMarkdownTable(row.markdown_content ?? '')
+  );
 }
 
 /** Absoluter Pfad des aufbewahrten Originals, wenn es lesbar daliegt. */

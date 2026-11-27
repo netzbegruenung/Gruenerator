@@ -88,6 +88,7 @@ describe('AdminPage', () => {
       'App-Updates',
       'Content-Sync',
       'Chunk-Inspektor',
+      'Tabellen-Reparatur',
       'Konnektor-Test',
       'Grüne-API-Test',
     ]);

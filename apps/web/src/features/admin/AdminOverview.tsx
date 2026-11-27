@@ -274,6 +274,7 @@ function RecentUsers() {
 
 const TOOL_LINKS: { to: string; label: string; hint: string }[] = [
   { to: '/admin/chunks', label: 'Chunk-Inspektor', hint: 'Gespeicherte Chunks eines Dokuments' },
+  { to: '/admin/tabellen', label: 'Tabellen-Reparatur', hint: 'Übersehene Tabellen neu lesen' },
   { to: '/admin/konnektoren', label: 'Konnektor-Test', hint: 'Google und Microsoft über Nango' },
   { to: '/admin/gruene-api', label: 'Grüne-API-Test', hint: 'Endpunkte der Grüne-Plattform' },
 ];

@@ -338,6 +338,18 @@ export const TABLE_CHUNK_MAX_CHARS = PROMPT_SOURCE_MAX_CHARS;
 const TABLE_SEPARATOR = /^\s*\|[\s:|-]+\|\s*$/;
 
 /**
+ * Trägt der Text eine Markdown-Tabelle mit Kopf — eine Pipe-Zeile, direkt
+ * darunter die Trennzeile? Daran erkennt die Tabellen-Reparatur, ob eine
+ * gespeicherte Fassung schon als Tabelle vorliegt.
+ */
+export function hasMarkdownTable(text: string): boolean {
+  const lines = text.split('\n');
+  return lines.some(
+    (line, i) => i > 0 && TABLE_SEPARATOR.test(line) && TABLE_ROW.test(lines[i - 1])
+  );
+}
+
+/**
  * Teilt einen Tabellenblock zeilenweise, mit Kopf über jedem Teil.
  *
  * Der Kopf sind alle Zeilen bis einschliesslich der Trennzeile — also auch die
