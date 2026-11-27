@@ -38,6 +38,15 @@ export function applyMarkdownFormatting(text: string): string {
   return result;
 }
 
+/** Bullet (`- `, `• `, `* `…) or enumerator (`(2) `, `a) `, `iv) `) at the start of a line. */
+const LIST_MARKER = /^(?:[-–—•*·▪●◦]\s|\(?[\p{L}\d]{1,4}\)\s)/u;
+
+/**
+ * A full stop after an all-lowercase word, then a capital: `vereinheitlicht. Demnach`.
+ * Abbreviations in speaker lines (`Dr. Anton`, `Prof. Dr.`) start upper case and pass.
+ */
+const SENTENCE_BREAK = /(?:^|\s)\p{Ll}{3,}[.!?]\s+\p{Lu}/u;
+
 /**
  * Check if line is likely a heading
  */
@@ -46,6 +55,10 @@ export function isLikelyHeading(line: string): boolean {
 
   // Empty lines are not headings
   if (!trimmed) return false;
+
+  // List items stay list items, even in upper case or ending in a colon:
+  // `- "GRÜNE"`, `(2) Die KMV entscheidet:`, `a) …` (#6142)
+  if (LIST_MARKER.test(trimmed)) return false;
 
   // ALL CAPS lines shorter than 60 characters
   if (trimmed === trimmed.toUpperCase() && trimmed.length < 60) {
@@ -56,7 +69,8 @@ export function isLikelyHeading(line: string): boolean {
   }
 
   // Lines ending with colon (typically section headers)
-  if (trimmed.endsWith(':') && trimmed.length < 80) {
+  // A sentence that runs on into the colon is prose introducing a list, not a header
+  if (trimmed.endsWith(':') && trimmed.length < 80 && !SENTENCE_BREAK.test(trimmed)) {
     return true;
   }
 
