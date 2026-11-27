@@ -26,6 +26,9 @@ const isProviderConfigured = vi.fn((..._args: unknown[]) => true);
 const expandQuery = vi.fn();
 const extractSearchTerms = vi.fn();
 const logInfo = vi.fn();
+const loadInventory = vi.fn();
+const decideNotebookTurnNeeds = vi.fn();
+const computeTurnFacts = vi.fn();
 
 vi.mock('../../utils/logger.js', () => ({
   createLogger: () => ({
@@ -71,6 +74,18 @@ vi.mock('../../database/services/NotebookQdrantHelper.js', () => ({
     getNotebookCollection = vi.fn();
     getCollectionDocuments = vi.fn(async () => []);
   },
+}));
+vi.mock('./services/notebookInventory.js', async () => {
+  const actual = await vi.importActual<typeof import('./services/notebookInventory.js')>(
+    './services/notebookInventory.js'
+  );
+  return { ...actual, loadInventory: (...args: unknown[]) => loadInventory(...args) };
+});
+vi.mock('./services/notebookTurnNeeds.js', () => ({
+  decideNotebookTurnNeeds: (...args: unknown[]) => decideNotebookTurnNeeds(...args),
+}));
+vi.mock('./services/notebookTurnFacts.js', () => ({
+  computeTurnFacts: (...args: unknown[]) => computeTurnFacts(...args),
 }));
 vi.mock('../../services/search/QueryExpansionService.js', () => ({
   expandQuery: (...args: unknown[]) => expandQuery(...args),
@@ -206,6 +221,46 @@ function setupMocks() {
     alternatives: ['Grundsicherung Positionen', 'Sozialstaat Reform'],
   });
   extractSearchTerms.mockResolvedValue(['Grundsicherung']);
+  loadInventory.mockResolvedValue([
+    {
+      notebookId: OWN_NOTEBOOK,
+      total: 2,
+      items: [
+        { ref: 'a', title: 'WP-05.pdf', detail: '18 S.', pages: 18 },
+        { ref: 'b', title: 'Satzung.pdf', detail: '9 S.', pages: 9 },
+      ],
+    },
+  ]);
+  decideNotebookTurnNeeds.mockResolvedValue({
+    count: false,
+    page: null,
+    other: false,
+    confidence: 0.9,
+  });
+  computeTurnFacts.mockResolvedValue({ block: '', counted: false, pageRead: false });
+}
+
+const OWN_NOTEBOOK = '5a438806-4e76-43c4-bf1e-1751708d123b';
+
+async function runOwn(extra: Partial<Parameters<typeof handleNotebookStream>[0]> = {}) {
+  const { req, res, sse } = makeReqRes();
+  await handleNotebookStream({
+    req,
+    res,
+    sse,
+    messages: [{ role: 'user', content: 'Wie oft kommt Polizei in WP-05 vor?' }] as Parameters<
+      typeof handleNotebookStream
+    >[0]['messages'],
+    collectionId: OWN_NOTEBOOK,
+    mode: 'deep',
+    userId: 'user-1',
+    closeStream: false,
+    ...extra,
+  });
+  const user = modelMessages()
+    .filter((m) => m.role === 'user')
+    .pop();
+  return user?.content ?? '';
 }
 
 beforeEach(() => {
@@ -855,5 +910,64 @@ describe('handleNotebookStream — fallback lane with a smaller window (#4198)',
     expect(primary.some((m) => m.content.startsWith('aaa'))).toBe(true);
     expect(fallback.some((m) => m.content.startsWith('aaa'))).toBe(false);
     expect(fallback.some((m) => m.content.startsWith('bbb'))).toBe(true);
+  });
+});
+
+describe('handleNotebookStream — whole-notebook facts for own notebooks', () => {
+  it('adds the source inventory to the question', async () => {
+    const content = await runOwn();
+    expect(content).toContain('Quellenliste des Notebooks (2 Quellen, vollständig):');
+    expect(content).toContain('- WP-05.pdf · 18 S.');
+  });
+
+  it('adds precomputed counts when the decision asks for them', async () => {
+    decideNotebookTurnNeeds.mockResolvedValueOnce({
+      count: true,
+      page: null,
+      other: false,
+      confidence: 0.9,
+    });
+    computeTurnFacts.mockResolvedValueOnce({
+      block: '„Polizei": 27 Treffer in 1 Quelle',
+      counted: true,
+      pageRead: false,
+    });
+    const content = await runOwn();
+    expect(computeTurnFacts.mock.calls[0][0]).toMatchObject({
+      terms: ['Grundsicherung'],
+      collectionIds: [OWN_NOTEBOOK],
+      documentIds: null,
+    });
+    expect(content).toContain('„Polizei": 27 Treffer in 1 Quelle');
+    expect(content).toContain('nimm Zahlen und Wortlaut nur von dort');
+  });
+
+  it('computes nothing when the decision wants nothing', async () => {
+    const content = await runOwn();
+    expect(computeTurnFacts).not.toHaveBeenCalled();
+    expect(content).not.toContain('Vorab ermittelt');
+  });
+
+  it('still answers when the decision fails', async () => {
+    decideNotebookTurnNeeds.mockResolvedValueOnce(null);
+    const content = await runOwn();
+    expect(content).toContain('Quellenliste des Notebooks');
+    expect(streamWithFallback).toHaveBeenCalled();
+  });
+
+  it('skips everything with an active filter, but not with an empty one', async () => {
+    await runOwn({ filters: { category: ['Beschluss'] } });
+    expect(loadInventory).not.toHaveBeenCalled();
+    expect(decideNotebookTurnNeeds).not.toHaveBeenCalled();
+    vi.clearAllMocks();
+    setupMocks();
+    await runOwn({ filters: { category: [] } });
+    expect(decideNotebookTurnNeeds).toHaveBeenCalled();
+  });
+
+  it('leaves system notebooks untouched', async () => {
+    await run('deep');
+    expect(loadInventory).not.toHaveBeenCalled();
+    expect(decideNotebookTurnNeeds).not.toHaveBeenCalled();
   });
 });
