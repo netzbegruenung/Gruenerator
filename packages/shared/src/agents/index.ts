@@ -58,6 +58,7 @@ export {
   canonicalSkillMention,
   hasSystemRecipe,
   ownsSystemRecipe,
+  systemRecipeMentionsOf,
   lvEbeneForSkillMention,
   autoRoutingHintForSkillMention,
   skillRole,
