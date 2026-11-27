@@ -5,6 +5,7 @@ import {
   getLandesverbandHubsByIds,
   isSkillOfferedIn,
   landesverbandIdsForRoles,
+  skillRole,
   type LvHub,
 } from '@gruenerator/shared/agents';
 import { type InstanceId } from '@gruenerator/shared/instances';
@@ -52,8 +53,10 @@ export interface RoleShortcut {
 
 /**
  * Je Landesverband-Hub: seine Rezepte, sein Notebook und die Marktplatz-Seite.
- * Ein Rezept-Eintrag öffnet den Chat mit `@<rezept>` — wie bei der
- * Bundesgeschäftsstelle; die LV-Agenten stehen seit 11/2026 nicht mehr hier.
+ * Ein Textsorten-Rezept öffnet das LV-Notebook mit dem Rezept (`?rezept=`):
+ * die Antwort stützt sich auf die Quellen des Landesverbands, das Rezept gibt
+ * die Form. Ohne Notebook, und bei Methoden-Rezepten, die das Notebook nicht
+ * anbietet, bleibt es beim Chat mit `@<rezept>`.
  */
 export function landesverbandShortcut(
   hub: LvHub,
@@ -63,6 +66,10 @@ export function landesverbandShortcut(
 ): RoleShortcut {
   const notebookPath = getNotebookById(hub.notebookId)?.path;
   const recipes = landesverbandRecipeLinks(hub, instance);
+  const recipePath = (mention: string, chatPath: string) =>
+    notebookPath && skillRole(mention) === 'textsorte'
+      ? `${notebookPath}?rezept=${encodeURIComponent(mention)}`
+      : chatPath;
   return {
     key: hub.slug,
     name: hub.name,
@@ -75,7 +82,7 @@ export function landesverbandShortcut(
         label: recipe.title,
         // Siehe `bundesgeschaeftsstelleShortcut`: `SkillIcon` ist schmaler getippt.
         Icon: resolveSkillIcon(recipe.iconKey) as IconType,
-        path: recipe.path,
+        path: recipePath(recipe.mention, recipe.path),
         title: recipe.title,
       })),
     },

@@ -1,6 +1,7 @@
 import {
   notebookAnswerModeReasonSchema,
   notebookResolvedAnswerModeSchema,
+  recipesUsedSchema,
   type NotebookAnswerMode,
   type NotebookAnswerModeReason,
   type NotebookCitation,
@@ -162,6 +163,16 @@ export interface SharepicContextConfig {
   systemPrompt?: string;
 }
 
+/**
+ * The recipe picked in the notebook composer. Goes out as the chat's
+ * `activeSkillMention` / `activeRecipeId`; it only shapes the answer.
+ */
+export interface NotebookRecipeChoice {
+  mention: string;
+  /** Set for a user recipe row — wins over the mention on the server. */
+  recipeId?: string | null;
+}
+
 export interface NotebookAdapterConfig {
   collectionId?: string;
   collectionIds?: string[];
@@ -183,6 +194,8 @@ export interface NotebookAdapterConfig {
   /** Magic Search: with `auto`, a first question is read here at send time and
    *  goes out as `chat`; later turns stay `auto`. */
   magicSearch?: boolean;
+  /** Recipe for the answer's form. Omitted ⇒ the answer has no recipe. */
+  recipe?: NotebookRecipeChoice | null;
   endpoint?: string;
   documentIds?: string[];
   threadId?: string | null;
@@ -231,7 +244,7 @@ interface StreamCompletionData {
   sources: Source[];
   allSources: unknown[];
   sourcesByCollection?: Record<string, unknown>;
-  metadata?: { traceId?: string };
+  metadata?: { traceId?: string; recipesUsed?: unknown };
 }
 
 export interface NotebookAdapterCallbacks {
@@ -388,6 +401,8 @@ export function createNotebookModelAdapter(
         ...(config.mode && { mode: config.mode }),
         ...(config.sourceTier === 'documents-first' && { sourceTier: config.sourceTier }),
         ...(answerMode && { answerMode }),
+        ...(config.recipe && { activeSkillMention: config.recipe.mention }),
+        ...(config.recipe?.recipeId && { activeRecipeId: config.recipe.recipeId }),
         ...(config.documentIds?.length && { documentIds: config.documentIds }),
         ...(config.threadId && { threadId: config.threadId }),
         model: selectedModel,
@@ -537,11 +552,14 @@ export function createNotebookModelAdapter(
       if (linkConfigAccum) custom.linkConfig = linkConfigAccum;
       if (resultIdAccum) custom.resultId = resultIdAccum;
       if (sourcesByCollectionAccum) custom.sourcesByCollection = sourcesByCollectionAccum;
-      if (completionData?.metadata?.traceId) {
+      // „Rezept: …" under the answer reads `streamMetadata.recipesUsed`, as in the chat.
+      const recipesUsed = recipesUsedSchema.safeParse(completionData?.metadata?.recipesUsed).data;
+      if (completionData?.metadata?.traceId || recipesUsed?.length) {
         custom.streamMetadata = {
           intent: 'direct',
           searchCount: 0,
-          traceId: completionData.metadata.traceId,
+          ...(completionData?.metadata?.traceId && { traceId: completionData.metadata.traceId }),
+          ...(recipesUsed?.length && { recipesUsed }),
         };
       }
       if (evidenceWeakAccum) custom.evidenceWeak = evidenceWeakAccum;

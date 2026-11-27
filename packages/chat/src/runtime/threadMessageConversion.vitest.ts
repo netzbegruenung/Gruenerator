@@ -726,6 +726,26 @@ describe('convertNotebookLoadedMessages', () => {
     },
   ];
 
+  it('brings back the recipe line of an answer, with and without a trace', () => {
+    const recipesUsed = [{ mention: 'wahlpruefstein-nrw', title: 'Wahlprüfsteine NRW' }];
+    const custom = (metadata: Record<string, unknown>) =>
+      (
+        convertNotebookLoadedMessages([
+          { id: 'a3', role: 'assistant', content: 'Antwort', metadata },
+        ])[0]!.metadata as { custom: Record<string, unknown> }
+      ).custom;
+    expect(custom({ recipesUsed }).streamMetadata).toEqual({
+      intent: 'direct',
+      searchCount: 0,
+      recipesUsed,
+    });
+    expect(custom({ recipesUsed, traceId: 't1' }).streamMetadata).toMatchObject({
+      traceId: 't1',
+      recipesUsed,
+    });
+    expect(custom({}).streamMetadata).toBeUndefined();
+  });
+
   it('keeps one card per toolCallId in a precision answer', () => {
     const [answer] = convertNotebookLoadedMessages([
       {

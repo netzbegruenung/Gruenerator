@@ -42,6 +42,24 @@ describe('resolveNotebookAnswerMode', () => {
     });
   });
 
+  it('runs chat for a recipe whatever mode was asked for, without the guard', async () => {
+    for (const requested of [null, 'auto', 'chat', 'praezision'] as const) {
+      const out = await resolveNotebookAnswerMode({
+        requested,
+        collectionIds: [USER_NB],
+        userLocale: 'de-DE',
+        question: 'Wie viele Quellen liegen hier?',
+        history: [],
+        recipe: true,
+      });
+      expect(out).toEqual({
+        decision: { requested, resolved: 'chat', reason: 'recipe' },
+        warning: null,
+      });
+    }
+    expect(aiDecide).not.toHaveBeenCalled();
+  });
+
   it('runs chat when chat was asked for', async () => {
     const out = await resolveNotebookAnswerMode({
       requested: 'chat',
@@ -184,6 +202,7 @@ describe('resolveNotebookAnswerMode — decision journal', () => {
     [{ requested: 'praezision' as const, collectionIds: [] }, 'ineligible'],
     [{ requested: 'auto' as const, question: 'Wie viele Quellen liegen hier?' }, 'pregate'],
     [{ requested: 'auto' as const }, 'guard_chat'],
+    [{ requested: 'praezision' as const, recipe: true }, 'recipe'],
   ])('records %j as %s', async (overrides, branch) => {
     const journal = createDecisionJournal();
     await runWithDecisionJournal(journal, () =>

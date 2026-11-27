@@ -11,4 +11,5 @@ audience: 'de-DE'
 lvEbene: 'fraktion'
 promptTemplate: 'Schreibe eine Pressemitteilung der GRÜNEN Landtagsfraktion Hessen zum Thema: '
 order: 63
+recommendedTools: ['gruenerator_pressemitteilung_examples']
 ---

@@ -2,6 +2,7 @@
 
 import { useAuiState } from '@assistant-ui/store';
 import { type NotebookDepth, type NotebookSourceTier } from '@gruenerator/contracts';
+import { useMemo } from 'react';
 
 import {
   NOTEBOOK_ANSWER_MODES,
@@ -15,10 +16,17 @@ import { type ComposerOption, ComposerOptionPicker } from '../thread/ComposerOpt
 import { GrueneratorComposer } from '../thread/GrueneratorComposer';
 
 import {
+  NotebookRecipeChip,
+  recipeMentionSections,
+  type NotebookRecipeGroup,
+} from './NotebookRecipeChip';
+import {
   NotebookSettingsPopover,
   type CategoryFilterConfig,
   type SourceFilterConfig,
 } from './NotebookSettingsPopover';
+
+import type { Mentionable } from '../../lib/mentionables';
 
 const toOption = (m: NotebookComposerModeDef): ComposerOption<NotebookComposerMode> => ({
   id: m.mode,
@@ -56,6 +64,12 @@ interface NotebookComposerProps {
   /** Classes for the settings panel, which is portalled out of the surface's
    *  accent scope. */
   settingsClassName?: string;
+  /** Recipe choice in the settings panel and via `@` — only where the surface
+   *  offers it. A picked recipe only shapes the answer, so the answer mode
+   *  picker steps aside meanwhile. */
+  recipe?: Mentionable | null;
+  recipeGroups?: readonly NotebookRecipeGroup[];
+  onRecipeChange?: (recipe: Mentionable | null) => void;
 }
 
 export function NotebookComposer({
@@ -72,6 +86,9 @@ export function NotebookComposer({
   magicIntent,
   onChatSubmit,
   settingsClassName,
+  recipe = null,
+  recipeGroups,
+  onRecipeChange,
 }: NotebookComposerProps) {
   const isRunning = useAuiState((s) => s.thread.isRunning);
   // Without a manual handler `manuell` is not on offer, and a stored one falls
@@ -85,6 +102,20 @@ export function NotebookComposer({
     activeAnswerMode?.mode === 'auto' && onManualSubmit ? (magicIntent ?? null) : null;
   const searches = isManual || activeMagicIntent === 'suche';
   const magicSuffix = activeMagicIntent ? MAGIC_INTENT_LABELS[activeMagicIntent] : null;
+  // „Manuell“ only searches, so no recipe there. Not gated on Magic Search's
+  // guess: a short line reads as a search until `@` picks a recipe, and the
+  // pick itself turns Magic Search off (the start page passes no intent then).
+  const offersRecipes = Boolean(recipeGroups && onRecipeChange && !isManual);
+  const mentionSource = useMemo(
+    () =>
+      offersRecipes && recipeGroups && onRecipeChange
+        ? {
+            sections: (query: string) => recipeMentionSections(recipeGroups, query),
+            onSelect: onRecipeChange,
+          }
+        : undefined,
+    [offersRecipes, recipeGroups, onRecipeChange]
+  );
   const answerModeDetail = [
     activeAnswerMode?.shortLabel ? activeAnswerMode.label : null,
     magicSuffix,
@@ -112,19 +143,30 @@ export function NotebookComposer({
       showModelPicker={false}
       {...(searches && onManualSubmit ? { onSearchSubmit: onManualSubmit } : {})}
       {...(!searches && onChatSubmit ? { onChatSubmit } : {})}
+      {...(mentionSource ? { mentionSource } : {})}
       slots={{
         leading: (
-          <NotebookSettingsPopover
-            mode={mode}
-            onModeChange={onModeChange}
-            sourceTier={sourceTier}
-            onSourceTierChange={onSourceTierChange}
-            sourceFilters={sourceFilters}
-            categoryFilters={categoryFilters}
-            {...(settingsClassName ? { className: settingsClassName } : {})}
-          />
+          <>
+            <NotebookSettingsPopover
+              mode={mode}
+              onModeChange={onModeChange}
+              sourceTier={sourceTier}
+              onSourceTierChange={onSourceTierChange}
+              sourceFilters={sourceFilters}
+              categoryFilters={categoryFilters}
+              {...(offersRecipes && recipeGroups && onRecipeChange
+                ? { recipes: { value: recipe, groups: recipeGroups, onChange: onRecipeChange } }
+                : {})}
+              {...(settingsClassName ? { className: settingsClassName } : {})}
+            />
+            {offersRecipes && recipe && onRecipeChange && (
+              <NotebookRecipeChip value={recipe} onRemove={() => onRecipeChange(null)} />
+            )}
+          </>
         ),
-        ...(activeAnswerMode && onAnswerModeChange
+        // Searching („Manuell") ignores the recipe, so the mode picker stays
+        // there to switch back — otherwise neither control would show.
+        ...(activeAnswerMode && onAnswerModeChange && !(recipe && offersRecipes)
           ? {
               sendAdornment: (
                 <ComposerOptionPicker
