@@ -1,3 +1,5 @@
+import { type SourceCoverage } from '@gruenerator/contracts';
+
 import {
   decidedApprovalPills,
   TOOL_APPROVAL_OPTIONS,
@@ -34,6 +36,7 @@ export interface LoadedMessage {
       url: string;
       snippet?: string;
       domain?: string;
+      coverage?: SourceCoverage;
     }>;
     searchResults?: Array<{ title: string; url: string; snippet?: string }>;
     /**

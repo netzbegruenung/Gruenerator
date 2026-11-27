@@ -3,6 +3,7 @@ import { ConfirmDialogProvider, Input, toast, useConfirm } from '@gruenerator/ui
 import { useState } from 'react';
 
 import { useAuthStore } from '../../../stores/authStore';
+import { AdminPanel } from '../components/adminUi';
 import AdminUserTable, { type AdminUserRow } from '../components/AdminUserTable';
 import {
   useInstanceAdminUsers,
@@ -43,35 +44,44 @@ function UsersList() {
 
   return (
     <div className="flex flex-col gap-md">
-      <Input
-        type="search"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="Nach E-Mail oder Name suchen, z. B. bundestag.de"
-        aria-label="Nutzer:innen suchen"
-        className="max-w-md"
-      />
-      <AdminUserTable
-        isLoading={isLoading}
-        emptyLabel={q ? `Keine Treffer für „${q}".` : 'Keine Nutzer:innen gefunden.'}
-        users={(users ?? []).map((u) => ({
-          id: u.id,
-          name: u.displayName ?? u.email ?? u.id,
-          email: u.email,
-          joinedAt: u.createdAt,
-          isAdmin: u.isAdmin,
-          pandaEnabled: u.pandaEnabled,
-          pandaEffective: u.pandaEffective,
-          sitesUnlocked: u.sitesUnlocked,
-        }))}
-        onPandaChange={(userId, enabled) => setPanda.mutate({ userId, enabled })}
-        pandaPendingUserId={setPanda.isPending ? (setPanda.variables?.userId ?? null) : null}
-        onSitesChange={(userId, enabled) => setSites.mutate({ userId, enabled })}
-        sitesPendingUserId={setSites.isPending ? (setSites.variables?.userId ?? null) : null}
-        onAdminChange={(user, isAdmin) => void handleAdminChange(user, isAdmin)}
-        adminPendingUserId={setAdmin.isPending ? (setAdmin.variables?.userId ?? null) : null}
-        currentUserId={currentUserId}
-      />
+      <div className="flex flex-wrap items-center justify-between gap-sm">
+        <Input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Nach E-Mail oder Name suchen, z. B. bundestag.de"
+          aria-label="Nutzer:innen suchen"
+          className="max-w-md flex-1 basis-64"
+        />
+        {!isLoading && (
+          <span className="text-sm text-grey-600 tabular-nums dark:text-grey-400">
+            {users?.length ?? 0} {users?.length === 1 ? 'Person' : 'Personen'}
+          </span>
+        )}
+      </div>
+      <AdminPanel flush>
+        <AdminUserTable
+          isLoading={isLoading}
+          emptyLabel={q ? `Keine Treffer für „${q}".` : 'Keine Nutzer:innen gefunden.'}
+          users={(users ?? []).map((u) => ({
+            id: u.id,
+            name: u.displayName ?? u.email ?? u.id,
+            email: u.email,
+            joinedAt: u.createdAt,
+            isAdmin: u.isAdmin,
+            pandaEnabled: u.pandaEnabled,
+            pandaEffective: u.pandaEffective,
+            sitesUnlocked: u.sitesUnlocked,
+          }))}
+          onPandaChange={(userId, enabled) => setPanda.mutate({ userId, enabled })}
+          pandaPendingUserId={setPanda.isPending ? (setPanda.variables?.userId ?? null) : null}
+          onSitesChange={(userId, enabled) => setSites.mutate({ userId, enabled })}
+          sitesPendingUserId={setSites.isPending ? (setSites.variables?.userId ?? null) : null}
+          onAdminChange={(user, isAdmin) => void handleAdminChange(user, isAdmin)}
+          adminPendingUserId={setAdmin.isPending ? (setAdmin.variables?.userId ?? null) : null}
+          currentUserId={currentUserId}
+        />
+      </AdminPanel>
     </div>
   );
 }

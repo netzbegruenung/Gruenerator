@@ -4,6 +4,7 @@ import { useId, useMemo, useState } from 'react';
 import { PiPlus, PiTrash } from 'react-icons/pi';
 
 import { downloadFile } from '../../../utils/downloadFile';
+import { AdminPanel } from '../components/adminUi';
 import {
   useDeleteDictionary,
   useGlossary,
@@ -59,9 +60,9 @@ export default function GlossarTab() {
 
   if (glossary.isPending || languages.isPending) {
     return (
-      <div className="flex flex-col gap-sm">
-        <Skeleton className="h-11 w-full" />
-        <Skeleton className="h-40 w-full" />
+      <div className="flex flex-col gap-md">
+        <Skeleton className="h-20 w-full rounded-xl" />
+        <Skeleton className="h-64 w-full rounded-xl" />
       </div>
     );
   }
@@ -170,13 +171,13 @@ function GlossaryEditor({ name, exists, dictionaries, roots }: GlossaryEditorPro
 
   return (
     <div className="flex flex-col gap-md">
-      <p className="m-0 text-sm text-grey-500">
+      <p className="m-0 max-w-[72ch] text-sm text-grey-600 dark:text-grey-400">
         Glossar „{name}“ im DeepL-Konto{exists ? '' : ' — wird beim ersten Speichern angelegt'}. Die
         Begriffe werden bei jeder Übersetzung des Sprachpaars erzwungen, auf der Seite wie im Chat.
       </p>
 
-      <div className="grid gap-sm md:grid-cols-3">
-        <div className="flex flex-col gap-xs">
+      <div className="flex flex-wrap items-end gap-sm rounded-xl border border-grey-200 bg-background p-md dark:border-grey-800">
+        <div className="flex min-w-48 flex-1 flex-col gap-xs">
           <Label htmlFor={pairId}>Sprachpaar</Label>
           <select
             id={pairId}
@@ -197,7 +198,7 @@ function GlossaryEditor({ name, exists, dictionaries, roots }: GlossaryEditorPro
         </div>
         {pair === NEW_PAIR ? (
           <>
-            <div className="flex flex-col gap-xs">
+            <div className="flex min-w-40 flex-1 flex-col gap-xs">
               <Label htmlFor={sourceId}>Von</Label>
               <select
                 id={sourceId}
@@ -212,7 +213,7 @@ function GlossaryEditor({ name, exists, dictionaries, roots }: GlossaryEditorPro
                 ))}
               </select>
             </div>
-            <div className="flex flex-col gap-xs">
+            <div className="flex min-w-40 flex-1 flex-col gap-xs">
               <Label htmlFor={targetId}>Nach</Label>
               <select
                 id={targetId}
@@ -231,50 +232,74 @@ function GlossaryEditor({ name, exists, dictionaries, roots }: GlossaryEditorPro
         ) : null}
       </div>
 
-      <div className="flex flex-col gap-xs" role="group" aria-label="Einträge">
-        <div className="grid grid-cols-[1fr_1fr_auto] gap-xs text-xs font-medium text-grey-500">
-          <span>{langName(sourceLang)}</span>
-          <span>{langName(targetLang)}</span>
-          <span className="w-9" />
-        </div>
-        {rows.map((row, index) => (
-          <div key={row.rowId} className="grid grid-cols-[1fr_1fr_auto] gap-xs">
-            <Input
-              aria-label={`Quelle ${index + 1}`}
-              value={row.source}
-              onChange={(e) => updateRow(row.rowId, 'source', e.target.value)}
-            />
-            <Input
-              aria-label={`Ziel ${index + 1}`}
-              value={row.target}
-              onChange={(e) => updateRow(row.rowId, 'target', e.target.value)}
-            />
+      <AdminPanel
+        flush
+        title={`${langName(sourceLang)} → ${langName(targetLang)}`}
+        aside={
+          <span className="text-grey-600 tabular-nums dark:text-grey-400">
+            {cleaned.length} {cleaned.length === 1 ? 'Eintrag' : 'Einträge'}
+          </span>
+        }
+      >
+        <div
+          className="flex flex-col border-t border-grey-200 dark:border-grey-800"
+          role="group"
+          aria-label="Einträge"
+        >
+          <div className="grid grid-cols-[1fr_1fr_2.5rem] gap-sm border-b border-grey-200 px-md py-xs text-xs font-medium text-grey-600 dark:border-grey-800 dark:text-grey-400">
+            <span>{langName(sourceLang)}</span>
+            <span>{langName(targetLang)}</span>
+            <span />
+          </div>
+          {rows.length === 0 && (
+            <p className="m-0 px-md py-lg text-center text-sm text-grey-600 dark:text-grey-400">
+              Noch keine Einträge. Füge die erste Zeile hinzu.
+            </p>
+          )}
+          <div className="flex flex-col divide-y divide-grey-200 dark:divide-grey-800">
+            {rows.map((row, index) => (
+              <div
+                key={row.rowId}
+                className="grid grid-cols-[1fr_1fr_2.5rem] items-center gap-sm px-md py-xs"
+              >
+                <Input
+                  aria-label={`Quelle ${index + 1}`}
+                  value={row.source}
+                  onChange={(e) => updateRow(row.rowId, 'source', e.target.value)}
+                />
+                <Input
+                  aria-label={`Ziel ${index + 1}`}
+                  value={row.target}
+                  onChange={(e) => updateRow(row.rowId, 'target', e.target.value)}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Zeile ${index + 1} entfernen`}
+                  onClick={() => {
+                    setRows((list) => list.filter((e) => e.rowId !== row.rowId));
+                    setDirty(true);
+                  }}
+                >
+                  <PiTrash aria-hidden="true" />
+                </Button>
+              </div>
+            ))}
+          </div>
+          <div className="border-t border-grey-200 px-md py-sm dark:border-grey-800">
             <Button
               type="button"
-              variant="ghost"
-              size="icon"
-              aria-label={`Zeile ${index + 1} entfernen`}
-              onClick={() => {
-                setRows((list) => list.filter((e) => e.rowId !== row.rowId));
-                setDirty(true);
-              }}
+              variant="outline"
+              size="sm"
+              onClick={() => setRows((list) => [...list, toRow({ source: '', target: '' })])}
             >
-              <PiTrash aria-hidden="true" />
+              <PiPlus aria-hidden="true" />
+              Zeile hinzufügen
             </Button>
           </div>
-        ))}
-        <div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setRows((list) => [...list, toRow({ source: '', target: '' })])}
-          >
-            <PiPlus aria-hidden="true" />
-            Zeile hinzufügen
-          </Button>
         </div>
-      </div>
+      </AdminPanel>
 
       {error || (dirty && validation) ? (
         <Alert variant="destructive" role="alert">

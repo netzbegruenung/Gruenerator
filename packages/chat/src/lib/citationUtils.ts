@@ -18,6 +18,7 @@ export function mapRawCitationsToChat(raw: unknown[]): ChatCitation[] {
       url: (c.source_url as string) ?? '',
       snippet: (c.cited_text as string) ?? '',
       citedText: c.cited_text as string | undefined,
+      quote: c.quote as string | undefined,
       source: (c.collection_name as string) ?? '',
       collectionName: c.collection_name as string | undefined,
       documentId: c.document_id as string | undefined,

@@ -1,3 +1,4 @@
+import { coverageLabel } from '@gruenerator/contracts';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useState, useCallback } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
@@ -69,6 +70,11 @@ export function CitationsFooter({ citations, theme, fetchFullText, onSelect }: P
               <Text style={[styles.title, { color: theme.text }]} numberOfLines={1}>
                 {citation.title || citation.url}
               </Text>
+              {coverageLabel(citation.coverage) && (
+                <Text style={[styles.coverage, { color: theme.textSecondary }]}>
+                  {coverageLabel(citation.coverage)}
+                </Text>
+              )}
             </View>
           </Pressable>
         ))}
@@ -114,6 +120,10 @@ const styles = StyleSheet.create({
   number: {
     ...chatType.chatMeta,
     fontWeight: '600',
+  },
+  coverage: {
+    ...chatType.chatMeta,
+    flexShrink: 0,
   },
   title: {
     ...chatType.chatLabel,

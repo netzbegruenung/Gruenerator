@@ -13,7 +13,7 @@ import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/type
 const crawl = vi.hoisted(() => vi.fn<(...a: unknown[]) => Promise<unknown>>());
 vi.mock('../../../../services/search/index.js', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
-  crawlAndDistill: (...a: unknown[]) => crawl(...a),
+  selectAndCrawlTopUrls: (...a: unknown[]) => crawl(...a),
 }));
 const validate = vi.hoisted(() =>
   vi.fn(async (raw: string) =>
@@ -33,6 +33,7 @@ describe('seedAttachedPages', () => {
     ({
       attachedWebpageUrls: [PAGE],
       carriedWebpageUrls: [],
+      documentSources: [],
       lastUserTextNoMentions: 'Wann wird der Radweg gebaut?',
       agentConfig: { userId: 'u1' },
       ...over,
@@ -54,8 +55,8 @@ describe('seedAttachedPages', () => {
     crawl.mockImplementation(async (seeds) =>
       (seeds as { url: string }[]).map((s) => ({
         url: s.url,
-        title: 'Radweg-Planung',
-        content: 'Baubeginn ist im Frühjahr 2027.',
+        pageTitle: 'Radweg-Planung',
+        fullContent: 'Baubeginn ist im Frühjahr 2027.',
         crawled: true,
       }))
     );

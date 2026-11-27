@@ -1,5 +1,6 @@
 'use client';
 
+import { coverageDetail, coverageLabel } from '@gruenerator/contracts';
 import { memo } from 'react';
 
 import { getCollectionStyle } from '../../../lib/collectionStyles';
@@ -17,6 +18,7 @@ import type { CitationProps } from './projectSchema';
 export const Citation = memo(function Citation(citation: CitationProps) {
   const displayText = citation.citedText || citation.snippet || '';
   const style = getCollectionStyle(citation.source);
+  const partial = coverageLabel(citation.coverage);
 
   return (
     <div
@@ -62,6 +64,14 @@ export const Citation = memo(function Citation(citation: CitationProps) {
                 style={{ backgroundColor: `${style.color}20`, color: style.color }}
               >
                 {citation.collectionName}
+              </span>
+            )}
+            {partial && citation.coverage && (
+              <span
+                className="rounded-full border border-border px-1.5 py-0.5 text-[10px] font-medium text-foreground-muted"
+                title={coverageDetail(citation.coverage)}
+              >
+                {partial}
               </span>
             )}
           </div>

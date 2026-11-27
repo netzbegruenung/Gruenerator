@@ -1,197 +1,104 @@
-import { hasLandesverbandContentIn } from '@gruenerator/shared/agents';
-import { isToolOfferedIn } from '@gruenerator/shared/instances';
-import { SectionHeader, Tabs, TabsContent, TabsList, TabsTrigger } from '@gruenerator/ui';
-import { type ReactNode } from 'react';
+import { Skeleton } from '@gruenerator/ui';
+import { Suspense, useEffect } from 'react';
+import { FiGrid } from 'react-icons/fi';
+import { Navigate, useParams } from 'react-router-dom';
 
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
-import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { CURRENT_INSTANCE } from '../../config/instance';
 
-import ReportsTabLabel from './components/ReportsTabLabel';
+import AdminOverview from './AdminOverview';
+import { ADMIN_GROUPS, type AdminSectionId, adminSectionsFor } from './adminSections';
+import AdminShell, { type AdminNavGroup } from './components/AdminShell';
+import { AdminPageHeader } from './components/adminUi';
 import RequireAdmin from './components/RequireAdmin';
-import LandesverbandAssignmentTab from './landesverband-assignment/LandesverbandAssignmentTab';
-import AgentsTab from './tabs/AgentsTab';
-import AppUpdatesTab from './tabs/AppUpdatesTab';
-import ContentSyncTab from './tabs/ContentSyncTab';
-import GlossarTab from './tabs/GlossarTab';
-import ParteitageTab from './tabs/ParteitageTab';
-import ReportsTab from './tabs/ReportsTab';
-import RolesTab from './tabs/RolesTab';
-import SkillsTab from './tabs/SkillsTab';
-import StatisticsTab from './tabs/StatisticsTab';
-import UsersTab from './tabs/UsersTab';
-import VorlagenTab from './tabs/VorlagenTab';
+
+// Die Instanz steht beim Laden des Bundles fest — der Satz ändert sich nie.
+const SECTIONS = adminSectionsFor(CURRENT_INSTANCE);
+const AVAILABLE = new Set(SECTIONS.map((s) => s.id as AdminSectionId));
+
+const NAV: AdminNavGroup[] = [
+  { key: 'start', items: [{ to: '/admin', label: 'Überblick', icon: FiGrid, end: true }] },
+  ...ADMIN_GROUPS.map((group) => ({
+    key: group.id,
+    label: group.label,
+    items: SECTIONS.filter((s) => s.group === group.id).map((s) => ({
+      to: `/admin/${s.id}`,
+      label: s.label,
+      icon: s.icon,
+      badge: s.badge,
+    })),
+  })).filter((group) => group.items.length > 0),
+];
 
 /**
- * Der Administrationsbereich einer Instanz.
- *
- * **Der Reitersatz wird abgeleitet, nicht aufgezählt.** Eine Instanz, die die
- * Vorlagen ausblendet, soll keine Vorlagen prüfen; eine ohne Landesverbände hat
- * niemanden zu verwalten. Beides steht schon in der Instanz-Registry
- * (`hide.toolIds`, `hide.notebookCategories`) — hier wird es nur gelesen. Kein
- * `if (instanceId === 'bgst')`: eine künftige Landes- oder Fraktions-Instanz
- * füllt dieselben Felder und bekommt dasselbe Verhalten.
- *
- * Die Reiter, die immer stehen, sind die, die jede Instanz hat: wer hier ist,
- * welche Rezepte sie anbietet, welche Rollen die Leute sich gegeben haben.
+ * Lädt die Chunks aller Unterseiten im Leerlauf nach dem ersten Bild. Sonst
+ * zeigt jeder erste Klick auf eine Unterseite erst ein Skelett, während ihr
+ * Code nachkommt — auch auf dem Handy, wo es kein Überfahren gibt.
  */
-interface AdminTab {
-  value: string;
-  label: string;
-  /** Overrides `label` in the trigger, e.g. to append a live count. */
-  labelNode?: () => ReactNode;
-  title: string;
-  description?: string;
-  render: () => ReactNode;
+function usePreloadSections() {
+  useEffect(() => {
+    const run = () => SECTIONS.forEach((s) => s.preload());
+    if (typeof window.requestIdleCallback === 'function') {
+      const id = window.requestIdleCallback(run, { timeout: 3000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const id = window.setTimeout(run, 1500);
+    return () => window.clearTimeout(id);
+  }, []);
 }
 
-function buildTabs(instanceId: typeof CURRENT_INSTANCE): AdminTab[] {
-  const tabs: AdminTab[] = [
-    {
-      value: 'users',
-      label: 'Nutzer:innen',
-      title: 'Nutzer:innen',
-      render: () => <UsersTab />,
-    },
-    {
-      value: 'skills',
-      label: 'Rezepte',
-      title: 'Rezepte',
-      description:
-        'Welche Rezepte diese Instanz im Katalog anbietet. Ausgeblendete Rezepte bleiben über einen bestehenden Link oder eine explizite @-Erwähnung weiter erreichbar.',
-      render: () => <SkillsTab />,
-    },
-    {
-      value: 'agents',
-      label: 'Agenten',
-      title: 'Grünerator-Agenten',
-      description:
-        'Welche Agenten diese Instanz im Katalog anbietet. Ausgeblendete Agenten bleiben über einen bestehenden Link erreichbar. Die Landesverbands-Agenten stehen nicht einzeln hier — sie fallen mit ihrem Landesverband.',
-      render: () => <AgentsTab />,
-    },
-    {
-      value: 'roles',
-      label: 'Rollen',
-      title: 'Rollenübersicht',
-      description: 'Welche Rolle sich die Nutzenden selbst gegeben haben.',
-      render: () => <RolesTab />,
-    },
-    {
-      value: 'statistik',
-      label: 'Statistik',
-      title: 'Statistik',
-      description:
-        'Was auf dieser Instanz entstanden ist, über die Zeit. Nur Summen, keine Personen. Ein Klick auf eine Zeile zeigt Verlauf und Untertypen.',
-      render: () => <StatisticsTab />,
-    },
-    {
-      value: 'app-updates',
-      label: 'App-Updates',
-      title: 'App-Updates',
-      description:
-        'Welche Stände der Handy-App in den letzten 30 Tagen liefen: der Store-Build oder ein Update aus der Luft, mit der Zahl der angemeldeten Personen (geschätzt).',
-      render: () => <AppUpdatesTab />,
-    },
-    {
-      value: 'glossar',
-      label: 'Glossar',
-      title: 'Übersetzungs-Glossar',
-      description:
-        'Feste Begriffe für den DeepL-Übersetzer, je Sprachpaar. Greift automatisch auf der Übersetzer-Seite und im Chat.',
-      render: () => <GlossarTab />,
-    },
-  ];
-
-  tabs.push({
-    value: 'parteitage',
-    label: 'Parteitage',
-    title: 'Parteitage',
-    description: 'Status und Passwort setzen, Reden ausblenden oder endgültig löschen.',
-    render: () => <ParteitageTab />,
-  });
-
-  if (isToolOfferedIn('vorlagen', instanceId)) {
-    tabs.push({
-      value: 'vorlagen',
-      label: 'Vorlagen',
-      title: 'Vorlagen',
-      description: 'Eingereichte Vorlagen prüfen und freigeben.',
-      render: () => <VorlagenTab />,
-    });
-  }
-
-  tabs.push({
-    value: 'meldungen',
-    label: 'Meldungen',
-    labelNode: () => <ReportsTabLabel />,
-    title: 'Meldungen',
-    description: 'Gemeldete Inhalte prüfen, entfernen oder die Meldung verwerfen.',
-    render: () => <ReportsTab />,
-  });
-
-  // Der Sync läuft dort, wo Landesverbands-Inhalte geführt werden; die
-  // stündlichen Läufe sind Landesverbands-Läufe.
-  if (hasLandesverbandContentIn(instanceId)) {
-    tabs.push({
-      value: 'content-sync',
-      label: 'Content-Sync',
-      title: 'Content-Sync',
-      description:
-        'Die letzten 200 Läufe der Scraper: was neu kam, was fehlschlug. Die stündlichen Landesverband-Läufe stehen einzeln drin, aufbewahrt werden 90 Tage.',
-      render: () => <ContentSyncTab />,
-    });
-    tabs.push({
-      value: 'landesverbaende',
-      label: 'Landesverbände',
-      title: 'Landesverband-Admins',
-      description: 'Lege fest, wer welchen Landesverband administrieren darf.',
-      render: () => <LandesverbandAssignmentTab />,
-    });
-  }
-
-  return tabs;
+function SectionFallback() {
+  return (
+    <div className="flex flex-col gap-sm">
+      <Skeleton className="h-10 w-full" />
+      <Skeleton className="h-64 w-full" />
+    </div>
+  );
 }
 
+/**
+ * `/admin` (Überblick), `/admin/:section` und `/admin/chunks/:documentId` —
+ * alles eine Route, damit die Hülle beim Wechsel stehen bleibt.
+ * Welche Unterseiten es gibt, steht in `adminSections.tsx`.
+ */
 const AdminPage = () => {
-  // Die Instanz steht beim Laden des Bundles fest — kein Memo nötig, und ein
-  // Zustand wäre irreführend, weil sich der Reitersatz nie ändert.
-  const tabs = buildTabs(CURRENT_INSTANCE);
+  usePreloadSections();
+  const { section, documentId } = useParams<{ section?: string; documentId?: string }>();
+  const active = section ? SECTIONS.find((s) => s.id === section) : null;
+
+  if (section && !active) return <Navigate to="/admin" replace />;
+  if (documentId && active?.id !== 'chunks') return <Navigate to={`/admin/${section}`} replace />;
 
   return (
     <RequireAdmin type="instanceAdmin">
-      <ErrorBoundary>
-        <PageContainer maxWidth="md">
-          <div className="mb-lg pt-md">
-            <h1 className="text-3xl font-semibold text-foreground-heading mb-xs">Administration</h1>
-            <p className="text-lg text-grey-500 dark:text-grey-400 m-0">
-              Nutzende, Rezepte und Rollen dieser Instanz.
-            </p>
+      <AdminShell
+        navLabel="Administration"
+        heading={
+          <div className="flex flex-col">
+            <span className="font-[Raleway] text-lg font-bold text-foreground-heading">
+              Administration
+            </span>
+            <span className="text-xs text-grey-600 dark:text-grey-400">
+              {window.location.hostname}
+            </span>
           </div>
-
-          <Tabs defaultValue="users">
-            <TabsList>
-              {tabs.map((tab) => (
-                <TabsTrigger key={tab.value} value={tab.value}>
-                  {tab.labelNode ? tab.labelNode() : tab.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-
-            {tabs.map((tab) => (
-              <TabsContent key={tab.value} value={tab.value}>
-                <SectionHeader title={tab.title} />
-                {tab.description && (
-                  <p className="text-sm text-grey-500 dark:text-grey-400 mb-md">
-                    {tab.description}
-                  </p>
-                )}
-                {tab.render()}
-              </TabsContent>
-            ))}
-          </Tabs>
-        </PageContainer>
-      </ErrorBoundary>
+        }
+        nav={NAV}
+      >
+        <ErrorBoundary key={active?.id ?? 'overview'}>
+          {active ? (
+            <>
+              <AdminPageHeader title={active.title} description={active.description} />
+              <Suspense fallback={<SectionFallback />}>
+                <active.Component />
+              </Suspense>
+            </>
+          ) : (
+            <AdminOverview available={AVAILABLE} />
+          )}
+        </ErrorBoundary>
+      </AdminShell>
     </RequireAdmin>
   );
 };

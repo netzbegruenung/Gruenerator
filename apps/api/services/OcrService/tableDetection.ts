@@ -6,9 +6,18 @@
  *
  * Grundlage ist dieselbe Geometrie wie in `textItemJoin.ts`: Items werden über
  * die Grundlinie (`transform[5]`) zu Zeilen gruppiert, eine Zeile wird dort in
- * Zellen geteilt, wo die Lücke zwischen zwei Items grösser als 2 em ist.
+ * Zellen geteilt, wo die Lücke zwischen zwei Items grösser als 1 em ist.
  * Leerraum-Items zählen nicht — pdfjs füllt Tabellenlücken mit einem einzigen
- * `" "`-Item über die ganze Breite.
+ * `" "`-Item über die ganze Breite. Gedrehter Text zählt auch nicht: er ist nie
+ * eine Zelle, und eine senkrechte Randmarke neben nummerierten Absätzen ergab
+ * sonst drei „Spalten" (Grundsatzprogramm, Seiten 21 und 27).
+ *
+ * Die Schwelle stand bis 11/2026 bei 2 em. Eine Tabelle, deren Spalten sich an
+ * den Inhalt anpassen, hat zwischen den Zellen aber nur das Innenpolster —
+ * gemessen 1,06 em bei einer gewöhnlichen Tabelle mit Rahmen —, und von 14
+ * gebauten Tabellen mit drei und mehr Spalten fielen 5 durch. Mit 1 em werden
+ * alle 14 erkannt, die drei Parteiprogramme bleiben ohne Treffer; der erste
+ * Fehlalarm dort kommt bei 0,6 em. Ein Wortabstand liegt bei 0,25 em.
  *
  * Eine Tabelle ist ein Lauf von mindestens 3 Zeilen mit je mindestens 2 Zellen,
  * deren erste Zelle in derselben Spalte beginnt, und in dem mindestens 3
@@ -33,7 +42,7 @@
 
 import { type PdfTextItem } from './textItemJoin.js';
 
-const CELL_GAP_EM = 2;
+const CELL_GAP_EM = 1;
 const COLUMN_TOLERANCE_EM = 1;
 const MIN_ROWS = 3;
 const MIN_COLUMNS = 3;
@@ -55,6 +64,7 @@ function toLines(items: readonly PdfTextItem[]): Cell[][] {
   for (const item of items) {
     const t = item.transform;
     if (!item.str?.trim() || !t || t.length < 6) continue;
+    if (Math.abs(t[1]) > 1e-3 || Math.abs(t[2]) > 1e-3) continue;
     const em = Math.hypot(t[2], t[3]) || 1;
     placed.push({ start: t[4], end: t[4] + (item.width ?? 0), em, y: t[5] });
   }

@@ -44,15 +44,14 @@ import { open } from 'fs/promises';
 import { join, resolve } from 'path';
 import { parseArgs } from 'util';
 
-import { conventionManifestSchema, type ConventionManifest } from '@gruenerator/contracts';
+import { conventionManifestSchema } from '@gruenerator/contracts';
+import { isStillRunning, manifestFiles, waitForHashes } from '@gruenerator/shared/utils';
 
 import {
-  isStillRunning,
   loadUploadMap,
   reusableEntry,
   saveUploadMap,
   type UploadMap,
-  waitForHashes,
 } from './importParteitagHelpers.js';
 
 const CHUNK_BYTES = 5 * 1024 * 1024;
@@ -247,11 +246,6 @@ async function uploadFile(
     await handle.close();
   }
   return uploadId;
-}
-
-function manifestFiles(manifest: ConventionManifest) {
-  const files = manifest.speeches.flatMap((s) => [s.files.reel, s.files.poster]);
-  return manifest.report ? [...files, manifest.report] : files;
 }
 
 async function main(): Promise<void> {

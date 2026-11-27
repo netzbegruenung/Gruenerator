@@ -50,6 +50,10 @@ describe('extractTextFromFile — every advertised format is readable', () => {
       if (kind === 'ocr') {
         expect(extractTextFromDocument).toHaveBeenCalledTimes(1);
         expect(text).toBe('ocr-text');
+      } else if (kind === 'table') {
+        // Zelle für Zelle gelesen (spreadsheetText.ts), nie per OCR.
+        expect(extractTextFromDocument).not.toHaveBeenCalled();
+        expect(text).toContain('Beschluss A1');
       } else {
         expect(extractTextFromDocument).not.toHaveBeenCalled();
         expect(text).toBe('Beschluss A1');

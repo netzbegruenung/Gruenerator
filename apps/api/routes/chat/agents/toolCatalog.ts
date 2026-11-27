@@ -114,7 +114,13 @@ import { makeGroupsTool } from './groupTools.js';
 import { makeBildAnsehenTool } from './imageTools.js';
 import { makeLandtagTool, makeNationalratTool } from './landtagTool.js';
 import { makeMemoryTool } from './memoryTools.js';
-import { CRAWL_SNIPPET_CHARS, normalisiereUrl, readNamedPages } from './namedPages.js';
+import {
+  CRAWL_SNIPPET_CHARS,
+  canReadNamedPages,
+  normalisiereUrl,
+  pageLabel,
+  readNamedPages,
+} from './namedPages.js';
 import { boundSystemNotebook, makeNotebookSourcesTool } from './notebookSourceTools.js';
 import { makeNotebooksTool } from './notebookTools.js';
 import {
@@ -617,15 +623,18 @@ export function buildChatToolCatalog(params: {
   // exactly how a blocked search reappears as a crawl.
   // Same gate as `web_search` above: for an agent without web capability a
   // crawl is the other door to the same open web.
-  if (!researchBanned && webAllowed) {
+  // Im Loop dieselbe Freigabe wie das Einlesen benannter Seiten als Dokument
+  // (`canReadNamedPages`) — sonst könnte einer der beiden Wege ins Netz gehen,
+  // den der andere verschlossen hat.
+  if (loop ? canReadNamedPages(agentConfig, loop.state) : webAllowed) {
     tools.scrape_url = tool({
-      description: `Ruft den vollständigen Textinhalt einer oder mehrerer Webseiten ab.
+      description: `Liest den Text einer oder mehrerer Webseiten.
 
 NUTZE WENN:
 - Der*die Nutzer*in eine URL genannt/eingefügt hat und deren Inhalt gebraucht wird
-- Du nach einer Websuche eine konkrete Trefferseite im Volltext lesen willst
+- Du nach einer Websuche eine konkrete Trefferseite lesen willst
 
-Übergib die vollständigen URLs (inkl. https://). Der Inhalt wird als zitierbare Quelle [N] verfügbar.`,
+Übergib die vollständigen URLs (inkl. https://). Der Inhalt wird als zitierbare Quelle [N] verfügbar. Lange Seiten kommen nur zum Teil an — die Quellenzeile sagt dann, wie viele Zeichen fehlen. Eine Seite, die schon als Webseite unter den angehängten Dokumenten steht, liest du vollständig mit \`${ATTACHED_DOCS_TOOL}\`.`,
       inputSchema: z.object({
         urls: z.array(z.string()).min(1).max(3).describe('Vollständige URLs inkl. Protokoll'),
       }),
@@ -866,8 +875,14 @@ NUTZE WENN:
     // danebengriff.
     if (attachedSources.length > 0) {
       const mehrere = attachedSources.length > 1;
+      // Eine benannte Webseite liegt hier als Dokument (`namedPageDocuments`).
+      // Ohne den Zusatz suchte das Modell sie nicht unter „angehängten Dateien"
+      // — und „kommunal.de" liest sich wie ein Dateiname.
+      const nenne = (s: (typeof attachedSources)[number]) =>
+        s.webpage ? `„${s.label}" (Webseite)` : `„${s.label}"`;
+      const mitSeiten = attachedSources.some((s) => s.webpage);
       tools[ATTACHED_DOCS_TOOL] = tool({
-        description: `Durchsucht die Dokumente, die in diesem Gespräch angehängt sind${mehrere ? ` (${attachedSources.map((s) => s.label).join(', ')})` : ` („${attachedSources[0]!.label}")`}, oder liest sie abschnittsweise im Volltext.
+        description: `Durchsucht die Dokumente, die in diesem Gespräch angehängt${mitSeiten ? ' oder als Webseite gelesen' : ''} sind (${attachedSources.map(nenne).join(', ')}), oder liest sie abschnittsweise im Volltext.
 
 NUTZE WENN eine Frage sich auf eine angehängte Datei bezieht und die bereits gezeigten Passagen nicht ausreichen.
 
@@ -876,6 +891,7 @@ NUTZE WENN eine Frage sich auf eine angehängte Datei bezieht und die bereits ge
 - Auch wenn die Frage Vollständigkeit verlangt („alle …", „wie viele …", jede Zeile einer Tabelle, eine ganze Liste): \`abschnitt\`, nicht \`query\` — die Passagensuche ordnet nach Relevanz und liefert nur die besten Treffer, nie alle.
 - „Seite N": \`seite\`.
 - „wie oft / alle Stellen mit Wort X": \`wortsuche\` statt \`abschnitt\` — zählt vollständig, mit Seite je Fundstelle.
+- „wer/was wie oft" (Autor*innen, Kategorien, Anteile): \`zaehlen\` — zählt über den GANZEN Text, welcher Wert wie oft nach einem festen Text steht, z. B. \`nach: "von "\` für Autorenzeilen (gezählt wird am Zeilenanfang; \`zeilenanfang: false\` zählt auch mitten im Satz). Die Anteile in Prozent stehen im Ergebnis — übernimm sie, statt sie nachzurechnen. Zähle nie selbst über gezeigte Passagen: die sind nie das Ganze.
 - „steht das so drin / stimmt das Zitat": \`zitat\` mit dem Wortlaut.${mehrere ? '\n- `dateiname` grenzt auf eine der Dateien ein.' : ''}
 
 Genau ein Modus je Aufruf.
@@ -906,17 +922,48 @@ NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summar
             .optional()
             .describe('Alle Vorkommen zählen'),
           zitat: z.string().optional().describe('Wortlaut, der im Dokument stehen soll'),
+          zaehlen: z
+            .object({
+              nach: z
+                .string()
+                .describe(
+                  'Fester Text, nach dem der gezählte Wert steht, z. B. "von " oder "Kategorie: "'
+                ),
+              zeilenanfang: z
+                .boolean()
+                .optional()
+                .describe(
+                  'Standard: true — nur am Zeilenanfang (Autorenzeilen, Felder). false zählt auch mitten im Satz.'
+                ),
+              grossKlein: z.boolean().optional().describe('Groß/klein beachten'),
+            })
+            .optional()
+            .describe('Häufigkeiten: welcher Wert steht wie oft nach diesem Text (Rest der Zeile)'),
         }),
-        execute: async ({ query, dateiname, abschnitt, seite, wortsuche, zitat }) => {
-          const modes = [query, abschnitt, seite, wortsuche, zitat].filter((m) => m != null);
+        execute: async ({ query, dateiname, abschnitt, seite, wortsuche, zitat, zaehlen }) => {
+          const modes = [query, abschnitt, seite, wortsuche, zitat, zaehlen].filter(
+            (m) => m != null
+          );
           if (modes.length > 1) {
             return {
               error:
-                'Genau ein Modus je Aufruf: query, abschnitt, seite, wortsuche oder zitat — für mehrere Fragen mehrere Aufrufe.',
+                'Genau ein Modus je Aufruf: query, abschnitt, seite, wortsuche, zitat oder zaehlen — für mehrere Fragen mehrere Aufrufe.',
             };
           }
-          const scoped = dateiname
-            ? attachedSources.filter((s) => s.label.toLowerCase() === dateiname.toLowerCase())
+          // Das Modell übernimmt die Nennung gern samt Zusatz („kommunal.de
+          // (Webseite)") oder nennt eine Seite bei ihrer Adresse — live
+          // 26.11.2026 „https://kommunal.de/", und der Fehlschlag sperrte über
+          // den Duplikat-Wächter jeden weiteren Versuch. Eine Adresse wird
+          // deshalb zu dem Namen, den die Seite als Anhang trägt (`pageLabel`).
+          const ohneZusatz = dateiname
+            ?.replace(/\s*\(webseite\)\s*$/i, '')
+            .replace(/^[„"]|[“"]$/g, '')
+            .trim();
+          const gesucht = (
+            ohneZusatz && /^https?:\/\//i.test(ohneZusatz) ? pageLabel(ohneZusatz) : ohneZusatz
+          )?.toLowerCase();
+          const scoped = gesucht
+            ? attachedSources.filter((s) => s.label.toLowerCase() === gesucht)
             : attachedSources;
           if (scoped.length === 0) {
             return {
@@ -926,9 +973,9 @@ NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summar
             };
           }
 
-          if (seite != null || wortsuche != null || zitat != null) {
+          if (seite != null || wortsuche != null || zitat != null || zaehlen != null) {
             return runAttachedDocumentMode(
-              { seite, wortsuche, zitat },
+              { seite, wortsuche, zitat, zaehlen },
               { userId: state.agentConfig.userId ?? null, sources: scoped, sourceRegistry }
             );
           }

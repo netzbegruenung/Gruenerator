@@ -708,7 +708,7 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
 
       ctx.guards.noteCompletion(toolName);
       const ok = !isErrorResult(output);
-      if (!ok) ctx.guards.noteFailure(toolName);
+      if (!ok) ctx.guards.noteFailure(toolName, input);
 
       // Per-tool backend visibility: every tool outcome (internal OR MCP) is
       // now logged, so a failing connector call (e.g. Tally "no workspace")

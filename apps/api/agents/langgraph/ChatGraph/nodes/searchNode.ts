@@ -29,6 +29,7 @@ import {
   narrowLvScopeToEbene,
   resolveExamplesLvScope,
 } from '../../../../routes/chat/agents/lvScope.js';
+import { readNamedPages } from '../../../../routes/chat/agents/namedPages.js';
 import { relevanceLabelToScore } from '../../../../routes/chat/agents/searchFormatting.js';
 import { agentAllowsWebSearch } from '../../../../routes/chat/agents/searchTools.js';
 import { extractCompoundTopic } from '../../../../routes/chat/services/compoundTopicExtractor.js';
@@ -122,19 +123,10 @@ const log = createLogger('ChatGraph:Search');
 const FANIN_CANDIDATE_LIMIT = 24;
 
 /**
- * Char budget per page for a user-pasted URL. Generous, because the user named
- * this page: the alternative to a big budget is answering "fass das zusammen"
- * from the headline.
- */
-const SCRAPE_URL_TARGET_CHARS = 12_000;
-
-/**
  * Char budget per page for a web result we crawled ourselves.
  *
- * Kleiner als `SCRAPE_URL_TARGET_CHARS`, weil diese Seiten niemand benannt hat
+ * Kleiner als bei einer benannten Seite (die `readNamedPages` ganz liest), weil diese Seiten niemand benannt hat
  * — sie stammen aus der Trefferliste, und mehrere davon teilen sich einen Turn.
- * Entspricht `CRAWL_DISTILL_TARGET_CHARS` im Werkzeugkatalog, der denselben
- * Fall bedient.
  *
  * **Dass hier überhaupt ein Budget steht, ist der Punkt.** Die beiden
  * Crawl-Stellen unten riefen `selectAndCrawlTopUrls` und schrieben das rohe
@@ -2047,32 +2039,13 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           log.warn('[Search] scrape_url intent reached with no detectedUrls');
           break;
         }
-        const seeds: CrawlableResult[] = urls.map((url, idx) => ({
-          url,
-          title: url,
-          content: '',
-          relevance: 1 - idx * 0.1,
-        }));
         try {
-          // `faithful`: the "query" on this path is often a writing instruction
-          // ("fass das zusammen", "schreib einen Post dazu"), not a retrieval
-          // query. Scoring passages against it would drop the parts of the page
-          // the user actually pointed at.
-          const crawled = await crawlAndDistill(seeds, searchQuery || '', {
-            maxUrls: 3,
-            timeout: 8000,
-            mode: 'faithful',
-            targetChars: SCRAPE_URL_TARGET_CHARS,
-            condense: true,
-          });
-          results = crawled
-            .filter((r) => r.crawled && (r.content || r.fullContent))
-            .map((r) => ({
-              ...r,
-              content: r.content || r.fullContent || '',
-              source: 'web',
-              title: r.title || r.url || '',
-            }));
+          // Derselbe Leser wie im Loop (`readNamedPages`): der ganze Text der
+          // Seite mit ihrer Länge (`totalChars`), nicht mehr ein Destillat, das
+          // vorn abgeschnitten wurde. Was `respondNode` davon nicht zeigen kann,
+          // vermerkt es in der Quellenzeile (#6103). Die SSRF-Prüfung macht
+          // `readNamedPages` selbst.
+          ({ results } = await readNamedPages(urls));
           log.info(`[Search] scrape_url crawled ${results.length}/${urls.length} pasted URL(s)`);
         } catch (err: unknown) {
           log.warn(

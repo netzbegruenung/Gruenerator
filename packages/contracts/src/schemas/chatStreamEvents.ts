@@ -700,6 +700,44 @@ export type SharepicUpdatedEvent = z.infer<typeof sharepicUpdatedEventSchema>;
  * that bypass the typed emitter entirely. So this schema documents and derives
  * the shape; it must never be the reason an answer is thrown away.
  */
+/**
+ * Wie viel einer Quelle in die Antwort eingeflossen ist: `readChars` von
+ * `totalChars` Zeichen des Originaltexts. Gesetzt nur, wo das Backend die
+ * Originallänge kennt oder selbst gekürzt hat — fehlt das Feld, ist nichts
+ * bekannt, nicht „vollständig". Das Modell bekommt dieselben Zahlen in seiner
+ * Quellenzeile (`sourceRegistry`), damit Antwort und Anzeige nicht auseinanderlaufen.
+ */
+export const sourceCoverageSchema = z.object({
+  readChars: z.number().int().nonnegative(),
+  totalChars: z.number().int().positive(),
+});
+export type SourceCoverage = z.infer<typeof sourceCoverageSchema>;
+
+/** Unter dieser Schwelle gilt eine Quelle als vollständig gelesen: ein paar
+ *  Zeichen Rest (abgeschnittener Schlusssatz, Leerraum) sind kein Teilbefund. */
+export function isPartialCoverage(coverage: SourceCoverage | null | undefined): boolean {
+  return coverage != null && coverage.readChars < coverage.totalChars * 0.98;
+}
+
+/** „13 %" — der gelesene Anteil, auf ganze Prozent, nie 0 und nie 100 bei einem Teilbefund. */
+export function coveragePercent(coverage: SourceCoverage): number {
+  const raw = Math.round((coverage.readChars / coverage.totalChars) * 100);
+  return Math.min(99, Math.max(1, raw));
+}
+
+/** Die Kurzform an einer Quelle, Web und App: „nur 13 % gelesen". `null`, wenn
+ *  nichts fehlt — eine vollständige Quelle bekommt keinen Hinweis. */
+export function coverageLabel(coverage: SourceCoverage | null | undefined): string | null {
+  if (!coverage || !isPartialCoverage(coverage)) return null;
+  return `nur ${coveragePercent(coverage)}\u00a0% gelesen`;
+}
+
+/** Die Langform für Tooltip und Detailansicht: was genau in die Antwort eingeflossen ist. */
+export function coverageDetail(coverage: SourceCoverage): string {
+  const n = (v: number) => v.toLocaleString('de-DE');
+  return `In die Antwort sind ${n(coverage.readChars)} von ${n(coverage.totalChars)} Zeichen dieser Quelle eingeflossen.`;
+}
+
 const chatCitationBase = z.object({
   id: z.number().catch(0),
   title: z.string().catch(''),
@@ -707,6 +745,8 @@ const chatCitationBase = z.object({
   snippet: z.string().catch(''),
   source: z.string().catch(''),
   citedText: z.string().optional(),
+  /** Notebook answers: the chunk sentence that backs the claim (`quote` on the wire). */
+  quote: z.string().optional(),
   collectionName: z.string().optional(),
   domain: z.string().optional(),
   relevance: z.number().optional(),
@@ -731,6 +771,8 @@ const chatCitationBase = z.object({
   /** Set on fan-out per-document retrieval, so the UI can group source cards
    *  by the document they answer for. */
   documentSourceId: z.string().optional(),
+  /** Gelesener Anteil der Quelle — siehe `sourceCoverageSchema`. */
+  coverage: sourceCoverageSchema.optional().catch(undefined),
 });
 
 export const chatCitationSchema = chatCitationBase.passthrough();

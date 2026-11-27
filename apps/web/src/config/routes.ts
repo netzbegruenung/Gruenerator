@@ -272,13 +272,9 @@ const TexteRedirectToChat = lazy(() => Promise.resolve({ default: TexteRedirectT
 const VorlagenGallery = lazy(() => import('../components/common/Gallery'));
 const GeteilteVorlagePage = lazy(() => import('../features/vorlagen/GeteilteVorlagePage'));
 const AdminPage = lazy(() => import('../features/admin/AdminPage'));
-const AdminSkillsPage = lazy(() => import('../features/admin/AdminSkillsPage'));
-const ChunkInspectorPage = lazy(() => import('../features/admin/ChunkInspectorPage'));
 const LandesverbandAdminPage = lazy(
   () => import('../features/landesverband-admin/LandesverbandAdminPage')
 );
-const GrueneApiTestPage = lazy(() => import('../features/admin/GrueneApiTestPage'));
-const ConnectorTestPage = lazy(() => import('../features/admin/ConnectorTestPage'));
 const IconAnimationTestPage = lazy(() => import('../features/playground/IconAnimationTestPage'));
 const KugelVoiceTestPage = lazy(() => import('../features/playground/KugelVoiceTestPage'));
 const BundestagQaPage = lazy(() => import('../features/bundestag/BundestagQaPage'));
@@ -618,14 +614,21 @@ const standardRoutes: RouteConfig[] = [
     path: '/experiments/monitor/umfragen',
     component: lazy(() => Promise.resolve({ default: createRedirect('/umfragen') })),
   },
-  { path: '/admin', component: AdminPage },
-  { path: '/admin/skills', component: AdminSkillsPage },
-  // Chunk-Inspektor (#3123). Kein layoutMode → 'default', wie /admin und
-  // /admin/skills. Auth ist die Vorgabe; das Admin-Gatter sitzt in der Seite
-  // (RequireAdmin) und, verbindlich, im Backend-Handler.
-  { path: '/admin/chunks/:documentId', component: ChunkInspectorPage },
-  // Der Instanz-Admin ist in `/admin` aufgegangen; die alte URL leitet dorthin,
-  // statt zu verschwinden (URL-Sonderrecht, CLAUDE.md).
+  // Der Administrationsbereich: Überblick unter /admin, jede Unterseite unter
+  // /admin/<id> (Registry `features/admin/adminSections.tsx`). Statische Pfade
+  // wie /admin/bgst ranken vor `:section`. Auth ist die Vorgabe; das
+  // Admin-Gatter sitzt in der Seite (RequireAdmin) und, verbindlich, in jedem
+  // Backend-Handler.
+  // EINE Route für alles: getrennte Einträge (`/admin`, `/admin/:section`)
+  // wären für React Router verschiedene Elemente, und jeder Wechsel zwischen
+  // ihnen baute Hülle und Navigation neu auf. `:documentId` trägt nur der
+  // Chunk-Inspektor (#3123, der Chat verlinkt `/admin/chunks/:documentId`).
+  { path: '/admin/:section?/:documentId?', component: AdminPage },
+  // Ältere Einstiege leiten für immer weiter (URL-Sonderrecht, CLAUDE.md).
+  {
+    path: '/admin/skills',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/admin/rezepte') })),
+  },
   {
     path: '/admin/bgst',
     component: lazy(() => Promise.resolve({ default: createRedirect('/admin') })),
@@ -633,15 +636,11 @@ const standardRoutes: RouteConfig[] = [
   {
     path: '/admin/landesverband/:lvId',
     component: LandesverbandAdminPage,
-    layoutMode: 'sidebarOnly',
   },
   {
     path: '/admin/landesverband/:lvId/:tab',
     component: LandesverbandAdminPage,
-    layoutMode: 'sidebarOnly',
   },
-  { path: '/admin/gruene-api', component: GrueneApiTestPage },
-  { path: '/admin/konnektoren', component: ConnectorTestPage },
   { path: '/icon-test', component: IconAnimationTestPage, channel: 'internal' },
   { path: '/kugel-test', component: KugelVoiceTestPage, channel: 'internal' },
   { path: '/labor/bundestag', component: BundestagQaPage, channel: 'internal' },
