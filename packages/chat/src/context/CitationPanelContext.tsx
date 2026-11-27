@@ -25,6 +25,10 @@ export interface CitationPanelSource {
 }
 
 interface CitationPanelContextValue {
+  /** Only surfaces that mount a `CitationSidePanel` wrap their answers in the
+   *  provider. Without it a click on a citation must keep showing the popover
+   *  instead of opening a panel that is never rendered. */
+  isAvailable: boolean;
   isOpen: boolean;
   sources: CitationPanelSource[];
   activeIndex: number;
@@ -37,6 +41,7 @@ interface CitationPanelContextValue {
 const NO_SOURCES: CitationPanelSource[] = [];
 
 const CitationPanelCtx = createContext<CitationPanelContextValue>({
+  isAvailable: false,
   isOpen: false,
   sources: NO_SOURCES,
   activeIndex: -1,
@@ -69,6 +74,7 @@ export function CitationPanelProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<CitationPanelContextValue>(
     () => ({
+      isAvailable: true,
       isOpen: state !== null,
       sources: state?.sources ?? NO_SOURCES,
       activeIndex: state?.activeIndex ?? -1,

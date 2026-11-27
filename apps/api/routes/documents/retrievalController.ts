@@ -17,6 +17,7 @@ import express, { type Router, type Response } from 'express';
 import { z } from 'zod';
 
 import {
+  applyDefaultFilter,
   getSystemCollectionConfig,
   isRemoteCollection,
 } from '../../config/systemCollectionsConfig.js';
@@ -31,8 +32,9 @@ import {
 import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import { listProjectSharedContent } from '../../services/groups/projectSharedContent.js';
-import { resolveReaderSource } from '../../services/notebook/notebookSources.js';
+import { composeSourceText, resolveReaderSource } from '../../services/notebook/notebookSources.js';
 import { notAvailableForRemote } from '../../services/notebook/remoteSources/errors.js';
+import { systemOriginalText } from '../../services/notebook/systemNotebookSources.js';
 import {
   findSystemPdfSource,
   loadSystemOriginal,
@@ -399,12 +401,40 @@ async function respondWithDocumentChunks(
       res.status(404).json({ success: false, message: result.error || 'No chunks found' });
       return;
     }
+
+    // Die Zitat-Seitenleiste zeigt das ganze Dokument als einen Text: das
+    // gespeicherte Original (Nutzerdokument: `markdown_content`, System:
+    // `full_text` auf Chunk 0), sonst die Verkettung der Chunks. Scheitert der
+    // Abruf des Originals, bleibt die Verkettung — die Chunks liegen schon vor.
+    const storedText = await (
+      systemConfig
+        ? documentSearchService
+            .getSystemDocumentFullTextByUrl(
+              systemConfig.qdrantCollection,
+              id,
+              applyDefaultFilter(systemConfig.id)
+            )
+            .then((full) => systemOriginalText(full, result.chunks))
+        : getPostgresInstance()
+            .query<{ markdown_content: string | null }>(
+              'SELECT markdown_content FROM documents WHERE id = $1 AND deleted_at IS NULL',
+              [id]
+            )
+            .then((rows) => rows[0]?.markdown_content ?? null)
+    ).catch((error: unknown) => {
+      log.warn(`[GET chunks] Stored text lookup failed for ${id}: ${String(error)}`);
+      return null;
+    });
+    const fullText = composeSourceText(storedText, result.chunks);
+
     res.json({
       success: true,
       document_id: id,
       document_title: documentTitle,
       chunk_count: result.chunkCount,
       chunks: result.chunks,
+      full_text: fullText.text,
+      chunk_map: fullText.chunkMap,
       has_original: original !== null,
       original_mimetype: original?.mimetype ?? null,
     });

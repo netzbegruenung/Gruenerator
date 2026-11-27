@@ -9,11 +9,13 @@ import express from 'express';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getDocumentChunks = vi.fn();
+const getSystemDocumentFullTextByUrl = vi.fn();
 const getDocumentById = vi.fn();
 
 vi.mock('../../services/document-services/DocumentSearchService/index.js', () => ({
   DocumentSearchService: class {
     getDocumentChunks = getDocumentChunks;
+    getSystemDocumentFullTextByUrl = getSystemDocumentFullTextByUrl;
   },
 }));
 vi.mock('../../services/document-services/PostgresDocumentService/index.js', () => ({
@@ -61,6 +63,12 @@ beforeEach(() => {
     success: true,
     chunks: [{ index: 0, text: 'Text', tokens: 3, pageNumber: null }],
     chunkCount: 1,
+  });
+  getSystemDocumentFullTextByUrl.mockReset().mockResolvedValue({
+    success: false,
+    fullText: '',
+    chunkCount: 0,
+    error: 'Document not found',
   });
   getDocumentById.mockReset().mockResolvedValue(null);
   dbQuery
@@ -250,6 +258,93 @@ describe('GET /api/documents/:id/chunks — gespeichertes Original', () => {
       const res = await fetch(`${base}/api/documents/doc-1/chunks?collectionId=grundsatz-system`);
       expect(res.status).toBe(200);
       expect(((await res.json()) as { has_original: boolean }).has_original).toBe(false);
+    } finally {
+      close();
+    }
+  });
+});
+
+describe('GET /api/documents/:id/chunks — ganzer Text für die Seitenleiste', () => {
+  const twoChunks = {
+    success: true,
+    chunks: [
+      { index: 0, text: 'Erster Absatz.', tokens: 3, pageNumber: null },
+      { index: 1, text: 'Zweiter Absatz.', tokens: 3, pageNumber: null },
+    ],
+    chunkCount: 2,
+  };
+  type Body = {
+    full_text: string;
+    chunk_map: Array<{ index: number; charStart: number; charEnd: number }>;
+  };
+
+  it('liefert das gespeicherte Original eines Nutzerdokuments samt Chunk-Offsets', async () => {
+    getDocumentChunks.mockResolvedValue(twoChunks);
+    const original = '# Titel\n\nErster Absatz.\n\nZweiter Absatz.';
+    dbQuery.mockImplementation(async (sql: string) =>
+      sql.includes('markdown_content')
+        ? [{ markdown_content: original }]
+        : [{ user_id: 'user-1', title: 'Eigenes', source_url: null }]
+    );
+    const { base, close } = await startApp();
+    try {
+      const body = (await (await fetch(`${base}/api/documents/doc-1/chunks`)).json()) as Body;
+      expect(body.full_text).toBe(original);
+      expect(body.chunk_map[1]).toMatchObject({
+        index: 1,
+        charStart: original.indexOf('Zweiter'),
+        charEnd: original.length,
+      });
+    } finally {
+      close();
+    }
+  });
+
+  it('verkettet die Chunks, wenn kein Original gespeichert ist', async () => {
+    getDocumentChunks.mockResolvedValue(twoChunks);
+    const { base, close } = await startApp();
+    try {
+      const body = (await (
+        await fetch(`${base}/api/documents/doc-1/chunks?collectionId=grundsatz-system`)
+      ).json()) as Body;
+      expect(body.full_text).toBe('Erster Absatz.\n\nZweiter Absatz.');
+      expect(body.chunk_map[1]).toMatchObject({ charStart: 16, charEnd: 31 });
+    } finally {
+      close();
+    }
+  });
+
+  it('liefert den full_text einer Systemquelle', async () => {
+    getDocumentChunks.mockResolvedValue(twoChunks);
+    getSystemDocumentFullTextByUrl.mockResolvedValue({
+      success: true,
+      fullText: 'Erster Absatz.\n\n## Teil 2\n\nZweiter Absatz.',
+      chunkCount: 1,
+    });
+    const { base, close } = await startApp();
+    try {
+      const body = (await (
+        await fetch(`${base}/api/documents/doc-1/chunks?collectionId=grundsatz-system`)
+      ).json()) as Body;
+      expect(body.full_text).toContain('## Teil 2');
+      expect(getSystemDocumentFullTextByUrl).toHaveBeenCalledWith(
+        'grundsatz_documents',
+        'doc-1',
+        undefined
+      );
+    } finally {
+      close();
+    }
+  });
+
+  it('liefert die Chunks weiter, wenn der Abruf des Originals scheitert', async () => {
+    getDocumentChunks.mockResolvedValue(twoChunks);
+    getSystemDocumentFullTextByUrl.mockRejectedValue(new Error('content qdrant unavailable'));
+    const { base, close } = await startApp();
+    try {
+      const res = await fetch(`${base}/api/documents/doc-1/chunks?collectionId=grundsatz-system`);
+      expect(res.status).toBe(200);
+      expect(((await res.json()) as Body).full_text).toBe('Erster Absatz.\n\nZweiter Absatz.');
     } finally {
       close();
     }

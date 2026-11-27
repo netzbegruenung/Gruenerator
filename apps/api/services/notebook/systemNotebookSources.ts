@@ -31,10 +31,9 @@ import { toStoredWolkeUrl } from '../scrapers/utils/wolkeShareSecrets.js';
 import {
   chunksOrThrow,
   compareRows,
+  composeSourceText,
   DESC_BY_DEFAULT,
   FIND_MAX_LIMIT,
-  locateInJoined,
-  locateInOriginal,
   outlineSource,
   type ChunkLocator,
   type FindMode,
@@ -521,26 +520,36 @@ export async function readSystemSourceText(
       qdrantCollection: collection.qdrantCollection,
     })
   );
-  const joined = chunks.map((c) => c.text).join('\n\n');
   const title = full.title || '(ohne Titel)';
-  // `full_text` liegt nur auf manchen Chunk-0-Punkten; sonst IST der Text die
-  // Verkettung der Chunks, und deren Offsets gelten. Ob er aus der Nutzlast
-  // kam, sagt nur `chunkCount === 1` (Schritt 1 dort) — der Rückfall (Schritt
-  // 2) scrollt ungeblättert höchstens 500 Chunks und wäre bei längeren
-  // Dokumenten ein abgeschnittener Text; dann gilt die geblätterte Verkettung.
-  // Kein Längenvergleich: überlappende Chunks machen `joined` auch bei echtem
-  // `full_text` länger.
-  const fromPayload = full.chunkCount === 1 && full.fullText !== joined;
-  if (full.fullText && fromPayload) {
-    return {
-      title,
-      text: full.fullText,
-      origin: 'full_text',
-      chunkMap: locateInOriginal(full.fullText, chunks),
-      chunks,
-    };
-  }
-  return { title, text: joined, origin: 'chunks', chunkMap: locateInJoined(chunks), chunks };
+  const composed = composeSourceText(systemOriginalText(full, chunks), chunks);
+  return {
+    title,
+    text: composed.text,
+    origin: composed.fromOriginal ? 'full_text' : 'chunks',
+    chunkMap: composed.chunkMap,
+    chunks,
+  };
+}
+
+/**
+ * Der gespeicherte `full_text` aus dem Ergebnis von
+ * `getSystemDocumentFullTextByUrl` — `null`, wenn es keiner ist.
+ *
+ * `full_text` liegt nur auf manchen Chunk-0-Punkten; sonst IST der Text die
+ * Verkettung der Chunks, und deren Offsets gelten. Ob er aus der Nutzlast
+ * kam, sagt nur `chunkCount === 1` (Schritt 1 dort) — der Rückfall (Schritt
+ * 2) scrollt ungeblättert höchstens 500 Chunks und wäre bei längeren
+ * Dokumenten ein abgeschnittener Text; dann gilt die geblätterte Verkettung.
+ * Kein Längenvergleich: überlappende Chunks machen die Verkettung auch bei
+ * echtem `full_text` länger.
+ */
+export function systemOriginalText(
+  full: { success: boolean; fullText: string; chunkCount: number },
+  chunks: readonly DocumentChunkItem[]
+): string | null {
+  if (!full.success || !full.fullText || full.chunkCount !== 1) return null;
+  const joined = chunks.map((c) => c.text).join('\n\n');
+  return full.fullText !== joined ? full.fullText : null;
 }
 
 /**

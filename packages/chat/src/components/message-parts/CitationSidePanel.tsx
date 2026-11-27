@@ -23,9 +23,12 @@ import {
   type ComponentType,
   type RefObject,
 } from 'react';
+import ReactMarkdown, { type Components } from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 import { useCitationPanel, type CitationPanelSource } from '../../context/CitationPanelContext';
 import { findCitedRange } from '../../lib/citedTextRange';
+import { protectGenderStars, rehypeMarkRange } from '../../lib/rehypeMarkRange';
 import { cn } from '../../lib/utils';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 
@@ -48,13 +51,26 @@ interface ChunksResponse {
   document_title: string;
   chunk_count: number;
   chunks: ChunkData[];
+  /** The whole document as one text — the stored original where there is one,
+   *  otherwise the chunks joined. Absent on older APIs. */
+  full_text?: string;
+  /** Where each chunk sits inside `full_text`. */
+  chunk_map?: ChunkLocator[];
   /** Only manual uploads keep their file; absent on older APIs. */
   has_original?: boolean;
   original_mimetype?: string | null;
 }
 
+interface ChunkLocator {
+  index: number;
+  charStart: number;
+  charEnd: number;
+}
+
 interface DocumentChunks {
   chunks: ChunkData[];
+  fullText: string;
+  chunkMap: ChunkLocator[];
   /** Set when the upload is stored and GET /:id/original can serve it. */
   original: { mimetype: string | null } | null;
 }
@@ -159,8 +175,57 @@ const SKELETON_LINES = [
 
 /** 17.5px/1.7 — the panel is a reading surface, not a metadata list. At the 14px
  *  the rest of the chat chrome uses, a page of source text is work to get
- *  through; the line height matters as much as the size. */
-const BODY_CLS = 'whitespace-pre-wrap text-[1.09375rem] leading-[1.7]';
+ *  through; the line height matters as much as the size. The child rules give
+ *  the rendered Markdown its rhythm without the typography plugin. */
+const BODY_CLS = cn(
+  'text-[1.09375rem] leading-[1.7] text-foreground',
+  '[&_p]:mb-4 [&_ul]:mb-4 [&_ol]:mb-4 [&_ul]:list-disc [&_ol]:list-decimal [&_ul]:pl-6 [&_ol]:pl-6 [&_li]:mb-1',
+  '[&_h1]:mb-3 [&_h1]:mt-6 [&_h1]:text-xl [&_h1]:font-bold [&_h2]:mb-3 [&_h2]:mt-6 [&_h2]:text-lg [&_h2]:font-bold',
+  '[&_h3]:mb-2 [&_h3]:mt-5 [&_h3]:text-base [&_h3]:font-bold [&_h4]:mb-2 [&_h4]:mt-4 [&_h4]:font-bold',
+  '[&_a]:text-primary-700 [&_a]:underline dark:[&_a]:text-primary-300',
+  '[&_blockquote]:mb-4 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-4',
+  '[&_table]:mb-4 [&_table]:w-full [&_table]:border-collapse [&_table]:text-[0.9375rem]',
+  '[&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1 [&_th]:border [&_th]:border-border [&_th]:px-2 [&_th]:py-1 [&_th]:text-left',
+  '[&_mark]:rounded-sm [&_mark]:bg-primary-100 [&_mark]:px-0.5 [&_mark]:text-foreground dark:[&_mark]:bg-primary-800 dark:[&_mark]:text-primary-50'
+);
+
+const remarkPlugins = [remarkGfm];
+
+/** `## Seite N` is the page marker OCR writes before each page
+ *  (`OcrService/pageMarkers.ts`) — a divider, not a heading of the document. */
+const PAGE_MARKER = /^Seite \d+$/;
+
+interface HastLike {
+  type: string;
+  value?: string;
+  children?: HastLike[];
+}
+
+/** The heading's text from the tree, marks included — a citation that runs
+ *  across a page break must not turn the marker into a heading. */
+function hastText(node: HastLike | undefined): string {
+  if (!node) return '';
+  return node.type === 'text' ? (node.value ?? '') : (node.children ?? []).map(hastText).join('');
+}
+
+/** Wide tables scroll inside their own box, never the panel. Links open beside
+ *  the panel, so the answer and its source stay where they are. */
+const markdownComponents: Components = {
+  h2: ({ node, children }) => {
+    const text = hastText(node).trim();
+    return PAGE_MARKER.test(text) ? <DocumentBoundary label={text} /> : <h2>{children}</h2>;
+  },
+  table: ({ children }) => (
+    <div className="overflow-x-auto">
+      <table>{children}</table>
+    </div>
+  ),
+  a: ({ href, children }) => (
+    <a href={href} target="_blank" rel="noopener noreferrer">
+      {children}
+    </a>
+  ),
+};
 
 /** "PDF", "DOCX" — the left half of the origin chip. Falls back to the file
  *  extension, read from the last path segment only: a bare host would otherwise
@@ -190,53 +255,40 @@ function originalHref(documentId: string, notebookId: string, page: number | nul
   return `${API_BASE_URL}/documents/${encodeURIComponent(documentId)}/original${query}${fragment}`;
 }
 
-function CitedChunk({
-  text,
-  quote,
-  citedText,
-}: {
-  text: string;
-  quote?: string;
-  citedText?: string;
-}) {
-  const range = useMemo(
-    () => findCitedRange(text, quote) ?? findCitedRange(text, citedText),
-    [text, quote, citedText]
-  );
-  if (!range) return <>{text}</>;
-  const [start, end] = range;
-  return (
-    <>
-      {text.slice(0, start)}
-      <mark className="rounded-sm bg-primary-100 px-0.5 text-foreground dark:bg-primary-800 dark:text-primary-50">
-        {text.slice(start, end)}
-      </mark>
-      {text.slice(end)}
-    </>
-  );
+/** The document as the API built it before it sent `full_text`: the chunks
+ *  joined, each located in the result. */
+function joinChunks(chunks: ChunkData[]): { fullText: string; chunkMap: ChunkLocator[] } {
+  let fullText = '';
+  const chunkMap = chunks.map((c) => {
+    if (fullText) fullText += '\n\n';
+    const charStart = fullText.length;
+    fullText += c.text;
+    return { index: c.index, charStart, charEnd: fullText.length };
+  });
+  return { fullText, chunkMap };
 }
 
-/** `muted` steps the surrounding text back from the quoted passage. It is a
- *  colour token, never `opacity` — opacity would drag every child's contrast
- *  down with it. */
-function ContextRegion({
-  label,
-  chunks,
-  muted = true,
-}: {
-  label: string;
-  chunks: ChunkData[];
-  muted?: boolean;
-}) {
-  if (chunks.length === 0) return null;
-  return (
-    <>
-      <p className={cn(LABEL_CLS, 'mb-3.5')}>{label}</p>
-      <p className={cn(BODY_CLS, 'mb-5', muted ? 'text-foreground-muted' : 'text-foreground')}>
-        {chunks.map((chunk) => chunk.text).join('\n\n')}
-      </p>
-    </>
-  );
+/**
+ * Where the panel marks the citation inside the whole document: the quoted words
+ * within the cited chunk, else anywhere in the text, else the cited chunk
+ * itself. `null` only when neither the quote nor the chunk can be placed — an
+ * unmarked document beats a mark in the wrong place.
+ */
+function citedRangeInDocument(
+  text: string,
+  chunkMap: ChunkLocator[],
+  source: CitationPanelSource
+): [number, number] | null {
+  const find = (haystack: string) =>
+    findCitedRange(haystack, source.quote) ?? findCitedRange(haystack, source.citedText);
+  const chunk = chunkMap.find((c) => c.index === source.chunkIndex);
+  if (chunk) {
+    const inner = find(text.slice(chunk.charStart, chunk.charEnd));
+    if (inner) return [chunk.charStart + inner[0], chunk.charStart + inner[1]];
+  }
+  const anywhere = find(text);
+  if (anywhere) return anywhere;
+  return chunk && chunk.charEnd > chunk.charStart ? [chunk.charStart, chunk.charEnd] : null;
 }
 
 /** Viele Quellen sind kurze Einzelseiten (ein LV-Beschluss, ein Artikel) — ohne
@@ -260,7 +312,7 @@ function CitationPanelBody({
   originalViewer?: CitationOriginalViewer;
 }) {
   const { source, sources, activeIndex, goTo, close } = useCitationPanel();
-  const citedRef = useRef<HTMLDivElement | null>(null);
+  const textRef = useRef<HTMLDivElement | null>(null);
 
   const documentId = source?.documentId;
   const collectionId = source?.collectionId;
@@ -295,6 +347,9 @@ function CitationPanelBody({
       }
       return {
         chunks: data.chunks,
+        ...(data.full_text && data.chunk_map
+          ? { fullText: data.full_text, chunkMap: data.chunk_map }
+          : joinChunks(data.chunks)),
         original: data.has_original ? { mimetype: data.original_mimetype ?? null } : null,
       };
     },
@@ -313,13 +368,21 @@ function CitationPanelBody({
     () => (source ? marksForDocument(sources, source, chunks) : null),
     [sources, source, chunks]
   );
-  const citedPosition = source ? chunks.findIndex((c) => c.index === source.chunkIndex) : -1;
-  const cited = citedPosition === -1 ? null : chunks[citedPosition];
+  const cited = source ? (chunks.find((c) => c.index === source.chunkIndex) ?? null) : null;
+  const fullText = chunksQuery.data?.fullText ?? '';
+  const markdownSource = useMemo(() => protectGenderStars(fullText), [fullText]);
+  const citedRange = useMemo(
+    () =>
+      source && chunksQuery.data
+        ? citedRangeInDocument(fullText, chunksQuery.data.chunkMap, source)
+        : null,
+    [fullText, chunksQuery.data, source]
+  );
 
   // Bring the quoted passage into view — on open AND on every step through the
   // footer, where the element stays mounted and only its content changes.
   useEffect(() => {
-    const el = citedRef.current;
+    const el = textRef.current?.querySelector('mark[data-cited]');
     if (!el) return;
     const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const timer = setTimeout(
@@ -327,7 +390,7 @@ function CitationPanelBody({
       80
     );
     return () => clearTimeout(timer);
-  }, [activeIndex, cited]);
+  }, [activeIndex, citedRange]);
 
   if (!source) return null;
 
@@ -495,34 +558,21 @@ function CitationPanelBody({
           </p>
         )}
 
-        {cited && (
+        {/* The whole document as one text, only the citation marked. Re-indexing
+            renumbers chunks, so an older answer can point past the end — then the
+            document still shows, only the mark is lost. */}
+        {!error && fullText && (
           <>
             <DocumentBoundary label="Anfang des Dokuments" />
-            <ContextRegion label="Kontext davor" chunks={chunks.slice(0, citedPosition)} />
-
-            <div
-              ref={citedRef}
-              className="mb-5 rounded-xl bg-primary-50 px-[1.375rem] py-5 dark:bg-primary-900/40"
-            >
-              <p className={cn(LABEL_CLS, 'mb-3 text-primary-700 dark:text-primary-300')}>
-                Zitierte Passage
-              </p>
-              <p className={cn(BODY_CLS, 'text-foreground')}>
-                <CitedChunk text={cited.text} quote={source.quote} citedText={source.citedText} />
-              </p>
+            <div ref={textRef} data-document-text className={cn(BODY_CLS, 'mb-5')}>
+              <ReactMarkdown
+                remarkPlugins={remarkPlugins}
+                rehypePlugins={[[rehypeMarkRange, { source: markdownSource, range: citedRange }]]}
+                components={markdownComponents}
+              >
+                {markdownSource}
+              </ReactMarkdown>
             </div>
-
-            <ContextRegion label="Kontext danach" chunks={chunks.slice(citedPosition + 1)} />
-          </>
-        )}
-
-        {/* The chunk the citation names is missing — re-indexing renumbers chunks,
-            so an older answer can point past the end. The document itself is still
-            worth showing; only the highlight is lost. */}
-        {!cited && !error && chunks.length > 0 && (
-          <>
-            <DocumentBoundary label="Anfang des Dokuments" />
-            <ContextRegion label="Originaltext" chunks={chunks} muted={false} />
           </>
         )}
 

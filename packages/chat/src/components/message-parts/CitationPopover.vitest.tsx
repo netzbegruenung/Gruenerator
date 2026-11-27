@@ -144,7 +144,6 @@ describe('CitationBadge — Übergabe an die Quellen-Seitenleiste', () => {
     renderBadgeInAnswer([citation(), zwei, citation({ id: 3, documentId: 'doc-3' })], zwei);
 
     await user.click(screen.getByRole('button', { name: /Quelle 2/ }));
-    await user.click(await screen.findByRole('button', { name: 'Im Dokument lesen' }));
 
     expect(screen.getByText('quellen: 1,2,3')).toBeInTheDocument();
     expect(screen.getByText('aktiv: 1')).toBeInTheDocument();
@@ -160,7 +159,6 @@ describe('CitationBadge — Übergabe an die Quellen-Seitenleiste', () => {
     renderBadgeInAnswer([websuche, citation({ id: 2, documentId: 'doc-2' }), drei], drei);
 
     await user.click(screen.getByRole('button', { name: /Quelle 3/ }));
-    await user.click(await screen.findByRole('button', { name: 'Im Dokument lesen' }));
 
     expect(screen.getByText('quellen: 2,3')).toBeInTheDocument();
     expect(screen.getByText('aktiv: 1')).toBeInTheDocument();
@@ -173,7 +171,6 @@ describe('CitationBadge — Übergabe an die Quellen-Seitenleiste', () => {
     renderBadgeInAnswer([eins], eins);
 
     await user.click(screen.getByRole('button', { name: /Quelle 1/ }));
-    await user.click(await screen.findByRole('button', { name: 'Im Dokument lesen' }));
 
     expect(
       screen.getByText('zitat: nur gemeinsam getragene Regeln sind tragfähig')
@@ -196,5 +193,27 @@ describe('CitationBadge — Übergabe an die Quellen-Seitenleiste', () => {
     await user.click(await screen.findByRole('button', { name: 'Im Dokument lesen' }));
 
     expect(screen.getByText('zu')).toBeInTheDocument();
+  });
+
+  it('zeigt beim Hover nur die Vorschau und öffnet das Panel nicht', async () => {
+    const user = userEvent.setup();
+    const eins = citation();
+    renderBadgeInAnswer([eins], eins);
+
+    await user.hover(screen.getByRole('button', { name: /Quelle 1/ }));
+
+    await screen.findByRole('button', { name: 'Im Dokument lesen' });
+    expect(screen.getByText('zu')).toBeInTheDocument();
+  });
+
+  it('öffnet mit einem Klick direkt das Panel, ohne die Vorschau stehen zu lassen', async () => {
+    const user = userEvent.setup();
+    const eins = citation();
+    renderBadgeInAnswer([eins], eins);
+
+    await user.click(screen.getByRole('button', { name: /Quelle 1/ }));
+
+    expect(screen.getByText('aktiv: 0')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Im Dokument lesen' })).not.toBeInTheDocument();
   });
 });
