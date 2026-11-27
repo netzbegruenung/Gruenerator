@@ -233,7 +233,9 @@ export const NotebookPageContent = ({
     if (!recipeMention) return null;
     return (
       findRecipe(recipeMention, recipeId) ?? {
-        type: 'agent',
+        // Until the list knows it: the short name, under the key the listed
+        // recipe will have, so the settings panel marks it once it loads.
+        type: recipeId ? 'textform' : 'agent',
         category: 'skill',
         trigger: '@',
         identifier: recipeId ?? recipeMention,

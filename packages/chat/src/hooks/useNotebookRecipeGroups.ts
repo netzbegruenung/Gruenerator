@@ -22,6 +22,28 @@ import { useRecipeLibrary } from './useRecipeLibrary';
  *
  * `notebookId` ist die Registry-Id (`bayern-notebook`), nicht die Sammlung.
  */
+/**
+ * Ein Rezept aus `?rezept=` / `?rezeptId=` wiederfinden. Mit Id zählt nur die
+ * Id: den Kurznamen eines eigenen Rezepts wählt die Person selbst, er kann also
+ * einem System-Rezept oder dem Rezept einer anderen Person gleichen — der Chip
+ * zeigte dann ein fremdes Rezept, während das richtige gesendet wird. Ohne
+ * Treffer (Liste lädt noch, fremdes geteiltes Rezept) `null`; die Seite zeigt
+ * dann den Kurznamen. Ohne Id darf ein Link jedes angebotene Rezept nennen.
+ */
+export function findNotebookRecipe(
+  listed: readonly Mentionable[],
+  mention: string,
+  recipeId?: string | null
+): Mentionable | null {
+  if (recipeId) {
+    return listed.find((m) => m.type === 'textform' && m.identifier === recipeId) ?? null;
+  }
+  const key = mention.toLowerCase();
+  return (
+    [...listed, ...getAgentMentionables()].find((m) => m.mention.toLowerCase() === key) ?? null
+  );
+}
+
 export function useNotebookRecipeGroups(notebookId: string | null): {
   groups: NotebookRecipeGroup[];
   /** Ein Rezept aus den Gruppen wiederfinden — für `?rezept=` und die Übergabe. */
@@ -53,13 +75,8 @@ export function useNotebookRecipeGroups(notebookId: string | null): {
       { title: lv ? 'Weitere Rezepte' : 'Rezepte', recipes: more },
     ];
     const all = groups.flatMap((g) => g.recipes);
-    // A link may name any offered recipe, not only the listed ones.
-    const find = (mention: string, recipeId?: string | null): Mentionable | null =>
-      (recipeId ? all.find((m) => m.type === 'textform' && m.identifier === recipeId) : null) ??
-      [...all, ...getAgentMentionables()].find(
-        (m) => m.mention.toLowerCase() === mention.toLowerCase()
-      ) ??
-      null;
+    const find = (mention: string, recipeId?: string | null) =>
+      findNotebookRecipe(all, mention, recipeId);
     return { groups, find };
   }, [notebookId, forms, items]);
 }
