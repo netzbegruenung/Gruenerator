@@ -53,7 +53,7 @@ type Decide = (call: DecideCall<string>) => Promise<Partial<Record<string, Choic
 
 const YES_NO = (yes: string, no: string): Record<string, string> => ({ ja: yes, nein: no });
 
-const ZAEHLEN: ChoiceQuestion = {
+export const ZAEHLEN: ChoiceQuestion = {
   type: 'choice',
   instructions:
     'Muss für die letzte Nachricht ein Wort in den Quellen gezählt oder gesucht werden?',
@@ -63,7 +63,7 @@ const ZAEHLEN: ChoiceQuestion = {
   ),
 };
 
-const STELLE: ChoiceQuestion = {
+export const STELLE: ChoiceQuestion = {
   type: 'choice',
   instructions: 'Fragt die letzte Nachricht nach dem Inhalt einer bestimmten Seite?',
   criteria: YES_NO(

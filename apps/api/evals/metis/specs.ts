@@ -19,10 +19,10 @@ import {
   formatGuardPrompt,
   type NotebookGuardTurn,
 } from '../../routes/chat/services/notebookAnswerModeResolver.js';
-
-import type { ThreadToolContext } from '../../agents/langgraph/ChatGraph/types.js';
+import { STELLE, ZAEHLEN } from '../../routes/chat/services/notebookTurnNeeds.js';
 
 import type { MetisQuestion } from './metisClient.js';
+import type { ThreadToolContext } from '../../agents/langgraph/ChatGraph/types.js';
 
 export interface ResolverCase {
   id: string;
@@ -398,6 +398,60 @@ const computeVerify: ResolverSpec = {
   },
 };
 
+/**
+ * `notebookTurnNeeds`: die Fragen `zaehlen` und `stelle`, je einzeln gemessen
+ * mit den Kriterien aus dem Code. Ein Fall trägt beide Labels. Fälle aus dem
+ * internen Repo (Dokument- und BGSt-Fragen) kommen dazu, wenn
+ * `EVAL_EXTRA_CORPUS_DIR` gesetzt ist (`metis-notebookNeeds.jsonl` dort).
+ * Ids `nh-` sind der Holdout: vor der ersten Messung committet, nie zum
+ * Nachschärfen angesehen.
+ */
+interface NeedsCase {
+  id: string;
+  text: string;
+  zaehlen: string;
+  stelle: string;
+  history?: NotebookGuardTurn[];
+  note?: string;
+}
+
+function loadNeedsCases(): NeedsCase[] {
+  const parse = (raw: string): NeedsCase[] =>
+    raw
+      .split('\n')
+      .filter((l) => l.trim())
+      .map((l) => JSON.parse(l) as NeedsCase);
+  const own = parse(readFileSync(join(here, 'notebookNeeds.jsonl'), 'utf8'));
+  const extraDir = process.env.EVAL_EXTRA_CORPUS_DIR;
+  const extra = extraDir
+    ? parse(readFileSync(join(extraDir, 'metis-notebookNeeds.jsonl'), 'utf8'))
+    : [];
+  return [...own, ...extra];
+}
+
+function needsSpec(
+  name: string,
+  key: 'zaehlen' | 'stelle',
+  question: ChoiceQuestion
+): ResolverSpec {
+  return {
+    name,
+    variants: {
+      code: { state: (c) => formatGuardPrompt(c.text, c.history ?? []), question },
+    },
+    cases: loadNeedsCases().map((c) => ({
+      id: c.id,
+      text: c.text,
+      label: c[key],
+      history: c.history,
+      note: c.note,
+    })),
+  };
+}
+
+const notebookZaehlen = needsSpec('notebookZaehlen', 'zaehlen', ZAEHLEN);
+const notebookStelle = needsSpec('notebookStelle', 'stelle', STELLE);
+
 export const SPECS: Record<string, ResolverSpec> = {
   generation,
   sharepicFigureClaim,
@@ -405,4 +459,6 @@ export const SPECS: Record<string, ResolverSpec> = {
   notebookMode,
   editTarget,
   computeVerify,
+  notebookZaehlen,
+  notebookStelle,
 };

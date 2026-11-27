@@ -1,0 +1,42 @@
+{"id": "nn-01", "text": "Wie oft kommt das Wort Klimaneutralität vor?", "zaehlen": "ja", "stelle": "nein"}
+{"id": "nn-02", "text": "In welchen Dokumenten steht die Formulierung 'sozial-ökologische Transformation'?", "zaehlen": "ja", "stelle": "nein"}
+{"id": "nn-03", "text": "Steht im Koalitionsvertrag wörtlich 'Tempo 30 innerorts'?", "zaehlen": "ja", "stelle": "nein"}
+{"id": "nn-04", "text": "Wie oft wird 'Ehrenamt' im Haushaltsplan erwähnt?", "zaehlen": "ja", "stelle": "nein"}
+{"id": "nn-05", "text": "Kommt der Begriff 'Verkehrswende' im Programm von 2021 überhaupt vor?", "zaehlen": "ja", "stelle": "nein"}
+{"id": "nn-06", "text": "Prüfe, ob das Zitat 'Wir lassen niemanden zurück' so im Programm steht, und nenn mir die Seite", "zaehlen": "ja", "stelle": "nein", "note": "Zitatprüfung mit Seitenangabe ist keine Seitenlektüre"}
+{"id": "nn-07", "text": "Lies mir Seite 12 des Haushaltsplans vor", "zaehlen": "nein", "stelle": "ja"}
+{"id": "nn-08", "text": "Was steht auf Seite 4 im Protokoll vom März?", "zaehlen": "nein", "stelle": "ja"}
+{"id": "nn-09", "text": "Fasse Seite 2 des Positionspapiers zusammen", "zaehlen": "nein", "stelle": "ja"}
+{"id": "nn-10", "text": "Auf welcher Seite steht etwas zur Kita-Finanzierung?", "zaehlen": "nein", "stelle": "nein"}
+{"id": "nn-11", "text": "Was steht im Abschnitt 3.2 des Positionspapiers?", "zaehlen": "nein", "stelle": "nein", "note": "Abschnitt ist keine Seitenzahl"}
+{"id": "nn-12", "text": "Wie viele Seiten hat das Wahlprogramm?", "zaehlen": "nein", "stelle": "nein"}
+{"id": "nn-13", "text": "Wie viele Dokumente liegen in diesem Notebook?", "zaehlen": "nein", "stelle": "nein"}
+{"id": "nn-14", "text": "Sortiere die Quellen nach Datum", "zaehlen": "nein", "stelle": "nein"}
+{"id": "nn-15", "text": "Was sagt das Wahlprogramm zur Verkehrswende?", "zaehlen": "nein", "stelle": "nein"}
+{"id": "nn-16", "text": "Wie hoch ist der Ansatz für Kultur im Haushalt 2026?", "zaehlen": "nein", "stelle": "nein"}
+{"id": "nn-17", "text": "Wie viele Bäume will die Stadt laut Beschluss pro Jahr pflanzen?", "zaehlen": "nein", "stelle": "nein", "note": "Zahl aus einer Quelle, keine Zählung"}
+{"id": "nn-18", "text": "Wie oft hat sich der Vorstand mit Mobilität beschäftigt?", "zaehlen": "nein", "stelle": "nein", "note": "Thema, kein wörtliches Wort"}
+{"id": "nn-19", "text": "Welche Dokumente äußern sich zum Thema Wohnen?", "zaehlen": "nein", "stelle": "nein"}
+{"id": "nn-20", "text": "Steht in der Satzung etwas über Doppelspitzen?", "zaehlen": "nein", "stelle": "nein", "note": "Inhaltsfrage, nicht wörtlich"}
+{"id": "nn-21", "text": "Auf welcher Seite des Antrags steht der Satz 'Wir fordern ein Sozialticket'?", "zaehlen": "ja", "stelle": "nein"}
+{"id": "nn-22", "text": "Vergleiche die beiden Wahlprogramme beim Thema Bildung", "zaehlen": "nein", "stelle": "nein"}
+{"id": "nn-23", "text": "Gib mir die ersten drei Absätze des Positionspapiers wörtlich", "zaehlen": "nein", "stelle": "nein"}
+{"id": "nn-24", "text": "Was genau steht auf S. 7 der Geschäftsordnung?", "zaehlen": "nein", "stelle": "ja"}
+{"id": "nn-25", "text": "und die zweite?", "zaehlen": "ja", "stelle": "nein", "history": [{"role": "user", "content": "Wie oft steht 'Bürgerrat' in den Protokollen von 2025?", "answerMode": null}, {"role": "assistant", "content": "Das Wort 'Bürgerrat' kommt in 4 Protokollen vor: 12× im Protokoll vom März, 3× im Mai …", "answerMode": "chat"}], "note": "Folgefrage zur Zählung"}
+{"id": "nn-26", "text": "weiter", "zaehlen": "nein", "stelle": "ja", "history": [{"role": "user", "content": "Lies mir Seite 12 des Haushaltsplans vor", "answerMode": null}, {"role": "assistant", "content": "Seite 12, Einzelplan 05 – Kultur: Ansatz 2026 1,2 Mio. € …", "answerMode": "chat"}], "note": "nächste Seite"}
+{"id": "nn-27", "text": "noch genauer bitte", "zaehlen": "nein", "stelle": "nein", "history": [{"role": "user", "content": "Was sagt das Programm zur Wärmewende?", "answerMode": null}, {"role": "assistant", "content": "Das Programm setzt auf kommunale Wärmeplanung und Förderung von Wärmepumpen …", "answerMode": "chat"}]}
+{"id": "nn-28", "text": "Wurde das Wort 'Atomkraft' in den Beschlüssen jemals benutzt?", "zaehlen": "ja", "stelle": "nein"}
+{"id": "nn-29", "text": "Schreib mir aus den Quellen einen Social-Media-Post zum Radverkehr", "zaehlen": "nein", "stelle": "nein"}
+{"id": "nn-30", "text": "Was ist die Kernforderung auf der ersten Seite des Flyers?", "zaehlen": "nein", "stelle": "ja"}
+{"id": "nh-01", "text": "Wie häufig taucht 'Bürgerbeteiligung' im Leitantrag auf?", "zaehlen": "ja", "stelle": "nein"}
+{"id": "nh-02", "text": "Lies Seite 3 vom Protokoll aus dem Mai", "zaehlen": "nein", "stelle": "ja"}
+{"id": "nh-03", "text": "Steht der Satz 'Klimaschutz ist Menschenschutz' genau so im Programm? Wenn ja, wo?", "zaehlen": "ja", "stelle": "nein"}
+{"id": "nh-04", "text": "Auf welcher Seite geht es um Lärmschutz?", "zaehlen": "nein", "stelle": "nein"}
+{"id": "nh-05", "text": "Welches Dokument ist das älteste?", "zaehlen": "nein", "stelle": "nein"}
+{"id": "nh-06", "text": "Was fordert der Antrag zur Schulsozialarbeit?", "zaehlen": "nein", "stelle": "nein"}
+{"id": "nh-07", "text": "Zeig mir, was auf Seite 9 der Haushaltssatzung steht", "zaehlen": "nein", "stelle": "ja"}
+{"id": "nh-08", "text": "In welchen Protokollen fällt der Name 'Stadtwerke'?", "zaehlen": "ja", "stelle": "nein"}
+{"id": "nh-09", "text": "Wie viele Euro sind für den Radwegebau eingeplant?", "zaehlen": "nein", "stelle": "nein"}
+{"id": "nh-10", "text": "Ist das Zitat 'Mobilität für alle' korrekt aus dem Programm übernommen?", "zaehlen": "ja", "stelle": "nein"}
+{"id": "nh-11", "text": "und auf der nächsten Seite?", "zaehlen": "nein", "stelle": "ja", "history": [{"role": "user", "content": "Was steht auf Seite 5 der Satzung?", "answerMode": null}, {"role": "assistant", "content": "Auf Seite 5 regelt § 7 die Mitgliederversammlung …", "answerMode": "chat"}]}
+{"id": "nh-12", "text": "Welche Positionen zum Deutschlandticket gibt es in den Beschlüssen?", "zaehlen": "nein", "stelle": "nein"}
